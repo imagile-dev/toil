@@ -1170,7 +1170,7 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   `release-please-config.json`, made by a human. A one-time `release-as` there
   forces a version; once that version is released, `test/release-workflow.test.ts`
   fails every run but the release PR's and the lockfile PR's until the override is
-  removed, so the lockfile PR merges first and the removal after it.
+  removed; the lockfile PR and the removal can merge in either order.
 - PRs are vertical slices (core → CLI → MCP → tests → skill doc), sized large enough
   to avoid process overhead, fully verified before opening. Use the `ship` skill, which
   reviews locally, fixes, turns on auto-merge where principle 2 allows it, and watches

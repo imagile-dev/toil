@@ -20,6 +20,17 @@
 - **Where:** `lockfileLag` and `lockfileProblems` in `ui/scripts/package-rules.mjs`,
   the warning in `ui/scripts/check-lockfile.mjs` (an Actions `::warning::` there),
   `ui/test/package.test.ts`, `test/release-workflow.test.ts`.
+- **Tightened after review:** the tolerated tarball must be an older toil than the
+  pin (a hand-edited lockfile naming a newer or unrelated toil still fails), and the
+  `lockfile` job fails unless `check:lockfile` says `ok`, so the fix it makes can't
+  pass on the warning.
+- **Overturns** the merge order in `478-beta.md`: the lockfile PR no longer has to
+  merge before the `release-as` removal.
+- **Gaps, for the maintainer (no principle covers them):** the warning has no end
+  point, so if `publish-toil` fails and the `lockfile` job never runs, every PR
+  warns about a PR that doesn't exist (release failures already post to Discord,
+  #536). And the release PR now shows a green `check:lockfile` carrying a warning
+  about its own leftovers, which a skimmed tick could read as "verified".
 - **Not changed:** the `lockfile` job still opens its PR, and a human still merges
   it. `release-as`'s exemption for the lockfile PR stays; the lockfile PR no longer
   has to merge first for other PRs to pass, only for the lockfile to be right.

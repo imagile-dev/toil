@@ -122,6 +122,30 @@ export function lockfileLag(lock, pin, installed) {
   const entry = lock.packages?.['node_modules/@imagile-dev/toil'];
   if (!entry || entry.version !== pin || typeof entry.integrity !== 'string' || !entry.integrity.startsWith('sha512-')) return null;
   const named = /^https:\/\/registry\.npmjs\.org\/@imagile-dev\/toil\/-\/toil-(.+)\.tgz$/.exec(entry.resolved ?? '')?.[1];
-  if (named === undefined || named === pin || installed !== named) return null;
+  if (named === undefined || !olderThan(named, pin) || installed !== named) return null;
   return named;
+}
+
+/**
+ * Whether semver `a` is lower than `b`, for the plain versions toil ships
+ * (`0.1.0-beta.4`, `1.0.0`): the numbers, then a prerelease before its release,
+ * then the prerelease's own parts, numbers by value. Anything it can't read is
+ * not older, so lockfileLag lets nothing odd through. Build metadata is ignored.
+ */
+function olderThan(a, b) {
+  const parse = (v) => /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+.*)?$/.exec(v);
+  const [x, y] = [parse(a), parse(b)];
+  if (!x || !y) return false;
+  for (let i = 1; i <= 3; i++) if (Number(x[i]) !== Number(y[i])) return Number(x[i]) < Number(y[i]);
+  if (!x[4] || !y[4]) return Boolean(x[4]) && !y[4];
+  const [pa, pb] = [x[4].split('.'), y[4].split('.')];
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    if (pa[i] === undefined) return true;
+    if (pb[i] === undefined) return false;
+    const [na, nb] = [/^\d+$/.test(pa[i]), /^\d+$/.test(pb[i])];
+    if (na && nb && Number(pa[i]) !== Number(pb[i])) return Number(pa[i]) < Number(pb[i]);
+    if (na !== nb) return na;
+    if (!na && pa[i] !== pb[i]) return pa[i] < pb[i];
+  }
+  return false;
 }
