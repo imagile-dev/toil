@@ -300,12 +300,32 @@ describe('the pull requests view', () => {
       expect.stringContaining('payments-web #53 Keep focus'),
     ]);
     expect(rows[0]!.textContent).toContain('Checks');
-    expect(rows[0]!.textContent).toContain('for 2 working days: its checks are failing');
-    expect(rows[0]!.textContent).toContain('· Agent (trailer: Co-Authored-By: Claude');
-    expect(rows[0]!.textContent).toContain('No linked work item');
-    expect(rows[1]!.textContent).toContain('· Agent (branch: branch copilot/receipt-currency)');
-    expect(rows[2]!.textContent).toContain('L (325 lines, 3 files)');
-    expect(rows[3]!.textContent).toContain('Draft (its author)');
+    // The age is a compact figure; the sentence, and what said an agent wrote it, are one step in.
+    const cell = (r: HTMLElement, n: number) => within(r).getAllByRole('cell')[n]!;
+    expect(cell(rows[0]!, 0).textContent).toMatch(/Checks\s*2 d/);
+    expect(within(cell(rows[0]!, 0)).getByText(/for 2 working days: its checks are failing/)).toBeTruthy();
+    expect((cell(rows[0]!, 1).querySelector('details') as HTMLDetailsElement).open).toBe(false);
+    expect(within(cell(rows[0]!, 1)).getByText('Agent')).toBeTruthy();
+    expect(cell(rows[0]!, 1).textContent).toContain('trailer: Co-Authored-By: Claude');
+    expect(rows[0]!.textContent).toContain('No work item');
+    expect(cell(rows[1]!, 1).textContent).toContain('branch: branch copilot/receipt-currency');
+    expect(within(cell(rows[2]!, 3)).getByRole('img').getAttribute('aria-label')).toMatch(/^325 lines changed, \d+ added and \d+ deleted, 3 files$/);
+    expect(cell(rows[2]!, 3).textContent).toContain('L');
+    expect(cell(rows[3]!, 0).textContent).toContain('Draft (its author)');
+  });
+
+  it('gives each row a quiet icon Actions button in its own narrow column, named for the pull request', async () => {
+    await open('#/project/checkout-web/prs');
+    const table = within(panel('Waiting now')).getByRole('table');
+    const headers = within(table).getAllByRole('columnheader').map((h) => h.textContent);
+    expect(headers.at(-1)).toBe('Actions');
+    const buttons = within(table).getAllByRole('button', { name: /^Actions for / });
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const b of buttons) {
+      expect(b.closest('td')!.className).toContain('l-table__actions');
+      expect(b.textContent).toBe('');
+      expect(b.getAttribute('aria-label')).toMatch(/^Actions for .+ #\d+$/);
+    }
   });
 
   it('lists the flags with their evidence, and every flow figure with its sample size, split by author kind', async () => {

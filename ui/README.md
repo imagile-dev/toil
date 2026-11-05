@@ -333,6 +333,15 @@ and the item view lists them all.
 | No estimate | It has no estimate | worth knowing |
 | Added mid-sprint | It joined the sprint after it started | worth knowing |
 
+## Tables and rows
+
+The pattern every table follows (`DataTable` in `src/components/layout.tsx`; the Waiting now table is the model):
+
+- **Actions get their own column,** the narrow last one (`actions: true` on the column): a quiet icon button that opens a menu, named for its row (`aria-label="Actions for …"`). Never a bordered text button under each row's title.
+- **One idea a cell.** A name and one badge, a state and one figure. Figures are compact (`32.6 d`, `326 · 8 files`); the sentence behind one is a `<details className="cell-more">` one press in. Nothing is dropped, only layered (principle 11); errors, source and verification stay on screen.
+- **Numbers as small visuals where they have a shape:** a diff-style bar of five squares for additions and deletions, never colour alone (a stripe pattern and the numbers beside it), as one `role="img"` whose `aria-label` carries every figure. An unknown figure is a dash, not zero (principle 12).
+- **Gutters:** every cell has room on its right (`1.5rem` in the queue), the actions column none, and stacked rows (under about 28rem) drop to label and value pairs. Check at 375, 768 and 1440px in Plain, Crate and Harvest.
+
 ## Pull requests
 
 Each Toil project has a **Pull requests** tab (`#/project/<name>/prs`), built from OWI 0.2
@@ -340,8 +349,7 @@ changes:
 
 - **Waiting now:** the open pull requests, longest wait first, each with what it
   waits on (review, changes, checks, merge, or a draft its author holds), since when
-  in working days and why, who wrote it (a person, an agent or a bot, with the signal
-  that said so), the work items it names, and its size, XS to XL by changed lines.
+  in working days (`32.6 d`, the sentence behind it one press in), who wrote it (the name, and an Agent or Bot badge that opens the signal that said so), the work items it names, and its size, XS to XL by changed lines.
 - **Flags:** no first review in 2 working days, checks failing for over a day, a merge
   conflict, no linked work item, a work item done while its pull request is open, and
   a merged pull request whose item isn't done, each with what it rests on.
@@ -349,7 +357,7 @@ changes:
   merge (approval to merge) times, review rounds, sizes and merges per week, over six
   weeks, each split by people, agents and bots and each with its sample size and what
   couldn't be measured.
-- **Actions:** each open pull request has one **Actions** menu with **Review** (reads the pull request, its diff and checks, and drafts findings as comments you can post) and **Ship** (on a pull request a person wrote: drafts replies to its review; editing, the gate and pushing stay in your terminal). Each opens its own page, `#/project/<name>/job/review?target=<change id>` or `/job/ship?…`, which says what the job does and needs and has **Run**. The run goes through the Ask bar, so every write is a proposal card and the run is kept in the worklog. A job missing its code host's connection stays in the menu, dimmed, naming the connection to add. Ship stops after 3 finished rounds on one pull request; the next run is refused and says it needs a person (`needs-human`). The steps come from toil's workflow pages (`skills/toil/workflows/`).
+- **Actions:** each open pull request has one **Actions** menu, a quiet `…` icon button in its own narrow last column (named `Actions for <repo> #<n>`; stacked rows put it at the row's top corner), with **Review** (reads the pull request, its diff and checks, and drafts findings as comments you can post) and **Ship** (on a pull request a person wrote: drafts replies to its review; editing, the gate and pushing stay in your terminal). Each opens its own page, `#/project/<name>/job/review?target=<change id>` or `/job/ship?…`, which says what the job does and needs and has **Run**. The run goes through the Ask bar, so every write is a proposal card and the run is kept in the worklog. A job missing its code host's connection stays in the menu, dimmed, naming the connection to add. Ship stops after 3 finished rounds on one pull request; the next run is refused and says it needs a person (`needs-human`). The steps come from toil's workflow pages (`skills/toil/workflows/`).
 - **Suggested reviewers:** for an open pull request with nobody asked, the CODEOWNERS
   of its paths and the earlier reviewers of the same files and folders, each as a
   proposal with the `toil … --allow-write` line to ask them.
