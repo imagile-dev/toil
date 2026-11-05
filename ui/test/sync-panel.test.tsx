@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { httpSync, type Session, type SyncClient, type SyncStatus } from '../src/server-client.ts';
+import { httpSync, type SyncClient, type SyncStatus } from '../src/server-client.ts';
 import { SyncPanel, lastSynced } from '../src/sync-panel.tsx';
 
 /**
@@ -142,12 +142,10 @@ describe('the sync panel', () => {
 });
 
 describe('httpSync', () => {
-  const SESSION: Session = { session: 'sid-1', csrf: 'csrf-1', version: '0.0.0', toil: { version: '0.1.0-alpha.2', contractVersion: 1 }, viewer: { id: 'local', name: 'you' }, store: 'sqlite', sync: true, agent: 'none', sample: false, now: AT };
-
-  it('reads with the session header, and posts the start and the confirmed wipe with the CSRF token', async () => {
+  it('reads, and posts the start and the confirmed wipe as JSON, with no session or CSRF header', async () => {
     const fetch = vi.fn(async () => new Response(JSON.stringify(synced), { status: 200 }));
     vi.stubGlobal('fetch', fetch);
-    const sync = httpSync(SESSION);
+    const sync = httpSync();
     await sync.status();
     await sync.start('settlement');
     await sync.wipe();
@@ -157,11 +155,12 @@ describe('httpSync', () => {
       ['./api/sync', 'POST', JSON.stringify({ toilProject: 'settlement' })],
       ['./api/cache/wipe', 'POST', JSON.stringify({ confirm: 'wipe' })],
     ]);
-    expect(calls[2]![1].headers).toEqual({ 'X-Toil-UI-Session': 'sid-1', 'Content-Type': 'application/json', 'X-Toil-UI-CSRF': 'csrf-1' });
+    expect(calls[0]![1].headers).toBeUndefined();
+    expect(calls[2]![1].headers).toEqual({ 'Content-Type': 'application/json' });
   });
 
   it("throws the server's message and fix", async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: { message: 'A sync is already running.', fix: 'Wait for it to finish.' } }), { status: 409 })));
-    await expect(httpSync(SESSION).start()).rejects.toThrow('A sync is already running. Wait for it to finish.');
+    await expect(httpSync().start()).rejects.toThrow('A sync is already running. Wait for it to finish.');
   });
 });

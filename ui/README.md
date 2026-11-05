@@ -39,22 +39,18 @@ Toil UI <version> (beta, local only), on toil <version>
 Syncing through toil, read-only, with your own connections and Toil projects. Only its Settings pages, and a Toil project's name and description edited in place, change anything: toil's own connections and toilProjects, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
 The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
-Open this URL in your browser. It carries this launch's token, so keep it to yourself:
-  http://127.0.0.1:53117/?token=<token>
+Open this URL in your browser. It holds no secret: your browser is let in by a cookie signed with the key in the data folder, and anything running as you on this machine can reach Toil UI too:
+  http://127.0.0.1:53117/
 ```
 
-Open that URL. The page trades the token for a session, and the token leaves the
-address bar. The tab keeps the session in `sessionStorage`, so reloading the page
-works. A new tab needs the URL again, and so does a restart of `toil-ui`, which always
-ends the session; each start prints a new token. A duplicated tab, or one the browser
-restores, can carry the session while the same `toil-ui` is still running. Toil UI opens no browser itself.
+Open that URL. There is nothing to paste and nothing stored by the page: the first
+time your browser opens the page, the server sets a cookie, and the browser sends it
+back with every call. Reload, bookmark, open a new tab or restart `toil-ui`, and it
+still works. Toil UI opens no browser itself.
 
-Why the token, and why `sessionStorage`: the server can run toil with your own
-connections, so something has to keep other local processes and users out of it, and
-the token is that lock. A cookie would have made reloads easy, but a browser sends a
-cookie to every port on `127.0.0.1`, so any other local server would receive the
-session. `sessionStorage` belongs to this exact origin (port included) and is never
-sent anywhere. `localStorage` would outlive the tab, so it isn't used.
+Why this and not a token in the URL: the maintainer chose a local-only tool with no
+step for the person and nothing in `sessionStorage` (#561). What does the work
+instead is in **The checks on the door**, below, with what they don't protect against.
 
 `toil-ui --sample` serves the sample Toil projects and the scripted agent that
 [the site's Toil UI page](https://imagile-dev.github.io/toil/ui/) runs on, with
@@ -713,8 +709,8 @@ request: the kind, a title, the details and your email. It sends through
   agree to the report on screen and no other.
 - **Only what you typed.** toil adds its version and commit, nothing else: no
   Toil project, connection, host or cached data.
-- **The same lock as Settings.** `api/feedback` needs the session, the page's
-  Origin and the CSRF token, takes the four fields and nothing else, and runs
+- **The same checks as Settings.** `api/feedback` needs the cookie, the page's own
+  Host and Origin and a JSON body, takes the four fields and nothing else, and runs
   `toil feedback` and no other command. Your tick becomes the yes to the command's
   own consent question. With sample data it sends nothing. With a toil that has no
   `feedback` command (0.1.0-alpha.2), the dialog says so and points at the site's
@@ -1223,19 +1219,47 @@ left in the data folder by an earlier alpha is not read, and Toil UI says so whe
 starts. [Themes](https://imagile-dev.github.io/toil/docs/themes/) has the whole
 story, the composed prompt included.
 
-## The lock on the door
+## The checks on the door
 
-Any program on the machine, or a web page using DNS rebinding, can reach a local
-port, so the server lets in only the browser holding this launch's token:
+The server binds loopback only (`127.0.0.1` or `::1`; any other `--host` is refused).
+A web page open in your browser can still send requests to a port on `127.0.0.1`, by
+posting a form or by rebinding its own domain to loopback, so every request passes
+these checks, before a route runs:
 
-- **The token.** A random token per start, in the URL it prints. The page trades it
-  for a session id, which the tab keeps in `sessionStorage` (see Start it) and
-  sends as a header on every API call. Nothing is kept in a cookie: a browser would send one to any other server
-  on `127.0.0.1`, whatever its port.
-- **The Host header.** Only the exact `127.0.0.1:<port>` it printed is answered.
-- **No CORS.** No `Access-Control-*` header is ever sent. Every POST also needs the
-  page's own `Origin`, a JSON body, and the session's CSRF token.
-- **No network but toil's.** It talks to the hosts in your toil connections, and
+- **A cookie.** The first time `toil-ui` runs it makes 32 random bytes in
+  `machine-secret` in its data folder (`~/.toil-ui/`), mode 0600 on macOS and Linux, and
+  reads the same file on every later start. It never leaves the machine and is never
+  printed, logged or sent. When a browser navigates to the page itself
+  (`Sec-Fetch-Dest: document`, `Sec-Fetch-Site` none or same-origin), the server sets
+  the `toil-ui` cookie: a random id, the time, and an HMAC-SHA256 of both with the
+  secret; `HttpOnly` (no script can read it), `SameSite=Strict`, 30 days. It can't be
+  `Secure`, which a browser won't keep over plain `http`. Every API call needs a valid
+  one, compared in constant time. A page on another site can't have it sent with a
+  request, and a cross-site navigation is refused the cookie.
+- **The peer and the Host header.** The connection must come from loopback, and the
+  `Host` must be `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>`.
+- **Origin and Fetch Metadata.** An API call whose `Origin` isn't this server's own, or
+  whose `Sec-Fetch-Site` isn't `same-origin`, is refused, and a POST must be
+  `application/json`, which a plain cross-site form cannot send. With the cookie's
+  `SameSite=Strict`, that is why there is no CSRF header.
+- **No CORS.** No `Access-Control-*` header is ever sent and `OPTIONS` is refused.
+
+A program that isn't a browser gets the cookie the way a browser does: `GET /` from
+this machine with `Sec-Fetch-Dest: document` and `Sec-Fetch-Site: none`, then send the
+`toil-ui=…` value from `Set-Cookie` back in `Cookie` (`ui/scripts/smoke.mjs` does).
+
+What this does not do: **any program running on this machine as you can read
+`machine-secret`, or ask for the page as a browser would and get a cookie.** On a
+shared machine, another account can reach the port too, unless the operating system
+restricts loopback between users; the secret file itself stays yours. Cookies are not
+scoped to a port, so another local web server on `127.0.0.1` is sent this cookie
+too. On Windows the file takes the permissions of your profile folder (restricting it
+would need `icacls`, a program toil doesn't add). The server runs toil with your own
+connections, so run `toil-ui` only where you would run a database client. Writes still
+need the connection's `writes` setting and the Settings page's own confirmations, and
+secrets are still entered only in Settings, going to the OS credential store.
+
+**No network but toil's.** It talks to the hosts in your toil connections, and
   nothing else, apart from a feedback report you send, which toil sends to Imagile. The agent CLI you choose talks to its own model endpoint.
 
 ## Run against a real repository

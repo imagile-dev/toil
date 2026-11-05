@@ -2,6 +2,7 @@
 import { mapOwi, registry } from '@imagile-dev/toil/api';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
+import { cookieHeader, letInto } from './let-in.ts';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as zod from 'zod';
@@ -18,7 +19,7 @@ import { agentSettingsFile } from '../server/agents/settings.ts';
 import { cacheData, type AgentData } from '../server/agents/tools.ts';
 import { Cache } from '../server/cache.ts';
 import type { RequestContext } from '../server/context.ts';
-import { CSRF_HEADER, SESSION_HEADER, createUiServer } from '../server/server.ts';
+import { createUiServer } from '../server/server.ts';
 import { fixtureStore } from '../server/store.ts';
 import { SyncService } from '../server/sync.ts';
 import { cacheLedger, loadUsageSettings, memoryLedger, saveUsageSettings, usageControl, usageSettingsFile } from '../server/usage.ts';
@@ -51,7 +52,7 @@ import { stubToil } from './toil-stub.ts';
  * test starts a CLI or calls a model; Codex is also checked live (the PR).
  */
 
-const ctx = (signal = new AbortController().signal): RequestContext => ({ viewer: { id: 'local', name: 'you', via: 'launch-token' }, signal });
+const ctx = (signal = new AbortController().signal): RequestContext => ({ viewer: { id: 'local', name: 'you', via: 'loopback' }, signal });
 const folder = mkdtempSync(join(tmpdir(), 'toil-ui-usage-'));
 let cache: Cache;
 let data: AgentData;
@@ -513,7 +514,7 @@ afterEach(async () => {
 function send(origin: string, path: string, options: { method?: string; headers?: Record<string, string>; body?: string } = {}): Promise<{ status: number; body: string }> {
   const url = new URL(path, origin);
   return new Promise((resolve, reject) => {
-    const req = request({ host: url.hostname, port: url.port, path: url.pathname, method: options.method ?? 'GET', headers: { host: url.host, ...options.headers } }, (res) => {
+    const req = request({ host: url.hostname, port: url.port, path: url.pathname, method: options.method ?? 'GET', headers: { host: url.host, ...cookieHeader(origin), ...options.headers } }, (res) => {
       let body = '';
       res.setEncoding('utf8');
       res.on('data', (c: string) => (body += c));
@@ -530,12 +531,12 @@ describe("the server's usage routes", () => {
     writeFileSync(join(app, 'index.html'), '<!doctype html>');
     const asked: unknown[] = [];
     const agent = { ...fixtureAgent(), ask: async (_c: RequestContext, d: string, p: string, s: unknown, chat: unknown) => (asked.push(chat), fixtureAgent().ask(_c, d, p, null)) };
-    const ui = createUiServer({ settings: { host: '127.0.0.1', port: 0, basePath: '/', dataDir: app, retentionDays: 30, sample: false }, store: fixtureStore(), agent, appDir: app, version: 't', toil: { version: 't', contractVersion: 1 }, token: 'tok', usage: control });
+    const ui = createUiServer({ settings: { host: '127.0.0.1', port: 0, basePath: '/', dataDir: app, retentionDays: 30, sample: false }, store: fixtureStore(), agent, appDir: app, version: 't', toil: { version: 't', contractVersion: 1 }, usage: control });
     const { origin } = await ui.listen();
+    await letInto(origin);
     running.push(() => ui.close());
-    const s = JSON.parse((await send(origin, '/api/session', { method: 'POST', body: JSON.stringify({ token: 'tok' }), headers: { origin, 'content-type': 'application/json' } })).body) as { session: string; csrf: string };
-    const post = (path: string, body: unknown) => send(origin, path, { method: 'POST', body: JSON.stringify(body), headers: { [SESSION_HEADER]: s.session, origin, 'content-type': 'application/json', [CSRF_HEADER]: s.csrf } });
-    const get = (path: string) => send(origin, path, { headers: { [SESSION_HEADER]: s.session } });
+    const post = (path: string, body: unknown) => send(origin, path, { method: 'POST', body: JSON.stringify(body), headers: { origin, 'content-type': 'application/json' } });
+    const get = (path: string) => send(origin, path);
     return { post, get, asked };
   }
 
@@ -575,11 +576,11 @@ describe("the server's usage routes", () => {
         throw fail();
       },
     };
-    const ui = createUiServer({ settings: { host: '127.0.0.1', port: 0, basePath: '/', dataDir: app, retentionDays: 30, sample: false }, store: fixtureStore(), agent, appDir: app, version: 't', toil: { version: 't', contractVersion: 1 }, token: 'tok' });
+    const ui = createUiServer({ settings: { host: '127.0.0.1', port: 0, basePath: '/', dataDir: app, retentionDays: 30, sample: false }, store: fixtureStore(), agent, appDir: app, version: 't', toil: { version: 't', contractVersion: 1 } });
     const { origin } = await ui.listen();
+    await letInto(origin);
     running.push(() => ui.close());
-    const s = JSON.parse((await send(origin, '/api/session', { method: 'POST', body: JSON.stringify({ token: 'tok' }), headers: { origin, 'content-type': 'application/json' } })).body) as { session: string; csrf: string };
-    const post = (body: unknown) => send(origin, '/api/agent/ask', { method: 'POST', body: JSON.stringify(body), headers: { [SESSION_HEADER]: s.session, origin, 'content-type': 'application/json', [CSRF_HEADER]: s.csrf } });
+    const post = (body: unknown) => send(origin, '/api/agent/ask', { method: 'POST', body: JSON.stringify(body), headers: { origin, 'content-type': 'application/json' } });
     const whole = await post({ toilProject: 'card-payments', prompt: 'q' });
     expect(whole.status).toBe(502);
     expect(JSON.parse(whole.body).error).toEqual({ message: 'stopped at the cap', fix: 'raise it', usage });

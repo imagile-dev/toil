@@ -15,7 +15,7 @@ import type { Agent } from './agent.ts';
 import './app.css';
 import './views.css';
 import type { ConfigApi } from './config.ts';
-import { httpAgent, httpAgentSettings, httpConfig, httpExecute, httpFeedback, httpModelUsage, httpServerStatus, httpSync, httpWorklog, httpAnalyses, signIn, type AgentStatus, type Session, type SyncStatus } from './server-client.ts';
+import { httpAgent, httpAgentSettings, httpConfig, httpExecute, httpFeedback, httpModelUsage, httpServerStatus, httpSync, httpWorklog, httpAnalyses, readServerInfo, type AgentStatus, type ServerInfo, type SyncStatus } from './server-client.ts';
 import { SyncPanel, lastSynced } from './sync-panel.tsx';
 import { httpAssignments } from './assign/client.ts';
 import { CALL_OPTIONS, type Execute } from './toil.ts';
@@ -25,14 +25,14 @@ const syncedBy = (s: SyncStatus | null) => Object.fromEntries((s?.toilProjects ?
 
 const root = createRoot(document.getElementById('root')!);
 
-function Local({ session, execute, agent: firstAgent, names, status }: { session: Session; execute: Execute; agent: Agent; names: string[]; status: SyncStatus | null }) {
+function Local({ session, execute, agent: firstAgent, names, status }: { session: ServerInfo; execute: Execute; agent: Agent; names: string[]; status: SyncStatus | null }) {
   const [synced, setSynced] = useState(() => lastSynced(status));
   // Each toil project's last sync, for its card on the Toil projects view (#342).
   const [byToilProject, setByToilProject] = useState(() => syncedBy(status));
   // When the last sync finished, whatever it found (#494): Analyze after a sync runs on each new one.
   const [finished, setFinished] = useState<string | null>(() => status?.job.finishedAt ?? null);
   const [agent, setAgent] = useState(firstAgent);
-  const [settingsClient] = useState(() => (session.agentSettings ? httpAgentSettings(session) : null));
+  const [settingsClient] = useState(() => (session.agentSettings ? httpAgentSettings() : null));
   // A new choice of agent (#251) brings its own starters, so the agent is fetched again and the App remounted.
   const onAgent = useCallback(
     (next: AgentStatus) => {
@@ -45,15 +45,15 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   );
   // A new generation remounts the App, so every view reads the cache again.
   const [generation, setGeneration] = useState(0);
-  const [sync] = useState(() => (session.sync ? httpSync(session) : null));
-  const [config] = useState<ConfigApi>(() => httpConfig(session));
+  const [sync] = useState(() => (session.sync ? httpSync() : null));
+  const [config] = useState<ConfigApi>(() => httpConfig());
   const [feedback] = useState(() => httpFeedback(session));
   const [worklog] = useState(() => httpWorklog(session));
-  const [analyses] = useState(() => httpAnalyses(session));
-  const [modelUsage] = useState(() => httpModelUsage(session));
+  const [analyses] = useState(() => httpAnalyses());
+  const [modelUsage] = useState(() => httpModelUsage());
   const [assignments] = useState(() => httpAssignments(session));
   // The server's own staleness (#305), for the header: one function for the page's life, which the header asks every minute.
-  const [serverStatus] = useState(() => () => httpServerStatus(session));
+  const [serverStatus] = useState(() => () => httpServerStatus());
   // A running sync, for the theme's loader (#419), and the facts the last one recorded for the first time, for its moments.
   const [syncing, setSyncing] = useState<SyncStatus['job'] | null>(null);
   const [news, setNews] = useState<{ id: string; byToilProject: NonNullable<SyncStatus['job']['news']> } | null>(null);
@@ -77,12 +77,12 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
 }
 
 async function start() {
-  const session = await signIn();
-  const execute = httpExecute(session);
+  const session = await readServerInfo();
+  const execute = httpExecute();
   const list = await execute('projects list', {}, CALL_OPTIONS);
   const names = list.ok ? ((list.data as { toilProjects?: Array<{ name?: unknown }> }).toilProjects ?? []).map((d) => String(d.name)) : [];
   const agent = await httpAgent(session, names);
-  const status = session.sync ? await httpSync(session).status().catch(() => null) : null;
+  const status = session.sync ? await httpSync().status().catch(() => null) : null;
   root.render(
     <StrictMode>
       <Local session={session} execute={execute} agent={agent} names={names} status={status} />
