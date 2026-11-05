@@ -14,6 +14,7 @@ import { pairs, type AreaInfo, type ConfigApi, type ConnectionsData } from '../.
 import type { Envelope } from '../../toil.ts';
 import { Card, CardGrid, Cluster, DataTable, Path, Stack, Url } from '../../components/layout.tsx';
 import { RepoSetup } from './RepoSetup.tsx';
+import { ArchiveMenu, ArchiveNoticeLine, ArchivedDisclosure, type ArchiveNotice } from '../../components/archive.tsx';
 import { Help, useLandOn } from '../../components/help.tsx';
 import { AreaField, ChangeForm, CheckField, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
 import { Loader } from '../../moments/Moments.tsx';
@@ -49,6 +50,9 @@ const SECTION_FORM: Record<string, string> = { sources: 'toil-project-form-sourc
 /** `at`: a toil project's section to land on (#346); `toForm`: Create a toil project, which the first-run checklist opens (#416). */
 export function ToilProjectSetup({ config, at, toForm = false }: { config: ConfigApi; at?: ToilProjectTarget; toForm?: boolean }) {
   const [list, setList] = useState<Loaded<{ toilProjects: ListedToilProject[]; places: { user: string } }> | null>(null);
+  // The archived ones (#561): null when they could not be read, which is not none and draws nothing.
+  const [archived, setArchived] = useState<Array<{ name: string; description: string | null }> | null>(null);
+  const [notice, setNotice] = useState<ArchiveNotice | null>(null);
   const [areas, setAreas] = useState<AreaInfo[]>([]);
   const [connections, setConnections] = useState<ConnectionsData['connections']>([]);
   const [selected, setSelected] = useState(at?.toilProject ?? '');
@@ -62,7 +66,23 @@ export function ToilProjectSetup({ config, at, toForm = false }: { config: Confi
     } catch (e) {
       setList({ ok: false, message: e instanceof Error ? e.message : String(e) });
     }
+    try {
+      const gone = await config.run('projects list', { archived: true });
+      setArchived(gone.ok ? (gone.data as { toilProjects: Array<{ name: string; description: string | null }> }).toilProjects.map((d) => ({ name: d.name, description: d.description ?? null })) : null);
+    } catch {
+      setArchived(null);
+    }
   }, [config]);
+  /** Archives or unarchives through toil's own command, then reads both lists again. */
+  const archive = async (name: string, putAway: boolean) => {
+    try {
+      const env = await config.run(putAway ? 'projects archive' : 'projects unarchive', { toilProject: name });
+      setNotice(env.ok ? { kind: putAway ? 'archived' : 'unarchived', name } : { kind: 'failed', name, message: `${env.error.message}${env.error.fix ? ` ${env.error.fix}` : ''}` });
+      if (env.ok) await reload();
+    } catch (e) {
+      setNotice({ kind: 'failed', name, message: e instanceof Error ? e.message : String(e) });
+    }
+  };
   useEffect(() => {
     void reload();
     config.areas().then(setAreas, () => setAreas([]));
@@ -96,17 +116,19 @@ export function ToilProjectSetup({ config, at, toForm = false }: { config: Confi
         <p className="lede">
           From <code>toil projects list</code>; yours are in <Path value={list.value.places.user} what="folder path" />. <Help topic="toil-project-list" />
         </p>
+        {notice && <ArchiveNoticeLine notice={notice} onUndo={(name, putAway) => void archive(name, putAway)} onDismiss={() => setNotice(null)} />}
         {toilProjects.length === 0 ? (
           <p>toil sees no Toil projects yet. Create one below.</p>
         ) : (
           <CardGrid min="lg" className="conn-cards">
             {toilProjects.map((d) => (
               <li key={d.file}>
-                <ToilProjectCard toilProject={d} config={config} />
+                <ToilProjectCard toilProject={d} config={config} {...(!config.disabled && d.source === 'user' ? { onArchive: (name: string) => void archive(name, true) } : {})} />
               </li>
             ))}
           </CardGrid>
         )}
+        <ArchivedDisclosure archived={archived} onUnarchive={config.disabled ? null : (name) => void archive(name, false)} />
       </Card>
       <Card as="section" className="panel" aria-labelledby="toil-project-change">
         <h2 id="toil-project-change" tabIndex={-1}>
@@ -137,7 +159,7 @@ export function ToilProjectSetup({ config, at, toForm = false }: { config: Confi
   );
 }
 
-function ToilProjectCard({ toilProject: d, config }: { toilProject: ListedToilProject; config: ConfigApi }) {
+function ToilProjectCard({ toilProject: d, config, onArchive }: { toilProject: ListedToilProject; config: ConfigApi; onArchive?: (name: string) => void }) {
   const [shown, setShown] = useState<Loaded<Shown> | null>(null);
   const [checked, setChecked] = useState<Outcome | null>(null);
   const [problems, setProblems] = useState<Array<{ level: string; path: string; message: string }>>([]);
@@ -163,6 +185,7 @@ function ToilProjectCard({ toilProject: d, config }: { toilProject: ListedToilPr
   };
   return (
     <Card className="conn-card" aria-labelledby={titleId}>
+      {onArchive && <ArchiveMenu name={d.name} onArchive={onArchive} />}
       <div className="conn-head">
         <h3 id={titleId}>
           <code>{d.name}</code>

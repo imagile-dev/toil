@@ -55,6 +55,8 @@ export interface PaletteEntry {
   detail?: string;
   /** What the query is matched against; the label when absent. */
   text?: string;
+  /** Found only by typing: one per Toil project would bury the commands that are always shown (principle 11). */
+  typed?: true;
   /** A place to go, or something to do. */
   go: { href: string } | { command: UiCommand } | { run: () => void };
 }
@@ -93,6 +95,10 @@ export interface EntriesInput {
   scheme: 'system' | 'light' | 'dark';
   setScheme: (scheme: 'system' | 'light' | 'dark') => void;
   onSync: (() => void) | undefined;
+  /** Archives (true) or unarchives (false) a Toil project (#561); absent where the page may not change things. */
+  onArchive?: ((name: string, archive: boolean) => void) | undefined;
+  /** The archived Toil projects, for the Unarchive entries. */
+  archivedNames?: string[];
   /** The item the focus was on when the palette opened, in the toil project on screen. */
   focused: string | null;
   canAssign: boolean;
@@ -132,6 +138,12 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
 
   out.push({ id: 'toilProject:*', group: 'toilProjects', label: 'All Toil projects', go: { href: '#/' } });
   for (const d of x.toilProjects) out.push({ id: `toilProject:${d}`, group: 'toilProjects', label: d, go: { href: toilProjectHref(d) } });
+  // Putting one away and bringing it back (#561): one more way to each, found by typing archive or the name.
+  const onArchive = x.onArchive;
+  if (onArchive) {
+    for (const d of x.toilProjects) out.push({ id: `cmd:archive:${d}`, group: 'commands', label: `Archive ${d}`, detail: 'Hide it from the list; nothing is deleted', text: `archive put away hide ${d}`, typed: true, go: { run: () => onArchive(d, true) } });
+    for (const d of x.archivedNames ?? []) out.push({ id: `cmd:unarchive:${d}`, group: 'commands', label: `Unarchive ${d}`, detail: 'Put it back in the list', text: `unarchive restore bring back ${d}`, typed: true, go: { run: () => onArchive(d, false) } });
+  }
   for (const d of x.toilProjects) {
     // With plain words on, a tab is found by either name: its plain label shows, and its own term still matches a search.
     for (const t of TOIL_PROJECT_TABS) out.push({ id: `tab:${d}:${t.id}`, group: 'tabs', label: pw(t.label, t.plain), detail: d, text: `${pw(t.label, t.plain)} ${t.label} ${d}`, go: { href: t.href(d) } });
@@ -168,7 +180,7 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
 export function paletteResults(entries: PaletteEntry[], query: string, here: string | null): Array<{ group: PaletteGroup; entries: PaletteEntry[] }> {
   const q = query.trim();
   if (!q) {
-    const shown = entries.filter((e) => e.group !== 'items' && e.group !== 'analyses' && (e.group !== 'tabs' || e.detail === here));
+    const shown = entries.filter((e) => !e.typed && e.group !== 'items' && e.group !== 'analyses' && (e.group !== 'tabs' || e.detail === here));
     return GROUP_ORDER.map((group) => ({ group, entries: shown.filter((e) => e.group === group) })).filter((g) => g.entries.length);
   }
   const ranked = fuzzyRank(entries, q, (e) => e.text ?? e.label);

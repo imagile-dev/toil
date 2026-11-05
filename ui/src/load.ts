@@ -620,8 +620,14 @@ export async function loadToilProject(execute: Execute, name: string, options: L
   return { ...summary, items, pullRequests, codeowners, prNotes: [...new Set(prNotes)], readTargets: [...readState.values()], changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, analyze, origin, peopleNotes: team.notes, readiness: readReadiness(toilProject), calls };
 }
 
+/** A Toil project put away with `toil projects archive` (#561): all the list needs of it. */
+export interface ArchivedToilProject {
+  name: string;
+  description: string | null;
+}
+
 /** `projects list`, and `projects show` for each, so the list can say what each one covers. */
-export async function loadToilProjects(execute: Execute): Promise<{ toilProjects: ToilProjectSummary[]; calls: Call[] }> {
+export async function loadToilProjects(execute: Execute): Promise<{ toilProjects: ToilProjectSummary[]; /** The archived ones; null when they could not be read, which is not none. */ archived: ArchivedToilProject[] | null; calls: Call[] }> {
   const calls: Call[] = [];
   const call = async (command: string, input: Rec) => {
     const env = await execute(command, input, CALL_OPTIONS);
@@ -636,5 +642,15 @@ export async function loadToilProjects(execute: Execute): Promise<{ toilProjects
   for (const name of names) {
     toilProjects.push(readShow(await call('projects show', { toilProject: name })).summary);
   }
-  return { toilProjects, calls };
+  // An older toil has no --archived and refuses the field. Then the archived are unknown, and the page offers nothing it can't back.
+  let archived: ArchivedToilProject[] | null = null;
+  try {
+    const gone = await call('projects list', { archived: true });
+    archived = recs(gone.toilProjects).filter((d) => d.shadowedBy === null || d.shadowedBy === undefined).map((d) => ({ name: String(d.name), description: typeof d.description === 'string' ? d.description : null }));
+  } catch (e) {
+    if (!(e instanceof CallFailed)) throw e;
+    // Left out of Sources: the refusal is a toil too old for the flag, not something the person's page is about.
+    calls.pop();
+  }
+  return { toilProjects, archived, calls };
 }
