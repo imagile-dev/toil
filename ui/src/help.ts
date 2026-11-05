@@ -112,6 +112,7 @@ export const HELP = {
   'themed-voice': { title: 'themed agent voice', text: "The agent answers in the theme's register. It changes phrasing only: citations, figures and proposals stay exact.", page: '/docs/themes/', anchor: 'the-checkboxes' },
   'plain-words': { title: 'plain words', text: "Renames toil's jargon in tabs, headings and copy as everyday words, with the exact term on hover, and leaves facts, numbers, commands and errors as they are. It is on until you turn it off, and the choice is kept in this browser.", page: '/docs/ui/', anchor: 'plain-words' },
   status: { title: 'the status word and how sure', text: "On track, At risk and Behind are an estimate from the pace so far, worked out by code with no model, and the page shows the sums. How sure is a word and one reason: whether every read worked, how old the data is, and how many items there are to go on.", page: '/docs/ui/', anchor: 'the-briefing' },
+  setup: { title: 'the setup wizard', text: 'Six short screens that link your tools, make a Toil project and, if you want one, add an AI helper. It runs the same commands as Settings, starts every link read-only, and you can skip any step.', page: '/docs/ui/', anchor: 'the-setup-wizard' },
   'first-run': { title: 'getting started', text: "Each step ticks itself off from toil's own state: a connection to a tracker (one made by env vars counts), a Toil project, and a first sync. The list goes once the first sync finishes.", page: '/docs/ui/', anchor: 'first-run' },
   sync: { title: 'syncing', text: 'A sync reads every Toil project through toil, read-only, and keeps what it read in a cache on this machine. Every view reads that cache, so opening one asks no tracker anything, and Jira and Azure DevOps items closed more than the read window ago (the retention period, at least six weeks) are not read.', page: '/docs/ui/', anchor: 'sync-and-the-cache' },
   'sample-data': { title: 'the sample data', text: 'Sample Toil projects and a scripted agent, with nothing connected to a tracker. Stop this Toil UI with Ctrl+C and start it again with this command to look around first.', page: '/docs/ui/', anchor: 'start-it' },
@@ -134,7 +135,7 @@ export type HelpTopicId = keyof typeof HELP;
 export const helpHref = (topic: HelpTopic): string => `${DOCS_SITE}${topic.page}#${topic.anchor}`;
 
 /** The header's Help entry: the docs section for the view in front of you. */
-export type HelpView = 'toilProjects' | 'dashboard' | 'prs' | 'people' | 'command-center' | 'worklog' | 'standup' | 'item' | 'assignment' | 'job' | 'settings';
+export type HelpView = 'toilProjects' | 'dashboard' | 'prs' | 'people' | 'command-center' | 'worklog' | 'standup' | 'item' | 'assignment' | 'job' | 'settings' | 'setup';
 const VIEW_TOPIC: Record<HelpView, HelpTopicId> = {
   toilProjects: 'toilProjects',
   dashboard: 'dashboard',
@@ -147,6 +148,7 @@ const VIEW_TOPIC: Record<HelpView, HelpTopicId> = {
   assignment: 'assignments',
   job: 'jobs',
   settings: 'settings',
+  setup: 'setup',
 };
 /** Settings pages whose section isn't the settings overview. */
 const SETTINGS_TOPIC: Record<string, HelpTopicId> = { 'agent-usage': 'model-usage', agent: 'agent', usage: 'audit', projects: 'toil-project-setup', connections: 'connections' };

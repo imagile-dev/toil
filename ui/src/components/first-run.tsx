@@ -14,6 +14,7 @@ import { Button } from 'react-aria-components';
 import type { ConfigApi, ConnectionsData } from '../config.ts';
 import type { HelpTopicId } from '../help.ts';
 import { ADD_CONNECTION_HREF, CREATE_TOIL_PROJECT_HREF } from '../views/Settings.tsx';
+import { SETUP_HREF } from '../views/Setup.tsx';
 import { OWI_SOURCES } from '../../../src/core/owi/types.ts';
 import { usePlain } from '../plain-words.ts';
 import { Help } from './help.tsx';
@@ -72,6 +73,11 @@ export function FirstRun({ toilProjects, synced, config, onSync, lede }: FirstRu
         <Help topic="first-run" />
       </div>
       {lede && <p className="note">{lede}</p>}
+      <p className="first-run__guided">
+        <a className="btn btn--accent" href={SETUP_HREF} data-first-run-step="wizard">
+          Set it up step by step
+        </a>
+      </p>
       <div className="first-run__body">
         <ol className="first-run__steps">
           <Step n={1} title="Connect a tracker" topic="connections" done={connected} detail={connected ? trackers.names.join(', ') : trackers?.ok === false ? `toil connections list failed: ${trackers.message}` : null}>

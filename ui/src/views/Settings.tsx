@@ -69,6 +69,9 @@ export function Settings({ page, at = [], config, agent, modelUsage = null }: { 
           )}{' '}
           <Help topic="settings" />
         </p>
+        <p className="note">
+          New here? <a href="#/setup">Set things up step by step</a>.
+        </p>
       </div>
       <nav className="subnav" aria-label="Settings pages">
         <ul>

@@ -59,6 +59,7 @@ import { ThemeChoiceProvider, wordingOn } from './theme-context.ts';
 import type { WordKey } from './wording.ts';
 import { usePlain, wordsFor } from './plain-words.ts';
 import { viewHelpHref } from './help.ts';
+import { Setup } from './views/Setup.tsx';
 import { Loader, MomentsProvider, Splash, useMomentPlayer } from './moments/Moments.tsx';
 import { momentsFor } from './moments/events.ts';
 import { progressText, syncText, trackCalls, type CallProgress } from './moments/progress.ts';
@@ -78,6 +79,8 @@ const POWERSHELL_MAN_HASH = '#/powershell-man';
 export type SettingsPage = 'connections' | 'projects' | 'toil' | 'usage' | 'agent-usage' | 'agent';
 type RouteOf =
   | { view: 'toilProjects' }
+  /** The setup wizard (#561): `#/setup`. */
+  | { view: 'setup' }
   /** `at`: where an edit link lands on the page (#346): a connection's name, a toil project and its section, or `caps`. */
   | { view: 'settings'; page: SettingsPage; at?: string[] }
   /**
@@ -126,6 +129,7 @@ export function parseRoute(rawHash: string): Route {
 
 function parsePath(hash: string): RouteOf {
   const parts = hash.replace(/^#\/?/, '').split('/');
+  if (parts[0] === 'setup') return { view: 'setup' };
   if (parts[0] === 'settings') {
     const page: SettingsPage = parts[1] === 'projects' || parts[1] === 'toil' || parts[1] === 'usage' || parts[1] === 'agent-usage' || parts[1] === 'agent' ? parts[1] : 'connections';
     // A malformed escape is kept as typed, so the page says it found nothing by that name rather than failing to render.
@@ -340,7 +344,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
     element?.querySelector<HTMLElement>('button')?.focus();
   }, []);
   const first = useRef(true);
-  const wanted = route.view === 'toilProjects' || route.view === 'settings' ? null : route.toilProject;
+  const wanted = route.view === 'toilProjects' || route.view === 'settings' || route.view === 'setup' ? null : route.toilProject;
   // The command palette and the shortcuts sheet (#416), hidden until called up; `focused` is the item the focus was on when the palette opened.
   const [palette, setPalette] = useState<{ open: boolean; focused: string | null }>({ open: false, focused: null });
   const [sheet, setSheet] = useState(false);
@@ -379,12 +383,12 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
 
   // Settings can add or remove toil projects, so the list is read again after a visit there (the first-run checklist, #416, ticks off from it).
   useEffect(() => {
-    if (route.view === 'settings') setList(null);
+    if (route.view === 'settings' || route.view === 'setup') setList(null);
   }, [route.view]);
 
   useEffect(() => {
     // The list feeds the Toil projects view, on a toil project's pages its switcher (#394), and the palette (#416).
-    if ((route.view === 'settings' && !palette.open) || list) return;
+    if (((route.view === 'settings' || route.view === 'setup') && !palette.open) || list) return;
     let live = true;
     loadToilProjects(execute).then(
       (value) => live && setList({ ok: true, value }),
@@ -524,7 +528,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   const skins = skinsFor(theme.name);
   // Mirrors Theme motion on the root (#419), so the moments' CSS plays at the level chosen.
   useThemeMotion();
-  const splashReady = route.view === 'settings' || (route.view === 'toilProjects' ? list !== null : Boolean(wanted && toilProjects[wanted]));
+  const splashReady = route.view === 'settings' || route.view === 'setup' || (route.view === 'toilProjects' ? list !== null : Boolean(wanted && toilProjects[wanted]));
   const splashDetail = route.view === 'toilProjects' || !wanted ? 'Reading the Toil projects with toil projects list.' : progressText(progress[wanted]);
   // The App provides the theme context, so it can't read it through useWords(); this is the same lookup.
   const plain = usePlain();
@@ -567,7 +571,9 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   );
 
   let body;
-  if (route.view === 'settings') {
+  if (route.view === 'setup') {
+    body = <Setup config={config ?? null} agent={agentSettings} onSync={onSync} />;
+  } else if (route.view === 'settings') {
     body = <Settings page={route.page} {...(route.at ? { at: route.at } : {})} config={config ?? null} modelUsage={modelUsage ?? null} {...(agentSettings ? { agent: agentSettings } : {})} />;
   } else if (route.view === 'toilProjects') {
     body = !list ? <Loader message={words('loading.toilProjects')} detail="Reading them with toil projects list." /> : list.ok ? <ToilProjects toilProjects={list.value.toilProjects} calls={list.value.calls} loaded={toilProjects} now={now} synced={synced ?? (preview ? null : {})} config={config ?? null} onDescribed={described} onSync={onSync} archived={list.value.archived} notice={archiveNotice} onDismissNotice={() => setArchiveNotice(null)} {...(config && canArchive(config) ? { onArchive: archive } : {})} /> : failure(list.message);

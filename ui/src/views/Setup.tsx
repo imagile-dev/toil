@@ -1,0 +1,435 @@
+/**
+ * The setup wizard (#561), for someone new to AI, toil and Toil UI: one
+ * question a screen, six screens, each with Back, Skip and Next and a line
+ * saying where you are. It adds nothing of its own to configure. Every change
+ * is a command Settings already runs through the server's allowlist:
+ * `connections add` (whose masked secret fields go to toil's own login path and
+ * the OS credential store, as in Settings, and nowhere else, never to the AI
+ * helper), `connections test`, `projects init`, `projects add-repo` and
+ * `projects link`, and the helper is the same Install dialog and Save the Agent
+ * page has. Writes stay off, and the wizard says so. Progress lives in this
+ * component's state only: close the tab and the choices go, the connections
+ * already saved stay. The paperwork for a first day, minus the first day's paperwork.
+ */
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { RadioGroup, Radio } from 'react-aria-components';
+import type { AgentSettingsPanelProps } from '../agent-settings.tsx';
+import { AdaptersCard, helperState, STATE_WORD } from '../agent-install.tsx';
+import { SAMPLE_ADAPTER_STATUS } from '../fixtures/agent-status.ts';
+import type { AreaInfo, ConfigApi, ConnectionsData } from '../config.ts';
+import type { AgentStatus } from '../server-client.ts';
+import { Card, Copy } from '../components/layout.tsx';
+import { Help } from '../components/help.tsx';
+import { Loader } from '../moments/Moments.tsx';
+import { groupAreas, SETUP_STEPS, STEP_TITLE, terminalAdd, toolName, type SetupStep } from '../setup.ts';
+import { NewConnectionForm } from './settings/Connections.tsx';
+import { ChangeForm, OutcomeLine, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './settings/parts.tsx';
+import './setup.css';
+
+/** Where the wizard lives, and what opens it from the first run, the palette and Settings. */
+export const SETUP_HREF = '#/setup';
+
+interface ListedProject {
+  name: string;
+  description: string | null;
+}
+
+/** The AI helper the person saved in the wizard, if any. */
+type Chosen = string | null;
+
+export interface SetupProps {
+  config: ConfigApi | null;
+  /** Toil UI's AI helper settings; absent in the preview, which shows the sample status and installs nothing. */
+  agent?: AgentSettingsPanelProps | undefined;
+  onSync?: (() => void) | undefined;
+}
+
+export function Setup({ config, agent, onSync }: SetupProps) {
+  const [step, setStep] = useState<SetupStep>('welcome');
+  const [areas, setAreas] = useState<AreaInfo[] | null>(null);
+  const [connections, setConnections] = useState<ConnectionsData['connections']>([]);
+  const [projects, setProjects] = useState<ListedProject[]>([]);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [areaAt, setAreaAt] = useState(0);
+  /** Connections saved in this run, by area. */
+  const [made, setMade] = useState<Record<string, string>>({});
+  const [project, setProject] = useState<string | null>(null);
+  const [helper, setHelper] = useState<Chosen>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+
+  const reload = useCallback(async () => {
+    if (!config) return;
+    const [list, ps] = await Promise.all([config.run('connections list', {}).catch(() => null), config.run('projects list', {}).catch(() => null)]);
+    if (list?.ok) setConnections((list.data as ConnectionsData).connections);
+    if (ps?.ok) setProjects((ps.data as { toilProjects: ListedProject[] }).toilProjects ?? []);
+  }, [config]);
+  useEffect(() => {
+    if (!config) return;
+    config.areas().then(setAreas, () => setAreas([]));
+    void reload();
+  }, [config, reload]);
+  useEffect(() => heading.current?.focus(), [step, areaAt]);
+
+  const index = SETUP_STEPS.indexOf(step);
+  const next = () => {
+    if (step === 'connect' && areaAt < picked.length - 1) return setAreaAt(areaAt + 1);
+    if (step === 'tools' && picked.length === 0) return setStep('project');
+    setAreaAt(0);
+    setStep(SETUP_STEPS[Math.min(index + 1, SETUP_STEPS.length - 1)]!);
+  };
+  const back = () => {
+    if (step === 'connect' && areaAt > 0) return setAreaAt(areaAt - 1);
+    if (step === 'project' && picked.length === 0) return setStep('tools');
+    if (step === 'project') setAreaAt(picked.length - 1);
+    setStep(SETUP_STEPS[Math.max(index - 1, 0)]!);
+  };
+
+  const tools = areas ? groupAreas(areas) : null;
+  const area = picked[areaAt];
+  const sub = step === 'connect' && picked.length > 1 ? ` (${areaAt + 1} of ${picked.length})` : '';
+  const title = step === 'connect' && area ? `Link ${toolName(area)}${sub}` : STEP_TITLE[step];
+  return (
+    <div className="setup" data-setup={step}>
+      <div className="view-head">
+        <p className="eyebrow">Setup</p>
+        <p className="setup__progress" role="status">
+          Step {index + 1} of {SETUP_STEPS.length}
+          <progress className="setup__bar" value={index + 1} max={SETUP_STEPS.length} aria-label="Setup progress" />
+        </p>
+      </div>
+      <Card as="section" className="panel setup__card" aria-labelledby="setup-title">
+        <div className="setup__title">
+          <h1 id="setup-title" tabIndex={-1} ref={heading}>
+            {title}
+          </h1>
+          <Help topic="setup" />
+        </div>
+        {step === 'welcome' && <Welcome />}
+        {step === 'tools' && (!config ? <NoConfig /> : !tools ? <Loader size="panel" message="Reading the tools toil knows about…" /> : <Tools tools={tools} connections={connections} picked={picked} onPick={setPicked} />)}
+        {step === 'connect' && config && area && areas && (
+          <ConnectOne key={area} config={config} areas={areas} area={area} existing={connections.filter((c) => c.area === area).map((c) => c.name)} made={made[area] ?? null} onMade={async (name) => (setMade((m) => ({ ...m, [area]: name })), reload())} />
+        )}
+        {step === 'project' && (config ? <ProjectStep config={config} projects={projects} made={made} existing={connections} picked={picked} chosen={project} onChosen={setProject} reload={reload} /> : <NoConfig />)}
+        {step === 'helper' && <HelperStep agent={agent} onChosen={setHelper} />}
+        {step === 'done' && <Done made={made} project={project} helper={helper} onSync={onSync} />}
+        <nav className="setup__nav" aria-label="Setup steps">
+          {step !== 'welcome' && (
+            <button type="button" className="btn" onClick={back} data-setup-back="">
+              Back
+            </button>
+          )}
+          {step !== 'welcome' && step !== 'done' && (
+            <button type="button" className="btn" onClick={next} data-setup-skip="">
+              Skip
+            </button>
+          )}
+          {step !== 'done' && (
+            <button type="button" className="btn btn--accent" onClick={next} data-setup-next="">
+              {step === 'welcome' ? 'Start' : step === 'helper' ? 'Finish' : 'Next'}
+            </button>
+          )}
+        </nav>
+      </Card>
+    </div>
+  );
+}
+
+const NoConfig = () => <p className="failure">This app wasn't given toil's configuration commands, so there is nothing to set up here. Run toil in a terminal instead.</p>;
+
+function Welcome() {
+  return (
+    <>
+      <p>
+        <strong>toil</strong> reads the tools your team already uses, such as Jira, GitHub and Azure DevOps, and gives you one picture of the work. <strong>Toil UI</strong> is this page: it shows that picture and lets an AI helper answer questions about it.
+      </p>
+      <p>This takes a few minutes. You will link the tools you use, group them into a Toil project, and, if you like, add an AI helper.</p>
+      <p className="note" data-setup-promise="">
+        Nothing is changed in your tools without you. Every link starts read-only, you can skip any step, and you can come back to this page from the command palette or from Settings.
+      </p>
+    </>
+  );
+}
+
+function Tools({ tools, connections, picked, onPick }: { tools: ReturnType<typeof groupAreas>; connections: ConnectionsData['connections']; picked: string[]; onPick: (a: string[]) => void }) {
+  const toggle = (name: string) => onPick(picked.includes(name) ? picked.filter((p) => p !== name) : [...picked, name]);
+  const row = (a: AreaInfo) => {
+    const have = connections.filter((c) => c.area === a.name).map((c) => c.name);
+    return (
+      <li key={a.name} className="setup__tool">
+        <label>
+          <input type="checkbox" checked={picked.includes(a.name)} onChange={() => toggle(a.name)} data-setup-tool={a.name} />
+          <span>
+            <strong>{toolName(a.name)}</strong>
+            {have.length > 0 && <span className="tag tag--accent">Already linked: {have.join(', ')}</span>}
+            <span className="note">{a.description}</span>
+          </span>
+        </label>
+      </li>
+    );
+  };
+  return (
+    <fieldset className="setup__tools">
+      <legend>Tick every tool you use. You can add more later in Settings.</legend>
+      <ul className="plain">{tools.common.map(row)}</ul>
+      {tools.more.length > 0 && (
+        <details className="more" data-setup-more="">
+          <summary>More tools ({tools.more.length})</summary>
+          <ul className="plain">{tools.more.map(row)}</ul>
+        </details>
+      )}
+    </fieldset>
+  );
+}
+
+function ConnectOne({ config, areas, area, existing, made, onMade }: { config: ConfigApi; areas: AreaInfo[]; area: string; existing: string[]; made: string | null; onMade: (name: string) => Promise<void> }) {
+  const [tested, setTested] = useState<Outcome | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [draft, setDraft] = useState('');
+  const name = made ?? existing[0] ?? null;
+  const test = async () => {
+    if (!name) return;
+    setTesting(true);
+    setTested(null);
+    try {
+      const e = await config.run('connections test', { name });
+      const d = e.ok ? (e.data as { live: boolean; authenticated: boolean; request: string | null }) : null;
+      setTested(outcomeOf(e, d ? (d.live ? `${toolName(area)} answered, so the link works${d.authenticated ? ' and the login is accepted' : ''}.` : `toil has no live check for ${toolName(area)}; the settings are complete.`) : ''));
+    } catch (e) {
+      setTested(failedOutcome(e));
+    } finally {
+      setTesting(false);
+    }
+  };
+  return (
+    <>
+      {config.disabled && (
+        <p className="config-off">
+          <strong>Changes are turned off.</strong> {config.disabled}
+        </p>
+      )}
+      {name ? (
+        <div data-setup-linked={name}>
+          <p>
+            {made ? <>Saved as <code>{made}</code>.</> : <>You already have a {toolName(area)} link, <code>{name}</code>.</>} <strong>It can only read.</strong> Changes to {toolName(area)} stay off until you turn them on yourself in Settings.
+          </p>
+          <div className="setup__actions">
+            <button type="button" className="btn" onClick={test} disabled={testing} data-setup-test="">
+              {testing ? 'Testing…' : 'Test the link'}
+            </button>
+          </div>
+          <OutcomeLine outcome={tested} />
+          <p className="note">If the test says the login is missing, enter it from Settings, Connections, Update login, or on a terminal: <code>toil connections login {name}</code> <Copy value={`toil connections login ${name}`} what="login command" /></p>
+        </div>
+      ) : (
+        <>
+          <p>
+            Fill in where {toolName(area)} lives and your login. The login is typed into a masked box and goes straight to this computer's secure store through toil; it is never kept by this page, never shown again, and never seen by an AI helper. Changes to {toolName(area)} start <strong>off</strong>.
+          </p>
+          <h2 className="sr-only">Details for {toolName(area)}</h2>
+          <NewConnectionForm areas={areas} config={config} area={area} title={`Link ${toolName(area)}`} suggest={{ name: area }} onAdded={onMade} />
+          <details className="more" data-setup-terminal="">
+            <summary>Prefer to type it on a terminal?</summary>
+            <TextField label="Name for the link" value={draft} onChange={setDraft} />
+            <p className="note">
+              <code>{terminalAdd(draft || area, area)}</code> <Copy value={terminalAdd(draft || area, area)} what="terminal command" />
+            </p>
+            <p className="note">It asks for the same things, and keeps the login in the same secure store.</p>
+          </details>
+        </>
+      )}
+    </>
+  );
+}
+
+function ProjectStep({ config, projects, made, existing, picked, chosen, onChosen, reload }: { config: ConfigApi; projects: ListedProject[]; made: Record<string, string>; existing: ConnectionsData['connections']; picked: string[]; chosen: string | null; onChosen: (n: string | null) => void; reload: () => Promise<void> }) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [repo, setRepo] = useState('');
+  const [mode, setMode] = useState<string>(projects.length > 0 ? (chosen ?? projects[0]!.name) : '+new');
+  const [linked, setLinked] = useState<Outcome | null>(null);
+  // The connection each picked area would use: the one made here, else the first the person already had.
+  const links = picked.flatMap((a) => {
+    const c = made[a] ?? existing.find((e) => e.area === a)?.name;
+    return c ? [{ area: a, connection: c }] : [];
+  });
+  const linkAll = async (toilProject: string): Promise<Outcome> => {
+    for (const l of links) {
+      const e = await config.run('projects link', { toilProject, area: l.area, connection: l.connection });
+      if (!e.ok) return outcomeOf(e, '');
+    }
+    return { ok: true, message: links.length ? `${links.map((l) => toolName(l.area)).join(', ')} linked to ${toilProject}.` : `${toilProject} is ready.`, warnings: [] };
+  };
+  useEffect(() => {
+    if (mode !== '+new') onChosen(mode);
+  }, [mode, onChosen]);
+  return (
+    <>
+      {config.disabled && (
+        <p className="config-off">
+          <strong>Changes are turned off.</strong> {config.disabled}
+        </p>
+      )}
+      <p>A Toil project is one body of work, such as a product or a team's backlog: the tools it reads from and the repositories it covers.</p>
+      {projects.length > 0 && (
+        <RadioGroup className="agent-adapters" value={mode} aria-label="Which Toil project" onChange={(v) => (setMode(v), v === '+new' && onChosen(null))}>
+          {projects.map((p) => (
+            <Radio key={p.name} value={p.name} className="agent-choice">
+              <strong>Use {p.name}</strong>
+              {p.description && <span className="note">{p.description}</span>}
+            </Radio>
+          ))}
+          <Radio value="+new" className="agent-choice">
+            <strong>Create a new Toil project</strong>
+          </Radio>
+        </RadioGroup>
+      )}
+      {mode === '+new' ? (
+        <>
+        <h2 className="sr-only">A new Toil project</h2>
+        <ChangeForm
+          title="Create a Toil project"
+          explain="Makes your own Toil project, links the tools you set up to it, and adds a repository if you give one."
+          runs={commandLine('projects init', [name || '<name>'])}
+          submit="Create Toil project"
+          disabled={config.disabled}
+          onSubmit={async () => {
+            const e = await config.run('projects init', { name, ...(description ? { description } : {}) });
+            const created = outcomeOf(e, `${name} was created.`);
+            if (!created.ok) return created;
+            if (repo.trim()) {
+              const r = outcomeOf(await config.run('projects add-repo', { toilProject: name, location: repo.trim() }), '');
+              if (!r.ok) return { ...r, message: `${name} was created, but its repository wasn't added: ${r.message}` };
+            }
+            const l = await linkAll(name);
+            onChosen(name);
+            await reload();
+            return l.ok ? { ...l, message: `${name} was created. ${l.message}` } : { ...l, message: `${name} was created, but linking failed: ${l.message}` };
+          }}
+        >
+          <TextField label="Name" value={name} onChange={setName} required hint="Lowercase letters, digits and single hyphens, e.g. payments." />
+          <TextField label="What is it? (optional)" value={description} onChange={setDescription} />
+          <TextField label="A repository folder or address (optional)" value={repo} onChange={setRepo} hint="Lets toil work out which Toil project you are in." />
+        </ChangeForm>
+        </>
+      ) : (
+        <>
+          {links.length > 0 && (
+            <div className="setup__actions">
+              <button type="button" className="btn" data-setup-link="" onClick={async () => setLinked(await linkAll(mode).catch(failedOutcome))} disabled={config.disabled !== null}>
+                Link {links.map((l) => toolName(l.area)).join(', ')} to {mode}
+              </button>
+            </div>
+          )}
+          <OutcomeLine outcome={linked} />
+        </>
+      )}
+    </>
+  );
+}
+
+function HelperStep({ agent, onChosen }: { agent: AgentSettingsPanelProps | undefined; onChosen: (c: Chosen) => void }) {
+  const [status, setStatus] = useState<AgentStatus | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const [pick, setPick] = useState('');
+  const [saved, setSaved] = useState('');
+  const client = agent?.client ?? null;
+  const read = useCallback(() => {
+    client?.status().then(
+      (s) => {
+        setStatus(s);
+        setPick((p) => p || (s.settings.adapter !== 'none' ? s.settings.adapter : ''));
+      },
+      (e: unknown) => setProblem(e instanceof Error ? e.message : String(e)),
+    );
+  }, [client]);
+  useEffect(read, [read]);
+  const save = async () => {
+    if (!client || !status || !pick) return;
+    const s = status.settings;
+    const name = pick as Exclude<typeof s.adapter, 'none'>;
+    try {
+      const next = await client.save({ ...s, adapter: name, model: s.models[name] ?? null, cliPath: s.cliPaths[name] ?? null, endpoint: name === 'claude' ? s.endpoint : null });
+      setStatus(next);
+      agent?.onChange?.(next);
+      const label = next.adapters.find((a) => a.name === name)?.label ?? name;
+      setSaved(`Saved: ${label} will answer your questions.`);
+      onChosen(label);
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const ready = status?.adapters.filter((a) => helperState(a) === 'ready') ?? [];
+  return (
+    <>
+      <p>
+        An <strong>AI helper</strong> is a program you may already have, such as Claude, GitHub Copilot or Codex. With one, you can ask questions about your work in plain sentences and get a written briefing. It can only read; anything it suggests changing comes back as a command for you to run.
+      </p>
+      <p className="note" data-setup-optional="">
+        This is optional. Everything else works without one, and you can add it later under Settings, AI helper. Toil UI stores no keys: each helper signs in the way it already does.
+      </p>
+      {problem && (
+        <p role="alert" className="failure">
+          {problem}
+        </p>
+      )}
+      {!client ? (
+        <AdaptersCard adapters={SAMPLE_ADAPTER_STATUS} client={null} />
+      ) : status ? (
+        <>
+          <AdaptersCard adapters={status.adapters} client={client} onInstalled={read} />
+          {ready.length > 0 && (
+            <>
+              <RadioGroup className="agent-adapters" value={pick} aria-label="Which AI helper answers" onChange={setPick}>
+                {ready.map((a) => (
+                  <Radio key={a.name} value={a.name} className="agent-choice">
+                    <strong>{a.label}</strong>
+                    <span className="note">{STATE_WORD[helperState(a)]}</span>
+                  </Radio>
+                ))}
+              </RadioGroup>
+              <div className="setup__actions">
+                <button type="button" className="btn" onClick={() => void save()} disabled={!pick} data-setup-helper-save="">
+                  Use this helper
+                </button>
+                <span role="status" className="note">
+                  {saved}
+                </span>
+              </div>
+            </>
+          )}
+        </>
+      ) : (
+        !problem && <p className="note">Looking for AI helpers on this computer…</p>
+      )}
+    </>
+  );
+}
+
+function Done({ made, project, helper, onSync }: { made: Record<string, string>; project: string | null; helper: Chosen; onSync: (() => void) | undefined }) {
+  const names = Object.entries(made);
+  return (
+    <>
+      <ul className="setup__summary" aria-label="What was set up">
+        <li>{names.length ? `Linked: ${names.map(([a, n]) => `${toolName(a)} (${n}), read-only`).join(', ')}.` : 'No new tool links this time.'}</li>
+        <li>{project ? `Toil project: ${project}.` : 'No Toil project chosen yet.'}</li>
+        <li>{helper ? `AI helper: ${helper}.` : 'No AI helper, which is fine.'}</li>
+      </ul>
+      <p className="note">Nothing in your tools was changed, and changes stay off until you turn them on.</p>
+      <div className="setup__actions">
+        {onSync && (
+          <button type="button" className="btn btn--accent" onClick={onSync} data-setup-sync="">
+            Sync now
+          </button>
+        )}
+        <a className="btn" href="#/">
+          Open your Toil projects
+        </a>
+        <a className="btn" href="#/settings/connections">
+          Settings
+        </a>
+      </div>
+      <p className="note">Sync reads each Toil project once and keeps a copy on this computer, so the pages open instantly.</p>
+    </>
+  );
+}
