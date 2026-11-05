@@ -92,7 +92,9 @@ describe('the lockfile check (#299)', () => {
     expect(lockfileProblems(lock({ version: PIN, resolved: tgz('0.1.0-alpha.2') }), PIN, '0.1.0-alpha.2')).toContainEqual(expect.stringContaining('has no sha512 integrity'));
     // The tarball must be an older toil: a newer one, installed, is not a release's leftovers.
     expect(lockfileProblems(lock({ ...good, resolved: tgz('0.1.0-alpha.9') }), PIN, '0.1.0-alpha.9')).not.toEqual([]);
-    expect(lockfileLag(lock({ ...good, resolved: tgz('0.1.0-alpha.10') }), '0.1.0-alpha.11', '0.1.0-alpha.10')).toBeNull();
+    // Prerelease parts compare as numbers, not text: alpha.9 is older than alpha.10, and alpha.12 is not.
+    expect(lockfileLag(lock({ ...good, version: '0.1.0-alpha.10', resolved: tgz('0.1.0-alpha.9') }, '0.1.0-alpha.10'), '0.1.0-alpha.10', '0.1.0-alpha.9')).toBe('0.1.0-alpha.9');
+    expect(lockfileLag(lock({ ...good, version: '0.1.0-alpha.11', resolved: tgz('0.1.0-alpha.12') }, '0.1.0-alpha.11'), '0.1.0-alpha.11', '0.1.0-alpha.12')).toBeNull();
     expect(lockfileLag(lock({ ...good, version: '0.1.0', resolved: tgz('0.1.0-beta.4') }, '0.1.0'), '0.1.0', '0.1.0-beta.4')).toBe('0.1.0-beta.4');
     expect(lockfileProblems(lock({ ...good, resolved: 'https://registry.example.com/toil-0.1.0-alpha.2.tgz' }), PIN, '0.1.0-alpha.2')).not.toEqual([]);
   });
