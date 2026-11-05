@@ -15,12 +15,13 @@
 
 import { Card, CardGrid } from '../components/layout.tsx';
 import { CountStrip, Editable, MiniBurnup, SourceBadges, SprintLine, type Described } from '../components/toil-project-head.tsx';
+import { ArchiveMenu, ArchiveNoticeLine, ArchivedDisclosure, type ArchiveNotice } from '../components/archive.tsx';
 import { Sources } from '../components/panel.tsx';
 import { Help } from '../components/help.tsx';
 import { FirstRun, firstRunShows } from '../components/first-run.tsx';
 import type { ConfigApi } from '../config.ts';
 import { dateTime, toilProjectHref } from '../format.ts';
-import type { ToilProjectData, ToilProjectSummary } from '../load.ts';
+import type { ArchivedToilProject, ToilProjectData, ToilProjectSummary } from '../load.ts';
 import { lastLooked, lastOpened } from '../looked.ts';
 import { previewOf, type ToilProjectPreview } from '../model/preview.ts';
 import { useSkins, useWords } from '../skins.tsx';
@@ -47,6 +48,13 @@ export interface ToilProjectsProps {
   onDescribed: (d: Described) => void;
   /** Starts a sync, where Toil UI keeps a cache (#416): the first-run checklist's last step. */
   onSync?: (() => void) | undefined;
+  /** The archived Toil projects (#561); null when they could not be read, which draws nothing. */
+  archived?: ArchivedToilProject[] | null;
+  /** Archives or unarchives one, where the page may change things; absent in the preview. */
+  onArchive?: ((name: string, archive: boolean) => void) | undefined;
+  /** What the last archive did, with the undo beside it. */
+  notice?: ArchiveNotice | null;
+  onDismissNotice?: (() => void) | undefined;
 }
 
 /** The card that leads: the only one, else the toil project opened most recently here, else the one with the most in motion. */
@@ -60,7 +68,7 @@ export function leadOf(names: string[], previews: Map<string, ToilProjectPreview
   return ranked[0] && previews.get(ranked[0])!.motion > 0 ? ranked[0] : null;
 }
 
-export function ToilProjects({ toilProjects, calls, loaded, now, synced, config, onDescribed, onSync }: ToilProjectsProps) {
+export function ToilProjects({ toilProjects, calls, loaded, now, synced, config, onDescribed, onSync, archived = null, onArchive, notice = null, onDismissNotice }: ToilProjectsProps) {
   const words = useWords();
   const previews = new Map<string, ToilProjectPreview>();
   for (const d of toilProjects) {
@@ -81,15 +89,17 @@ export function ToilProjects({ toilProjects, calls, loaded, now, synced, config,
       </div>
       {/* The first run (#416), in place of the empty state, whose one line it keeps above the steps that fill the page. */}
       {firstRunShows(toilProjects.length, synced, Boolean(onSync)) && <FirstRun toilProjects={toilProjects.length} synced={synced} config={config} onSync={onSync} {...(toilProjects.length === 0 ? { lede: words('empty.toilProjects') } : {})} />}
+      {notice && onArchive && <ArchiveNoticeLine notice={notice} onUndo={onArchive} onDismiss={() => onDismissNotice?.()} />}
       {toilProjects.length === 0 ? null : (
         <CardGrid className="toil-projects" min="lg">
           {ordered.map((d) => (
             <li key={d.name} className={d.name === lead ? 'projects__lead' : undefined}>
-              <ToilProjectCard summary={d} loaded={loaded[d.name]} preview={previews.get(d.name) ?? null} synced={synced ? (synced[d.name] ?? null) : undefined} lead={d.name === lead} config={config} onDescribed={onDescribed} />
+              <ToilProjectCard summary={d} loaded={loaded[d.name]} preview={previews.get(d.name) ?? null} synced={synced ? (synced[d.name] ?? null) : undefined} lead={d.name === lead} config={config} onDescribed={onDescribed} {...(onArchive ? { onArchive: (name: string) => onArchive(name, true) } : {})} />
             </li>
           ))}
         </CardGrid>
       )}
+      <ArchivedDisclosure archived={archived} onUnarchive={onArchive ? (name) => onArchive(name, false) : null} />
       <Sources calls={calls} />
     </>
   );
@@ -107,6 +117,7 @@ function ToilProjectCard({
   lead,
   config,
   onDescribed,
+  onArchive,
 }: {
   summary: ToilProjectSummary;
   loaded: Loaded | undefined;
@@ -116,6 +127,7 @@ function ToilProjectCard({
   lead: boolean;
   config: ConfigApi | null;
   onDescribed: (d: Described) => void;
+  onArchive?: ((name: string) => void) | undefined;
 }) {
   const { Avatar } = useSkins();
   const plain = usePlain();
@@ -126,6 +138,7 @@ function ToilProjectCard({
   const more = (preview?.people.length ?? 0) - shown.length;
   return (
     <Card className={`toil-project-card${lead ? ' toil-project-card--lead' : ''}`} aria-labelledby={heading}>
+      {onArchive && <ArchiveMenu name={d.name} onArchive={onArchive} />}
       <div className="toil-project-card__head">
         <h2 id={heading}>
           <Editable field="name" toilProject={d.name} value={d.name} config={config} onSaved={onDescribed}>

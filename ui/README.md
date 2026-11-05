@@ -139,6 +139,19 @@ filled, plus `projects list` and `projects show` for the Toil projects themselve
 - **A Toil project's top row** uses the same parts: the description beside the name, the
   sources as badges, and the sprint's day (The Toil project page, below).
 
+### Archiving a Toil project (#561)
+
+A card's quiet "more" menu holds Archive, and so does the command palette (type
+"archive") and each of your own Toil projects under Settings, Toil projects. It runs
+`toil projects archive <toilProject>` on the settings pages' path, so the file is
+changed by toil and nothing is deleted. One line under the header says what happened
+and has an Undo. The archived ones leave the list, the switcher and the sync figures,
+and wait under a closed "Archived (n)" at the bottom of the page, each with Unarchive
+(`toil projects unarchive`), which the palette offers too. The list reads them with
+`toil projects list --archived`; if that fails the disclosure is not drawn, because
+unknown is not none. The preview changes nothing, so it shows the sample's archived
+project and no controls.
+
 ### Renaming and describing a Toil project
 
 The name and the description have a pencil beside them, on the card and in the

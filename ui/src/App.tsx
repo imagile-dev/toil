@@ -15,7 +15,8 @@ import type { Agent } from './agent.ts';
 import { Ambient } from './ambient/Ambient.tsx';
 import { DataContext, type Data, type StartReady } from './data.ts';
 import { dateTime, toilProjectHref } from './format.ts';
-import { loadToilProject, loadToilProjects, type ToilProjectData, type ToilProjectSummary } from './load.ts';
+import { loadToilProject, loadToilProjects, type ArchivedToilProject, type ToilProjectData, type ToilProjectSummary } from './load.ts';
+import { canArchive, type ArchiveNotice } from './components/archive.tsx';
 import { SkinProvider, ThemeProvider, skinsFor } from './skins.tsx';
 import { THEMES, themeNamed, tokenCss } from './themes.ts';
 import { useResolvedScheme, useThemeChoice } from './theme-choice.ts';
@@ -323,7 +324,9 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   // Every assignment this browser starts is remembered as its own, for "only for agents I started" (#306).
   const { mine, mark } = useMine();
   const assignments = useMemo(() => (given ? remembering(given, mark) : undefined), [given, mark]);
-  const [list, setList] = useState<Loaded<{ toilProjects: ToilProjectSummary[]; calls: Call[] }> | null>(null);
+  const [list, setList] = useState<Loaded<{ toilProjects: ToilProjectSummary[]; archived: ArchivedToilProject[] | null; calls: Call[] }> | null>(null);
+  // What the last archive or unarchive did, shown above the list with its undo (#561).
+  const [archiveNotice, setArchiveNotice] = useState<ArchiveNotice | null>(null);
   const [toilProjects, setToilProjects] = useState<Record<string, Loaded<ToilProjectData>>>({});
   // What the toil project on screen is waiting on, for its loading screen (#419): the real calls, as they go.
   const [progress, setProgress] = useState<Record<string, CallProgress>>({});
@@ -452,6 +455,30 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
     }
   };
 
+  /**
+   * Archives or unarchives a Toil project through toil's own command (#561), from a
+   * card's menu, the palette or the undo line. The list is read again afterwards, so
+   * the switcher, the cards and the sync figures all drop or regain it together.
+   */
+  const archive = async (name: string, putAway: boolean) => {
+    if (!config || !canArchive(config)) return;
+    try {
+      const env = await config.run(putAway ? 'projects archive' : 'projects unarchive', { toilProject: name });
+      if (!env.ok) {
+        setArchiveNotice({ kind: 'failed', name, message: `${env.error.message}${env.error.fix ? ` ${env.error.fix}` : ''}` });
+        return;
+      }
+      setArchiveNotice({ kind: putAway ? 'archived' : 'unarchived', name });
+      setList(null);
+    } catch (e) {
+      setArchiveNotice({ kind: 'failed', name, message: e instanceof Error ? e.message : String(e) });
+    }
+  };
+  // The line belongs to the page it was made on.
+  useEffect(() => {
+    setArchiveNotice(null);
+  }, [route.view]);
+
   useEffect(() => {
     if (!wanted || toilProjects[wanted]) return;
     let live = true;
@@ -543,7 +570,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   if (route.view === 'settings') {
     body = <Settings page={route.page} {...(route.at ? { at: route.at } : {})} config={config ?? null} modelUsage={modelUsage ?? null} {...(agentSettings ? { agent: agentSettings } : {})} />;
   } else if (route.view === 'toilProjects') {
-    body = !list ? <Loader message={words('loading.toilProjects')} detail="Reading them with toil projects list." /> : list.ok ? <ToilProjects toilProjects={list.value.toilProjects} calls={list.value.calls} loaded={toilProjects} now={now} synced={synced ?? (preview ? null : {})} config={config ?? null} onDescribed={described} onSync={onSync} /> : failure(list.message);
+    body = !list ? <Loader message={words('loading.toilProjects')} detail="Reading them with toil projects list." /> : list.ok ? <ToilProjects toilProjects={list.value.toilProjects} calls={list.value.calls} loaded={toilProjects} now={now} synced={synced ?? (preview ? null : {})} config={config ?? null} onDescribed={described} onSync={onSync} archived={list.value.archived} notice={archiveNotice} onDismissNotice={() => setArchiveNotice(null)} {...(config && canArchive(config) ? { onArchive: archive } : {})} /> : failure(list.message);
   } else if (!current) {
     body = <Loader message={words('loading.toilProject', { name: route.toilProject })} detail={progressText(progress[route.toilProject])} />;
   } else if (!current.ok) {
@@ -655,6 +682,8 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
           scheme={choice.scheme}
           setScheme={choice.setScheme}
           onSync={onSync}
+          archivedNames={list?.ok && list.value.archived ? list.value.archived.map((d) => d.name) : []}
+          onArchive={config && canArchive(config) ? archive : undefined}
           focused={palette.focused}
           canAssign={Boolean(assignments && !assignments.disabled)}
           agentSettings={Boolean(agentSettings)}

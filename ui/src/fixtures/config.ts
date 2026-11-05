@@ -16,7 +16,7 @@
 import { CONFIG_COMMANDS, CONFIG_READS, DEFAULT_TIMEOUT_MS, type AreaInfo, type ConfigApi, type ConnectionsData, type SettingsInfo } from '../config.ts';
 import type { Envelope } from '../toil.ts';
 import AREAS from './config-areas.json' with { type: 'json' };
-import { TOIL_PROJECTS, fileOf, listData, showData } from './toil-projects.ts';
+import { TOIL_PROJECTS, archivedListData, fileOf, listData, showData } from './toil-projects.ts';
 import { callKey } from './execute.ts';
 import { usageCanned } from './usage.ts';
 
@@ -104,6 +104,7 @@ interface Answer {
 export const CONFIG_CANNED: Answer[] = [
   { command: 'connections list', input: {}, data: FIXTURE_CONNECTIONS },
   { command: 'projects list', input: {}, data: listData() },
+  { command: 'projects list', input: { archived: true }, data: archivedListData() },
   ...TOIL_PROJECTS.map((d) => ({ command: 'projects show', input: { toilProject: d.name }, data: showData(d) })),
   ...TOIL_PROJECTS.map((d) => ({ command: 'projects check', input: { toilProject: d.name }, data: { name: d.name, file: fileOf(d.name), source: 'user', ok: true, problems: [] } })),
   ...FIXTURE_CONNECTIONS.connections.map((c) => ({

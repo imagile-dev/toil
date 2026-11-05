@@ -243,6 +243,12 @@ Removing a person or an identity (`--remove`) and clearing the limit
 renames one of your own toil projects, moving its file with everything in it, or replaces
 its one-line description. A name you already use is refused, and so is a checked-in
 or listed toil project: import it first, then describe your copy.
+`toil projects archive <toil project>` puts one of your own away: it sets `archived: true`
+in the file, and `toil projects unarchive <toil project>` brings it back. Nothing is
+deleted, so it is not a delete and is served over MCP. `toil projects list` leaves
+archived ones out and says how many (`archivedHidden`); `--all` lists everything and
+`--archived` only the archived ones. Archiving only hides: a folder in one of its repos
+still resolves to it, so calls keep their context, and `show` reports `archived`.
 
 Each command returns the change it made, refuses a value that's already there unless
 `--replace`, and needs no `--allow-write`, since it only writes your own toil project.

@@ -526,6 +526,14 @@ files directly:
     first, then deletes the old file, so a refusal leaves it where it was. A name you
     already have is refused, and so is a toil project that isn't in your own folder, with the
     `toil projects import` fix. It needs no `--replace`: replacing is all it does.
+  - `toil projects archive <toil-project>` and `toil projects unarchive <toil-project>` set and
+    remove `archived: true` in one of your own toil projects (#561). Archiving hides, and only
+    hides: `list` leaves it out (with `archivedHidden` counting what it left out; `--all` or
+    `--archived` show it), and Toil UI moves it under Archived and drops it from the switcher
+    and the sync counts. Resolution is untouched: a folder in its repos still resolves to it,
+    so no call quietly loses its inputs. Asking twice changes nothing (`changed: false`).
+    Sharing drops the flag. A toil project that isn't in your own folder is refused, as
+    for `describe`. Local writes, not deletes, so they are served over MCP.
   - `toil projects unlink <toil-project> --area <area> [--env <env>]` removes a section, an
     area's own or one environment's, including one for an area toil doesn't have. An
     environment left with no areas goes too, and stops being the default. CLI only, like
@@ -541,7 +549,8 @@ files directly:
   (`add-repo <toil-project> <remote> --name <repo>`) adds nothing, needs no `--replace`, and
   is the way to clean one on its own.
 - **Reading and checking** (built; all served over MCP, all local reads):
-  - `toil projects list [--cwd <dir>]` lists every toil project toil can see, with its
+  - `toil projects list [--cwd <dir>] [--all | --archived]` lists every toil project toil can see
+    (archived ones only with a flag), with its `archived` flag, its
     `source`, the file that shadows it when two share a name, and broken files with
     what's wrong.
   - `toil projects show [<name|file>] [--cwd <dir>]` prints one (by default the one

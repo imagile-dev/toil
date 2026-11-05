@@ -440,6 +440,39 @@ export function toilProjectBuildCommands(areas: readonly AnyArea[]): AnyCommand[
     },
   });
 
+  // Archive and unarchive are one command written twice; the pair differs by one boolean and a verb.
+  const archiveCommand = (archive: boolean) =>
+    defineConfigCommand({
+      path: ['projects', archive ? 'archive' : 'unarchive'],
+      description: archive ? 'Archive one of your own toil projects: hidden from lists, kept on disk, reversible' : 'Bring an archived toil project back',
+      toolDescription: archive
+        ? 'Archives one of your own toil projects (~/.toil/projects) by setting archived: true in its file. Nothing is deleted and nothing else changes: projects_list leaves it out unless all or archived is set, Toil UI moves it under Archived, and a folder in one of its repos still resolves to it, so calls keep their context. Undo with projects_unarchive. A checked-in or listed toil project is refused: copy it into your own folder with projects_import first. A local write: no allowWrite.'
+        : 'Brings an archived toil project of yours back by removing archived from its file. Asking for one that is not archived changes nothing and says so. A local write: no allowWrite.',
+      input: z.object({ toilProject: toilProjectField }),
+      writes: false,
+      writesLocal: true,
+      args: [toilProjectArg],
+      examples: [{ toilProject: 'payments' }],
+      run: async (input, ctx) => {
+        const { catalog } = access(ctx);
+        const file = catalog.find(input.toilProject);
+        // A teammate's file in a repository isn't yours to shelve; your own copy is.
+        if (file.source !== 'user') {
+          const verb = archive ? 'archive' : 'unarchive';
+          throw new ToilError('INVALID_INPUT', `Toil project ${file.toilProject.name} is ${file.source === 'repo' ? 'checked into a repository' : file.source === 'listed' ? 'in a listed folder' : 'a file outside your own folder'} (${forwardSlashes(file.file)}), so it isn't yours to ${verb}.`, {
+            fix: `Copy it into your own folder with toil projects import ${forwardSlashes(file.file)}, then ${verb} your copy.`,
+          });
+        }
+        const toilProject = structuredClone(file.toilProject);
+        const was = toilProject.archived === true;
+        if (archive) toilProject.archived = true;
+        else delete toilProject.archived;
+        return saved(ctx, catalog, file, toilProject, was !== archive, { archived: archive });
+      },
+    });
+  const archive = archiveCommand(true);
+  const unarchive = archiveCommand(false);
+
   const exportCommand = defineConfigCommand({
     path: ['projects', 'export'],
     description: "Write a toil project for sharing: into a repository's .toil/projects, or to one file",
@@ -669,7 +702,7 @@ export function toilProjectBuildCommands(areas: readonly AnyArea[]): AnyCommand[
     },
   });
 
-  return [init, addRepo, link, env, field, person, wipLimit, analyzeSet, describe, exportCommand, importCommand, unlink, remove];
+  return [init, addRepo, link, env, field, person, wipLimit, analyzeSet, describe, exportCommand, importCommand, unlink, remove, archive, unarchive];
 
   /** link and env: one section's binding, context inputs and reference data. */
   async function changeSection(
@@ -912,6 +945,8 @@ function hostWarnings(catalog: ToilProjectCatalog, toilProject: ToilProject, are
  */
 export function forSharing(source: ToilProject, config: ResolvedConfig, areas: readonly AnyArea[] = []): { toilProject: ToilProject; hosts: Array<{ area: string; env: string | null; connection: string; host: string }>; droppedPaths: number } {
   const toilProject = structuredClone(source);
+  // Archiving is your own tidying; a teammate importing the file starts with it open.
+  delete toilProject.archived;
   const hosts: Array<{ area: string; env: string | null; connection: string; host: string }> = [];
   const share = (area: string, env: string | undefined, section: Section) => {
     if (typeof section.connection !== 'string') return;

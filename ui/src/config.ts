@@ -43,6 +43,9 @@ export const CONFIG_CHANGES = [
   'projects onboard',
   // A toil project's name and description, edited in place on its card and dashboard (#342).
   'projects describe',
+  // Archiving puts a toil project away without deleting it (#561); unarchive is the undo.
+  'projects archive',
+  'projects unarchive',
   // The theme a person picks, as toil's own setting, which the welcome menu follows too (#427).
   'theme set',
 ] as const;

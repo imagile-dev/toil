@@ -605,3 +605,53 @@ describe('renaming and describing a toil project', () => {
     expect(JSON.parse(readFileSync(join(d.workspace, '.toil', 'projects', 'team.json'), 'utf8'))).toEqual({ name: 'team' });
   });
 });
+
+describe('archiving a toil project (#561)', () => {
+  const at = (d: ToilProjectDisk, name: string) => join(d.home, '.toil', 'projects', `${name}.json`);
+  const read = (d: ToilProjectDisk, name: string) => JSON.parse(readFileSync(at(d, name), 'utf8')) as Record<string, unknown>;
+  const names = (run: Run) => (ok(run).toilProjects as Array<{ name: string }>).map((p) => p.name);
+
+  it('archives and unarchives, on MCP too, and asking twice changes nothing', async () => {
+    const d = disk({ 'home/.toil/projects/pay.json': { name: 'pay', jira: { project: 'PAY' } }, 'home/.toil/projects/ops.json': { name: 'ops' } });
+    expect(ok(await mcp(d, 'projects_archive', { toilProject: 'pay' }))).toMatchObject({ name: 'pay', archived: true, changed: true });
+    expect(read(d, 'pay')).toMatchObject({ name: 'pay', archived: true, jira: { project: 'PAY' } });
+    expect(ok(await cli(d, ['projects', 'archive', 'pay']))).toMatchObject({ archived: true, changed: false });
+    expect(ok(await cli(d, ['projects', 'unarchive', 'pay']))).toMatchObject({ archived: false, changed: true });
+    expect(read(d, 'pay')).not.toHaveProperty('archived');
+    expect(ok(await mcp(d, 'projects_unarchive', { toilProject: 'pay' }))).toMatchObject({ archived: false, changed: false });
+  });
+
+  it('list hides archived by default and says how many, --all and --archived show them', async () => {
+    const d = disk({ 'home/.toil/projects/pay.json': { name: 'pay', archived: true }, 'home/.toil/projects/ops.json': { name: 'ops' } });
+    const plain = await cli(d, ['projects', 'list']);
+    expect(names(plain)).toEqual(['ops']);
+    expect(ok(plain)).toMatchObject({ archivedHidden: 1 });
+    const everything = await cli(d, ['projects', 'list', '--all']);
+    expect(names(everything).sort()).toEqual(['ops', 'pay']);
+    expect(ok(everything)).toMatchObject({ archivedHidden: 0, toilProjects: expect.arrayContaining([expect.objectContaining({ name: 'pay', archived: true })]) });
+    expect(names(await mcp(d, 'projects_list', { archived: true }))).toEqual(['pay']);
+    expect((await cli(d, ['projects', 'list', '--all', '--archived'])).envelope.error?.code).toBe('INVALID_INPUT');
+  });
+
+  it('show reports it, and an archived toil project still resolves, so a call keeps its context', async () => {
+    const d = disk({ 'home/.toil/projects/pay.json': { name: 'pay', archived: true, jira: { project: 'PAY' } } });
+    expect(ok(await cli(d, ['projects', 'show', 'pay']))).toMatchObject({ archived: true });
+  });
+
+  it('refuses one that is not in your own folder, with the import fix, and reports a bad flag in a file by key path', async () => {
+    const d = disk({ 'work/.toil/projects/team.json': { name: 'team' }, 'home/.toil/projects/bad.json': { name: 'bad', archived: 'yes' } });
+    d.write('work/.git/HEAD', 'ref: refs/heads/main\n');
+    const run = await cli(d, ['projects', 'archive', 'team']);
+    expect(run.envelope.error?.message).toContain('checked into a repository');
+    expect(run.envelope.error?.fix).toContain('projects import');
+    expect(JSON.parse(readFileSync(join(d.workspace, '.toil', 'projects', 'team.json'), 'utf8'))).toEqual({ name: 'team' });
+    expect(ok(await cli(d, ['projects', 'list'])).broken).toEqual([expect.objectContaining({ problems: [expect.objectContaining({ path: 'archived' })] })]);
+  });
+
+  it('is left out of a file shared with a team', async () => {
+    const d = disk({ 'home/.toil/projects/pay.json': { name: 'pay', archived: true } });
+    d.write('work/.git/HEAD', 'ref: refs/heads/main\n');
+    ok(await cli(d, ['projects', 'export', 'pay', '--file', 'shared/pay.json']));
+    expect(JSON.parse(readFileSync(join(d.workspace, 'shared', 'pay.json'), 'utf8'))).not.toHaveProperty('archived');
+  });
+});

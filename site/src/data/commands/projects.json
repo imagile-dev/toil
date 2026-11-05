@@ -6,7 +6,9 @@
     "writes": false,
     "connection": false,
     "flags": [
-      "--cwd <dir>"
+      "--cwd <dir>",
+      "--all",
+      "--archived"
     ]
   },
   {
@@ -273,6 +275,26 @@
     "connection": false,
     "flags": [
       "<name>"
+    ]
+  },
+  {
+    "name": "archive",
+    "tool": "projects_archive",
+    "description": "Archive one of your own toil projects: hidden from lists, kept on disk, reversible",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<toil-project>"
+    ]
+  },
+  {
+    "name": "unarchive",
+    "tool": "projects_unarchive",
+    "description": "Bring an archived toil project back",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<toil-project>"
     ]
   },
   {
