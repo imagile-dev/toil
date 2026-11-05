@@ -289,7 +289,8 @@
 .agent-choice { display: grid; gap: 0.15rem; min-height: 44px; padding: 0.5rem 0.75rem; border: 1px solid var(--muted); border-radius: var(--radius); background: var(--raised); color: var(--ink); cursor: pointer; }
 .agent-choice[data-selected] { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
 .agent-choice[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
-.agent-choice .note { font-size: 0.875rem; overflow-wrap: anywhere; }
+.agent-choice .note, .agent-missing { font-size: 0.875rem; overflow-wrap: anywhere; }
+.agent-missing { color: var(--danger); }
 .answer-checks { border-left: 4px solid var(--danger); padding-left: 0.75rem; display: grid; gap: 0.25rem; }
 .agent-notice { overflow-wrap: anywhere; }
 

@@ -1,5 +1,4 @@
-/* An answer's citations as chips (#395), inside running text: the Overview's ticket chip, set on the line it sits in,
-   with its detail in a tooltip on hover or focus. The tooltip takes the theme's raised surface and ink, like Help's. */
+/* An answer's citations (#395) are inline links; each one's detail is a tooltip on hover or focus. The tooltip takes the theme's raised surface and ink, like Help's. */
 /* A citation reads across with the text: an ordinary link, no box, wrapping where the line does. */
 .cite-link { color: var(--link); text-decoration: underline; text-underline-offset: 0.15em; font-weight: 400; overflow-wrap: anywhere; }
 .cite-link[data-hovered] { text-decoration-thickness: 2px; }
