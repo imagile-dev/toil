@@ -61,7 +61,7 @@ describe('the Analyses tab', () => {
 
   it('says so when a Toil project has none yet', async () => {
     await open('#/project/settlement/analyses');
-    expect(await screen.findByText(/No briefing kept for this Toil project yet/)).toBeTruthy();
+    expect(await screen.findByText(/No briefing (kept|in the filing cabinet) for this Toil project yet/)).toBeTruthy();
   });
 
   it('opens one again, top-down, with its evidence folded and what changed', async () => {

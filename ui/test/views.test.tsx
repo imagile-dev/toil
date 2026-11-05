@@ -1490,7 +1490,7 @@ describe('themes', () => {
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.getAllByRole('button').map((b) => b.textContent).filter((t) => !/Plain|Crate|System/.test(t ?? ''))).toEqual(before.filter((t) => !/Plain|Crate|System/.test(t ?? '')));
-    expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toEqual({ theme: 'plain', scheme: 'system', wording: false, voice: false });
+    expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toEqual({ theme: 'plain', scheme: 'system', wording: true, voice: false });
   });
 
   it('picks Appearance in Settings, not the header', async () => {
@@ -1536,14 +1536,16 @@ describe('how deep the theme goes (#283)', () => {
     expect(names()).toEqual(off.map((n) => n.replace(/^heading: Sprint 42(?=:)/, 'heading: Ledger (Sprint 42').replace(/^(heading: Ledger \(Sprint 42: day \d+ of \d+)$/, '$1)').replace(/^heading: Dependencies$/, 'heading: War table (Dependencies)')));
   });
 
-  it('has both boxes off by default under the theme picker (#552), turns one on, and disables both, with a note, for Plain', async () => {
+  it('has wording on and the voice off by default under the theme picker (#552, #561), switches each, and disables both, with a note, for Plain', async () => {
     await open('#/settings/toil');
     const card = screen.getByRole('region', { name: 'Theme' });
     const wording = within(card).getByRole('checkbox', { name: 'Themed wording' }) as HTMLInputElement;
     const voice = within(card).getByRole('checkbox', { name: 'Themed agent voice' }) as HTMLInputElement;
-    expect([wording.checked, voice.checked]).toEqual([false, false]);
+    expect([wording.checked, voice.checked]).toEqual([true, false]);
     await userEvent.click(wording);
-    expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toMatchObject({ theme: 'crate', wording: true, voice: false });
+    expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toMatchObject({ theme: 'crate', wording: false, voice: false });
+    await userEvent.click(voice);
+    expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toMatchObject({ theme: 'crate', wording: false, voice: true });
     expect(within(card).getByRole('button', { name: 'About themed wording' })).toBeTruthy();
     cleanupView();
     setTheme('plain');
