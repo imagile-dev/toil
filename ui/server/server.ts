@@ -49,6 +49,8 @@
  */
 
 import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { homedir } from 'node:os';
+import { checkRegistry, npmrcPath, RegistryError, setRegistry } from './agents/npmrc.ts';
 import { readFile, stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -731,6 +733,17 @@ export function createUiServer(options: UiServerOptions): UiServer {
         const adapter = installAdapter(body.adapter);
         if (typeof body.command !== 'string') throw new HttpError(400, 'Send the command the dialog showed, so only that command runs.', 'Send { "adapter": "<name>", "command": "<the command as shown>" }.');
         return streamInstall(res, control(), adapter, body.command, ctx.signal);
+      }
+      case 'POST agent/npm-registry': {
+        // One line, registry=<url>, in the person's own user npmrc, for an install that couldn't reach the public registry (npmrc.ts).
+        const body = await readJson(req);
+        try {
+          json(res, 200, setRegistry(npmrcPath(process.env, homedir()), checkRegistry(body.registry)));
+        } catch (e) {
+          if (e instanceof RegistryError) throw new HttpError(400, e.message, e.fix);
+          throw e;
+        }
+        return;
       }
       case 'POST agent/settings': {
         const body = await readJson(req);

@@ -14,6 +14,7 @@
 
 import { useRef, useState } from 'react';
 import { Button, Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
+import { RegistryHelp, type RegistryClient } from './registry-help.tsx';
 import type { AdapterStatus, AgentSettingsClient, InstallPlan } from './server-client.ts';
 import { Card } from './components/layout.tsx';
 import { usePlain } from './plain-words.ts';
@@ -35,7 +36,36 @@ function statusLines(a: AdapterStatus): string[] {
 export const helperState = (a: AdapterStatus): 'ready' | 'new' | 'fix' => (a.installed && a.cli.path !== null ? 'ready' : a.installed ? 'fix' : 'new');
 export const STATE_WORD = { ready: 'Ready', new: 'Not set up yet', fix: 'Needs one more step' } as const;
 
-export function AdaptersCard({ adapters, client, onInstalled }: { adapters: AdapterStatus[]; client: Pick<AgentSettingsClient, 'install'> | null; onInstalled?: (a: AdapterStatus) => void }) {
+/** In plain words, what pressing Install will do for one helper: every package, where it lands, and the rules it runs under. */
+export function willDo(a: AdapterStatus, plan: InstallPlan): string[] {
+  const where = plan.folder ? `in ${plan.folder}` : 'beside Toil UI';
+  return [
+    `Download ${a.package} ${a.tested}, the SDK Toil UI uses to talk to ${a.label}, and put it ${where}.`,
+    ...(plan.cli ? [`Download ${plan.cli}, ${a.label}'s own command-line program, which the SDK starts, and put it in the same place. This is a program from the vendor, so it is shown here before it runs.`] : []),
+    "Run npm, the one that came with your Node, with your own npm settings, so your organization's registry and proxy apply.",
+    "Take only releases published at least 14 days ago, and run none of the packages' install scripts.",
+  ];
+}
+
+export function wontDo(a: AdapterStatus): string[] {
+  return [
+    'Sign in for you, or ask for or store a password or key. ​' + a.label + ' signs in the way you already do.',
+    'Change your PATH, your npm settings, or anything outside the folder above.',
+    'Run anything else, or run it again, until you press Install.',
+  ];
+}
+
+/** After a successful install: what is now on disk and the step that is still yours. */
+export function changed(a: AdapterStatus, plan: InstallPlan): string[] {
+  return [
+    `${a.package} is installed${a.version ? ` (${a.version})` : ''}${plan.folder ? ` in ${plan.folder}` : ''}, and Toil UI loaded it.`,
+    ...(plan.cli ? [`${plan.cli} is installed beside it.`] : []),
+    a.cli.path ? `Toil UI will start ${a.cli.path}.` : `Toil UI still can't start ${a.label}: ${a.cli.problem ?? 'its program was not found'}`,
+    `Still yours: ${a.label} must be signed in with your own account (run ${a.name} once in a terminal if it asks). Then choose it under Which one answers and press Save.`,
+  ];
+}
+
+export function AdaptersCard({ adapters, client, onInstalled }: { adapters: AdapterStatus[]; client: Pick<AgentSettingsClient, 'install'> & RegistryClient | null; onInstalled?: (a: AdapterStatus) => void }) {
   const [installing, setInstalling] = useState<AdapterStatus | null>(null);
   const plain = usePlain();
   return (
@@ -49,7 +79,7 @@ export function AdaptersCard({ adapters, client, onInstalled }: { adapters: Adap
               <div className="adapter-status__head">
                 <strong>{a.label}</strong>
                 <span className={state === 'ready' ? 'agent-pick__ready' : 'note'}>{STATE_WORD[state]}</span>
-                {!a.installed && (
+                {(!a.installed || (a.cli.path === null && Boolean(a.install.cli))) && (
                   <Button className="btn btn--accent" onPress={() => setInstalling(a)} data-install={a.name}>
                     Install {a.label}
                   </Button>
@@ -95,11 +125,12 @@ export function AdaptersCard({ adapters, client, onInstalled }: { adapters: Adap
  * until Install is pressed, and what runs is what the dialog shows: the
  * server refuses a command that no longer matches its own.
  */
-export function InstallDialog({ adapter, plan, client, onClose, onInstalled }: { adapter: AdapterStatus; plan: InstallPlan; client: Pick<AgentSettingsClient, 'install'> | null; onClose: () => void; onInstalled: (a: AdapterStatus) => void }) {
+export function InstallDialog({ adapter, plan, client, onClose, onInstalled }: { adapter: AdapterStatus; plan: InstallPlan; client: Pick<AgentSettingsClient, 'install'> & RegistryClient | null; onClose: () => void; onInstalled: (a: AdapterStatus) => void }) {
   const [lines, setLines] = useState<string[]>([]);
   const [state, setState] = useState<'ready' | 'running' | 'done' | 'failed'>('ready');
   const [message, setMessage] = useState('');
   const [copied, setCopied] = useState('');
+  const [after, setAfter] = useState<AdapterStatus | null>(null);
   const abort = useRef<AbortController | null>(null);
   const runnable = plan.argv !== null && client !== null;
 
@@ -112,6 +143,7 @@ export function InstallDialog({ adapter, plan, client, onClose, onInstalled }: {
     abort.current = controller;
     try {
       const next = await client.install(adapter.name, plan.command, (line) => setLines((ls) => [...ls.slice(-400), line]), controller.signal);
+      setAfter(next);
       setState('done');
       setMessage(`Installed ${adapter.package} ${next.version ?? ''}, and Toil UI loaded it.${next.cli.path ? ` ${adapter.label} is ready.` : ` ${next.cli.problem ?? ''} ${next.cli.fix ?? ''}`}`.replace(/\s+/g, ' ').trim());
       onInstalled(next);
@@ -138,13 +170,22 @@ export function InstallDialog({ adapter, plan, client, onClose, onInstalled }: {
             <Heading slot="title" id="install-title">
               Install {adapter.label}
             </Heading>
-            <p>
-              Toil UI runs this one command, through the npm that came with your Node and with your own npm config, so your organization's registry and proxy apply. It installs {adapter.package} {adapter.tested}, the version Toil UI was tested with, beside Toil UI, runs no install scripts, and takes nothing published in the last 14 days.
-            </p>
+            <h3 className="install-sub">What this will do</h3>
+            <ul className="install-steps" aria-label="What this will do">
+              {willDo(adapter, plan).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <h3 className="install-sub">What it won't do</h3>
+            <ul className="install-steps" aria-label="What it won't do">
+              {wontDo(adapter).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <p className="note">The exact command, run without a shell:</p>
             <pre className="install-command" data-scroller="" tabIndex={0} role="region" aria-label="The command">
               {plan.command}
             </pre>
-            {plan.folder && <p className="note">It installs into {plan.folder}.</p>}
             {plan.problem && (
               <p className="failure">
                 {plan.problem} {plan.fix}
@@ -156,6 +197,17 @@ export function InstallDialog({ adapter, plan, client, onClose, onInstalled }: {
                 {lines.join('\n')}
               </pre>
             )}
+            {state === 'done' && (
+              <>
+                <h3 className="install-sub">What changed</h3>
+                <ul className="install-steps" aria-label="What changed">
+                  {changed(after ?? adapter, plan).map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {state === 'failed' && <RegistryHelp client={client} />}
             {message && (
               <p role={state === 'failed' ? 'alert' : 'status'} className={state === 'failed' ? 'failure' : 'note'}>
                 {message}

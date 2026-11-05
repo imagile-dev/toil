@@ -409,6 +409,8 @@ export interface AgentSettingsClient {
   installPlan(adapter: string): Promise<InstallPlan>;
   /** Runs it, as shown: npm's output a line at a time, then the adapter's new status. Throws npm's own words and the fix. */
   install(adapter: string, command: string, onLine: (line: string) => void, signal?: AbortSignal): Promise<AdapterStatus>;
+  /** Writes registry=<url> to the person's user npmrc, for an organization's own npm registry; what the file said before comes back. */
+  setRegistry?(registry: string): Promise<{ file: string; registry: string; previous: string | null }>;
 }
 
 export function httpAgentSettings(session: Session, base = './'): AgentSettingsClient {
@@ -434,6 +436,11 @@ export function httpAgentSettings(session: Session, base = './'): AgentSettingsC
       const res = await call(base, session, 'api/agent/install', { body: { adapter, command }, ...(signal ? { signal } : {}) });
       if (!res.ok) throw await failure(res, 'The install');
       return installLines(res, onLine);
+    },
+    async setRegistry(registry) {
+      const res = await call(base, session, 'api/agent/npm-registry', { body: { registry } });
+      if (!res.ok) throw await failure(res, 'Saving the registry');
+      return (await res.json()) as { file: string; registry: string; previous: string | null };
     },
   };
 }

@@ -82,7 +82,7 @@ export function ToilProjects({ toilProjects, calls, loaded, now, synced, config,
       {/* The first run (#416), in place of the empty state, whose one line it keeps above the steps that fill the page. */}
       {firstRunShows(toilProjects.length, synced, Boolean(onSync)) && <FirstRun toilProjects={toilProjects.length} synced={synced} config={config} onSync={onSync} {...(toilProjects.length === 0 ? { lede: words('empty.toilProjects') } : {})} />}
       {toilProjects.length === 0 ? null : (
-        <CardGrid className="toil-projects" min="sm">
+        <CardGrid className="toil-projects" min="lg">
           {ordered.map((d) => (
             <li key={d.name} className={d.name === lead ? 'projects__lead' : undefined}>
               <ToilProjectCard summary={d} loaded={loaded[d.name]} preview={previews.get(d.name) ?? null} synced={synced ? (synced[d.name] ?? null) : undefined} lead={d.name === lead} config={config} onDescribed={onDescribed} />
@@ -120,6 +120,8 @@ function ToilProjectCard({
   const { Avatar } = useSkins();
   const plain = usePlain();
   const heading = `toil-project-${d.name}`;
+  /** Has anything been read for this Toil project? Never synced (null) means its figures are unknown, not zero. Sample data (undefined) counts as read. */
+  const read = synced !== null;
   const shown = preview?.people.slice(0, MAX_AVATARS) ?? [];
   const more = (preview?.people.length ?? 0) - shown.length;
   return (
@@ -148,10 +150,10 @@ function ToilProjectCard({
                 <SprintLine sprint={preview.sprint} />
                 <MiniBurnup sprint={preview.sprint} />
               </div>
-            ) : (
+            ) : read ? (
               <p className="note">No sprint running.</p>
-            )}
-            <CountStrip preview={preview} sprint={false} />
+            ) : null}
+            <CountStrip preview={preview} sprint={false} read={read} />
             {shown.length > 0 && (
               <ul className="avatars" aria-label={`People: ${preview.people.map((p) => p.name).join(', ')}`}>
                 {shown.map((p) => (
@@ -173,7 +175,7 @@ function ToilProjectCard({
         <SourceBadges sources={d.sources} toilProject={d.name} />
         <p className="note toil-project-card__when">
           {synced === undefined ? 'Sample data.' : synced === null ? `Not ${plain.pw('synced', 'updated')} yet.` : `${plain.pw('Synced', 'Updated')} ${dateTime(synced.at)}${synced.status === 'ok' ? '' : synced.status === 'partial' ? ', some sources failed' : ', and it failed'}.`}
-          {preview && preview.changedSince !== null && <> {preview.changedSince ? `${plural(preview.changedSince, 'change')} since you last looked.` : 'Nothing changed since you last looked.'}</>}
+          {preview && read && preview.changedSince !== null && <> {preview.changedSince ? `${plural(preview.changedSince, 'change')} since you last looked.` : 'Nothing changed since you last looked.'}</>}
         </p>
       </div>
     </Card>

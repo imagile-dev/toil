@@ -160,6 +160,18 @@ describe('the Toil project list', () => {
     expect(all.find((c) => c.textContent?.startsWith('checkout-web'))!.textContent).toContain('Not synced yet.');
   });
 
+  it('shows a dash, not 0, for a Toil project that has never synced, and real zeros once it has (principle 12)', async () => {
+    window.location.hash = '#/';
+    render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview={false} synced={{ settlement: { at: '2026-10-13T07:00:00Z', status: 'ok' } }} />);
+    const all = await cards();
+    const never = all.find((c) => c.textContent?.startsWith('checkout-web'))!;
+    expect(within(never).getAllByText('–')).toHaveLength(3);
+    expect(never.textContent).not.toContain('No sprint running.');
+    expect(never.textContent).not.toMatch(/since you last looked/);
+    const done = all.find((c) => c.textContent?.startsWith('settlement'))!;
+    expect(within(done).queryByText('–')).toBeNull();
+  });
+
   it('says which commands fed it', async () => {
     await open('#/');
     expect(screen.getByText(/Fed by/).textContent).toContain('toil projects list');
@@ -1154,12 +1166,48 @@ describe('settings', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Install GitHub Copilot' });
     expect(within(dialog).getByRole('region', { name: 'The command' }).textContent).toBe('npm install --global --prefix /usr/local --ignore-scripts @x/y@1');
     expect(ran).toEqual([]);
+    // Before anything runs, the dialog says in plain words what will and won't happen.
+    expect(within(dialog).getByRole('list', { name: 'What this will do' }).textContent).toContain('Download @github/copilot-sdk 0.3.289');
+    expect(within(dialog).getByRole('list', { name: 'What this will do' }).textContent).toContain('install scripts');
+    expect(within(dialog).getByRole('list', { name: "What it won't do" }).textContent).toContain('Sign in for you');
+    expect(within(dialog).queryByRole('list', { name: 'What changed' })).toBeNull();
     expect(within(dialog).getByRole('button', { name: 'Copy command' })).toBeTruthy();
     expect(await violations(container)).toEqual([]);
     await userEvent.click(within(dialog).getByRole('button', { name: 'Install' }));
     await waitFor(() => expect(within(dialog).getByRole('log', { name: "npm's output" }).textContent).toBe('added 105 packages in 8s'));
     await waitFor(() => expect(dialog.textContent).toContain('Installed @github/copilot-sdk'));
+    expect(within(dialog).getByRole('list', { name: 'What changed' }).textContent).toContain('Still yours');
     expect(ran).toEqual(['copilot: npm install --global --prefix /usr/local --ignore-scripts @x/y@1']);
+  }, AXE_TIMEOUT);
+
+  it('when an install fails, offers the organization-registry helper, which writes only the registry line and reports the file', async () => {
+    const saved: string[] = [];
+    const client = {
+      status: async () => STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null, models: {}, cliPaths: {} }),
+      save: async (s: AgentSettings) => STATUS(s),
+      prompt: async () => '',
+      installPlan: NO_INSTALL.installPlan,
+      install: async () => {
+        throw new Error('npm stopped with exit code 1: ENOTFOUND registry.npmjs.org');
+      },
+      setRegistry: async (registry: string) => {
+        saved.push(registry);
+        return { file: '/home/me/.npmrc', registry: 'https://a.example.com/npm/', previous: null };
+      },
+    };
+    await open('#/settings/agent', { preview: false, agentSettings: { client } });
+    const card = await screen.findByRole('region', { name: 'Agents on this machine' });
+    await userEvent.click(within(card).getByRole('button', { name: 'Install GitHub Copilot' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Install GitHub Copilot' });
+    expect(dialog.querySelector('[data-registry-help]')).toBeNull();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Install' }));
+    await waitFor(() => expect(dialog.querySelector('[data-registry-help]')).not.toBeNull());
+    expect(dialog.textContent).toContain('Artifactory');
+    expect(dialog.textContent).toContain('never asks for a password');
+    await userEvent.type(within(dialog).getByLabelText('Registry address'), 'https://a.example.com/npm');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save to my .npmrc' }));
+    await waitFor(() => expect(dialog.textContent).toContain('Saved registry=https://a.example.com/npm/ in /home/me/.npmrc'));
+    expect(saved).toEqual(['https://a.example.com/npm']);
   }, AXE_TIMEOUT);
 
   const STATUS = (settings: AgentSettings, installed = false): AgentStatus => ({

@@ -1543,6 +1543,15 @@ describe("npm's copilot.cmd on Windows (#344)", () => {
     expect(() => findCli({ label: 'Claude Code', command: 'claude', env: { Path: 'C:\\nodejs' }, platform: 'win32', path: win32, cwd: 'C:\\work', isFile: (p) => p === win32.join('C:\\nodejs', 'claude.cmd'), readText: () => cmd })).toThrow(/Windows command shim/);
   });
 
+  it('tries every shim on PATH: an editor\'s launcher script ahead of npm\'s shim no longer hides it, and with only the launcher the fix says to press Install', () => {
+    const launcher = win32.join('C:\\editor', 'copilot.bat');
+    const shim = win32.join('C:\\nodejs', 'copilot.cmd');
+    const script = win32.join('C:\\nodejs', 'node_modules', '@github', 'copilot', 'npm-loader.js');
+    const look = (files: string[]) => () => findCli({ label: 'the Copilot CLI', command: 'copilot', env: { Path: 'C:\\editor;C:\\nodejs' }, platform: 'win32', path: win32, cwd: 'C:\\work', isFile: (p) => files.includes(p), scripts: true, readText: (p) => (p === shim ? cmd : '@echo off\r\npowershell -File copilot.ps1 %*') });
+    expect(look([launcher, shim, script])()).toBe(script);
+    expect(look([launcher])).toThrow(expect.objectContaining({ fix: expect.stringContaining('Press Install for the Copilot CLI') }));
+  });
+
   it('never follows a shim out of its own folder, and refuses one npm didn\'t write', () => {
     expect(shimScript('C:\\nodejs\\copilot.cmd', '"%dp0%\\..\\..\\evil\\x.js"')).toBeNull();
     expect(shimScript('C:\\nodejs\\copilot.cmd', 'start copilot.exe')).toBeNull();

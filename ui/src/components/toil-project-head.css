@@ -24,6 +24,7 @@ main[data-view="toil-projects"] { max-width: 1680px; }
 .count__value { font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; line-height: 1.2; }
 .count__label { color: var(--muted); font-size: 0.8125rem; }
 .count--warn .count__value { color: var(--warn); }
+.count--unknown .count__value { color: var(--muted, inherit); font-weight: 400; }
 
 .sprint-line { margin: 0; }
 .sprint-line__name { font-weight: 600; }
@@ -45,10 +46,8 @@ main[data-view="toil-projects"] { max-width: 1680px; }
 .toil-project-card__foot { display: grid; gap: 0.4rem; min-width: 0; border-top: 1px solid var(--line); padding-top: 0.6rem; }
 .toil-project-card__when { margin: 0; }
 
-/* The lead card takes two columns where two fit, and lays its work beside its sprint. */
-@media (min-width: 48rem) {
-  .toil-projects > .projects__lead { grid-column: span 2; }
-}
+/* Every card gets the room the lead card used to (the grid's 24rem minimum), so counts and sprint lines never wrap
+   into a narrow column. The lead keeps its larger heading and, in a wide cell, its work beside its sprint. */
 @container (min-width: 36rem) {
   .toil-project-card--lead .toil-project-card__body { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); column-gap: 1.25rem; align-items: start; }
   .toil-project-card--lead .toil-project-card__sprint { grid-row: span 2; }

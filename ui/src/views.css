@@ -361,3 +361,10 @@
 .agent-details p { margin: 0.25rem 0 0; font-size: 0.875rem; overflow-wrap: anywhere; }
 .agent-advanced { display: grid; gap: 0.6rem; }
 .agent-advanced[open] > summary { margin-bottom: 0.25rem; }
+.install-sub { margin: 0.5rem 0 0.15rem; font-size: 0.9375rem; }
+.install-steps { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.25rem; font-size: 0.9375rem; }
+.install-registry { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.6rem 0.75rem; display: grid; gap: 0.5rem; }
+.install-registry summary { font-weight: 600; cursor: pointer; }
+.install-registry__row { display: grid; gap: 0.5rem; grid-template-columns: minmax(0, 1fr); }
+.install-registry__row label { display: grid; gap: 0.25rem; }
+@media (min-width: 40rem) { .install-registry__row { grid-template-columns: minmax(0, 1fr) auto; align-items: end; } }
