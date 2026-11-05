@@ -399,6 +399,16 @@ system (`toil projects person`, or **Settings, Toil projects**):
   it; it is applied only when someone presses the button, and an email that fits more
   than one candidate suggests nothing and says why. Accounts that only wrote bots'
   pull requests are left out and counted.
+- **Map** (#561) is on each such card: it opens a form in place to choose an existing
+  person or add a new one (a person or an agent), with a field for the identity in each
+  source the Toil project uses (GitHub, Jira, Azure DevOps, Bitbucket), the account's own
+  prefilled and a likely person from toil's matcher (`src/core/people-match.ts`) as the
+  starting choice. Save runs `toil projects person` through the same config path as
+  Settings; nothing is applied until it is pressed. **Save to this repository** (beside
+  the people, in the Map form once it has saved, and in Settings) runs `toil projects
+  people save`, which writes the people into the repository's `.toil/projects/<name>.json`
+  for any host (GitHub, Azure DevOps, Bitbucket); the page says which file changes, and
+  nothing is staged or committed.
 
 It shows what is on each plate and never scores anyone: no ranking, no productivity
 figure, no person-to-person comparison and no line or commit counts. Flow metrics

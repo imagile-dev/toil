@@ -1642,6 +1642,44 @@ describe('the people view (#292)', () => {
     expect(sent).toEqual([{ command: 'projects person', input: { toilProject: 'card-payments', name: 'A. Chen', id: ['bitbucket=achen'] } }]);
   });
 
+  it('maps an unmapped account from its card: a form for the sources the Toil project uses, turned off in the preview', async () => {
+    await open('#/project/checkout-web/people');
+    const bo = cards("Not in the Toil project's people")[0]!;
+    expect(within(bo).queryByRole('group', { name: 'Identities in each system' })).toBeNull();
+    await userEvent.click(within(bo).getByRole('button', { name: /^Map/ }));
+    const ids = within(bo).getByRole('group', { name: 'Identities in each system' });
+    // Only the systems this Toil project reads or names people in get a field.
+    expect(within(ids).getAllByRole('textbox').length).toBeGreaterThan(0);
+    expect(ids.textContent).not.toContain('Azure DevOps');
+    expect(within(bo).getByRole('button', { name: /^(Add them|Map to )/ }).hasAttribute('disabled')).toBe(true);
+    expect(bo.textContent).toContain('Turned off: This is the preview');
+    expect(bo.textContent).toMatch(/Runs toil projects person checkout-web "?Bo W\.?"?/);
+  });
+
+  it('maps through toil projects person when pressed, then saves the people to the repository with toil projects people save', async () => {
+    const { config, sent } = recording();
+    await open('#/project/checkout-web/people', { config });
+    const bo = cards("Not in the Toil project's people")[0]!;
+    await userEvent.click(within(bo).getByRole('button', { name: /^Map/ }));
+    expect(sent).toEqual([]);
+    await userEvent.selectOptions(within(bo).getByLabelText('This account is'), 'A new person or agent');
+    await userEvent.click(within(bo).getByRole('button', { name: 'Add them' }));
+    expect(await within(bo).findByText(/is mapped to Bo W\. in checkout-web's people\./)).toBeTruthy();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ command: 'projects person', input: { toilProject: 'checkout-web', name: 'Bo W.', id: [expect.stringMatching(/^(github|bitbucket|jira|ado)=/)] } });
+    await userEvent.click(within(bo).getByRole('button', { name: 'Save to this repository' }));
+    expect(await within(bo).findByText(/Nothing was staged or committed/)).toBeTruthy();
+    expect(sent[1]).toEqual({ command: 'projects people save', input: { toilProject: 'checkout-web' } });
+  });
+
+  it('offers Save to this repository beside the people, behind a disclosure that says which file changes', async () => {
+    await open('#/project/checkout-web/people');
+    const section = screen.getByRole('heading', { level: 2, name: 'People and agents' }).closest('section') as HTMLElement;
+    expect((within(section).getByRole('button', { name: 'Save to this repository' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(section.textContent).toContain('.toil/projects/checkout-web.json');
+    expect(section.textContent).toContain('Toil never stages or commits it.');
+  });
+
   it('gives every account its own card when the Toil project lists nobody, and says how to map them', async () => {
     await open('#/project/settlement/people');
     expect(screen.queryByRole('heading', { level: 2, name: 'People and agents' })).toBeNull();
