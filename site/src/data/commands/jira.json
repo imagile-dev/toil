@@ -274,6 +274,19 @@
     ]
   },
   {
+    "name": "field discover",
+    "tool": "jira_field_discover",
+    "description": "Find the custom fields your issues use, by sampling one issue of each type (read only)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--issue <key>",
+      "--project <key>",
+      "--per-type <n>",
+      "--limit <n>"
+    ]
+  },
+  {
     "name": "api",
     "tool": "jira_api",
     "description": "Call any Jira Data Center REST endpoint on the connection, e.g. toil jira api GET /rest/api/2/issue/PAY-1042",

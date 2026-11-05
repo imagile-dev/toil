@@ -143,6 +143,7 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 | `issue attachments` | `<key>` | Attachments (id, filename, size, mimeType, content) |
 | `issue download` | `<key> <attachment-id> --dir` | `{ saved, filename, size }`; saves to `.toil/` by default |
 | `issue fields` | `--discover --custom-only --project --issue-type` | Registered fields, or Jira's field list with `suggestedType` and `allowedValues` |
+| `field discover` | `--project <key>` (`--per-type 1-3`, `--limit`) or `--issue <key>` (repeatable) | `{ issueTypes, fields, commands }`: per issue type, the custom fields that hold a value on the sample, each with an example, an alias and the OWI field it likely is; see **Finding custom fields** |
 | `issue set-sprint` ✎ | `<key> --sprint <id>` | `{ updated, sprint }` |
 | `project list` (Cloud) | `--query --limit --cursor` | Every visible project, or a page of them |
 | `project get` (Cloud) | `<project>` | The project |
@@ -178,6 +179,7 @@ toil jira issue link ABC-123 --target ABC-456 --type Blocks --allow-write
 toil jira sprint list --project ABC --state active,future
 toil jira issue set-sprint ABC-123 --sprint 42 --allow-write
 toil jira issue download ABC-123 10001 --dir downloads
+toil jira field discover --project ABC --per-type 1
 ```
 
 On a Cloud connection, name it (or make it the default) and mind the differences above:
@@ -388,6 +390,23 @@ multi-line text field there needs ADF on Cloud. `toil jira issue fields --discov
 Jira's fields with a `suggestedType`; add `--project ABC` to see each select field's
 `allowedValues`. A select field that only accepts option ids needs `"type": "option-id"`.
 **Sprint is not a custom field**: use `issue set-sprint` after the issue exists; on Cloud the sprints themselves are made and run with `sprint create`, `start` and `complete`.
+
+**Finding custom fields.** `toil jira field discover --project ABC` reads the most recently
+updated issue of each issue type (at most 12 types, one search each, `--limit` fewer;
+`--per-type` up to 3 issues of each) and reports, per issue type, the custom fields that
+hold a value on it: id, name, schema, an example of at most 80 characters (a person shows
+as `(a person)`, rich text as `(rich text)`), a suggested camelCase `alias`, and `owi`, the
+Open Work Item field it likely is (`iteration` for Jira Software's Sprint, `estimate` for
+Story Points or Story point estimate, `team`, `dueDate`) with `confidence` `high` or
+`medium` and why. `--issue ABC-123 --issue ABC-456` reads those issues instead. An issue
+type with no issue to read has `status: "no-sample"` and `fields: null`: that is unknown,
+not "no custom fields" (`[]`). More types than `--limit` allows give a
+`JIRA_DISCOVER_TRUNCATED` warning naming the ones left out. `commands` holds the
+`toil projects field` lines for the high-confidence fields: the alias, then the OWI key
+(`estimate`, `iteration`) pointed at the same id with `--replace`. It reads only and never
+runs them: copy the ones you want, or tick them in Toil UI's **Find the fields**. Naming a
+field in a toil project does not make `issue search` return it; that still takes the field
+in the connection's `customFields`, or `--fields`.
 
 A **toil project** can name fields too (`"jira": { "fields": { "storyPoints": "customfield_10016" } }`,
 or `toil projects field <toil project> jira storyPoints customfield_10016`). Then
