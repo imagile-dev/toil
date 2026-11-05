@@ -331,6 +331,71 @@
     ]
   },
   {
+    "name": "sprint get",
+    "tool": "jira_sprint_get",
+    "description": "Get one Jira Cloud sprint by id",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<sprint>"
+    ]
+  },
+  {
+    "name": "sprint create",
+    "tool": "jira_sprint_create",
+    "description": "Create a future sprint on a Jira Cloud board",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<name>",
+      "--board <id>",
+      "--start <date>",
+      "--end <date>",
+      "--goal <text>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "sprint update",
+    "tool": "jira_sprint_update",
+    "description": "Change a Jira Cloud sprint's name, goal or dates",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<sprint>",
+      "--name <text>",
+      "--start <date>",
+      "--end <date>",
+      "--goal <text>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "sprint start",
+    "tool": "jira_sprint_start",
+    "description": "Start a future Jira Cloud sprint",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<sprint>",
+      "--start <date>",
+      "--end <date>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "sprint complete",
+    "tool": "jira_sprint_complete",
+    "description": "Complete an active Jira Cloud sprint, moving its open issues on",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<sprint>",
+      "--move-open-to <sprint|backlog>",
+      "--allow-write"
+    ]
+  },
+  {
     "name": "issue schema",
     "tool": "jira_issue_schema",
     "description": "Print the --input-file JSON schema and an example for issue create and issue update",
