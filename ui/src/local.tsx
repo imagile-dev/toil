@@ -15,6 +15,7 @@ import type { Agent } from './agent.ts';
 import './app.css';
 import './views.css';
 import type { ConfigApi } from './config.ts';
+import type { SetupProgress } from './setup.ts';
 import { httpAgent, httpAgentSettings, httpConfig, httpExecute, httpFeedback, httpModelUsage, httpServerStatus, httpSync, httpWorklog, httpAnalyses, readServerInfo, type AgentStatus, type ServerInfo, type SyncStatus } from './server-client.ts';
 import { SyncPanel, lastSynced } from './sync-panel.tsx';
 import { httpAssignments } from './assign/client.ts';
@@ -32,6 +33,9 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   // When the last sync finished, whatever it found (#494): Analyze after a sync runs on each new one.
   const [finished, setFinished] = useState<string | null>(() => status?.job.finishedAt ?? null);
   const [agent, setAgent] = useState(firstAgent);
+  // Where the setup wizard is: a saved helper or a finished sync remounts the App, and the wizard must not start again (#561).
+  const [setupProgress, setSetupProgress] = useState<SetupProgress | null>(null);
+  const setupKeep = { value: setupProgress, save: setSetupProgress };
   const [settingsClient] = useState(() => (session.agentSettings ? httpAgentSettings() : null));
   // A new choice of agent (#251) brings its own starters, so the agent is fetched again and the App remounted.
   const onAgent = useCallback(
@@ -70,7 +74,7 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   }, []);
   return (
     <>
-      <App key={generation} syncing={syncing} news={news} syncedAt={finished} serverStatus={serverStatus} execute={execute} agent={agent} config={config} {...(session.sample ? {} : { themeSetting: config })} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byToilProject, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByToilProject(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} versions={{ ui: session.version, toil: session.toil.version }} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { toilProject: names[0] } : {}) } } : {})} />
+      <App key={generation} setupKeep={setupKeep} syncing={syncing} news={news} syncedAt={finished} serverStatus={serverStatus} execute={execute} agent={agent} config={config} {...(session.sample ? {} : { themeSetting: config })} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byToilProject, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByToilProject(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} versions={{ ui: session.version, toil: session.toil.version }} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { toilProject: names[0] } : {}) } } : {})} />
       {sync && <SyncPanel client={sync} onChange={onChange} onStatus={onStatus} request={syncAsked} />}
     </>
   );

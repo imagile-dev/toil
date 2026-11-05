@@ -1127,9 +1127,9 @@ describe('settings', () => {
     await userEvent.type(within(field).getByRole('textbox', { name: /^Alias/ }), 'storyPoints');
     await userEvent.type(within(field).getByRole('textbox', { name: /^Field id/ }), 'customfield_10002');
     await userEvent.click(within(field).getByRole('button', { name: 'Name field' }));
-    const link = screen.getByRole('form', { name: 'Link an area to card-payments' });
-    await userEvent.type(within(link).getByRole('textbox', { name: /^Keys to set/ }), 'project=PAY');
-    await userEvent.click(within(link).getByRole('button', { name: 'Link area' }));
+    const link = screen.getByRole('form', { name: 'Link a tool to card-payments' });
+    await userEvent.type(within(link).getByRole('textbox', { name: /^Settings for every call/ }), 'project=PAY');
+    await userEvent.click(within(link).getByRole('button', { name: 'Link tool' }));
     await waitFor(() => expect(sent).toHaveLength(3));
     expect(sent.map((s) => [s.command, s.input])).toEqual([
       ['projects init', { name: 'payments' }],

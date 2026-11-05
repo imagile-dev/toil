@@ -238,7 +238,7 @@ function ShownToilProject({ shown }: { shown: Shown }) {
   return (
     <Stack className="shown" gap="sm">
       <DataTable
-        label={`What ${shown.name} gives each area`}
+        label={`What ${shown.name} gives each tool`}
         caption={`What ${shown.name} gives each area`}
         rows={areas}
         rowKey={([area]) => area}
@@ -266,7 +266,7 @@ function ShownToilProject({ shown }: { shown: Shown }) {
           {shown.toilProject.people.map((p) => (
             <li key={p.name} className="any-break">
               {p.name}
-              {p.kind === 'agent' && ' (agent)'}
+              {p.kind === 'agent' && ' (AI helper)'}
               <span className="note">
                 {' '}
                 {Object.entries(p.ids ?? {})
@@ -364,10 +364,10 @@ function LinkForm({ config, toilProject, areas, connections }: { config: ConfigA
   return (
     <ChangeForm
       titleId="toil-project-form-sources"
-      title={`Link an area to ${toilProject}`}
+      title={`Link a tool to ${toilProject}`}
       explain="Attaches an area to the Toil project: which of your connections its calls use (or your default), the keys it supplies to every call (project=PAY), and reference data lists (projects=FEES). toil refuses, from here, a link that would point the Toil project at a connection with writes on: a person makes that one with toil projects link in a terminal."
       runs={commandLine('projects link', args)}
-      submit="Link area"
+      submit="Link tool"
       disabled={config.disabled}
       onSubmit={async () =>
         outcomeOf(
@@ -376,9 +376,9 @@ function LinkForm({ config, toilProject, areas, connections }: { config: ConfigA
         )
       }
     >
-      <SelectField label="Area" value={chosen} onChange={(v) => (setArea(v), setConnection(''))} options={names.map((n) => ({ value: n, label: n }))} />
+      <SelectField label="Tool" value={chosen} onChange={(v) => (setArea(v), setConnection(''))} options={names.map((n) => ({ value: n, label: n }))} />
       <SelectField label="Connection" value={connection} onChange={setConnection} options={[{ value: '', label: `Your ${chosen} default` }, ...ofArea.map((c) => ({ value: c.name, label: `${c.name}${c.writes ? ' (writes on)' : ''}` }))]} />
-      <AreaField label="Keys to set, one key=value per line" value={set} onChange={setSet} hint="The area's context inputs (project=PAY, owner=imagile) are applied to calls; any other key is kept as reference data." />
+      <AreaField label="Settings for every call, one key=value per line" value={set} onChange={setSet} hint="The area's context inputs (project=PAY, owner=imagile) are applied to calls; any other key is kept as reference data." />
       <AreaField label="Values to add to lists, one key=value per line" value={add} onChange={setAdd} hint="e.g. projects=FEES" />
       <CheckField label="Replace values already set" checked={replace} onChange={setReplace} />
     </ChangeForm>
@@ -419,8 +419,8 @@ function PersonForm({ config, toilProject, areas }: { config: ConfigApi; toilPro
       }}
     >
       <TextField label="Name" value={name} onChange={setName} required hint="As the team writes it, e.g. Pat Example." />
-      <AreaField label="Identities, one area=identity per line" value={ids} onChange={setIds} hint={<>e.g. jira=pat and github=pat-ex. Areas: {areas.map((a) => a.name).join(', ') || 'the ones toil has'}.</>} />
-      <SelectField label="Kind" value={kind} onChange={(v) => setKind(v === 'agent' ? 'agent' : 'human')} options={[{ value: 'human', label: 'Person' }, { value: 'agent', label: 'Agent' }]} />
+      <AreaField label="Accounts, one tool=account per line" value={ids} onChange={setIds} hint={<>e.g. jira=pat and github=pat-ex. Tools: {areas.map((a) => a.name).join(', ') || 'the ones toil has'}.</>} />
+      <SelectField label="Kind" value={kind} onChange={(v) => setKind(v === 'agent' ? 'agent' : 'human')} options={[{ value: 'human', label: 'Person' }, { value: 'agent', label: 'AI helper' }]} />
       <TextField label="Email" value={email} onChange={setEmail} hint="Optional, e.g. you@example.com. Compared only, to suggest matches." />
       <CheckField label="Replace an identity, kind or email already set" checked={replace} onChange={setReplace} />
     </ChangeForm>
@@ -656,7 +656,7 @@ function FieldForm({ config, toilProject, areas }: { config: ConfigApi; toilProj
       disabled={config.disabled}
       onSubmit={async () => outcomeOf(await config.run('projects field', { toilProject, area: chosen, alias, id, ...(replace ? { replace } : {}) }), `${alias} now names ${id} in ${toilProject}.`)}
     >
-      <SelectField label="Area" value={chosen} onChange={setArea} options={names.map((n) => ({ value: n, label: n }))} />
+      <SelectField label="Tool" value={chosen} onChange={setArea} options={names.map((n) => ({ value: n, label: n }))} />
       <TextField label="Alias" value={alias} onChange={setAlias} required hint="A camelCase name, e.g. storyPoints or estimate." />
       <TextField label="Field id" value={id} onChange={setId} required hint="The service's own id, e.g. customfield_10002." />
       <CheckField label="Point an existing alias at this field" checked={replace} onChange={setReplace} />

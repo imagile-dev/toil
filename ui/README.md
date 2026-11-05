@@ -74,14 +74,23 @@ sync finishes. Each step's (i) explains it and links to these docs.
 
 ## The setup wizard
 
-For someone new to AI, toil and Toil UI, `#/setup` walks through setup one question a screen, with Back, Skip and Next and a "Step 3 of 6" line. It opens from **Set it up step by step** on the first run, from **Set up toil, step by step** in the command palette, from the link under Settings' heading, and by its own address.
+For someone new to AI, toil and Toil UI, `#/setup` walks through setup one question a screen, with Back, Skip and Next and a "Step 3 of 7" line. It opens from **Set it up step by step** on the first run, from **Set up toil, step by step** in the command palette, from the link under Settings' heading, and by its own address.
 
 1. **Welcome** says what toil and Toil UI are, and that nothing in your tools changes without you.
-2. **Which tools do you use?** lists the areas toil can connect to, from the server's own registry: GitHub, Jira, Azure DevOps, Bitbucket, Confluence and SonarQube first, the rest under **More tools**. A tool you already have a connection to says so.
-3. **Link your tools** takes each ticked tool in turn with the same form as Settings, Connections: the settings in text boxes, and the login in a masked box that goes to toil's own `connections login` path and the OS credential store, as it does in Settings. The wizard never keeps it, and no AI helper, chat or proposal ever sees it. The new connection starts with writes off, and the screen says so. **Test the link** runs `toil connections test`; **Prefer to type it on a terminal?** shows `toil connections add <name> --area <area>` with a Copy button.
-4. **Your Toil project** creates one (`projects init`, an optional repository with `projects add-repo`, then `projects link` for each tool set up) or links the tools to one you already have.
-5. **An AI helper (optional)** is the Agent page's own Install dialog and Save, explained for someone who has never used one, with Skip. Everything else works without one.
-6. **All set** says what was set up and offers **Sync now**.
+2. **An AI helper (optional)** comes first, so it can explain the rest. It is the Agent page's own Install dialog and Save, explained for someone who has never used one: what it is, that it only reads and suggests, that it uses the subscription you already have so Toil UI stores no key, and that it never sees your login. Skip it and every later step is what it always was, with one small line, "Set up an AI helper to get explanations here", that brings you back here and then returns you to where you were.
+3. **Which tools do you use?** lists the areas toil can connect to, from the server's own registry: GitHub, Jira, Azure DevOps, Bitbucket, Confluence and SonarQube first, the rest under **More tools**. A tool you already have a connection to says so.
+4. **Link your tools** takes each ticked tool in turn with the same form as Settings, Connections: the settings in text boxes, and the login in a masked box that goes to toil's own `connections login` path and the OS credential store, as it does in Settings. The wizard never keeps it, and no AI helper, guide or suggestion ever sees it. The new connection starts with changes off (writes off in toil's words), and the screen says so. **Test the link** runs `toil connections test`; **Prefer to type it on a terminal?** shows `toil connections add <name> --area <area>` with a Copy button.
+5. **Your Toil project** creates one (`projects init`, an optional repository with `projects add-repo`, then `projects link` for each tool set up) or links the tools to one you already have.
+6. **Let toil learn your Jira fields (optional)** is Settings' Find the fields.
+7. **All set** says what was set up and offers **Sync now**.
+
+### The guide
+
+Once a helper is ready (installed, its program found, and chosen here or in Settings), the Tools, Link, Toil project and Jira fields steps show a guide beside the step: two columns from 1000px wide, and below the step behind **Ask the guide**, closed, on a phone or tablet. Each step offers starter questions ("Which scopes does my token need?", "Where do I find my Jira site name?", "Cloud or Data Center?", "What is a Toil project?", "What does Sprint mean here?") and a question box labelled **Ask a question (never paste a token here)**. The chat is kept as you move between steps.
+
+It is a guide, not an operator. The server gives it its own prompt (`ui/server/agents/guide.ts`) and three read tools: `docs_list` and `docs_read`, which read toil's own skill pages for the tools you chose (the pages the MCP server serves as resources, embedded in the server), and `connection_scopes`, which says what a tool's token needs. Once a Toil project exists it also gets toil's live reads for it; it needs no sync and no Toil project before then. What it is told is built on the server from three places and no others: the wizard's whitelisted state (the step, the tools ticked, the one being linked, a Cloud or Data Center choice and the address the form composed, with no login or query in it, and the Toil project's name), `connections list` run read-only (name, tool, address, writes, and the same "token: saved, from an environment variable or missing" badge Settings shows, never a value), and the docs. A change it suggests comes back as a card with the command it would type and **Run this**, which runs it through the same config call the wizard's own buttons use, after the page checks it again; only `connections add` (with plain `--set` settings, no login), `projects init`, `projects add-repo` and `projects link` are offered a button. Its answers are not in the worklog, which is about work.
+
+**No secret reaches it.** The connection form reports only what it would send as settings (a form's `submission`, which holds no secret by construction), and the wizard whitelists `deployment` and the address from them. A message is checked before it is sent, three times over, by the same function (`looksLikeSecret`, `ui/src/guide.ts`: toil's own `checkSecret()` paste check on the message, each word and each pair, the usual credential prefixes such as `ghp_`, `github_pat_`, `ATATT`, `glpat-`, `xox` and `AKIA`, a `Bearer` header, a JWT or private key, an address with a login in it, `password:` and `token=` with a value, and one long key-shaped word): in the panel, in the page's client, and at the server's route, which refuses it before it reads another field, and again in the host before the connection list, the agent, the usage ledger or the worklog is touched. A refused message is cleared, never kept, logged, audited or echoed, and the notice says: "That looks like a token. Type it in the masked box in the step instead; the guide never needs it." Nothing is stored in the browser: closing the tab ends the chat.
 
 The wizard keeps its progress in the page only; it adds no config key. Connections it saved stay saved if you close the tab. Every change is one of the commands in the allowlist Settings uses, so each is in toil's audit log as `toil-ui`.
 
@@ -1180,7 +1189,7 @@ the worklog's facts, never from the bell.
 Eight built-in themes: Plain, Crate (the default), Harvest, Starship, Realm, Sprawl,
 Frontier and Overworld. Pick
 one from the header, or under **Settings, General**, where two checkboxes say how far
-it goes, both off by default (#552):
+it goes, wording on and the agent voice off by default (#552, #561):
 
 - **Themed wording:** the theme's own lede, eyebrows, dashboard notes, empty
   states and loading lines, and its names for a sprint, a board or an epic beside

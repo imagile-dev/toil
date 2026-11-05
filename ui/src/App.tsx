@@ -60,7 +60,7 @@ import type { WordKey } from './wording.ts';
 import { useFontApplied } from './fonts.ts';
 import { usePlain, wordsFor } from './plain-words.ts';
 import { viewHelpHref } from './help.ts';
-import { Setup } from './views/Setup.tsx';
+import { Setup, type SetupProps } from './views/Setup.tsx';
 import { Loader, MomentsProvider, Splash, useMomentPlayer } from './moments/Moments.tsx';
 import { momentsFor } from './moments/events.ts';
 import { progressText, syncText, trackCalls, type CallProgress } from './moments/progress.ts';
@@ -266,6 +266,8 @@ export interface AppProps {
   preview: boolean;
   /** The local app's agent settings (#251), shown under Settings; the preview has none. */
   agentSettings?: AgentSettingsPanelProps;
+  /** Where the setup wizard is, held by the page above (src/local.tsx), which outlives this App's remounts. Absent: the wizard keeps its own. */
+  setupKeep?: SetupProps['keep'];
   /** `toil feedback`, behind the header's Feedback button (#265): the server's, or the preview's, which sends nothing. */
   feedback?: FeedbackApi;
   /** The Command Center's start action (#307), which assign-to-agent (#293) provides; without it the start button is disabled. */
@@ -299,7 +301,7 @@ export interface AppProps {
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, themeSetting, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, syncedAt, news, versions }: AppProps) {
+export function App({ execute, agent, config, themeSetting, now, preview, agentSettings, setupKeep, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, syncedAt, news, versions }: AppProps) {
   const [ownAnalyses] = useState(() => memoryAnalyses());
   const analyses = givenAnalyses ?? ownAnalyses;
   const route = useRoute();
@@ -575,7 +577,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
 
   let body;
   if (route.view === 'setup') {
-    body = <Setup config={config ?? null} agent={agentSettings} guide={agent.guide ? (request, history, signal, style) => agent.guide!(request, history, signal, style) : undefined} onSync={onSync} />;
+    body = <Setup config={config ?? null} agent={agentSettings} keep={setupKeep} guide={agent.guide ? (request, history, signal, style) => agent.guide!(request, history, signal, style) : undefined} onSync={onSync} />;
   } else if (route.view === 'settings') {
     body = <Settings page={route.page} {...(route.at ? { at: route.at } : {})} config={config ?? null} modelUsage={modelUsage ?? null} {...(agentSettings ? { agent: agentSettings } : {})} />;
   } else if (route.view === 'toilProjects') {

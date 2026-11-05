@@ -30,7 +30,7 @@ import type { AgentStatus } from '../server-client.ts';
 import { Card, Copy } from '../components/layout.tsx';
 import { Help } from '../components/help.tsx';
 import { Loader } from '../moments/Moments.tsx';
-import { deploymentOf, freeName, groupAreas, GUIDED_STEPS, locationKind, locationProblems, projectFile, SETUP_STEPS, STEP_TITLE, terminalAdd, toolName, TOKEN_WORD, tokenState, type SetupStep } from '../setup.ts';
+import { deploymentOf, freeName, groupAreas, GUIDED_STEPS, locationKind, locationProblems, projectFile, SETUP_STEPS, STEP_TITLE, terminalAdd, toolName, TOKEN_WORD, tokenState, type SetupProgress, type SetupStep } from '../setup.ts';
 import { LoginForm, NewConnectionForm } from './settings/Connections.tsx';
 import { FieldsStep } from './settings/FindFields.tsx';
 import { ChangeForm, ChoiceRadios, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './settings/parts.tsx';
@@ -53,30 +53,32 @@ export interface SetupProps {
   agent?: AgentSettingsPanelProps | undefined;
   /** The setup guide's question, when this Toil UI has one: the server's, or the preview's scripted one. Absent: no guide, and no offer of one. */
   guide?: Agent['guide'] | undefined;
+  /** The page's memory of where the wizard is, so a remount (a saved helper, a finished sync) doesn't send it back to Welcome. Absent: its own state only. */
+  keep?: { value: SetupProgress | null; save(progress: SetupProgress | null): void } | undefined;
   onSync?: (() => void) | undefined;
 }
 
 /** Whether the saved choice names a helper that can start now: a chosen one that is installed with its program found. */
 const helperReady = (status: AgentStatus | null): boolean => Boolean(status && status.settings.adapter !== 'none' && status.adapters.some((a) => a.name === status.settings.adapter && helperState(a) === 'ready'));
 
-export function Setup({ config, agent, guide, onSync }: SetupProps) {
-  const [step, setStep] = useState<SetupStep>('welcome');
+export function Setup({ config, agent, guide, keep, onSync }: SetupProps) {
+  const [step, setStep] = useState<SetupStep>(keep?.value?.step ?? 'welcome');
   const [areas, setAreas] = useState<AreaInfo[] | null>(null);
   const [connections, setConnections] = useState<ConnectionsData['connections']>([]);
   /** Whether `connections list` was read: an unreadable list is unknown, not empty. */
   const [configFile, setConfigFile] = useState<string | null>(null);
   const [listed, setListed] = useState<boolean | null>(null);
   const [projects, setProjects] = useState<ListedProject[]>([]);
-  const [picked, setPicked] = useState<string[]>([]);
-  const [areaAt, setAreaAt] = useState(0);
+  const [picked, setPicked] = useState<string[]>(keep?.value?.picked ?? []);
+  const [areaAt, setAreaAt] = useState(keep?.value?.areaAt ?? 0);
   /** Connections saved in this run, by area. */
-  const [made, setMade] = useState<Record<string, string>>({});
-  const [project, setProject] = useState<string | null>(null);
-  const [helper, setHelper] = useState<Chosen>(null);
+  const [made, setMade] = useState<Record<string, string>>(keep?.value?.made ?? {});
+  const [project, setProject] = useState<string | null>(keep?.value?.project ?? null);
+  const [helper, setHelper] = useState<Chosen>(keep?.value?.helper ?? null);
   /** The non-secret settings the connection form would send now, for the guide: the form reports them, and holds the secret box to itself. */
   const [draft, setDraft] = useState<Record<string, string>>({});
   /** The step a person left to set up a helper from the offer, so Next takes them back to it. */
-  const [returnTo, setReturnTo] = useState<SetupStep | null>(null);
+  const [returnTo, setReturnTo] = useState<SetupStep | null>(keep?.value?.returnTo ?? null);
   const [status, setStatus] = useState<AgentStatus | null>(null);
   const [statusProblem, setStatusProblem] = useState<string | null>(null);
   const client = agent?.client ?? null;
@@ -85,6 +87,8 @@ export function Setup({ config, agent, guide, onSync }: SetupProps) {
   }, [client]);
   useEffect(readStatus, [readStatus]);
   const heading = useRef<HTMLHeadingElement>(null);
+  const save = keep?.save;
+  useEffect(() => save?.({ step, picked, areaAt, made, project, helper, returnTo }), [save, step, picked, areaAt, made, project, helper, returnTo]);
 
   const reload = useCallback(async () => {
     if (!config) return;
@@ -161,8 +165,8 @@ export function Setup({ config, agent, guide, onSync }: SetupProps) {
         )}
         {step === 'project' && (config ? <ProjectStep config={config} configFile={configFile} projects={projects} made={made} existing={connections} picked={picked} chosen={project} onChosen={setProject} reload={reload} /> : <NoConfig />)}
         {step === 'fields' && (config ? <FieldsStep config={config} made={made} existing={connections} project={project} projects={projects.map((p) => p.name)} /> : <NoConfig />)}
-        {step === 'helper' && <HelperStep agent={agent} status={status} problem={statusProblem} onStatus={setStatus} refresh={readStatus} onChosen={setHelper} />}
-        {step === 'done' && <Done made={made} project={project} helper={helper} onSync={onSync} />}
+        {step === 'helper' && <HelperStep agent={agent} status={status} problem={statusProblem} onStatus={setStatus} refresh={readStatus} chosen={helper} onChosen={setHelper} />}
+        {step === 'done' && <Done made={made} project={project} helper={helper} onSync={onSync} onLeave={() => keep?.save(null)} />}
         <nav className="setup__nav" aria-label="Setup steps">
           {step !== 'welcome' && (
             <button type="button" className="btn" onClick={back} data-setup-back="">
@@ -195,7 +199,7 @@ function Welcome() {
       <p>
         <strong>toil</strong> reads the tools your team already uses, such as Jira, GitHub and Azure DevOps, and gives you one picture of the work. <strong>Toil UI</strong> is this page: it shows that picture and lets an AI helper answer questions about it.
       </p>
-      <p>This takes a few minutes. You will link the tools you use, group them into a Toil project, and, if you like, add an AI helper.</p>
+      <p>This takes a few minutes. If you like, you can start by setting up an AI helper, which then explains each step beside it. Then you will link the tools you use and group them into a Toil project.</p>
       <p className="note" data-setup-promise="">
         Nothing is changed in your tools without you. Every link starts read-only, you can skip any step, and you can come back to this page from the command palette or from Settings.
       </p>
@@ -557,10 +561,11 @@ function ProjectStep({ config, configFile, projects, made, existing, picked, cho
  * stored here. The status is the wizard's own (it also decides whether a guide
  * shows), so Install and Save here and the guide beside later steps agree.
  */
-function HelperStep({ agent, status, problem: statusProblem, onStatus, refresh, onChosen }: { agent: AgentSettingsPanelProps | undefined; status: AgentStatus | null; problem: string | null; onStatus: (s: AgentStatus) => void; refresh: () => void; onChosen: (c: Chosen) => void }) {
+function HelperStep({ agent, status, problem: statusProblem, onStatus, refresh, chosen: savedLabel, onChosen }: { agent: AgentSettingsPanelProps | undefined; status: AgentStatus | null; problem: string | null; onStatus: (s: AgentStatus) => void; refresh: () => void; chosen: Chosen; onChosen: (c: Chosen) => void }) {
   const [saveProblem, setSaveProblem] = useState<string | null>(null);
   const [pick, setPick] = useState('');
-  const [saved, setSaved] = useState('');
+  // Said from what the wizard kept, so it is still there after a saved helper remounts the App.
+  const saved = savedLabel ? `Saved: ${savedLabel} will answer your questions, and explain the next steps beside them.` : '';
   const client = agent?.client ?? null;
   const problem = saveProblem ?? statusProblem;
   // The choice already saved is the one offered, so coming back to this step shows what is true.
@@ -575,7 +580,6 @@ function HelperStep({ agent, status, problem: statusProblem, onStatus, refresh, 
       onStatus(next);
       agent?.onChange?.(next);
       const label = next.adapters.find((a) => a.name === name)?.label ?? name;
-      setSaved(`Saved: ${label} will answer your questions, and explain the next steps beside them.`);
       setSaveProblem(null);
       onChosen(label);
     } catch (e) {
@@ -634,7 +638,7 @@ function HelperStep({ agent, status, problem: statusProblem, onStatus, refresh, 
   );
 }
 
-function Done({ made, project, helper, onSync }: { made: Record<string, string>; project: string | null; helper: Chosen; onSync: (() => void) | undefined }) {
+function Done({ made, project, helper, onSync, onLeave }: { made: Record<string, string>; project: string | null; helper: Chosen; onSync: (() => void) | undefined; onLeave: () => void }) {
   const names = Object.entries(made);
   return (
     <>
@@ -650,10 +654,10 @@ function Done({ made, project, helper, onSync }: { made: Record<string, string>;
             Sync now
           </button>
         )}
-        <a className="btn" href="#/">
+        <a className="btn" href="#/" onClick={onLeave}>
           Open your Toil projects
         </a>
-        <a className="btn" href="#/settings/connections">
+        <a className="btn" href="#/settings/connections" onClick={onLeave}>
           Settings
         </a>
       </div>

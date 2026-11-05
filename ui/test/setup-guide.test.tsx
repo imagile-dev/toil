@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
@@ -13,6 +14,7 @@ import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { GUIDE_REFUSAL, type GuideRequest } from '../src/guide.ts';
 import { httpAgent, type AgentStatus } from '../src/server-client.ts';
+import type { SetupProgress } from '../src/setup.ts';
 import type { Envelope } from '../src/toil.ts';
 
 /**
@@ -146,6 +148,37 @@ describe('the AI helper step, first', () => {
     await heading('Link Jira');
     expect(document.querySelector('[data-guide-side]')).not.toBeNull();
     expect(document.querySelector('[data-setup-guide-offer]')).toBeNull();
+  }, 30_000);
+});
+
+describe('a remount of the App', () => {
+  it('does not send the wizard back to Welcome: saving a helper or finishing a sync remounts the App, and the page keeps where it was', async () => {
+    narrow(false);
+    function Harness() {
+      const [progress, setProgress] = useState<SetupProgress | null>(null);
+      const [generation, setGeneration] = useState(0);
+      return (
+        <>
+          <button type="button" onClick={() => setGeneration((g) => g + 1)}>
+            remount
+          </button>
+          <App key={generation} setupKeep={{ value: progress, save: setProgress }} execute={fixtureExecute().execute} agent={scriptedAgent()} config={machine().config} now={FIXTURE_NOW} preview />
+        </>
+      );
+    }
+    window.location.hash = '#/setup';
+    render(<Harness />);
+    await screen.findByRole('heading', { level: 1, name: 'Welcome' }, { timeout: 3000 });
+    await press('Start');
+    await press('Next');
+    await userEvent.click(await screen.findByRole('checkbox', { name: /Jira/ }));
+    await press('Next');
+    await heading('Link Jira');
+    await userEvent.click(screen.getByRole('button', { name: 'remount' }));
+    await heading('Link Jira');
+    expect(screen.getByText(/^Step 4 of 7/)).toBeTruthy();
+    await press('Back');
+    expect((await screen.findByRole('checkbox', { name: /Jira/ })) as HTMLInputElement).toHaveProperty('checked', true);
   }, 30_000);
 });
 

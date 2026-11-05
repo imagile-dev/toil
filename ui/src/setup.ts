@@ -22,6 +22,22 @@ export const STEP_TITLE: Record<SetupStep, string> = {
   done: 'All set',
 };
 
+/**
+ * Where the wizard is, for the page that holds it (src/local.tsx): saving a
+ * helper, or a sync that finishes, remounts the whole App, and the wizard
+ * would start again at Welcome. Choices only, never a value anyone typed: no
+ * secret is in here, and nothing is written anywhere but that page's memory.
+ */
+export interface SetupProgress {
+  step: SetupStep;
+  picked: string[];
+  areaAt: number;
+  made: Record<string, string>;
+  project: string | null;
+  helper: string | null;
+  returnTo: SetupStep | null;
+}
+
 /** The steps that sit beside the guide once an AI helper is ready: the ones that ask the person something. */
 export const GUIDED_STEPS: readonly SetupStep[] = ['tools', 'connect', 'project', 'fields'];
 
