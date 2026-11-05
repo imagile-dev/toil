@@ -125,6 +125,10 @@ filled, plus `projects list` and `projects show` for the Toil projects themselve
   pull requests wait on a review; the people with work in it, as avatars; its sources
   as badges; when it was last synced; and how many work items and pull requests
   changed since this browser last opened its dashboard.
+- **Unknown is not zero (principle 12):** a Toil project that has never synced has
+  read nothing, so its counts show a dash (`–`, spoken as "not read yet") instead of
+  `0`, and the sprint and "since you last looked" lines stay off until a sync has
+  read something. Once it has synced, a `0` is a real count.
 - **Which card leads:** the Toil project opened most recently in this browser, or, before
   any was opened, the one with the most in motion (in progress, blocked and waiting on
   review together), takes two columns where they fit. On a wide screen the grid goes

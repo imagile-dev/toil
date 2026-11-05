@@ -22,7 +22,7 @@ situation disagree, or a case is not covered, reason from the principle.
 
 Principles 1 to 7, 9 and 10 govern **toil itself**: the npm package and what it does on a
 user's machine. Principle 11 governs the screens people work in: Toil UI and toil's
-welcome menu. This repository's own tooling (`scripts/`, the tests, workflows, and
+welcome menu. Principle 12 governs both: what toil returns and what a screen shows. This repository's own tooling (`scripts/`, the tests, workflows, and
 the skills under `.claude/skills/`) is never published or installed by toil. It may
 run `git` and `gh` and call GitHub. It still follows principle 8, because every
 contributor runs it, and principle 2 where an agent does the work.
@@ -163,6 +163,16 @@ gets made again in the next place it applies.
     disclosure and multiple paths to each page are the central design principle of
     Toil UI (the maintainer's call, 2026-10-27). → Toil UI's help
     topics (`ui/src/help.ts`, #346) and the **Screen review** in the `ship` skill.
+12. **Unknown is not zero.** A figure nobody has read yet, because nothing has synced,
+    a source failed, or the data isn't there, is *unknown*, and says so. A real count
+    of nothing is *zero*, and says that. The two are never drawn the same way. On a
+    screen an unknown figure is a dash (`–`), spoken as "not read yet", beside the
+    action that reads it; a zero is `0`. In an envelope it is `null` or absent, never
+    `0`, `""` or `[]` standing in for "we didn't look". A sentence that claims an
+    absence ("No sprint running", "Nothing changed since you last looked") is a zero
+    too, and needs a reading behind it (the maintainer's call, 2026-11-05). → Principle
+    4; the **Screen review** in the `ship` skill; `ui/README.md`, **The Toil projects
+    view**.
 
 ## Cross-Platform
 

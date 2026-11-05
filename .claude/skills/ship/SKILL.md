@@ -122,6 +122,9 @@ principle), and the simplest fix.
     expands, a drawer, the item's own page)
   - a page reachable only one way: it needs its address plus at least one of a link
     from a summary, its tab or list, the command palette, or a search or shortcut
+  - a figure or an "absence" sentence ("No sprint running", "Nothing changed") that
+    shows `0` or a claim when nothing has been read yet (never synced, a source
+    failed): it must be a dash (`–`) that says "not read yet" (principle 12)
 
   Each finding names the screen, the element and the quieter form. These are fixed
   like code findings.

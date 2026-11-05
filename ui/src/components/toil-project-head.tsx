@@ -46,24 +46,40 @@ export function SourceBadges({ sources, toilProject }: { sources: Array<{ area: 
   );
 }
 
-/** In progress, blocked and waiting on review, as a strip of figures; with the sprint's days left when one runs. */
-export function CountStrip({ preview, sprint = true }: { preview: ToilProjectPreview; sprint?: boolean }) {
+/**
+ * In progress, blocked and waiting on review, as a strip of figures; with the sprint's days left when one runs.
+ * `read` is false when nothing has been read for this Toil project yet (it has never synced): its figures are
+ * unknown, not zero, so each shows a dash (principle 12).
+ */
+export function CountStrip({ preview, sprint = true, read = true }: { preview: ToilProjectPreview; sprint?: boolean; read?: boolean }) {
   const s = preview.sprint;
   const { pw } = usePlain();
+  const figure = (n: number) => (read ? String(n) : null);
   return (
     <ul className="count-strip" aria-label="Counts">
-      {sprint && s && <Count value={String(s.daysLeft)} label={`${s.daysLeft === 1 ? 'day' : 'days'} left`} />}
-      <Count value={String(preview.inProgress)} label="in progress" />
-      <Count value={String(preview.blocked)} label="blocked" tone={preview.blocked ? 'warn' : undefined} />
-      <Count value={String(preview.awaitingReview)} label={preview.awaitingReview === 1 ? pw('PR waits on review', 'code review waiting') : pw('PRs wait on review', 'code reviews waiting')} />
+      {sprint && s && read && <Count value={String(s.daysLeft)} label={`${s.daysLeft === 1 ? 'day' : 'days'} left`} />}
+      <Count value={figure(preview.inProgress)} label="in progress" />
+      <Count value={figure(preview.blocked)} label="blocked" tone={read && preview.blocked ? 'warn' : undefined} />
+      <Count value={figure(preview.awaitingReview)} label={preview.awaitingReview === 1 && read ? pw('PR waits on review', 'code review waiting') : pw('PRs wait on review', 'code reviews waiting')} />
     </ul>
   );
 }
 
-function Count({ value, label, tone }: { value: string; label: string; tone?: 'warn' | undefined }) {
+/** A figure, or null for one nobody has read yet: shown as a dash and said as "not read yet", never as 0. */
+function Count({ value, label, tone }: { value: string | null; label: string; tone?: 'warn' | undefined }) {
   return (
-    <li className={`count${tone ? ` count--${tone}` : ''}`}>
-      <span className="count__value">{value}</span> <span className="count__label">{label}</span>
+    <li className={`count${tone ? ` count--${tone}` : ''}${value === null ? ' count--unknown' : ''}`}>
+      {value === null ? (
+        <>
+          <span className="count__value" aria-hidden="true">
+            –
+          </span>
+          <span className="sr-only">not read yet, </span>
+        </>
+      ) : (
+        <span className="count__value">{value}</span>
+      )}{' '}
+      <span className="count__label">{label}</span>
     </li>
   );
 }
