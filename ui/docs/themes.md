@@ -43,16 +43,41 @@ Fonts don't change contrast: Plain keeps its colours, and its pages pass the axe
 A theme has up to three layers.
 
 - **Visuals** are what every theme has: colours, fonts, borders, art, and motion. They never change a word.
-- **Wording** is the theme's own microcopy, from the `lexicon` in its `theme.json`: the lede on the Toil project list, the small eyebrow above a page's title, the notes under the dashboard's panels, the empty states, the loading lines, the Ask pane's notes, and the chat's placeholder, welcome and status words (#343). Crate's empty board column reads "Bay empty." and Realm's reads "None stand here." A theme's word for a sprint, a board or an epic is always shown beside the real one, as in Realm's "Campaign (Epic)" or "Ledger (Sprint 42: day 7 of 10)". A theme may also rename the People and Analyses headings, an item's priority, the Builds panel, how a build ended, and the sprint's points done and left: Realm reads them as "Party (People)", "Quest log (Analyses)", "Initiative (Priority)" on an item's fields, "Saving throws (Builds)", "Natural 20 (passed)" or "Critical fail (failed)" beside the build's own state, "Experience points (Done)" on the sprint's tally and "Hit points (Points left)", which takes the place of the sprint's meter. The Settings pages and the Sync panel keep the standard text. With plain words on (the default), the lede, eyebrow, placeholder, welcome and status words read in plain words instead; turn plain words off under Settings, General to see the theme's.
+- **Wording** is the theme's own flavour words, from the `lexicon` in its `theme.json`, and only those: the lede on the Toil project list, the notes under the dashboard's panels, the empty-state sentences, the loading and progress lines and the Ask pane's note and welcome (#343). Crate's empty board column reads "Bay empty." and Realm's reads "None stand here." A theme may not word a control, a heading, a tab or a label (see **Words**, below).
 - **Voice** is the register the agent answers in, from the `voice` in the theme's `theme.json`. Crate answers like a terse dockworker, Harvest like a patient farmhand, Starship like a ship's log, Realm like a dungeon master narrating a grim campaign to the party, dramatic but brief with every figure and citation as the data gives it, Frontier like a dry telegraph operator who also keeps the engine running, Sprawl like a netrunner on a job: work items are gigs, the sprint is the run, a pull request is a payload waiting on the fixer, a build is an ICE check, a deployment is jacking in to prod, and a blocker is black ICE, and Overworld like an old sage in a cave: brief, warm and a little cryptic, with the facts kept plain.
 
 - **Thinking phrases** are the lines the Ask bar rotates while an AI helper works on an answer, from the `thinking` list in the theme's `theme.json` (#561): three to eight plain-text lines of 60 characters or fewer, each ending in "…", with no digits and no claim of progress ("done", "almost there"). Harvest reads "Fertilizing digital soil…", "Planting code turnips…" and "Waiting for the data to ripen…". They show beside a small icon that turns while motion is welcome and stays a still arc under reduced motion, and they follow **Themed wording**: Plain, and any theme with wording off, reads "Reading your data…", "Working on it…" and "Still working on it…". A phrase changes every 6 seconds, in the order listed, never at random, and a screen reader is told only when it changes. The phrases are flavour: the time elapsed is always beside them, and once the agent names a tool it is reading or starts writing, the phrase gives way to that plain statement.
 
 Wording never touches these, in any theme:
 
-- the name of a button, a link or a form field, so what you, a script or voice control looks for is always there, and every control's accessible name matches its visible words (WCAG 2.5.3);
-- a heading a screen reader or a test finds a section by, apart from the renamed words shown beside the real ones;
+- the name of a button, a link, a tab, a heading or a form field, so what you, a script or voice control looks for is always there, and every control's accessible name matches its visible words (WCAG 2.5.3);
 - a command such as `toil projects init`, an item's id, a number, a date, an error or its fix, or a not-found notice such as an item the Toil project doesn't have.
+
+## Words
+
+*The design principle (CLAUDE.md, principle 11, the maintainer's call of 2026-11-05).* Anything a person reads to **act** is plain English and the same in every theme: menu items, tabs, buttons, field labels, headings, errors and their fixes. It prefers everyday words to jargon (a pull request is a **code review**, an agent an **AI helper**), with toil's own term one hover away, in the `title`. Plain words are always on; there is no switch (`src/plain-words.ts`). A theme speaks **only where nothing depends on the words**: explanations and ledes, loading and progress text, empty-state sentences, and its moments.
+
+`src/wording.ts` holds every keyed word in two lists, and a key is in exactly one:
+
+- **Functional** (`FUNCTIONAL`): the page's eyebrows, the Ask bar's placeholders, and the status line's source words and timings ("Reading live from your tools", "Done in 4 s"). One plain text in every theme. A theme's `lexicon` may not set one: `test/themes.test.ts` fails if it does, and `wordFor` ignores a themed value for one. A theme's `terms` (a sprint, a board, an epic, how a build ended) no longer rename a tab, a heading or a field either; they name things in the theme's moments only.
+- **Flavour** (`FLAVOUR`): ledes and explanations under headings, empty-state sentences, loading lines (a theme's reading of the Toil projects, the briefings, one card, the audit log), the "nothing changed since you last looked" note and the status line's "writing" progress word. A theme words these in its voice while themed wording is on; the plain text is the fallback, in Plain, and whenever a theme has none. Flavour never replaces a number, a command, an id, an error or its fix: a `{name}` and every `toil …` command in the plain text stays in the theme's, which `lexiconProblems` checks.
+
+To add a key: put it in `FUNCTIONAL` or `FLAVOUR` in `src/wording.ts` (a label a person acts on or finds by name is functional; a sentence nothing depends on is flavour), add it to the matching list in `test/words-classification.test.ts`, which exists so nobody decides by accident, and, for a flavour key, give every theme except Plain a line for it in `theme.json`. Read it with `useWords()` and never spell a control's name through it. A not-found notice, a command, a number and an error with its fix are not keys at all: they are written where they are drawn, in plain words.
+
+## Fonts
+
+A theme's fonts are its default, and **Settings, General, Font** lists them first, as "The theme's own", then a curated set of pairings (heading and body, and sometimes mono) made **only of fonts already bundled with Toil UI** (the `@fontsource` files the theme stylesheets import; `test/fonts.test.ts` holds every pair to that). It never fetches a font from the network (principle 9). The pick is applied as `--font-display`, `--font-body` and `--font-mono` on the root, above the theme's CSS, so colour, radius and art stay the theme's; each stack ends with the theme's own and then system fonts, and a pair whose files won't load puts the theme back on its own fonts and says so in the console. It is kept in this browser like the theme, and `?font=<id>` in the address sets it.
+
+The curated pairs are IBM Plex Sans, Rounded headings (Fredoka over Plex), Serif headings (Source Serif 4 over Plex), Slab serif (Bitter), Garamond (EB Garamond), Exo 2, Code face (Fira Code, mono too) and Pixel headings (Pixelify Sans over Plex). Body text stays readable: a pair's body font must be a bundled **text** face, never a pixel or display face, unless it is the theme's own body.
+
+A theme may declare its own list in `theme.json`: `fontPairs`, each `{ "id", "label", "display", "body", "mono"? }` with a bundled family first in each stack, and `defaultFontPair`, the id shown until someone picks. Without them a theme offers just its own fonts and the curated set, and the default is its own fonts. A new bundled family needs its CSS files in `BUNDLED_FONTS` (`src/fonts.ts`) and in a theme stylesheet.
+
+A wider face must not overflow. Hold a non-default pair to the layout check at 375px, on at least Plain and Harvest, against a preview build (`npx vite build`, then `npx vite preview --port 4173`, in `ui/`):
+
+```
+node scripts/layout-check.mjs --base http://127.0.0.1:4173/ --theme plain --theme harvest --width 375 --font garamond
+node scripts/layout-check.mjs --base http://127.0.0.1:4173/ --theme plain --theme harvest --width 375 --font code
+```
 
 ## Rolled alignments
 
@@ -68,7 +93,7 @@ Settings, General has the theme picker and, under it, these checkboxes:
 
 | Checkbox | Default | Off means |
 |---|---|---|
-| Themed wording | Off | The standard text in every theme, and no renamed words |
+| Themed wording | Off | The plain text in every theme; with it on, a theme words only its flavour keys (see **Words**) |
 | Themed agent voice | Off | The agent answers in plain wording, whatever the theme |
 | Particles and ambient effects | On | The theme's particles are gone: nothing is drawn and nothing runs behind the page |
 

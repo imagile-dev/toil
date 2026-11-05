@@ -119,9 +119,9 @@ in any view.
 
 ## Plain words
 
-Screens read in everyday words by default: a pull request is a **code review**, an agent an **AI helper**, with toil's own term in the hover. Facts, numbers, commands and errors read the same either way. **Settings, General** (and the command palette) turn it off, kept in this browser; `?words=standard` in the address does too. Themed wording and themed agent voice are off until chosen.
+Screens always read in everyday words: a pull request is a **code review**, an agent an **AI helper**, with toil's own term in the hover. There is no switch. Anything a person reads to act (a menu item, tab, button, label, heading, an error and its fix) is plain English and identical in every theme; a theme speaks only in ledes and explanations, loading text, empty-state sentences and its moments (**Words** in `docs/themes.md`). Facts, numbers, commands and errors read the same everywhere. Themed wording and themed agent voice are off until chosen.
 
-The tabs read **Summary**, **Board**, **What blocks what** (Dependencies), **Code reviews**, **People**, **What happened** (Worklog) and **Past briefings** (Analyses); Analyze is **Get a briefing**. A panel's source reads "From Jira and GitHub", with the commands one step in. **Settings → General** has a **Plain words** switch with an (i), and the command palette has **Use plain words** / **Use toil's own terms**. Quoted titles, the tracker's words and a briefing's own sentences are never reworded.
+The tabs read **Summary**, **Board**, **What blocks what** (Dependencies), **Code reviews**, **People**, **What happened** (Worklog) and **Past briefings** (Analyses); Analyze is **Get a briefing**. A panel's source reads "From Jira and GitHub", with the commands one step in. **Settings → General** has a **Font** control: the theme's own type first, then pairings made only of fonts already bundled (`docs/themes.md`, **Fonts**). Quoted titles, the tracker's words and a briefing's own sentences are never reworded.
 
 ## The Toil projects view
 
@@ -670,7 +670,7 @@ until you call it up.
 - **Jump** to a Toil project, any of a Toil project's tabs (Overview, Board, Dependencies,
   Pull requests, People, Worklog, Analyses), a saved analysis, a settings page, or a
   theme.
-- **Run** Sync now (where Toil UI keeps a cache), **Use plain words** / **Use toil's own terms**, and on a Toil project's page Ask (it
+- **Run** Sync now (where Toil UI keeps a cache), and on a Toil project's page Ask (it
   focuses the Ask bar), Analyze, **Review a pull request**, **Ship: answer a review** and **Diagram <Toil project>** (each opens its job's page), **Open the Agents panel** (**Open the AI helpers panel** in plain words), the agent that answers this chat, and Assign the
   item you were on to an agent: the board card that had focus, or the item whose
   page is open.
@@ -814,9 +814,9 @@ conversation stays, for the rest of the Toil project's pages, until you reload.
   question on the server and keeps what had arrived. Claude and Copilot stream as they
   write; Codex's SDK hands over its text a message at a time, so with Codex the status
   line is what moves between messages.
-- **The wording follows the theme** when themed wording is on and plain words are off: the bar's placeholder, the welcome and the status
-  words are in each game theme's voice, and Plain stays neutral. With plain words on (the default), they read in plain words. The starter questions
-  read the same in every theme.
+- **The wording follows the theme only where nothing depends on it**: with themed wording on, the bar's welcome and note are in each game
+  theme's voice and Plain stays neutral. The placeholder and the status line's source words read the same plain text in every theme, and so
+  do the starter questions.
 - **Analyze** briefs the Toil project in one press (#494). It is the guided start's first
   question, "Give me the full briefing", and still the command palette's Get a briefing and the
   Analyses tab's button; the Ask bar has no button of its own for it. Its question comes from toil,
@@ -1157,7 +1157,7 @@ call, its progress, or a state that didn't change never notifies.
   assignments assigned, started or renewed here), and quiet hours, which hold every
   notice while the title still counts.
 - **Plain words.** Notices read the same in every theme: the theme's wording stays in
-  the views.
+  the views' flavour text.
 - **Where it listens.** The server's `api/assignments/events?since=latest` stream,
   which carries what a notice says with each event, and a minute's read of the
   Toil project on screen for sessions gone stale.
