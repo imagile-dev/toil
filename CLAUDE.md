@@ -1156,8 +1156,11 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   use commands the pinned toil doesn't have. A `toil-ui-v…` release goes out with or after the toil release that has them,
   and bumps `ui/package.json`'s exact pin in the same release PR. That PR can't point
   `package-lock.json` at a toil npm doesn't serve yet, so once toil publishes, the
-  release workflow's `lockfile` job opens a PR that does; until it merges,
-  `check:lockfile` fails other PRs and names the fix (#299).
+  release workflow's `lockfile` job opens a PR that does. Until it merges,
+  `check:lockfile` passes with a warning that names the toil Toil UI is getting
+  instead of its pin, in that one state only (the pin's version over the previous
+  toil's tarball, and that toil installed); any other disagreement still fails
+  (#299, the maintainer's call, 2026-11-05).
 - **Until 1.0, every release is a beta prerelease** (`0.1.0-beta.1`, then
   `-beta.2` …; the alphas, `0.1.0-alpha.N`, came before), marked as a prerelease on
   GitHub and published under npm's `beta` dist-tag. Until a stable release exists,

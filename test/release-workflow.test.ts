@@ -222,9 +222,11 @@ describe('the lockfile after a release (#299)', () => {
     expect(pr).toContain('git commit -m "chore(deps):');
   });
 
-  it("is held by CI's check:lockfile on every PR but the release PR", () => {
+  it("is held by CI's check:lockfile on every PR, the release PR included", () => {
     const check = ci.jobs.ui.steps.find((s) => s.run === 'npm run check:lockfile -w ui')!;
-    expect(check.if).toBe("${{ !startsWith(github.head_ref, 'release-please--') }}");
+    expect(check.if).toBeUndefined();
+    const platforms = load(readFileSync(join(root, '.github', 'workflows', 'platforms.yml'), 'utf8')) as { jobs: { gate: { steps: Step[] } } };
+    expect(platforms.jobs.gate.steps.find((s) => s.run === 'npm run check:lockfile -w ui')!.if).toBeUndefined();
   });
 });
 

@@ -338,7 +338,8 @@ jobs:
   # the fix. Once npm serves it, this rewrites that entry against npm, proves
   # it with npm ci and check:lockfile, and opens a PR with package-lock.json
   # alone, as the Imagile Bot App so CI runs on it. A human merges it; until
-  # then check:lockfile fails other PRs with the fix spelled out.
+  # then check:lockfile warns on every PR, naming the toil Toil UI is getting,
+  # and passes (ui/scripts/package-rules.mjs, lockfileLag).
   lockfile:
     needs: [release-please, publish-toil]
     if: needs.publish-toil.result == 'success'

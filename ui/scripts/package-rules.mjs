@@ -79,8 +79,17 @@ export function packageProblems(pkg, toilVersion) {
  * beside them is only a label, so a lockfile whose version says the pin but
  * whose tarball is another toil installs that other toil without a word. The
  * installed copy's own version is the proof of which tarball came down.
+ *
+ * One state is let through, with a note (lockfileLag): the one a release leaves
+ * on main. release-please moves the entry's version to the new toil but not
+ * its tarball, and no tarball for that toil exists until publish-toil has run,
+ * so the release PR can't carry the rest; the lockfile PR that does follows it
+ * (release.yml). Failing every other PR until a person merges that one made the
+ * release everyone's problem, so it is a warning instead, naming the toil
+ * Toil UI is actually getting. Anything else that disagrees still fails.
  */
 export function lockfileProblems(lock, pin, installed) {
+  if (lockfileLag(lock, pin, installed) !== null) return [];
   const problems = [];
   const fix = `run npm install --package-lock-only --ignore-scripts @imagile-dev/toil@${pin} -w ui --save-exact at the root, then npm ci --ignore-scripts, and commit package-lock.json`;
   const wanted = lock.packages?.ui?.dependencies?.['@imagile-dev/toil'];
@@ -97,4 +106,22 @@ export function lockfileProblems(lock, pin, installed) {
   if (installed === null) problems.push('node_modules/@imagile-dev/toil isn\'t installed, so which toil the lockfile installs is unproven; run npm ci --ignore-scripts first.');
   else if (installed !== pin) problems.push(`npm ci installed toil ${installed} for Toil UI, which pins ${pin}: the lockfile's integrity is another tarball's; ${fix}.`);
   return problems;
+}
+
+/**
+ * The toil version Toil UI installs instead of the pin while a release's
+ * lockfile PR is pending, or null when the lockfile isn't in that state. The
+ * state is exactly what release-please leaves: the dependency and the entry's
+ * version are the pin, the tarball and its integrity are one other toil's, and
+ * npm ci installed that other toil, so the lockfile is stale, not wrong about
+ * itself. A tarball whose integrity doesn't match what was installed isn't
+ * this state, and neither is any lockfile that names no toil at all.
+ */
+export function lockfileLag(lock, pin, installed) {
+  if (lock.packages?.ui?.dependencies?.['@imagile-dev/toil'] !== pin) return null;
+  const entry = lock.packages?.['node_modules/@imagile-dev/toil'];
+  if (!entry || entry.version !== pin || typeof entry.integrity !== 'string' || !entry.integrity.startsWith('sha512-')) return null;
+  const named = /^https:\/\/registry\.npmjs\.org\/@imagile-dev\/toil\/-\/toil-(.+)\.tgz$/.exec(entry.resolved ?? '')?.[1];
+  if (named === undefined || named === pin || installed !== named) return null;
+  return named;
 }
