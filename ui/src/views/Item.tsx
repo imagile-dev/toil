@@ -4,7 +4,7 @@
  * listed, not hidden (principle 4). Full disclosure, without the twelve-page form.
  */
 
-import { Avatar, Outcome, StatusChip } from '../components/bits.tsx';
+import { Avatar, Outcome, PLAIN_INSIGHT_LABEL, StatusChip } from '../components/bits.tsx';
 import { Cited, ItemLink, typeText } from '../components/items.tsx';
 import { ReadinessPanel } from '../components/readiness.tsx';
 import { Card, DataTable } from '../components/layout.tsx';
@@ -79,7 +79,7 @@ export function ItemView({ id }: { id: string }) {
           <ul className="rows">
             {found.map((i) => (
               <li key={i.code} className={`insight-row insight-row--w${i.weight}`}>
-                <span className={`insight insight--w${i.weight}`}>{INSIGHT_LABEL[i.code]}</span> <Cited text={i.text} />.{' '}
+                <span className={`insight insight--w${i.weight}`}>{PLAIN_INSIGHT_LABEL[i.code] ?? INSIGHT_LABEL[i.code]}</span> <Cited text={i.text} />.{' '}
                 <span className="field">
                   Source: <code>{i.evidence}</code>
                 </span>

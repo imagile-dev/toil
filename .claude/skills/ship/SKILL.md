@@ -128,6 +128,10 @@ principle), and the simplest fix.
     (`ui/README.md`, **Tables and rows**)
   - a page reachable only one way: it needs its address plus at least one of a link
     from a summary, its tab or list, the command palette, or a search or shortcut
+  - **Words**: a menu item, tab, button, label, heading or error that a theme words
+    instead of plain English, or jargon where an everyday word fits (code review, AI
+    helper); a functional key in a theme's `lexicon`; a new `WordKey` not classified in
+    `ui/src/wording.ts` (principle 11, `ui/docs/themes.md`, **Words**)
   - a figure or an "absence" sentence ("No sprint running", "Nothing changed") that
     shows `0` or a claim when nothing has been read yet (never synced, a source
     failed): it must be a dash (`–`) that says "not read yet" (principle 12)

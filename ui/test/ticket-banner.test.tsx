@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
-import { standardWords } from './words.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
@@ -33,7 +32,6 @@ async function chat(toilProject: string) {
 
 beforeEach(() => {
   localStorage.clear();
-  standardWords();
 });
 afterEach(cleanup);
 

@@ -10,7 +10,7 @@
 
 import { ENTER_MOTIFS, FACE_VALUES, LOOP_MOTIFS, MOMENT_KINDS, TRACK_MOTIFS } from '../src/moments/schema.ts';
 import { TERMS, TOKENS, type ThemeManifest } from '../src/theme-pack.ts';
-import { STANDARD, WORD_KEYS, commandsIn, placeholders, type WordKey } from '../src/wording.ts';
+import { STANDARD, WORD_KEYS, commandsIn, isFunctional, placeholders, type WordKey } from '../src/wording.ts';
 
 /** The only files a theme folder may hold. */
 export const THEME_FILE_TYPES = new Set(['.css', '.json', '.svg', '.webp', '.png', '.avif', '.woff2']);
@@ -55,8 +55,8 @@ export function cssProblems(name: string, css: string): string[] {
 }
 
 /**
- * Problems with a theme's wording (#283): only keys src/wording.ts knows,
- * plain text, and every `{placeholder}` and `toil …` command the standard
+ * Problems with a theme's wording (#283): only flavour keys src/wording.ts knows
+ * (a functional key is refused: it reads one plain text in every theme), plain text, and every `{placeholder}` and `toil …` command the standard
  * text has, so a themed line never drops the id or the command it shows.
  */
 export function lexiconProblems(lexicon: unknown): string[] {
@@ -66,6 +66,10 @@ export function lexiconProblems(lexicon: unknown): string[] {
   for (const [key, text] of Object.entries(lexicon)) {
     if (!(WORD_KEYS as string[]).includes(key)) {
       out.push(`theme.json: lexicon."${key}" isn't a word key (src/wording.ts).`);
+      continue;
+    }
+    if (isFunctional(key as WordKey)) {
+      out.push(`theme.json: lexicon."${key}" is a functional word (src/wording.ts): it names something a person acts on, so it reads the same plain text in every theme. Remove it from the lexicon.`);
       continue;
     }
     if (typeof text !== 'string' || !text.trim() || /[<>`]|\[\[/.test(text)) {

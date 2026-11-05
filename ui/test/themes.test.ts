@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { alignmentProblems, cssProblems, fileProblems, lexiconProblems, manifestProblems, momentsProblems, thinkingProblems, voiceProblems } from './theme-rules.ts';
 import { rolled } from '../src/model/alignment.ts';
 import { initialChoice } from '../src/theme-choice.ts';
-import { STANDARD, WORD_KEYS, wordFor } from '../src/wording.ts';
+import { FLAVOUR_KEYS, STANDARD, commandsIn, wordFor } from '../src/wording.ts';
 import { themed } from '../src/theme-context.ts';
 import { DEFAULT_THEME, TERMS, THEMES, TOKENS, themeNamed, tokenCss, type Token } from '../src/themes.ts';
 
@@ -118,7 +118,7 @@ describe.each(THEMES.map((t) => [t.name, t] as const))('the %s theme', (name, th
       expect(theme.lexicon).toBeUndefined();
       expect(theme.voice).toBeUndefined();
     } else {
-      expect(Object.keys(theme.lexicon ?? {}).sort()).toEqual([...WORD_KEYS].sort());
+      expect(Object.keys(theme.lexicon ?? {}).sort()).toEqual([...FLAVOUR_KEYS].sort());
       expect(theme.voice!.length).toBeGreaterThan(300);
     }
   });
@@ -225,7 +225,10 @@ describe('how deep a theme goes (#283)', () => {
 
   it('refuses wording that drops an id or a command, holds markup, or uses a key that does not exist', () => {
     expect(lexiconProblems({ 'loading.toilProject': 'Pulling it off the rack…' })).toEqual(['theme.json: lexicon."loading.toilProject" must keep the placeholders {name}.']);
-    expect(lexiconProblems({ 'empty.toilProjects': 'Nothing on the floor.' })).toEqual(['theme.json: lexicon."empty.toilProjects" must keep the command toil projects init.']);
+    // No flavour key's standard text names a command today, so the rule is held on the reader it uses, which the key list would otherwise hide.
+    expect(commandsIn('Run toil projects init, then toil connections add.')).toEqual(['toil projects init', 'toil connections add']);
+    expect(commandsIn('toil sees no Toil projects yet.')).toEqual([]);
+    expect(lexiconProblems({ 'status.cache': 'Pulling from the rack' })).toEqual([expect.stringMatching(/functional word.*every theme/)]);
     expect(lexiconProblems({ 'empty.prs': '<b>None</b>' })).toEqual(['theme.json: lexicon."empty.prs" must be plain text.']);
     expect(lexiconProblems({ 'button.ask': 'Holler' })).toEqual(['theme.json: lexicon."button.ask" isn\'t a word key (src/wording.ts).']);
     expect(voiceProblems('```proposal```')).toEqual(['theme.json: "voice" must be one paragraph of plain text, with no code fence, citation or line break.']);

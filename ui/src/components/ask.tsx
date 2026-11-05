@@ -705,6 +705,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
  */
 function AgentSwitch({ label, list, current, onPick, compact = false }: { label: string; list: AdapterList | null; current: string | null; onPick: (name: string | null, label: string) => void; compact?: boolean }) {
   const plain = usePlain();
+  const words = useWords();
   return (
     <DialogTrigger>
       <Button className="btn btn--small agent-switch" data-agent-switch="">
@@ -720,7 +721,7 @@ function AgentSwitch({ label, list, current, onPick, compact = false }: { label:
                 {plain.text('Agent for this chat')}
               </Heading>
               {!list ? (
-                <p className="note">Reading the agents…</p>
+                <p className="note">{words('loading.agents')}</p>
               ) : (
                 <ul className="agent-picks">
                   {list.options.map((o) => {

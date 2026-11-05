@@ -28,7 +28,7 @@ import { keyLabel, SHORTCUTS, type Shortcut } from '../shortcuts.ts';
 import { TOIL_PROJECT_TABS } from '../views/ToilProjectShell.tsx';
 import { FACE } from '../model/jobs.ts';
 import { jobHref } from './jobs.tsx';
-import { setPlain, usePlain } from '../plain-words.ts';
+import { usePlain } from '../plain-words.ts';
 import type { SyncedAt } from '../views/ToilProjects.tsx';
 import { SETTINGS_PAGES } from '../views/Settings.tsx';
 import { Help } from './help.tsx';
@@ -105,13 +105,11 @@ export interface EntriesInput {
   adapters: AdapterList | null;
   agentSettings: boolean;
   openShortcuts: () => void;
-  /** Plain words on (src/plain-words.ts): the entries that name a tab, a Toil project or an AI helper use the plain names. */
-  plain?: boolean;
 }
 
 /** Every entry the palette can show, before any query. */
 export function paletteEntries(x: EntriesInput): PaletteEntry[] {
-  const pw = (standard: string, plain: string) => (x.plain ? plain : standard);
+  const pw = (_standard: string, plain: string) => plain;
   const out: PaletteEntry[] = [];
   const here = x.route.view === 'toilProjects' || x.route.view === 'settings' || x.route.view === 'setup' ? null : x.route.toilProject;
   const current = here ? x.loaded[here] : undefined;
@@ -132,11 +130,10 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
       out.push({ id: `cmd:agent:${o.name}`, group: 'commands', label: `Answer with ${label}`, detail: 'For this chat, from its next question', go: { command: { kind: 'agent', name: o.name, label } } });
     }
   }
-  if (x.agentSettings) out.push({ id: 'cmd:agent-default', group: 'commands', label: 'Choose the default agent', detail: 'Settings, Agent', go: { href: '#/settings/agent' } });
+  if (x.agentSettings) out.push({ id: 'cmd:agent-default', group: 'commands', label: 'Choose the default AI helper', detail: 'Settings, AI helper', go: { href: '#/settings/agent' } });
   out.push({ id: 'cmd:setup', group: 'commands', label: 'Set up toil, step by step', detail: 'The setup wizard: tools, a Toil project, an AI helper', text: 'setup wizard guided get started connect tools onboarding', go: { href: '#/setup' } });
   // Reading a few Jira issues to name its custom fields in a Toil project, in Settings or, with no Toil project yet, the wizard that makes one.
   out.push({ id: 'cmd:find-fields', group: 'commands', label: 'Find your Jira fields', detail: 'Name story points and sprints in a Toil project', text: 'find jira fields custom field discover story points sprint customfield', go: { href: x.toilProjects[0] ? toilProjectEditHref(x.toilProjects[0], 'find-fields') : '#/setup' } });
-  out.push({ id: 'cmd:plain-words', group: 'commands', label: pw('Use plain words', "Use toil's own terms"), detail: pw('Everyday words for tabs and headings', 'Pull request, agent'), text: 'plain words everyday terms jargon', go: { run: () => setPlain(!x.plain) } });
   out.push({ id: 'cmd:shortcuts', group: 'commands', label: 'Keyboard shortcuts', detail: `Press ${SHORTCUTS.shortcuts.keys.join('')} anywhere`, go: { run: x.openShortcuts } });
 
   out.push({ id: 'toilProject:*', group: 'toilProjects', label: 'All Toil projects', go: { href: '#/' } });
@@ -230,7 +227,7 @@ export function CommandPalette({ isOpen, onOpenChange, agent, analysesApi, readi
   // Built on each render while it's open, which is cheap next to a keystroke (a few hundred entries), and not at all
   // while it's closed: the App re-renders often (a streaming answer), and every item of every toil project is a lot to list for nothing.
   const plain = usePlain();
-  const entries = isOpen ? paletteEntries({ ...input, analyses, adapters, at, plain: plain.on }) : [];
+  const entries = isOpen ? paletteEntries({ ...input, analyses, adapters, at }) : [];
   const results = paletteResults(entries, query, here);
   const byId = new Map(entries.map((e) => [e.id, e]));
 

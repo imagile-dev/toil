@@ -532,7 +532,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   const splashDetail = route.view === 'toilProjects' || !wanted ? 'Reading the Toil projects with toil projects list.' : progressText(progress[wanted]);
   // The App provides the theme context, so it can't read it through useWords(); this is the same lookup.
   const plain = usePlain();
-  const words = (key: WordKey, vars?: Record<string, string>) => wordsFor(theme.lexicon, wordingOn(theme, choice), plain.on, key, vars);
+  const words = (key: WordKey, vars?: Record<string, string>) => wordsFor(theme.lexicon, wordingOn(theme, choice), key, vars);
   // A toil project's own views are its tabs (#394), so the header carries only what sits above every toil project.
   const links: NavLink[] = [
     { href: '#/', label: 'Toil projects', current: route.view === 'toilProjects' },

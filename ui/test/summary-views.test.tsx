@@ -5,7 +5,6 @@ import { App } from '../src/App.tsx';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureAnalyses } from '../src/fixtures/analyses.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import { resetPlain, setPlain } from '../src/plain-words.ts';
 import { setPrefs } from '../src/briefing-prefs.ts';
 
 /**
@@ -16,11 +15,9 @@ import { setPrefs } from '../src/briefing-prefs.ts';
 
 beforeEach(() => {
   localStorage.clear();
-  resetPlain();
 });
 afterEach(() => {
   cleanup();
-  resetPlain();
 });
 
 // A Jira key (PAY-101) or an Azure DevOps id (2303): what a headline must not carry.
@@ -127,19 +124,9 @@ describe('what needs attention', () => {
   });
 });
 
-describe('both word modes', () => {
-  it('says code review in plain words and pull request in standard, with the same facts', async () => {
-    setPlain(true);
-    const plainRegion = await open('card-payments');
-    const plainReview = plainRegion.querySelector('.sum-card[data-card="review"]')!.textContent!;
-    const plainAnswer = plainRegion.querySelector('[data-answer]')!.textContent;
-    expect(plainReview).toContain('The code review for');
-    cleanup();
-    setPlain(false);
-    const standardRegion = await open('card-payments');
-    const standardReview = standardRegion.querySelector('.sum-card[data-card="review"]')!.textContent!;
-    expect(standardReview).toContain('The pull request for');
-    expect(standardReview.replace('pull request', 'code review')).toBe(plainReview);
-    expect(standardRegion.querySelector('[data-answer]')!.textContent).toBe(plainAnswer);
+describe('plain words', () => {
+  it('says code review, with the same facts as the data', async () => {
+    const region = await open('card-payments');
+    expect(region.querySelector('.sum-card[data-card="review"]')!.textContent!).toContain('The code review for');
   });
 });

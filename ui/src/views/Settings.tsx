@@ -26,7 +26,6 @@ import { MotionSetting } from './settings/Motion.tsx';
 import { LearningSetting } from './settings/Learning.tsx';
 import { NotifySetting } from '../components/notify.tsx';
 import { ThemeSetting } from './settings/Theme.tsx';
-import { PlainWordsSetting } from '../components/plain-switch.tsx';
 import { usePlain } from '../plain-words.ts';
 import { Usage } from './settings/Usage.tsx';
 import { ModelUsage } from './settings/ModelUsage.tsx';
@@ -95,7 +94,6 @@ export function Settings({ page, at = [], config, agent, modelUsage = null }: { 
       </p>
       {page === 'toil' && (
         <>
-          <PlainWordsSetting />
           <ThemeSetting />
           <MotionSetting />
           <NotifySetting />

@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
-import { standardWords } from './words.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import type { SyncClient, SyncStatus } from '../src/server-client.ts';
 import { SyncPanel } from '../src/sync-panel.tsx';
@@ -63,7 +62,6 @@ function targets(): string[] {
 
 beforeEach(() => {
   localStorage.clear();
-  standardWords();
   document.documentElement.removeAttribute('data-theme');
 });
 
@@ -104,71 +102,61 @@ describe('every theme', { timeout: SLOW }, () => {
   });
 });
 
-describe('a renamed word keeps the real one beside it', { timeout: SLOW }, () => {
-  it('reads "Campaign (Epic)" in Realm and "Epic" in Plain', () => {
-    expect(themed(themeNamed('realm'), 'epic', 'Epic')).toBe('Campaign (Epic)');
+describe('controls and headings read the real word alone, in every theme (principle 11)', { timeout: SLOW }, () => {
+  it('reads "Epic" in Realm and in Plain: a theme\'s term never reaches a control', () => {
+    expect(themed(themeNamed('realm'), 'epic', 'Epic')).toBe('Epic');
     expect(themed(themeNamed('plain'), 'epic', 'Epic')).toBe('Epic');
   });
 
-  it('shows the source\'s own word on the item page, the board, the graph and the chat', async () => {
+  it('shows the source\'s own word on the item page in Realm, with no theme word beside it', async () => {
     await open(item('card-payments', 'corp-jira:PAY-100'), 'realm', 'light');
-    expect(screen.getByText('Campaign (Epic)')).toBeTruthy();
+    expect(screen.queryAllByText('Epic').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Campaign/)).toBeNull();
+  });
+
+  it.each(['plain', 'realm', 'starship', 'sprawl', 'frontier', 'overworld'])('%s names the graph "What blocks what" and its blockers Blocked', async (theme) => {
+    const scheme = Object.keys(themeNamed(theme).schemes)[0]!;
+    await open('#/project/card-payments/dependencies', theme, scheme);
+    const graph = screen.getByRole('region', { name: 'What blocks what' });
+    // The graph loads on its own, after the rest of the tab.
+    await waitFor(() => expect(within(graph).getAllByText('Blocked').length).toBeGreaterThan(0), { timeout: 3000 });
   });
 
   it.each([
-    ['realm', 'War table (Dependencies)', 'Broken road (Blocked)'],
-    ['starship', 'Star chart (Dependencies)', 'Hazard (Blocked)'],
-    ['sprawl', 'Net map (Dependencies)', 'Black ICE (Blocked)'],
-    ['frontier', 'Rail survey (Dependencies)', 'Busted axle (Blocked)'],
-    ['overworld', 'Dungeon map (Dependencies)', 'Locked door (Blocked)'],
-    ['plain', 'Dependencies', 'Blocked'],
-  ])('%s names the graph %s and its blockers %s', async (theme, title, blocked) => {
-    const scheme = Object.keys(themeNamed(theme).schemes)[0]!;
-    await open('#/project/card-payments/dependencies', theme, scheme);
-    const graph = screen.getByRole('region', { name: title });
-    // The graph loads on its own, after the rest of the tab.
-    await waitFor(() => expect(within(graph).getAllByText(blocked).length).toBeGreaterThan(0), { timeout: 3000 });
+    ['harvest', 'light'],
+    ['overworld', 'dark'],
+    ['frontier', 'light'],
+    ['sprawl', 'dark'],
+    ['realm', 'light'],
+  ])('names the board and the sprint in %s (%s) with the real words alone', async (theme, scheme) => {
+    await open('#/project/card-payments/board', theme, scheme);
+    expect(screen.getByRole('region', { name: /^Sprint 42 board$/ })).toBeTruthy();
+    expect(document.querySelector('.sprint-chip')!.textContent).toMatch(/^Sprint 42: day \d+ of \d+$/);
   });
 
-  it('names the board, the sprint and the agent in Harvest beside their own words', async () => {
-    await open('#/project/card-payments/board', 'harvest', 'light');
-    expect(screen.getByRole('region', { name: /^Farm plot \(Sprint 42 board\)$/ })).toBeTruthy();
-    expect(document.querySelector('.sprint-chip')!.textContent).toMatch(/^Season calendar \(Sprint 42: day \d+ of \d+\)$/);
-  });
-
-  it('names the board, the sprint and the agent in Overworld beside their own words', async () => {
-    await open('#/project/card-payments/board', 'overworld', 'dark');
-    expect(screen.getByRole('region', { name: /^Quest log \(Sprint 42 board\)$/ })).toBeTruthy();
-    expect(document.querySelector('.sprint-chip')!.textContent).toMatch(/^Journey \(Sprint 42: day \d+ of \d+\)$/);
-  });
-
-  it('names the claims board and the cattle drive in Frontier beside their own words', async () => {
-    await open('#/project/card-payments/board', 'frontier', 'light');
-    expect(screen.getByRole('region', { name: /^Claims board \(Sprint 42 board\)$/ })).toBeTruthy();
-    expect(document.querySelector('.sprint-chip')!.textContent).toMatch(/^Cattle drive \(Sprint 42: day \d+ of \d+\)$/);
-  });
-
-  it('names the campaign each card serves in Realm', async () => {
+  it('keeps the card\'s epic as the real word in Realm', async () => {
     await open('#/project/card-payments/board', 'realm', 'light');
     const board = screen.getByRole('region', { name: /board/ });
-    expect(within(board).getAllByText(/^Campaign \(Epic\): /).length).toBeGreaterThan(0);
+    expect(within(board).queryAllByText(/^Campaign/)).toHaveLength(0);
+    expect(within(board).getAllByText(/^Epic: /).length).toBeGreaterThan(0);
   });
 
-  it('reads the board, builds, people, analyses and an item as a tabletop campaign in Realm, beside the real words (#415)', async () => {
+  it('names the builds, people, analyses and an item\'s fields by the real words in Realm (#415)', async () => {
     await open('#/project/card-payments/board', 'realm', 'light');
-    const builds = screen.getByRole('region', { name: 'Saving throws (Builds)' });
-    const rolls = [...builds.querySelectorAll('.outcome__roll')].map((r) => r.textContent);
-    expect(rolls).toContain('Natural 20 (passed): ');
-    expect(rolls).toContain('Critical fail (failed): ');
+    const builds = screen.getByRole('region', { name: 'Builds' });
+    // A build's outcome is the source's state alone: the dice words live in the moments, never beside it.
+    expect(builds.querySelectorAll('.outcome').length).toBeGreaterThan(0);
+    expect(builds.querySelectorAll('.outcome__roll')).toHaveLength(0);
+    expect(builds.textContent).not.toMatch(/Natural 20|Critical fail/);
     cleanup();
     await open('#/project/card-payments/people', 'realm', 'light');
-    expect(screen.getByRole('heading', { level: 1, name: 'Party (People)' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: 'People' })).toBeTruthy();
     cleanup();
     await open('#/project/card-payments/analyses', 'realm', 'light');
-    expect(screen.getByRole('heading', { name: 'Quest log (Analyses)' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Past briefings' })).toBeTruthy();
     cleanup();
     await open(item('card-payments', 'corp-jira:PAY-100'), 'realm', 'light');
-    expect(screen.getByText('Initiative (Priority)', { selector: 'dt' })).toBeTruthy();
+    expect(screen.getByText('Priority', { selector: 'dt' })).toBeTruthy();
   });
 
   it('keeps the real words alone in Realm with themed wording off', async () => {
@@ -182,18 +170,18 @@ describe('a renamed word keeps the real one beside it', { timeout: SLOW }, () =>
 
 describe('the skins', { timeout: SLOW }, () => {
   it.each([
-    ['harvest', 'light', 'Almanac (Agent)'],
-    ['starship', 'dark', "Ship's computer (Agent)"],
-    ['realm', 'light', 'Dungeon master (Agent)'],
-    ['sprawl', 'dark', 'Netrunner (Agent)'],
-    ['frontier', 'light', 'Operator (Agent)'],
-    ['overworld', 'dark', 'Sage (Agent)'],
-  ])('answer in %s (%s) as %s', async (theme, scheme, name) => {
+    ['harvest', 'light'],
+    ['starship', 'dark'],
+    ['realm', 'light'],
+    ['sprawl', 'dark'],
+    ['frontier', 'light'],
+    ['overworld', 'dark'],
+  ])('answer in %s (%s) under the real word Agent, with no theme name beside it', async (theme, scheme) => {
     await open('#/project/settlement', theme, scheme);
     await openChat('settlement');
     const starters = screen.getByRole('group', { name: 'Starter questions' });
     await userEvent.click(within(starters).getAllByRole('button')[0]!);
-    expect(await screen.findByText(name, {}, { timeout: 4000 })).toBeTruthy();
+    expect((await screen.findAllByText('Agent', {}, { timeout: 4000 })).length).toBeGreaterThan(0);
   });
 
   it('grow a crop on each Harvest card by its column, and hide the art from screen readers', async () => {
@@ -206,7 +194,7 @@ describe('the skins', { timeout: SLOW }, () => {
     // The calendar hangs on the sprint, which the Overview's burn-up opens (#394).
     cleanup();
     await open('#/project/card-payments', 'harvest', 'light');
-    await userEvent.click(screen.getByRole('button', { name: /^Burn-up / }));
+    await userEvent.click(screen.getByRole('button', { name: /^Points done / }));
     await screen.findByRole('dialog');
     expect(document.querySelector('.harvest-calendar')?.getAttribute('aria-hidden')).toBe('true');
   });
@@ -229,7 +217,7 @@ describe('the skins', { timeout: SLOW }, () => {
     expect(hud.querySelector('.ow-gems')!.textContent).toBe('3/21');
     cleanup();
     await open('#/project/card-payments', 'overworld', 'dark');
-    await userEvent.click(screen.getByRole('button', { name: /^Burn-up / }));
+    await userEvent.click(screen.getByRole('button', { name: /^Points done / }));
     expect((await screen.findByRole('dialog')).querySelector('.ow-hud')?.getAttribute('aria-hidden')).toBe('true');
   });
 
@@ -284,13 +272,13 @@ describe('the skins', { timeout: SLOW }, () => {
 
   it("count the sprint's hit points in place of its meter in Realm, from the sprint's own figures", async () => {
     await open('#/project/card-payments', 'realm', 'light');
-    await userEvent.click(screen.getByRole('button', { name: /^Burn-up / }));
+    await userEvent.click(screen.getByRole('button', { name: /^Points done / }));
     const dialog = await screen.findByRole('dialog');
     const vitals = dialog.querySelector('.realm-vitals')!;
-    expect(vitals.textContent).toBe('Hit points (Points left) 18 of 21');
+    expect(vitals.textContent).toBe('Points left 18 of 21');
     // The meter it stands in for is still in the page (theme.css hides it), and the Done tally reads as experience.
     expect(vitals.nextElementSibling?.matches('.meter') || dialog.querySelector('.realm-vitals ~ .meter')).toBeTruthy();
-    expect(within(dialog).getByText('Experience points (Done)')).toBeTruthy();
+    expect(within(dialog).getByText('Done')).toBeTruthy();
     expect(vitals.querySelector('.realm-hp')!.getAttribute('aria-hidden')).toBe('true');
   });
 
@@ -309,7 +297,7 @@ describe('the skins', { timeout: SLOW }, () => {
     expect(notches.length).toBeGreaterThanOrEqual(5);
     for (const n of notches) expect(n.getAttribute('aria-hidden')).toBe('true');
     expect(document.querySelector('.top .sprawl-notch')).toBeTruthy();
-    expect(screen.getByRole('region', { name: /^Gig board \(Sprint 42 board\)$/ })).toBeTruthy();
+    expect(screen.getByRole('region', { name: /^Sprint 42 board$/ })).toBeTruthy();
   });
 
   it('put HUD corners on Starship panels and the header, out of the accessibility tree', async () => {

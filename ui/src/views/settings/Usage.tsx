@@ -23,6 +23,7 @@ import { dateTime, day } from '../../format.ts';
 import type { Envelope } from '../../toil.ts';
 import { doorLabel, failingMost, failuresInput, fillDays, unusedByArea, USAGE_CALLS, type UsageStats } from '../../usage.ts';
 import { Loader } from '../../moments/Moments.tsx';
+import { useWords } from '../../skins.tsx';
 
 const percent = (n: number, of: number) => (of === 0 ? '0%' : `${Math.round((n / of) * 100)}%`);
 const ms = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)} s` : `${n} ms`);
@@ -160,6 +161,7 @@ export function Usage({ config, today = new Date().toISOString().slice(0, 10) }:
 }
 
 function Failing({ group: g, config }: { group: UsageGroup; config: ConfigApi }) {
+  const words = useWords();
   const [lines, setLines] = useState<Loaded<AuditLine[]> | 'loading' | null>(null);
   const id = useId();
   const top = g.errors[0];
@@ -203,7 +205,7 @@ function Failing({ group: g, config }: { group: UsageGroup; config: ConfigApi })
         </span>
       </div>
       <div id={id}>
-        {lines === 'loading' && <Loader size="panel" message="Reading the audit log…" />}
+        {lines === 'loading' && <Loader size="panel" message={words('loading.audit')} />}
         {lines !== null && lines !== 'loading' && !lines.ok && (
           <p role="alert" className="failure">
             <code>toil audit list</code> failed: {lines.message}

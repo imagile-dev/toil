@@ -9,7 +9,7 @@
 import { groupInsights, INSIGHT_LABEL, type Insight, type InsightCode, type InsightGroup } from '../model/insights.ts';
 import { STATUS_CATEGORY_LABEL } from '../format.ts';
 import { usePlain } from '../plain-words.ts';
-import { useSkins, useTerm } from '../skins.tsx';
+import { useSkins } from '../skins.tsx';
 import type { ChangeRef, StatusCategory } from '../toil.ts';
 import type { AvatarProps } from './avatar.tsx';
 
@@ -99,7 +99,7 @@ const wordOf = (g: InsightGroup, plain = false) => {
 };
 
 /** The two chips whose words are shorthand (src/plain-words.ts); every other one already reads as it is. */
-const PLAIN_INSIGHT_LABEL: Partial<Record<InsightCode, string>> = { 'pr-no-build': 'Code review with no build', aging: 'Open a long time' };
+export const PLAIN_INSIGHT_LABEL: Partial<Record<InsightCode, string>> = { 'pr-no-build': 'Code review with no build', aging: 'Open a long time' };
 
 /** A chip's tooltip: its word alone for one insight, else the word and what each says, cited items by title. */
 function groupTitle(g: InsightGroup, word: string, titles?: ReadonlyMap<string, { title: string }>): string {
@@ -109,17 +109,10 @@ function groupTitle(g: InsightGroup, word: string, titles?: ReadonlyMap<string, 
 }
 
 /**
- * A change's state. A build that passed or failed carries the theme's word for
- * how it ended, beside the real one ("Natural 20 (passed): success" in Realm,
- * #415); the state the source gave is always there, as it was.
+ * A change's state, as the source gave it. How a build ended is never put in a
+ * theme's words beside it (a theme's `passed` and `failed` terms are for its
+ * moments only, src/wording.ts): what a person acts on reads the same in every theme.
  */
 export function Outcome({ of }: { of: Pick<ChangeRef, 'state' | 'outcome'> }) {
-  const term = useTerm();
-  const roll = of.outcome === 'passed' || of.outcome === 'failed' ? term(of.outcome, of.outcome) : null;
-  return (
-    <span className={`outcome outcome--${of.outcome}`}>
-      {roll && roll !== of.outcome && <span className="outcome__roll">{roll}: </span>}
-      {of.state}
-    </span>
-  );
+  return <span className={`outcome outcome--${of.outcome}`}>{of.state}</span>;
 }

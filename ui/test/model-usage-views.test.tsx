@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
-import { standardWords } from './words.ts';
 import type { Agent, Answer } from '../src/agent.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
@@ -31,7 +30,6 @@ async function open(hash: string, { agent = scriptedAgent(), modelUsage = fixtur
 
 beforeEach(() => {
   localStorage.clear();
-  standardWords();
 });
 afterEach(cleanup);
 
@@ -118,7 +116,7 @@ describe('Settings, Agent usage', () => {
   it('sits beside Usage, and totals the sample month by day, adapter, model and Toil project with the meter\'s figures', async () => {
     const { container } = await open('#/settings/agent-usage');
     const nav = screen.getByRole('navigation', { name: 'Settings pages' });
-    expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(['Connections', 'Toil projects', 'General', 'Usage', 'Agent usage', 'Agent']);
+    expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(['Connections', 'Toil projects', 'General', 'Usage', 'AI usage', 'AI helper']);
     await screen.findByRole('heading', { name: "Usage of the agent's models" });
     const all = addUp(sampleUsageRecords());
     expect(screen.getByText('These are sample figures, made up for the preview. No model reported them.')).toBeTruthy();

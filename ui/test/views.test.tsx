@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
-import { standardWords } from './words.ts';
 import { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, NO_AGENT_NOTICE, type AdapterList, type Agent, type AskExtra } from '../src/agent.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { askBar, openChat } from './chat.ts';
@@ -62,17 +61,16 @@ async function metric(name: RegExp) {
 
 beforeEach(() => {
   localStorage.clear();
-  standardWords();
   document.documentElement.removeAttribute('data-theme');
 });
 
 describe('every view', () => {
   it.each(ROUTES)('%s carries the preview banner, the views and when the data was read', async (hash) => {
     await open(hash);
-    expect(screen.getByRole('note')?.textContent).toContain('Toil UI beta, on sample data.');
+    expect(screen.getByRole('note')?.textContent).toContain('Toil UI beta, showing sample data.');
     const nav = screen.getByRole('navigation', { name: 'Views' });
     expect(within(nav).getAllByRole('link')[0]!.textContent).toBe('Toil projects');
-    expect(screen.getByText(/Sample data read 13 Oct 2026, 08:00 UTC through toil, read-only/)).toBeTruthy();
+    expect(screen.getByText(/Sample data read 13 Oct 2026, 08:00 UTC without changing anything/)).toBeTruthy();
   });
 
   it.each(ROUTES.flatMap((r) => [[r, 'plain'], [r, 'crate']]))('%s in %s has no axe violations', async (hash, theme) => {
@@ -97,7 +95,7 @@ describe('every view', () => {
 
   it("marks the current view in the navigation, and the current tab in the Toil project's tabs (#394)", async () => {
     await open('#/project/settlement');
-    expect(within(tabs('settlement')).getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe('page');
+    expect(within(tabs('settlement')).getByRole('link', { name: 'Summary' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('link', { name: 'Toil projects' }).getAttribute('aria-current')).toBeNull();
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('settlement');
   });
@@ -128,9 +126,9 @@ describe('the Toil project list', () => {
     const [pay, settle, web] = await cards();
     expect(pay!.textContent).toContain('Sprint 42 3 working days left of 10, 3 of 21 points done');
     expect(within(pay!).getByRole('img', { name: 'Burn-up: 3 of 21 points done' })).toBeTruthy();
-    expect(within(pay!).getByRole('list', { name: 'Counts' }).textContent).toBe('3 in progress2 blocked1 PR waits on review');
-    expect(within(settle!).getByRole('list', { name: 'Counts' }).textContent).toBe('3 in progress1 blocked0 PRs wait on review');
-    expect(within(web!).getByRole('list', { name: 'Counts' }).textContent).toBe('2 in progress0 blocked2 PRs wait on review');
+    expect(within(pay!).getByRole('list', { name: 'Counts' }).textContent).toBe('3 in progress2 blocked1 code review waiting');
+    expect(within(settle!).getByRole('list', { name: 'Counts' }).textContent).toBe('3 in progress1 blocked0 code reviews waiting');
+    expect(within(web!).getByRole('list', { name: 'Counts' }).textContent).toBe('2 in progress0 blocked2 code reviews waiting');
     expect(within(pay!).getByRole('list', { name: /^People: / }).getAttribute('aria-label')).toContain('J. Smith');
     expect(within(pay!).getByRole('img', { name: 'J. Smith' })).toBeTruthy();
     // The preview syncs nothing, and this browser has never opened a dashboard.
@@ -156,8 +154,8 @@ describe('the Toil project list', () => {
     window.location.hash = '#/';
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview={false} synced={{ settlement: { at: '2026-10-13T07:00:00Z', status: 'partial' } }} />);
     const all = await cards();
-    expect(all.find((c) => c.textContent?.startsWith('settlement'))!.textContent).toContain('Synced 13 Oct 2026, 07:00 UTC, some sources failed.');
-    expect(all.find((c) => c.textContent?.startsWith('checkout-web'))!.textContent).toContain('Not synced yet.');
+    expect(all.find((c) => c.textContent?.startsWith('settlement'))!.textContent).toContain('Updated 13 Oct 2026, 07:00 UTC, some sources failed.');
+    expect(all.find((c) => c.textContent?.startsWith('checkout-web'))!.textContent).toContain('Not updated yet.');
   });
 
   it('shows a dash, not 0, for a Toil project that has never synced, and real zeros once it has (principle 12)', async () => {
@@ -174,8 +172,9 @@ describe('the Toil project list', () => {
 
   it('says which commands fed it', async () => {
     await open('#/');
-    expect(screen.getByText(/Fed by/).textContent).toContain('toil projects list');
-    expect(screen.getByText(/Fed by/).textContent).toContain('toil projects show ×3');
+    expect(document.querySelector('.fed-by summary')!.textContent).toMatch(/^From /);
+    expect(screen.getByText(/The exact toil commands that read it/).textContent).toContain('toil projects list');
+    expect(screen.getByText(/The exact toil commands that read it/).textContent).toContain('toil projects show ×3');
   });
 });
 
@@ -291,7 +290,7 @@ describe('a place the sync could not read (#542)', () => {
 describe('the pull requests view', () => {
   it('ranks the open pull requests by wait, with what each waits on, its author kind, items and flags', async () => {
     await open('#/project/checkout-web/prs');
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Pull requests');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Code reviews');
     const rows = within(panel('Waiting now')).getAllByRole('row').slice(1);
     expect(rows.map((r) => within(r).getByRole('rowheader').textContent)).toEqual([
       expect.stringContaining('payments-web #51 Retry the address lookup once'),
@@ -359,7 +358,7 @@ describe('the pull requests view', () => {
 
   it("is a tab of the Toil project's, current on its own page", async () => {
     await open('#/project/settlement/prs');
-    const tab = within(tabs('settlement')).getByRole('link', { name: 'Pull requests' });
+    const tab = within(tabs('settlement')).getByRole('link', { name: 'Code reviews' });
     expect(tab.getAttribute('href')).toBe('#/project/settlement/prs');
     expect(tab.getAttribute('aria-current')).toBe('page');
   });
@@ -372,9 +371,9 @@ describe('a dashboard', () => {
     ['checkout-web', ['github project items', 'github issue get', 'github issue history'], ['github pr list', 'github pr get', 'bitbucket pr list', 'bitbucket pr get'], ['github pr get'], ['openshift deployment list']],
   ])('%s names the commands that fed each panel', async (name, work, prs, builds, deployments) => {
     await open(`#/project/${name}/board`);
-    const fed = (region: HTMLElement) => within(region).getByText(/Fed by/).textContent;
+    const fed = (region: HTMLElement) => within(region).getByText(/The exact toil commands that read it/).textContent;
     for (const c of work) expect(fed(panel('Sprint 42 board'))).toContain(`toil ${c}`);
-    for (const c of prs) expect(fed(panel('Stories, pull requests, builds and deployments'))).toContain(`toil ${c}`);
+    for (const c of prs) expect(fed(panel('Stories, code reviews, builds and deployments'))).toContain(`toil ${c}`);
     for (const c of builds) expect(fed(panel('Builds'))).toContain(`toil ${c}`);
     for (const c of deployments) expect(fed(panel('Deployments'))).toContain(`toil ${c}`);
   });
@@ -405,7 +404,7 @@ describe('a dashboard', () => {
 
   it("shows the sprint's figures and each risk's reasons", async () => {
     await open('#/project/settlement');
-    const sprint = await metric(/^Burn-up /);
+    const sprint = await metric(/^Points done /);
     expect(sprint.querySelector('h2')!.textContent).toBe('Sprint 42: day 7 of 9');
     expect(within(sprint).getByRole('list', { name: 'Sprint figures' }).textContent).toContain('Done1 of 16points, 2 items');
     expect(sprint.textContent).toContain('Blocked by Azure DevOps 2302');
@@ -483,8 +482,8 @@ describe('the views on a dashboard (#252, #253)', () => {
     expect(card.textContent).toContain('M. Lind');
     // The source and the estimate share a line; each insight is an icon with its word kept as text and tooltip.
     expect(card.querySelector('.card-meta .field')!.textContent).toMatch(/^Azure DevOps · /);
-    const aging = within(card).getByText('Aging').closest('li')!;
-    expect(aging.getAttribute('title')).toBe('Aging');
+    const aging = within(card).getByText('Open a long time').closest('li')!;
+    expect(aging.getAttribute('title')).toBe('Open a long time');
     expect(aging.querySelector('svg')!.getAttribute('aria-hidden')).toBe('true');
   });
 
@@ -615,29 +614,29 @@ describe('the views on a dashboard (#252, #253)', () => {
     await open('#/project/checkout-web');
     const strip = screen.getByRole('region', { name: 'Metrics' });
     expect(within(strip).getAllByRole('button').map((b) => b.textContent)).toEqual([
-      'Burn-up 1 of 11 points, show the full chart',
-      'Throughput 0.4 a week, show the full chart',
-      'Cycle time 0 items timed, show the full chart',
-      'Aging WIP 0 in progress, show the full chart',
-      'PR wait 2 working days, 3 open, show the full chart',
+      'Points done 1 of 11 points, show the full chart',
+      'Finished 0.4 a week, show the full chart',
+      'Time to finish 0 items timed, show the full chart',
+      'Work getting old 0 in progress, show the full chart',
+      'Review wait 2 working days, 3 open, show the full chart',
     ]);
-    let dialog = await metric(/^Throughput /);
+    let dialog = await metric(/^Finished /);
     expect(within(dialog).getAllByRole('img').length).toBeGreaterThan(0);
     expect(dialog.textContent).toContain('3 finished in 6 weeks');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    dialog = await metric(/^Cycle time /);
+    dialog = await metric(/^Time to finish /);
     expect(dialog.textContent).toContain('No finished item here has a cycle time the data can show.');
     expect(dialog.textContent).toContain('Unknown: Never recorded as In progress before Done.');
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    dialog = await metric(/^Aging WIP /);
+    dialog = await metric(/^Work getting old /);
     expect(dialog.textContent).toContain('Unknown: No move into In progress recorded.');
   });
 
   it('draws the dependency graph, and lists every link in words', async () => {
     await open('#/project/card-payments/dependencies');
-    const graph = panel('Dependencies');
+    const graph = panel('What blocks what');
     await waitFor(() => expect(graph.querySelector('.react-flow')).not.toBeNull());
     expect([...graph.querySelectorAll(':scope > ul.rows > li')].map((li) => li.textContent)).toEqual([
       'Jira PAY-101 Tokenise card numbers at the edge blocks Jira PAY-102 Store tokens in the vault (blocks)',
@@ -668,12 +667,12 @@ describe('the views on a dashboard (#252, #253)', () => {
   it('says so when a Toil project has no links to draw', async () => {
     localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'plain' }));
     await open('#/project/checkout-web/dependencies');
-    await waitFor(() => expect(panel('Dependencies').textContent).toContain("No links between this Toil project's items."));
+    await waitFor(() => expect(panel('What blocks what').textContent).toContain("No links between this Toil project's items."));
   });
 
   it("charts the sprint's burn-up with its figures in a table", async () => {
     await open('#/project/settlement');
-    const sprint = await metric(/^Burn-up /);
+    const sprint = await metric(/^Points done /);
     expect(sprint.querySelector('svg.chart title')!.textContent).toBe('Sprint 42 burn-up: 1 of 16 points done after 9 days, with 3 days to go. Scope grew from 11 to 16 points.');
     expect(within(sprint).getByRole('table', { name: 'Sprint 42 burn-up by day' })).toBeTruthy();
   });
@@ -688,13 +687,13 @@ describe('the chat up front (#343)', () => {
     for (const route of ['#/project/card-payments', '#/project/card-payments/prs', '#/project/card-payments/people', '#/project/card-payments/worklog', item('card-payments', 'corp-jira:PAY-102')]) {
       await open(route);
       const bar = askBar('card-payments');
-      expect(within(bar).getByRole('textbox', { name: 'Your question' }).getAttribute('placeholder')).toBe('Ask about card-payments');
+      expect(within(bar).getByRole('textbox', { name: 'Your question' }).getAttribute('placeholder')).toBe('Ask a question about card-payments');
       expect(within(bar).queryByRole('button', { name: /Analyze|briefing/ })).toBeNull();
       cleanupView();
     }
     setTheme('crate');
     await open('#/project/card-payments');
-    expect(within(askBar('card-payments')).getByRole('textbox', { name: 'Your question' }).getAttribute('placeholder')).toBe('Ask the dock about card-payments');
+    expect(within(askBar('card-payments')).getByRole('textbox', { name: 'Your question' }).getAttribute('placeholder')).toBe('Ask a question about card-payments');
   });
 
   it('opens a focused view with the context strip, the guided start with its questions, and Escape to leave', async () => {
@@ -908,7 +907,7 @@ describe('the chat up front (#343)', () => {
       const { unmount } = await open('#/project/card-payments', { agent: first.agent, preview: false });
       await userEvent.click(await within(askBar('card-payments')).findByRole('textbox', { name: 'Your question' }));
       const chat = await screen.findByRole('dialog', { name: 'Ask about card-payments' });
-      await userEvent.click(await within(chat).findByRole('button', { name: /change the agent for this chat/ }));
+      await userEvent.click(await within(chat).findByRole('button', { name: /change the AI helper for this chat/ }));
       await userEvent.click(await screen.findByRole('button', { name: /Codex/ }));
       await userEvent.click(within(chat).getByRole('button', { name: /^Give me the full briefing/ }));
       await within(chat).findByRole('heading', { level: 3, name: 'Analyze' });
@@ -928,7 +927,7 @@ describe('settings', () => {
   it('is in the navigation, and says the preview changes nothing', async () => {
     await open('#/settings');
     expect(screen.getByRole('link', { name: 'Settings' }).getAttribute('aria-current')).toBe('page');
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe("toil's configuration");
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Connections and Toil projects');
     expect(document.body.textContent).toContain('Changes are turned off.');
     expect(document.body.textContent).toContain('it has no configuration of yours to change');
   });
@@ -952,9 +951,9 @@ describe('settings', () => {
   it('in the preview, shows the connections with every change turned off, and still tests one', async () => {
     await open('#/settings/connections');
     const card = await screen.findByRole('article', { name: 'corp-jira' });
-    await userEvent.click(within(card).getByRole('button', { name: 'Turn writes off' }));
-    const form = within(card).getByRole('form', { name: 'Turn writes off for corp-jira' });
-    expect((within(form).getByRole('button', { name: 'Turn writes off' }) as HTMLButtonElement).disabled).toBe(true);
+    await userEvent.click(within(card).getByRole('button', { name: 'Stop changes' }));
+    const form = within(card).getByRole('form', { name: 'Stop changes for corp-jira' });
+    expect((within(form).getByRole('button', { name: 'Stop changes' }) as HTMLButtonElement).disabled).toBe(true);
     expect(form.textContent).toContain('Turned off: This is the preview');
     expect(form.textContent).toContain('Runs toil connections writes corp-jira off');
     await userEvent.click(within(card).getByRole('button', { name: 'Test' }));
@@ -964,7 +963,7 @@ describe('settings', () => {
   it('shows a connection made by env vars read-only, with where it came from', async () => {
     await open('#/settings/connections');
     const card = await screen.findByRole('article', { name: 'github' });
-    expect(within(card).queryByRole('button', { name: /Remove|Make default|Turn writes|Replace secret/ })).toBeNull();
+    expect(within(card).queryByRole('button', { name: /Remove|Make default|Stop changes|Allow changes|Update login/ })).toBeNull();
     expect(within(card).getByRole('button', { name: 'Test' })).toBeTruthy();
     expect(card.textContent).toContain('TOIL_CONN_GITHUB_*');
     expect(card.textContent).toContain('token: CI variable');
@@ -974,10 +973,10 @@ describe('settings', () => {
     const { config, sent } = recording();
     await open('#/settings/connections', { config });
     const card = await screen.findByRole('article', { name: 'corp-ado' });
-    await userEvent.click(within(card).getByRole('button', { name: 'Turn writes on' }));
-    const form = within(card).getByRole('form', { name: 'Turn writes on for corp-ado' });
-    await userEvent.type(within(form).getByRole('textbox', { name: /Type corp-ado to turn them on/ }), 'corp-ado');
-    await userEvent.click(within(form).getByRole('button', { name: 'Turn writes on' }));
+    await userEvent.click(within(card).getByRole('button', { name: 'Allow changes' }));
+    const form = within(card).getByRole('form', { name: 'Allow changes for corp-ado' });
+    await userEvent.type(within(form).getByRole('textbox', { name: /Type corp-ado to allow changes/ }), 'corp-ado');
+    await userEvent.click(within(form).getByRole('button', { name: 'Allow changes' }));
     expect(await within(form).findByRole('status')).toBeTruthy();
     expect(sent).toEqual([{ command: 'connections writes', input: { name: 'corp-ado', state: 'on' }, answers: { answers: { 'confirm-name': 'corp-ado' } } }]);
   });
@@ -1021,9 +1020,9 @@ describe('settings', () => {
     const { config, sent } = recording();
     await open('#/settings/connections', { config });
     const card = await screen.findByRole('article', { name: 'corp-jenkins' });
-    await userEvent.click(within(card).getByRole('button', { name: 'Replace secret' }));
-    const form = within(card).getByRole('form', { name: "Replace corp-jenkins's secret" });
-    await userEvent.click(within(form).getByRole('button', { name: 'Save to the credential store' }));
+    await userEvent.click(within(card).getByRole('button', { name: 'Update login' }));
+    const form = within(card).getByRole('form', { name: "Update corp-jenkins's login" });
+    await userEvent.click(within(form).getByRole('button', { name: 'Save securely' }));
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]).toMatchObject({ command: 'connections login', input: { name: 'corp-jenkins' }, answers: { secrets: { apiToken: '' } } });
   });
@@ -1105,8 +1104,8 @@ describe('settings', () => {
     it('says an empty field keeps the current secret when replacing one', async () => {
       await open('#/settings/connections');
       const card = await screen.findByRole('article', { name: 'corp-jenkins' });
-      await userEvent.click(within(card).getByRole('button', { name: 'Replace secret' }));
-      const form = within(card).getByRole('form', { name: "Replace corp-jenkins's secret" });
+      await userEvent.click(within(card).getByRole('button', { name: 'Update login' }));
+      const form = within(card).getByRole('form', { name: "Update corp-jenkins's login" });
       expect(form.textContent).toContain('Empty: the current secret is kept');
     });
   });
@@ -1216,10 +1215,10 @@ describe('settings', () => {
     expect(unused.textContent).toContain('(CLI only)');
   });
 
-  it("has an Agent page, which says what the local app offers and changes nothing in the preview", async () => {
+  it("has an AI helper page, which says what the local app offers and changes nothing in the preview", async () => {
     await open('#/settings/agent');
-    expect(screen.getByRole('link', { name: 'Agent' }).getAttribute('aria-current')).toBe('page');
-    const agentPanel = panel('Agent');
+    expect(screen.getByRole('link', { name: 'AI helper' }).getAttribute('aria-current')).toBe('page');
+    const agentPanel = panel('AI helper');
     for (const name of ['Claude', 'GitHub Copilot', 'Codex']) expect(agentPanel.textContent).toContain(name);
     expect(within(agentPanel).queryByRole('button')).toBeNull();
     expect(document.body.textContent).not.toContain('Changes are turned off.');
@@ -1239,7 +1238,7 @@ describe('settings', () => {
       },
     };
     const { container } = await open('#/settings/agent', { preview: false, agentSettings: { client } });
-    const card = await screen.findByRole('region', { name: 'Agents on this machine' });
+    const card = await screen.findByRole('region', { name: 'Your AI helpers' });
     await userEvent.click(within(card).getByRole('button', { name: 'Install GitHub Copilot' }));
     const dialog = await screen.findByRole('dialog', { name: 'Install GitHub Copilot' });
     expect(within(dialog).getByRole('region', { name: 'The command' }).textContent).toBe('npm install --global --prefix /usr/local --ignore-scripts @x/y@1');
@@ -1274,7 +1273,7 @@ describe('settings', () => {
       },
     };
     await open('#/settings/agent', { preview: false, agentSettings: { client } });
-    const card = await screen.findByRole('region', { name: 'Agents on this machine' });
+    const card = await screen.findByRole('region', { name: 'Your AI helpers' });
     await userEvent.click(within(card).getByRole('button', { name: 'Install GitHub Copilot' }));
     const dialog = await screen.findByRole('dialog', { name: 'Install GitHub Copilot' });
     expect(dialog.querySelector('[data-registry-help]')).toBeNull();
@@ -1310,7 +1309,7 @@ describe('settings', () => {
   it('in the local app, shows first-run setup as steps in a calm tone, the packages one step in, and never in red', async () => {
     const client = { status: async () => STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null, models: {}, cliPaths: {} }), save: async (s: AgentSettings) => STATUS(s), prompt: async () => '', ...NO_INSTALL };
     const { container } = await open('#/settings/agent', { preview: false, agentSettings: { client } });
-    const agentPanel = panel('Agent');
+    const agentPanel = panel('AI helper');
     const choice = await screen.findByRole('region', { name: 'Which one answers' });
     await within(choice).findByRole('radiogroup', { name: 'Which one answers' });
     // The steps come first, in the info tone, and the install buttons sit right under them.
@@ -1372,8 +1371,8 @@ describe('the agent pane, with a real adapter', () => {
     await open('#/project/card-payments', { agent, preview: false });
     const chat = await openChat('card-payments');
     // In everyday words first (#552; these tests read toil's own terms, and the plain wording is in guided-ask.test.tsx): none yet, and where an engineer sets one up. The packages are one step in, behind a fold.
-    const notice = within(chat).getByText(/No agent is set up yet/).closest('[data-no-agent]')!;
-    expect(within(notice as HTMLElement).getByRole('link', { name: 'Set up an agent' }).getAttribute('href')).toBe('#/settings/agent');
+    const notice = within(chat).getByText(/No AI helper is set up yet/).closest('[data-no-agent]')!;
+    expect(within(notice as HTMLElement).getByRole('link', { name: 'Set up an AI helper' }).getAttribute('href')).toBe('#/settings/agent');
     const fold = notice.querySelector('details')!;
     expect(fold.open).toBe(false);
     expect(fold.textContent).toContain('GitHub Copilot');
@@ -1443,8 +1442,8 @@ describe('an item', () => {
 
   it('shows its insights, each with its source, and its time in progress', async () => {
     await open(item('settlement', 'corp-ado:2304'));
-    const box = screen.getByRole('region', { name: 'Insights' });
-    expect(box.textContent).toContain('Aging');
+    const box = screen.getByRole('region', { name: 'Worth a look' });
+    expect(box.textContent).toContain('Open a long time');
     expect(box.textContent).toContain('Carried over from Payments\\Sprint 41');
     expect(box.textContent).toContain('Source: history.iterations');
     expect(box.textContent).toMatch(/In progress for 15 days, since 28 Sept? 2026, 09:00 UTC/);
@@ -1518,12 +1517,12 @@ describe('how deep the theme goes (#283)', () => {
   it('says the empty states, loading lines and notes in the theme\'s words, and the standard ones with wording off', async () => {
     setTheme('crate');
     await open('#/project/checkout-web/dependencies');
-    await waitFor(() => expect(panel('Dependencies').textContent).toContain("No links between this Toil project's items: every crate stands on its own."));
+    await waitFor(() => expect(panel('What blocks what').textContent).toContain("No links between this Toil project's items: every crate stands on its own."));
     cleanupView();
     setTheme('crate', { wording: false });
     await open('#/project/checkout-web/dependencies');
-    await waitFor(() => expect(panel('Dependencies').textContent).toContain("No links between this Toil project's items."));
-    expect(panel('Dependencies').textContent).not.toContain('every crate');
+    await waitFor(() => expect(panel('What blocks what').textContent).toContain("No links between this Toil project's items."));
+    expect(panel('What blocks what').textContent).not.toContain('every crate');
   });
 
   it('never changes a control, a heading or a figure: the same buttons, links and headings with wording on and off', async () => {
@@ -1583,7 +1582,7 @@ describe('how deep the theme goes (#283)', () => {
     const dialog = await screen.findByRole('dialog', { name: 'About these answers' });
     expect(dialog.textContent).toContain("Answers are written in Harvest's voice, or in your own custom voice if you saved one. A voice changes their phrasing only");
     expect(dialog.textContent).toContain('Answered by a scripted preview, not a model.');
-    expect(dialog.textContent).toContain('The agent only reads');
+    expect(dialog.textContent).toContain('The AI helper only reads');
     expect(within(dialog).getByRole('link', { name: 'Settings, Agent' }).getAttribute('href')).toBe('#/settings/agent');
     expect(within(dialog).getByRole('link', { name: 'Settings, General' }).getAttribute('href')).toBe('#/settings/toil');
     expect(await violations(container)).toEqual([]);
@@ -1854,10 +1853,10 @@ describe('the readiness gate (#307)', () => {
   it('lists every open item with its verdict and why, slates only the ready ones, and keeps the start for #293', async () => {
     const fixture = fixtureExecute();
     await open('#/project/card-payments/command-center', { execute: fixture.execute });
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Command Center');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Ready to start?');
     // The Command Center is the Board tab's readiness view (#394).
     expect(within(tabs('card-payments')).getByRole('link', { name: /^Board/ }).getAttribute('aria-current')).toBe('page');
-    expect(within(screen.getByRole('navigation', { name: 'Board views' })).getByRole('link', { name: 'Readiness (Command Center)' }).getAttribute('aria-current')).toBe('page');
+    expect(within(screen.getByRole('navigation', { name: 'Board views' })).getByRole('link', { name: 'Ready to start?' }).getAttribute('aria-current')).toBe('page');
     const tally = screen.getByRole('list', { name: 'Open items by verdict' });
     expect([...tally.querySelectorAll('.team-figure')].map((f) => f.textContent)).toEqual(['1', '3', '2']);
     const slate = panel('Start every ready item');
@@ -1865,7 +1864,7 @@ describe('the readiness gate (#307)', () => {
     expect(slate.textContent).toMatch(/1 item is ready and would be slated, in the Toil project's order \(plan [0-9a-f]{8}\)\./);
     const start = within(slate).getByRole('button', { name: 'Start 1 ready item' });
     expect(start.hasAttribute('disabled')).toBe(true);
-    expect(slate.textContent).toContain('This view has no agent assignments, so it shows the plan it would start.');
+    expect(slate.textContent).toContain('This view has no AI helper assignments, so it shows the plan it would start.');
     const table = screen.getByRole('table');
     expect(within(table).getAllByRole('row')).toHaveLength(7);
     expect(table.textContent).toContain('Blocked by Jira PAY-102 (To Do).');
@@ -1896,10 +1895,10 @@ describe('the readiness gate (#307)', () => {
     const started: Array<{ id: string; items: string[] }> = [];
     window.location.hash = '#/project/checkout-web/command-center';
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview startReady={async (plan) => (started.push(plan), "Queued.")} />);
-    await screen.findByRole('heading', { level: 1, name: 'Command Center' });
+    await screen.findByRole('heading', { level: 1, name: 'Ready to start?' });
     const slate = panel('Start every ready item');
     const shownId = /\(plan ([0-9a-f]{8})\)/.exec(slate.textContent ?? '')![1];
-    expect(slate.textContent).toContain('Assigns each item above to an agent in implement mode, as listed');
+    expect(slate.textContent).toContain('Asks an AI helper to try a fix for each item above, as listed');
     await userEvent.click(within(slate).getByRole('button', { name: 'Start 1 ready item' }));
     expect(started).toEqual([{ id: shownId, items: ['github:imagile/payments-web#41'] }]);
     expect(await within(slate).findByText('Queued.')).toBeTruthy();
@@ -1915,7 +1914,7 @@ describe('the worklog (#308)', () => {
 
   it("opens on today's page, linked from the header, with the calendar of days that have one", async () => {
     await open('#/project/card-payments/worklog');
-    expect(within(tabs('card-payments')).getByRole('link', { name: 'Worklog' }).getAttribute('aria-current')).toBe('page');
+    expect(within(tabs('card-payments')).getByRole('link', { name: 'What happened' }).getAttribute('aria-current')).toBe('page');
     await screen.findByRole('heading', { name: 'Tuesday 13 October 2026' });
     const today = screen.getByRole('link', { name: /Tuesday 13 October 2026, today/ });
     expect(today.getAttribute('aria-current')).toBe('date');
@@ -2007,7 +2006,7 @@ describe('the stand-up (#345)', () => {
     expect(screen.getByRole('link', { name: 'Stand-up since the last working day' }).getAttribute('href')).toBe('#/project/card-payments/worklog/standup');
     cleanup();
     const view = await open('#/project/card-payments/worklog/standup');
-    expect(within(tabs('card-payments')).getByRole('link', { name: 'Worklog' }).getAttribute('aria-current')).toBe('page');
+    expect(within(tabs('card-payments')).getByRole('link', { name: 'What happened' }).getAttribute('aria-current')).toBe('page');
     expect(await screen.findByRole('heading', { name: 'Stand-up: card-payments, 12 Oct 2026 to 13 Oct 2026' })).toBeTruthy();
     const team = screen.getByRole('region', { name: 'Team' });
     expect(within(team).getAllByRole('listitem')[0]!.textContent).toMatch(/^F1Sprint 42: \d+ working days? left/);

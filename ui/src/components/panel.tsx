@@ -28,7 +28,7 @@ export function commandsOf(calls: Call[]): Array<{ command: string; count: numbe
 export function toolsOf(commands: Array<{ command: string }>): string[] {
   const names = commands.map((c) => {
     const area = c.command.split(' ')[0]!;
-    return area === 'toilProjects' ? 'your saved Toil projects' : sourceLabel(area);
+    return area === 'projects' || area === 'toilProjects' ? 'your saved Toil projects' : sourceLabel(area);
   });
   return [...new Set(names)];
 }

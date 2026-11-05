@@ -6,11 +6,9 @@ import { resetAgentsPanel } from '../src/assign/panel-choice.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureAssignments } from '../src/fixtures/assignments.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import { resetPlain, setPlain } from '../src/plain-words.ts';
 
 /**
- * Toil UI for someone new to AI (#552): plain words by default with the switch
- * in Settings and not the header, themed wording off until chosen, and the
+ * Toil UI for someone new to AI (#552): plain words always (no switch), themed wording off until chosen, and the
  * Agents panel one button until it is opened, and remembered once it is. The
  * pure rules are in plain-words.test.ts and theme-setting.test.tsx; this is
  * the App they decide.
@@ -33,7 +31,6 @@ async function open(hash: string) {
 
 beforeEach(() => {
   localStorage.clear();
-  resetPlain();
   resetAgentsPanel();
   window.history.replaceState(null, '', '/');
 });
@@ -49,51 +46,24 @@ describe('plain words as the default', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Toil projects' })).toBeTruthy();
     expect(within(screen.getByRole('navigation', { name: 'Views' })).getAllByRole('link')[0]!.textContent).toBe('Toil projects');
     expect(document.querySelector('header [data-plain-switch]')).toBeNull();
-    expect(document.documentElement.dataset.words).toBe('plain');
+    expect(document.documentElement.dataset.words).toBeUndefined();
   });
 
-  it("keeps toil's own terms for someone who opted out, in the address or in this browser", async () => {
+  it('has no switch: Settings, General, the palette and the address leave plain words alone', async () => {
     window.history.replaceState(null, '', '/?words=standard');
-    await open('#/');
-    expect(screen.getByRole('heading', { level: 1, name: 'Toil projects' })).toBeTruthy();
-    cleanup();
-    resetPlain();
-    window.history.replaceState(null, '', '/');
     localStorage.setItem('toil-ui.words', 'standard');
-    await open('#/');
-    expect(screen.getByRole('heading', { level: 1, name: 'Toil projects' })).toBeTruthy();
-  });
-
-  it('turns off and on from Settings, General, with its one-line explanation', async () => {
     await open('#/settings/toil');
-    const card = screen.getByRole('region', { name: 'Plain words' });
-    const toggle = within(card).getByRole('button', { name: 'Plain words' });
-    expect(toggle.getAttribute('aria-pressed')).toBe('true');
-    expect(card.querySelectorAll('p.note')).toHaveLength(1);
-    await userEvent.click(toggle);
-    expect(toggle.getAttribute('aria-pressed')).toBe('false');
-    expect(localStorage.getItem('toil-ui.words')).toBe('standard');
+    expect(screen.queryByRole('region', { name: 'Plain words' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Plain words' })).toBeNull();
+    expect(document.documentElement.dataset.words).toBeUndefined();
     expect(within(screen.getByRole('navigation', { name: 'Views' })).getAllByRole('link')[0]!.textContent).toBe('Toil projects');
-  });
-
-  it('is in the command palette too, named for what pressing it would do', async () => {
-    await open('#/');
+    cleanup();
+    await open('#/project/card-payments');
+    expect(await screen.findByRole('button', { name: /^AI helpers/ })).toBeTruthy();
     await userEvent.keyboard('{Control>}k{/Control}');
     const palette = await screen.findByRole('dialog', { name: 'Command palette' });
     await userEvent.type(within(palette).getByRole('searchbox'), 'plain words');
-    await userEvent.click(await within(palette).findByRole('menuitem', { name: /Use toil's own terms/ }));
-    await waitFor(() => expect(localStorage.getItem('toil-ui.words')).toBe('standard'));
-  });
-
-  it('keeps an item key and the sprint the same in both modes', async () => {
-    setPlain(true);
-    await open('#/project/card-payments');
-    const plain = document.body.textContent ?? '';
-    cleanup();
-    setPlain(false);
-    await open('#/project/card-payments');
-    const standard = document.body.textContent ?? '';
-    for (const fact of [/PAY-10\d/, /Sprint 42/]) expect(plain.match(fact)?.[0]).toBe(standard.match(fact)?.[0]);
+    expect(within(palette).queryByRole('menuitem', { name: /plain words|own terms/i })).toBeNull();
   });
 });
 
@@ -153,12 +123,5 @@ describe('the Agents panel', () => {
     await userEvent.type(within(palette).getByRole('searchbox'), 'ai helpers');
     await userEvent.click(await within(palette).findByRole('menuitem', { name: /Open the AI helpers panel/ }));
     expect(await screen.findByRole('region', { name: 'AI helpers' })).toBeTruthy();
-  });
-
-  it("keeps toil's label with plain words off", async () => {
-    screenWidth(true);
-    setPlain(false);
-    await open('#/project/card-payments');
-    expect(await screen.findByRole('button', { name: /^Agents/ })).toBeTruthy();
   });
 });

@@ -290,7 +290,7 @@ function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem;
           </MenuSection>
           {assignments ? (
             <MenuItem id="assign" className="menu-item">
-              Assign to an agent…
+              Give to an AI helper…
             </MenuItem>
           ) : null}
         </Menu>

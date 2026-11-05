@@ -13,7 +13,6 @@ import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { fixtureWorklog } from '../src/fixtures/worklog.ts';
 import { loadToilProjects } from '../src/load.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
-import { standardWords } from './words.ts';
 
 /**
  * Archiving a Toil project from the page (#561): the card's quiet menu, the
@@ -25,7 +24,6 @@ import { standardWords } from './words.ts';
 
 beforeEach(() => {
   localStorage.clear();
-  standardWords();
   window.location.hash = '#/';
 });
 afterEach(cleanup);

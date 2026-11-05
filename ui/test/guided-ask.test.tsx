@@ -8,7 +8,6 @@ import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { GROUPS, QUESTIONS } from '../src/guided-questions.ts';
 import { sourceLabel, sourceShort } from '../src/format.ts';
-import { resetPlain, setPlain } from '../src/plain-words.ts';
 import { loaded } from './harness.ts';
 
 /**
@@ -44,7 +43,6 @@ async function openChat(agent: Agent, toilProject = 'card-payments', preview = t
 
 beforeEach(() => {
   localStorage.clear();
-  resetPlain();
   window.history.replaceState(null, '', '/');
 });
 afterEach(() => {
@@ -104,14 +102,6 @@ describe('the guided start', () => {
     });
     await userEvent.click(await screen.findByText(/Get a briefing on/));
     await waitFor(() => expect(asked).toEqual(['analyze']));
-  });
-
-  it("wears toil's own words with plain words off: the same questions, a Toil project named as one", async () => {
-    setPlain(false);
-    const chat = await openChat(scriptedAgent());
-    expect(within(chat).getAllByRole('group', { name: 'Starter questions' })[0]!.querySelectorAll('button')).toHaveLength(9);
-    await userEvent.click(within(chat).getByRole('button', { name: 'What AI can see' }));
-    expect(within(chat).getByText("This Toil project's saved work:")).toBeTruthy();
   });
 });
 

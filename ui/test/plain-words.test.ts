@@ -1,32 +1,11 @@
 /**
- * Plain words (src/plain-words.ts): where the switch starts, the three words
+ * Plain words (src/plain-words.ts): always on, the words
  * it swaps inside a sentence, and the lookup that keeps a command typed
  * exactly. Pure functions, so no page is needed to hold them to it.
  */
 
 import { describe, expect, it } from 'vitest';
-import { initialPlain, plainify, wordsFor } from '../src/plain-words.ts';
-
-describe('where plain words start', () => {
-  it('follows ?words= in the address first, then what the browser saved, then plain', () => {
-    expect(initialPlain('?words=plain', 'standard')).toBe(true);
-    expect(initialPlain('?words=standard', 'plain')).toBe(false);
-    expect(initialPlain('?words=off', 'plain')).toBe(false);
-    expect(initialPlain('?theme=crate', 'plain')).toBe(true);
-    expect(initialPlain('?words=nonsense', null)).toBe(true);
-  });
-
-  it('is plain for anyone who has not chosen (#552)', () => {
-    expect(initialPlain('', null)).toBe(true);
-    expect(initialPlain('?theme=realm', null)).toBe(true);
-  });
-
-  it('stays standard for someone who opted out, in the address or in this browser', () => {
-    expect(initialPlain('?words=standard', null)).toBe(false);
-    expect(initialPlain('', 'standard')).toBe(false);
-    expect(initialPlain('?words=plain', 'standard')).toBe(true);
-  });
-});
+import { plainify, usePlain, wordsFor } from '../src/plain-words.ts';
 
 describe('plainify', () => {
   it('swaps Toil project, pull request and agent, keeping plurals and writing Toil project with its capital T', () => {
@@ -58,28 +37,41 @@ describe('plainify', () => {
 });
 
 describe('wordsFor', () => {
-  const lexicon = { 'toilProjects.lede': 'Each Toil project is one consignment of work.' };
+  const lexicon = {
+    'toilProjects.lede': 'Each Toil project is one consignment of work.',
+    'toilProject.eyebrow': 'Homestead',
+    'ask.placeholder': 'Ask the almanac about {name}',
+  };
 
-  it('reads as wording.ts does with plain words off', () => {
-    expect(wordsFor(lexicon, true, false, 'toilProjects.lede')).toBe('Each Toil project is one consignment of work.');
-    expect(wordsFor(undefined, false, false, 'ask.placeholder', { name: 'card-payments' })).toBe('Ask about card-payments');
+  it("reads a flavour key in the theme's words while themed wording is on, and plain otherwise", () => {
+    expect(wordsFor(lexicon, true, 'toilProjects.lede')).toBe('Each Toil project is one consignment of work.');
+    expect(wordsFor(lexicon, false, 'toilProjects.lede')).toBe('Pick a Toil project to see its stories, code reviews and releases together.');
+    expect(wordsFor(undefined, true, 'toilProjects.lede')).toBe('Pick a Toil project to see its stories, code reviews and releases together.');
   });
 
-  it('uses its own text for a key it words, over the theme', () => {
-    expect(wordsFor(lexicon, true, true, 'toilProject.eyebrow')).toBe('Toil project');
-    // One sentence; "called a toil project on the command line" is in the (i), not the lede.
-    expect(wordsFor(lexicon, true, true, 'toilProjects.lede')).toBe('Pick a Toil project to see its stories, code reviews and releases together.');
-    expect(wordsFor(lexicon, true, true, 'ask.placeholder', { name: 'card-payments' })).toBe('Ask a question about card-payments');
+  it('reads a functional key as one plain text, whatever the theme says', () => {
+    expect(wordsFor(lexicon, true, 'toilProject.eyebrow')).toBe('Toil project');
+    expect(wordsFor(lexicon, true, 'ask.placeholder', { name: 'card-payments' })).toBe('Ask a question about card-payments');
+    expect(wordsFor(undefined, false, 'ask.placeholder', { name: 'card-payments' })).toBe('Ask a question about card-payments');
   });
 
-  it('swaps the jargon in a key it leaves to the theme or the standard text', () => {
-    expect(wordsFor(lexicon, true, true, 'empty.prs')).toBe('No code reviews for this Toil project.');
-    expect(wordsFor(undefined, false, true, 'empty.deployments')).toBe('This Toil project names no environment to read deployments from.');
+  it('swaps the jargon in a themed sentence too', () => {
+    expect(wordsFor({ 'empty.prs': 'No pull requests in the basket.' }, true, 'empty.prs')).toBe('No code reviews in the basket.');
+    expect(wordsFor(undefined, false, 'empty.deployments')).toBe('This Toil project names no environment to read deployments from.');
   });
 
-  it('keeps every {name} and every toil command the standard text has, in its own text', () => {
-    // The empty state drops "made with toil projects init" because the first-run steps beside it have a Create button.
-    expect(wordsFor(undefined, false, true, 'empty.toilProjects')).toBe('toil sees no Toil projects yet.');
-    expect(wordsFor(undefined, false, true, 'loading.toilProject', { name: 'settlement' })).toBe('Reading settlement…');
+  it('keeps every {name} the plain text has', () => {
+    expect(wordsFor(undefined, false, 'empty.toilProjects')).toBe('toil sees no Toil projects yet.');
+    expect(wordsFor(undefined, false, 'loading.toilProject', { name: 'settlement' })).toBe('Reading settlement…');
+  });
+});
+
+describe('usePlain', () => {
+  it("is always on: pw is the plain text, and the hover names toil's term", () => {
+    const p = usePlain();
+    expect(p.on).toBe(true);
+    expect(p.pw('Pull requests', 'Code reviews')).toBe('Code reviews');
+    expect(p.title('Pull requests')).toBe('In toil: Pull requests');
+    expect(p.text('Ask the agent.')).toBe('Ask the AI helper.');
   });
 });

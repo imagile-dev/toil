@@ -17,7 +17,6 @@ import { fuzzyRank, fuzzyScore } from '../src/fuzzy.ts';
 import { ariaKeys, keysText, matches, SHORTCUTS, typingIn } from '../src/shortcuts.ts';
 import type { Envelope } from '../src/toil.ts';
 import { loaded } from './harness.ts';
-import { standardWords } from './words.ts';
 
 /**
  * The first run, the command palette and the shortcuts sheet (#416): the
@@ -26,7 +25,6 @@ import { standardWords } from './words.ts';
  * three in the App against the fixture execute().
  */
 
-beforeEach(standardWords);
 
 const press = (key: string, init: KeyboardEventInit = {}) => fireEvent.keyDown(window, { key, ...init });
 const openPalette = async () => {
@@ -145,14 +143,14 @@ describe('the palette entries', () => {
     expect(found[0]!.entries[0]!.id).toBe(hit.id);
     // Tabs: every toil project's seven, the one on screen's alone with nothing typed.
     expect(entries.filter((e) => e.group === 'tabs')).toHaveLength(14);
-    expect(paletteResults(entries, '', 'settlement').find((g) => g.group === 'tabs')!.entries.map((e) => e.label)).toEqual(['Overview', 'Board', 'Dependencies', 'Pull requests', 'People', 'Worklog', 'Analyses']);
+    expect(paletteResults(entries, '', 'settlement').find((g) => g.group === 'tabs')!.entries.map((e) => e.label)).toEqual(['Summary', 'Board', 'What blocks what', 'Code reviews', 'People', 'What happened', 'Past briefings']);
   });
 
   it('offers Ask, Analyze, Assign and the agents only on a Toil project page, and Sync only where there is a cache', async () => {
     const card = (await loaded('card-payments')).data;
     const item = card.items[0]!;
     const off = paletteEntries(base({ toilProjects: ['card-payments'], loaded: { 'card-payments': { ok: true, value: card } } })).filter((e) => e.group === 'commands').map((e) => e.id);
-    expect(off).toEqual(['cmd:setup', 'cmd:find-fields', 'cmd:plain-words', 'cmd:shortcuts']);
+    expect(off).toEqual(['cmd:setup', 'cmd:find-fields', 'cmd:shortcuts']);
     const on = paletteEntries(
       base({
         route: { view: 'dashboard', toilProject: 'card-payments', tab: 'board' },
@@ -165,7 +163,7 @@ describe('the palette entries', () => {
         adapters: { chosen: 'codex', options: [{ name: 'codex', label: 'Codex', model: null, ready: true, problem: null, fix: null, action: null }, { name: 'claude', label: 'Claude', model: 'haiku', ready: false, problem: 'Not installed', fix: null, action: 'install' }] },
       }),
     ).filter((e) => e.group === 'commands');
-    expect(on.map((e) => e.label)).toEqual(['Sync now', 'Ask about card-payments', 'Analyze card-payments', 'Open the Agents panel', 'Review a pull request', 'Ship: answer a review', 'Diagram card-payments', `Assign ${shortKey(item)} to an agent`, 'Answer with Codex', 'Choose the default agent', 'Set up toil, step by step', 'Find your Jira fields', 'Use plain words', 'Keyboard shortcuts']);
+    expect(on.map((e) => e.label)).toEqual(['Sync now', 'Ask about card-payments', 'Get a briefing on card-payments', 'Open the AI helpers panel', 'Check a code change', 'Answer the review of my code change', 'Draw the architecture of card-payments', `Give ${shortKey(item)} to an AI helper`, 'Answer with Codex', 'Choose the default AI helper', 'Set up toil, step by step', 'Find your Jira fields', 'Keyboard shortcuts']);
     expect(on.find((e) => e.id === 'cmd:job:diagram')!.go).toEqual({ href: '#/project/card-payments/job/diagram' });
     expect(on.find((e) => e.id === 'cmd:agent:codex')!.go).toEqual({ command: { kind: 'agent', name: 'codex', label: 'Codex' } });
   });
@@ -205,7 +203,7 @@ describe('the palette in the App', () => {
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Command palette' })).toBeNull());
     dialog = await openPalette();
-    await userEvent.click(within(dialog).getByRole('menuitem', { name: /^Analyze card-payments/ }));
+    await userEvent.click(within(dialog).getByRole('menuitem', { name: /^Get a briefing on card-payments/ }));
     expect(await screen.findByRole('dialog', { name: /card-payments/ }, { timeout: 3000 })).toBeTruthy();
   }, 20_000);
 

@@ -131,6 +131,7 @@ function ToilProjectCard({
 }) {
   const { Avatar } = useSkins();
   const plain = usePlain();
+  const words = useWords();
   const heading = `toil-project-${d.name}`;
   /** Has anything been read for this Toil project? Never synced (null) means its figures are unknown, not zero. Sample data (undefined) counts as read. */
   const read = synced !== null;
@@ -152,7 +153,7 @@ function ToilProjectCard({
       <div className="toil-project-card__body">
         {!loaded ? (
           <p className="note" role="status">
-            {plain.pw('Reading what the last sync stored…', 'Reading the latest update…')}
+            {words('loading.card')}
           </p>
         ) : !loaded.ok ? (
           <p className="note">Its work couldn't be read: {loaded.message}</p>
@@ -188,7 +189,7 @@ function ToilProjectCard({
         <SourceBadges sources={d.sources} toilProject={d.name} />
         <p className="note toil-project-card__when">
           {synced === undefined ? 'Sample data.' : synced === null ? `Not ${plain.pw('synced', 'updated')} yet.` : `${plain.pw('Synced', 'Updated')} ${dateTime(synced.at)}${synced.status === 'ok' ? '' : synced.status === 'partial' ? ', some sources failed' : ', and it failed'}.`}
-          {preview && read && preview.changedSince !== null && <> {preview.changedSince ? `${plural(preview.changedSince, 'change')} since you last looked.` : 'Nothing changed since you last looked.'}</>}
+          {preview && read && preview.changedSince !== null && <> {preview.changedSince ? `${plural(preview.changedSince, 'change')} since you last looked.` : words('note.unchanged')}</>}
         </p>
       </div>
     </Card>
