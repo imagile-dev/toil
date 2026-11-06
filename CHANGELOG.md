@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-beta.5](https://github.com/imagile-dev/toil/compare/v0.1.0-beta.4...v0.1.0-beta.5) (2026-11-06)
+
+
+### Bug Fixes
+
+* don't fail release-guard when release-please opened no PR ([#563](https://github.com/imagile-dev/toil/issues/563)) ([fd9ba72](https://github.com/imagile-dev/toil/commit/fd9ba7224eb4918880857c00ba63c56903aae163))
+* let check:lockfile pass with a warning on the lockfile a release leaves ([#564](https://github.com/imagile-dev/toil/issues/564)) ([33324b2](https://github.com/imagile-dev/toil/commit/33324b21b42f0513b54fb2ef9876d7683047c4e8))
+
 ## [0.1.0-beta.4](https://github.com/imagile-dev/toil/compare/v0.1.0-beta.3...v0.1.0-beta.4) (2026-11-05)
 
 
