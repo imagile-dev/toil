@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.0-beta.5](https://github.com/imagile-dev/toil/compare/toil-ui-v0.1.0-beta.4...toil-ui-v0.1.0-beta.5) (2026-11-06)
+
+
+### Bug Fixes
+
+* let check:lockfile pass with a warning on the lockfile a release leaves ([#564](https://github.com/imagile-dev/toil/issues/564)) ([33324b2](https://github.com/imagile-dev/toil/commit/33324b21b42f0513b54fb2ef9876d7683047c4e8))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @imagile-dev/toil bumped from 0.1.0-beta.4 to 0.1.0-beta.5
+
 ## [0.1.0-beta.4](https://github.com/imagile-dev/toil/compare/toil-ui-v0.1.0-beta.3...toil-ui-v0.1.0-beta.4) (2026-11-05)
 
 
