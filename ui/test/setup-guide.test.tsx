@@ -18,7 +18,7 @@ import type { SetupProgress } from '../src/setup.ts';
 import type { Envelope } from '../src/toil.ts';
 
 /**
- * The setup guide in the wizard (#561): the AI helper first, the guide beside
+ * The setup guide in the wizard (#561): the AI agent first, the guide beside
  * the step once a helper is ready (and folded behind a disclosure on a narrow
  * screen), starters per step, the question box that refuses a token before
  * anything is sent, the masked box staying the only place a login goes, and a
@@ -98,15 +98,25 @@ async function open(opts: { config: ConfigApi; agent?: Agent; settings?: AgentSe
   await screen.findByRole('heading', { level: 1, name: 'Welcome' }, { timeout: 3000 });
   return view;
 }
-const press = (name: string | RegExp) => userEvent.click(screen.getByRole('button', { name }));
+const press = (name: string | RegExp) => userEvent.click(screen.getByRole('button', { name: name === 'Next' ? /^Next/ : name }));
+const notNow = () => userEvent.click(screen.getByRole('radio', { name: /^Not now/ }));
+const nextEnabled = () => waitFor(() => expect((screen.getByRole('button', { name: /^Next/ }) as HTMLButtonElement).disabled).toBe(false));
+/** Fills and saves the Jira connection form, so the connect step is done and Next turns on. */
+async function saveJira() {
+  await userEvent.click(screen.getByRole('radio', { name: 'Data Center' }));
+  await userEvent.type(screen.getByLabelText(/^Address/), 'https://jira.imagile.dev');
+  await userEvent.type(screen.getByLabelText(/^apiToken/), SECRET);
+  await userEvent.click(screen.getByRole('button', { name: 'Save connection' }));
+  await waitFor(() => expect(document.querySelector('[data-setup-linked]')).not.toBeNull());
+}
 const heading = (name: string) => screen.findByRole('heading', { level: 1, name });
 const box = () => screen.getByLabelText('Ask a question (never paste a token here)') as HTMLTextAreaElement;
 
-describe('the AI helper step, first', () => {
+describe('the AI agent step, first', () => {
   it('comes right after the welcome, explained for someone new to AI, and optional', async () => {
     await open({ config: machine().config });
     await press('Start');
-    await heading('An AI helper (optional)');
+    await heading('An AI agent (optional)');
     expect(screen.getByText(/^Step 2 of 7/)).toBeTruthy();
     const facts = document.querySelector('[data-setup-helper-facts]')!.textContent!;
     expect(facts).toMatch(/only reads and suggests/);
@@ -120,11 +130,13 @@ describe('the AI helper step, first', () => {
     const { props } = helper('none');
     await open({ config: machine().config, settings: props });
     await press('Start');
-    await press('Skip');
+    await screen.findByRole('radio', { name: /^Not now/ });
+    await notNow();
+    await press('Next');
     await heading('Which tools do you use?');
     expect(document.querySelector('[data-guide]')).toBeNull();
     const offer = document.querySelector('[data-setup-guide-offer]')!;
-    expect(offer.textContent).toContain('Set up an AI helper to get explanations here.');
+    expect(offer.textContent).toContain('Set up an AI agent to get explanations here.');
     expect(offer.querySelectorAll('button')).toHaveLength(1);
     expect(document.querySelector('.setup__layout')!.hasAttribute('data-guided')).toBe(false);
   });
@@ -133,14 +145,17 @@ describe('the AI helper step, first', () => {
     const { props, saved } = helper('none');
     await open({ config: machine().config, settings: props });
     await press('Start');
-    await press('Skip');
+    await screen.findByRole('radio', { name: /^Not now/ });
+    await notNow();
+    await press('Next');
     await userEvent.click(await screen.findByRole('checkbox', { name: /Jira/ }));
     await press('Next');
     await heading('Link Jira');
-    await userEvent.click(within(document.querySelector('[data-setup-guide-offer]') as HTMLElement).getByRole('button', { name: 'Set up an AI helper' }));
-    await heading('An AI helper (optional)');
+    await userEvent.click(within(document.querySelector('[data-setup-guide-offer]') as HTMLElement).getByRole('button', { name: 'Set up an AI agent' }));
+    await heading('An AI agent (optional)');
+    // Choosing a ready helper is saving it: there is no second button.
     await userEvent.click(await screen.findByRole('radio', { name: /GitHub Copilot/ }));
-    await press('Use this helper');
+    expect(screen.queryByRole('button', { name: 'Use this helper' })).toBeNull();
     await screen.findByText(/Saved: GitHub Copilot will answer your questions, and explain the next steps beside them/);
     expect(saved).toHaveLength(1);
     await press('Next');
@@ -170,6 +185,7 @@ describe('a remount of the App', () => {
     render(<Harness />);
     await screen.findByRole('heading', { level: 1, name: 'Welcome' }, { timeout: 3000 });
     await press('Start');
+    await notNow();
     await press('Next');
     await userEvent.click(await screen.findByRole('checkbox', { name: /Jira/ }));
     await press('Next');
@@ -188,6 +204,7 @@ describe('the guide beside the step', () => {
     const config = o.config ?? machine().config;
     await open({ config, agent: o.agent, settings: props });
     await press('Start');
+    await nextEnabled();
     await press('Next');
     await userEvent.click(await screen.findByRole('checkbox', { name: /Jira/ }));
     await press('Next');
@@ -218,6 +235,7 @@ describe('the guide beside the step', () => {
     await screen.findByText(/copy the first part of its address/);
     expect(requests).toHaveLength(1);
     // The next step: the same chat is still there, with new starters.
+    await saveJira();
     await press('Next');
     await heading('Your Toil project');
     expect(screen.getByText(/copy the first part of its address/)).toBeTruthy();
@@ -271,6 +289,25 @@ describe('the guide beside the step', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Ask' }));
     await screen.findByText(/copy the first part of its address/);
     expect(requests[0]!.request.state.project).toBeUndefined();
+  });
+
+  it('folds earlier questions to their question line when another is asked, and opens any of them on a press', async () => {
+    narrow(false);
+    const { agent } = spyAgent();
+    await toConnect({ agent });
+    const ask = async (q: string) => {
+      await userEvent.type(box(), q);
+      await userEvent.click(screen.getByRole('button', { name: 'Ask' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Ask' }).hasAttribute('disabled')).toBe(true));
+    };
+    await ask('First question?');
+    await screen.findAllByText(/copy the first part of its address/);
+    await ask('Second question?');
+    await waitFor(() => expect(document.querySelectorAll('[data-guide-turn]')).toHaveLength(2));
+    const turns = () => [...document.querySelectorAll<HTMLDetailsElement>('[data-guide-turn]')];
+    await waitFor(() => expect(turns().map((t) => t.open)).toEqual([false, true]));
+    await userEvent.click(turns()[0]!.querySelector('summary')!);
+    await waitFor(() => expect(turns()[0]!.open).toBe(true));
   });
 
   it('shows what went wrong in plain words, on screen', async () => {

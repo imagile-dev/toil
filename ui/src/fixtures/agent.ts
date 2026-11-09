@@ -490,7 +490,7 @@ function scriptedGuide(request: GuideRequest): Answer {
         ? 'Cloud means the vendor hosts it and you reach it at their domain. Data Center means your organization runs it, at an address of its own. If the address ends in a vendor domain, it is Cloud.'
         : /toil project/.test(asked)
           ? 'A Toil project is one body of work, such as a product or a team\'s backlog: the tools it reads from and the repositories it covers. It is a small file in your home folder, and it holds no login.'
-          : 'This is a scripted preview of the guide, so it can only answer the starter questions. With an AI helper set up, it reads toil\'s own documentation to answer yours.';
+          : 'This is a scripted preview of the guide, so it can only answer the starter questions. With an AI agent set up, it reads toil\'s own documentation to answer yours.';
   const proposals: Proposal[] = /toil project/.test(asked)
     ? [{ id: 'guide:projects init:0', from: 'agent', item: 'setup', title: 'Make a Toil project called payments', reason: 'You have no Toil project yet, and this one is empty until you link your tools to it.', command: 'projects init', input: { name: 'payments' }, note: null }]
     : [];

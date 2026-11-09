@@ -105,7 +105,7 @@ export function httpExecute(base = './'): Execute {
       body = undefined;
     }
     if (isEnvelope(body)) return body;
-    throw await failure(res, `toil ${command}`);
+    throw await failure(res, "Asking the server");
   };
 }
 
@@ -154,7 +154,7 @@ export function httpConfig(base = './'): ConfigApi {
         body = undefined;
       }
       if (isEnvelope(body)) return body;
-      throw await failure(res, `toil ${command}`);
+      throw await failure(res, "Asking the server");
     },
   };
 }
@@ -176,7 +176,7 @@ export function httpFeedback(info: ServerInfo, base = './'): FeedbackApi {
       body = undefined;
     }
     if (isEnvelope(body)) return body;
-    throw await failure(res, 'toil feedback');
+    throw await failure(res, 'Sending the feedback');
   };
   return {
     disabled: info.sample ? FEEDBACK_SAMPLE_DISABLED : null,

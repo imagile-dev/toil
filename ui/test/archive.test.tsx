@@ -86,7 +86,11 @@ describe('the archive on the Toil projects page', () => {
   it('offers nothing to change in the preview, and still says what is archived, without an Unarchive', async () => {
     await open('#/', fixtureExecute().execute, fixtureConfig(), true);
     const disclosure = await screen.findByText('Archived (1)');
-    expect(screen.queryByRole('button', { name: /^More actions for / })).toBeNull();
+    // A card's menu still has Move earlier and later in the preview, which only reorder this page; nothing that changes toil is in it.
+    await userEvent.click((await screen.findAllByRole('button', { name: /^Menu for / }))[0]!);
+    expect(await screen.findByRole('menuitem', { name: 'Move later' })).toBeTruthy();
+    for (const name of ['Archive', 'Edit', 'Edit sources']) expect(screen.queryByRole('menuitem', { name })).toBeNull();
+    await userEvent.keyboard('{Escape}');
     await userEvent.click(disclosure);
     expect(screen.getByText('pilot-rollout')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Unarchive / })).toBeNull();
@@ -99,7 +103,7 @@ describe('the archive on the Toil projects page', () => {
     await open('#/', execute, config);
     await waitFor(() => expect(cardNames()).toHaveLength(3));
     expect(screen.queryByRole('button', { name: 'Archive' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'More actions for settlement' }));
+    await user.click(screen.getByRole('button', { name: 'Menu for settlement' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Archive' }));
     await waitFor(() => expect(config.runs).toEqual([{ command: 'projects archive', input: { toilProject: 'settlement' } }]));
     await waitFor(() => expect(cardNames()).not.toContain('settlement'));
@@ -116,7 +120,7 @@ describe('the archive on the Toil projects page', () => {
     const config = editable(away);
     await open('#/', execute, config);
     await waitFor(() => expect(cardNames()).toHaveLength(3));
-    await user.click(screen.getByRole('button', { name: 'More actions for checkout-web' }));
+    await user.click(screen.getByRole('button', { name: 'Menu for checkout-web' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Archive' }));
     await waitFor(() => expect(cardNames()).not.toContain('checkout-web'));
     await user.click(screen.getByRole('button', { name: 'Undo' }));
@@ -135,7 +139,7 @@ describe('the archive on the Toil projects page', () => {
     const config = editable(away, (command) => (command === 'projects archive' ? refused('Toil project settlement is checked into a repository.', 'Copy it into your own folder with toil projects import first.') : undefined));
     await open('#/', execute, config);
     await waitFor(() => expect(cardNames()).toHaveLength(3));
-    await user.click(screen.getByRole('button', { name: 'More actions for settlement' }));
+    await user.click(screen.getByRole('button', { name: 'Menu for settlement' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Archive' }));
     expect((await screen.findByRole('alert')).textContent).toContain('Toil project settlement is checked into a repository. Copy it into your own folder with toil projects import first.');
     expect(cardNames()).toContain('settlement');

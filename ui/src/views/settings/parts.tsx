@@ -63,7 +63,6 @@ export function commandLine(command: string, args: string[] = []): string {
 export function ChangeForm({
   title,
   explain,
-  runs,
   submit,
   disabled,
   onSubmit,
@@ -80,7 +79,6 @@ export function ChangeForm({
   titleId?: string;
   title: string;
   explain: ReactNode;
-  runs: string;
   submit: string;
   disabled: string | null;
   onSubmit: () => Promise<Outcome>;
@@ -112,9 +110,6 @@ export function ChangeForm({
       </h3>
       <p className="explain">{explain}</p>
       {children}
-      <p className="runs">
-        Runs <code>{runs}</code>
-      </p>
       <div className="change-actions">
         <button type="submit" className={`btn ${danger ? 'btn--danger' : 'btn--accent'}`} disabled={disabled !== null || busy} aria-disabled={blockedBy ? true : undefined} data-blocked={blockedBy ? '' : undefined} aria-describedby={disabled ? `${id}-off` : blockedBy ? `${id}-blocked` : undefined}>
           {busy ? 'Running…' : submit}
@@ -145,8 +140,10 @@ export function Info({ label, text }: { label: string; text: string | null }) {
   if (!text) return null;
   return (
     <details className="info">
-      <summary aria-label={`About ${label}`}>(i)</summary>
-      <p className="note">{text}</p>
+      <summary aria-label={`About ${label}`}>
+        <span aria-hidden="true">i</span>
+      </summary>
+      <p className="note info__text">{text}</p>
     </details>
   );
 }
@@ -229,11 +226,13 @@ export function TextField({
   );
   return (
     <div className="field-row">
-      <label htmlFor={id}>
-        {label}
-        {need ? <NeedBadge need={need} /> : required && <span className="req"> (required)</span>}
-      </label>
-      {info !== undefined && <Info label={label} text={info} />}
+      <div className="field-row__head">
+        <label htmlFor={id}>
+          {label}
+          {need ? <NeedBadge need={need} /> : required && <span className="req"> (required)</span>}
+        </label>
+        {info !== undefined && <Info label={label} text={info} />}
+      </div>
       {affix ? (
         <div className="affix">
           {affix.before && <span aria-hidden="true">{affix.before}</span>}
@@ -386,11 +385,13 @@ export function SecretField({ label, value, onChange, rules, asking, kept, onKee
   };
   return (
     <div className="field-row">
-      <label htmlFor={id}>
-        {label}
-        {need ? <NeedBadge need={need} /> : rules.empty === 'required' && <span className="req"> (required)</span>}
-      </label>
-      {info !== undefined && <Info label={label} text={info} />}
+      <div className="field-row__head">
+        <label htmlFor={id}>
+          {label}
+          {need ? <NeedBadge need={need} /> : rules.empty === 'required' && <span className="req"> (required)</span>}
+        </label>
+        {info !== undefined && <Info label={label} text={info} />}
+      </div>
       <input id={id} type="password" value={value} onChange={(e) => onChange(e.target.value)} onPaste={paste} onBlur={onBlur} data-field={field} aria-describedby={`${id}-count${hint ? ` ${id}-hint` : ''}`} required={rules.empty === 'required'} autoComplete="new-password" spellCheck={false} />
       <p id={`${id}-count`} className={`note${check.status === 'refused' ? ' failure' : ''}`} aria-live="polite">
         {secretNote(check)}

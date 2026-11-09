@@ -1,5 +1,5 @@
 /**
- * The setup guide's pure parts (#561): what the wizard may tell the AI helper
+ * The setup guide's pure parts (#561): what the wizard may tell the AI agent
  * about where the person is, the check that keeps a pasted secret out of the
  * chat, the questions each step offers, and the one table of what the guide's
  * suggested commands may be. The page and the server both import this file, so
@@ -215,7 +215,7 @@ export function guideStarters(step: GuideStep, area?: string): string[] {
 /** What the guide's context line says the person is doing, in words the prompt and a test can both read. */
 export const STEP_NOW: Record<GuideStep, string> = {
   welcome: 'reading the welcome screen',
-  helper: 'choosing an AI helper',
+  helper: 'choosing an AI agent',
   tools: 'choosing which tools to link',
   connect: 'linking a tool: entering its address and, in a masked box, its login',
   project: 'making or choosing a Toil project',

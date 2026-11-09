@@ -40,11 +40,11 @@ describe('the hidden arcade entry', () => {
   it('opens from the secret, contains focus, and returns to the previous route', async () => {
     window.location.hash = '#/settings';
     openApp();
-    await screen.findByRole('heading', { level: 1, name: 'Connections and Toil projects' });
+    await screen.findByRole('heading', { level: 1, name: 'Settings' });
     expect(screen.queryByRole('dialog', { name: 'Powershell Man' })).toBeNull();
     act(() => typeSecret('powershell'));
     const dialog = await screen.findByRole('dialog', { name: 'Powershell Man' });
-    expect(screen.getByRole('heading', { level: 1, name: 'Connections and Toil projects', hidden: true })).toBeDefined();
+    expect(screen.getByRole('heading', { level: 1, name: 'Settings', hidden: true })).toBeDefined();
     await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
     fireEvent.click(screen.getByRole('button', { name: 'Exit arcade' }));
     await waitFor(() => expect(window.location.hash).toBe('#/settings'));

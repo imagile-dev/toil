@@ -110,6 +110,11 @@ principle), and the simplest fix.
   stay on screen (principle 4), so never flag those. Flag:
   - a sentence of explanation on the page that belongs in an (i) tooltip with a
     Read more link (`ui/src/help.ts`)
+  - copy that shows a terminal command ("Runs `toil …`"), an environment variable
+    name, a config-file path or a `--flag`: Toil UI's readers are product owners and
+    managers, so it says it in plain words or not at all (the maintainer's decision,
+    2026-11-09). The one exception is an approval card, which shows what a person is
+    about to approve (`ui/README.md`, **Plain copy**)
   - a control repeated on every row or card that belongs in a menu, the command
     palette or a shortcut
   - an empty state with no action that fills it
@@ -126,6 +131,12 @@ principle), and the simplest fix.
     press in), a count that has a shape and is only text (a diff-style bar with a
     text alternative, never colour alone), or cells with no gutter between columns
     (`ui/README.md`, **Tables and rows**)
+  - **Alignment and frames**: stacked label and control rows whose controls don't
+    start at the same left edge or share a width (labels of different lengths sizing
+    each row), a link that should look like a button but has no frame (it needs
+    `btn`), a button or field with no gutter around it. Take the screenshots at 375
+    and 1440px in Plain, Crate and Harvest and look: tests don't catch these
+    (`ui/README.md`, **Forms and rows of controls**)
   - a page reachable only one way: it needs its address plus at least one of a link
     from a summary, its tab or list, the command palette, or a search or shortcut
   - **Words**: a menu item, tab, button, label, heading or error that a theme words

@@ -39,6 +39,7 @@ const PR_WRITE = [
 const ISSUE_READ = ['github issue list', 'github issue search', 'github issue get', 'github issue history'];
 const ISSUE_WRITE = ['github issue create', 'github issue label', 'github issue unlabel', 'github issue assign', 'github issue unassign'];
 const PROJECTS = ['github project list', 'github project fields', 'github project items'];
+const PROJECT_WRITE = ['github project status'];
 
 export const githubScopes: AreaScopes = {
   secret: 'token',
@@ -58,7 +59,8 @@ export const githubScopes: AreaScopes = {
           commands: [...PR_READ, ...PR_WRITE, ...ISSUE_READ, ...ISSUE_WRITE, 'github repo file', 'github repo create', 'github commit status', 'github commit checks', 'github check-toil-project'],
           note: "GitHub has no read-only form of repo. toil's own write gate keeps it read-only until you turn writes on. Public repositories alone need only public_repo.",
         },
-        { name: 'read:project', required: 'read', commands: PROJECTS, note: 'Reading Projects (v2). toil never changes a project, so the project scope is not needed.' },
+        { name: 'read:project', required: 'read', commands: PROJECTS, note: 'Reading Projects (v2).' },
+        { name: 'project', required: 'write', commands: PROJECT_WRITE, note: "Changing a project item's Status. It includes read:project." },
       ],
     },
     {
@@ -77,6 +79,7 @@ export const githubScopes: AreaScopes = {
         { name: 'Issues', access: 'write', required: 'write', commands: ISSUE_WRITE },
         { name: 'Checks', access: 'read', required: 'read', commands: ['github commit checks', 'github pr get', 'github pr status'], note: 'pr get needs it only with --include checks.' },
         { name: 'Commit statuses', access: 'read', required: 'read', commands: ['github commit status', 'github pr status'] },
+        { name: 'Projects (organization permission)', access: 'write', required: 'write', commands: PROJECT_WRITE, note: "Changing a project item's Status. Only an organization's projects." },
         { name: 'Projects (organization permission)', access: 'read', required: 'read', commands: PROJECTS, note: "Only an organization's projects. A fine-grained token can't read a user's own; use a classic token for those." },
         {
           name: 'Administration',

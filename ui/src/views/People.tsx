@@ -20,7 +20,7 @@ import { EditLink, Help } from '../components/help.tsx';
 import { useData } from '../data.ts';
 import { Empty, EmptyLink } from '../components/empty.tsx';
 import { boardHref, dateTime, toilProjectHref, sourceLabel, toilProjectEditHref } from '../format.ts';
-import { ACTIVITY_DAYS, people, suggestionLine, type Activity, type Card as PersonCard, type Identity, type Suggestion } from '../model/people.ts';
+import { ACTIVITY_DAYS, people, type Activity, type Card as PersonCard, type Identity, type Suggestion } from '../model/people.ts';
 import { daysText, WAITING_LABEL } from '../model/prs.ts';
 import { useTerm, useTheme, useThemeChoiceContext } from '../skins.tsx';
 import { wordingOn } from '../theme-context.ts';
@@ -62,7 +62,7 @@ export function People() {
         </p>
         {!view.people.length && (
           <p className="note">
-            Say who is who across systems in the Toil project's people, from Settings, Toil projects, or with <code>toil projects person {toilProject.name} "Pat Example" --id jira=pat --id github=pat-ex</code>.{' '}
+            Say who is who across systems in the Toil project's people, in Settings, Toil projects.{' '}
             <EditLink href={toilProjectEditHref(toilProject.name, 'people')} label={`Edit ${toilProject.name}'s people`} />
           </p>
         )}
@@ -125,7 +125,7 @@ export function People() {
         </p>
         {view.unnamedAgents.length > 0 && (
           <p className="note">
-            {count(view.unnamedAgents.length, 'pull request')} {view.unnamedAgents.length === 1 ? 'was' : 'were'} written with an agent the Toil project's people don't name ({[...new Set(view.unnamedAgents.map((c) => c.authorKindSignal ?? 'an agent account'))].join('; ')}). Press Map on its account below, and choose Agent, to give it a card. From a terminal: <code>toil projects person {toilProject.name} "&lt;name&gt;" --kind agent</code>.
+            {count(view.unnamedAgents.length, 'pull request')} {view.unnamedAgents.length === 1 ? 'was' : 'were'} written with an agent the Toil project's people don't name ({[...new Set(view.unnamedAgents.map((c) => c.authorKindSignal ?? 'an agent account'))].join('; ')}). Press Map on its account below, and choose AI agent, to give it a card.
           </p>
         )}
         {view.unmapped.length ? (
@@ -378,7 +378,7 @@ function SuggestionRow({ suggestion: s }: { suggestion: Suggestion }) {
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [busy, setBusy] = useState(false);
   const offId = useId();
-  const off = !config ? 'This view has no access to toil\'s config commands; run the command below in a terminal.' : config.disabled;
+  const off = !config ? "This view can't change Toil projects here. Match people across tools in Settings, Toil projects." : config.disabled;
   const apply = async () => {
     if (!config || off) return;
     setBusy(true);
@@ -403,9 +403,6 @@ function SuggestionRow({ suggestion: s }: { suggestion: Suggestion }) {
             <strong>{s.identities.map(identityText).join(' and ')}</strong> share the email {s.email}: probably one person, {s.name}.
           </>
         )}
-      </p>
-      <p className="runs any-break">
-        Applies <code>{suggestionLine(s)}</code>
       </p>
       <Cluster>
         <button type="button" className="btn btn--accent" onClick={apply} disabled={off !== null || busy || outcome?.ok === true} aria-describedby={off ? offId : undefined}>

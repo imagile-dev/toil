@@ -1,5 +1,5 @@
 /**
- * The "thinking" indicator's words (#561): while an AI helper answers, the Ask
+ * The "thinking" indicator's words (#561): while an AI agent answers, the Ask
  * bar shows a small moving icon and a phrase in the theme's voice that changes
  * every few seconds. The phrases are flavour. What is true (how long it has
  * been, which tool the agent is reading) is always said plainly beside them,

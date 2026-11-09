@@ -37,6 +37,7 @@ What each group of commands needs from the token:
 | `issue list`, `issue search`, `issue get`, `issue history` | Issues: read, on the repository | `repo` (`public_repo` for public repositories only) |
 | `repo file` | Contents: read, on the repository | `repo` (`public_repo` for public repositories only) |
 | `project list`, `project fields`, `project items` | Projects: read, under the organization's permissions. A fine-grained token can't read a user's own projects | `read:project` (plus `repo` to see items from private repositories) |
+| `project status` | Projects: read and write, under the organization's permissions (organization projects only) | `project` (plus `repo` to reach an item in a private repository) |
 | Pull request, review, comment and check commands | Pull requests, contents and checks, read or write as needed | `repo` |
 
 A token without the Projects permission gets `AUTH` from the `project` commands,
@@ -50,8 +51,8 @@ In short:
 
 | | Read-only use needs | Everything toil can do needs |
 |---|---|---|
-| Classic token | `repo`, `read:project` | the same: GitHub has no read-only `repo`, so toil's write gate (`writes` on the connection plus `--allow-write`) is what keeps it read-only |
-| Fine-grained token | Metadata, Pull requests, Contents, Issues, Checks and Commit statuses, each Read, and Projects (organization) Read | Pull requests, Contents and Issues at Read and write, and Administration for `repo create` |
+| Classic token | `repo`, `read:project` | the same, plus `project` for `project status`: GitHub has no read-only `repo`, so toil's write gate (`writes` on the connection plus `--allow-write`) is what keeps it read-only |
+| Fine-grained token | Metadata, Pull requests, Contents, Issues, Checks and Commit statuses, each Read, and Projects (organization) Read | Pull requests, Contents and Issues at Read and write, Projects (organization) at Read and write for `project status`, and Administration for `repo create` |
 
 A `ghp_`-style classic token and a `github_pat_` fine-grained one are both sent as
 `Authorization: Bearer <token>`; toil never reads a token's scopes, so a missing one is
@@ -168,7 +169,7 @@ Owner, repo, labels and refs go into request paths as typed; a value that would 
     <number>` (repeatable `--label`), `issue unlabel <number> --label`, `issue assign
     <number>` and `issue unassign <number>` (repeatable `--assignee`). `pr label`,
     `pr unlabel`, `pr assign` and `pr unassign` are the same commands.
-- **Projects (v2):** GitHub's boards, read over GraphQL. They belong to an owner, so
+- **Projects (v2):** GitHub's boards, over GraphQL (read, except `project status`). They belong to an owner, so
   only `--owner` is read; `<project>` is the number in the project's URL.
   - `project list`: the owner's projects (`id`, `number`, `title`, `url`, `closed`, …).
   - `project fields <project>`: each field's `id`, `name` and `dataType`, a
@@ -180,6 +181,16 @@ Owner, repo, labels and refs go into request paths as typed; a value that would 
     `number`, `date`, a single-select `name`, or an iteration's `title` and
     `startDate`). An item's first 100 values are read, with a
     `GITHUB_PROJECT_VALUES_TRUNCATED` warning past that.
+  - `project status <project> <number> --to <status>` (a write): sets the Status of an
+    issue or pull request on the project, by the option's name, case-insensitive
+    (`--to "in progress"`). `--owner` owns the project and `--repo` holds the issue.
+    `--item <id>` (the item `id` from `project items`) names the item instead of
+    `<project> <number>`, and needs neither. An unknown status is `INVALID_INPUT` listing the
+    project's own options; an issue that is not on the project is `NOT_FOUND`, and toil never
+    adds it. It reads the item and the project's Status field, then sends one
+    `updateProjectV2ItemFieldValue`, unless the item already holds that status. `data` is
+    `{ item, project: { number, title, owner }, field, from, to, changed }`. It needs
+    `writes` on the connection and `--allow-write`, and is served over MCP (it deletes nothing).
 - **Pull requests** (`<number>` is the pull request number): `pr list` (`--state
   open|closed|all`, default `open`; `--head user:branch`, `--base`; `--author` and
   `--created-after`/`--created-before`, ISO 8601, are filtered as each page comes in,
@@ -233,6 +244,8 @@ pass `--author` and the date filters, `--updated-since` included.
 toil github issue list --state all --sort updated --direction asc --updated-since 2025-01-31T00:00:00Z --limit 100
 toil github issue get 9 10 --sub-issues
 toil github --owner imagile project items 3
+toil github --owner imagile --repo toil-probe project status 3 9 --to "In Progress" --allow-write
+toil github project status --item PVTI_abc12345 --to Done --allow-write
 toil github pr list --state all --author octo-dev
 toil github pr list --state all --updated-since 2025-01-31T00:00:00Z --limit 50
 toil github pr get 7 --include reviews,checks

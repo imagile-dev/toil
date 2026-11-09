@@ -62,7 +62,7 @@ Until you have a Toil project and it has synced once, the Toil projects view sho
 checklist in place of the empty page:
 
 1. **Connect a tracker** opens Settings, Connections at the add form. If an agent following the toil skill's `setup.md` already created the connection, you only enter its secret here, on its row.
-2. **Create a Toil project** opens Settings, Toil projects at Create a Toil project.
+2. **Create a Toil project** opens the New Toil project wizard (`#/new-project`, below).
 3. **Sync** starts the first sync, as the Sync panel's Sync now does.
 
 Each step ticks itself off from toil's own state: `toil connections list` for a
@@ -74,12 +74,12 @@ sync finishes. Each step's (i) explains it and links to these docs.
 
 ## The setup wizard
 
-For someone new to AI, toil and Toil UI, `#/setup` walks through setup one question a screen, with Back, Skip and Next and a "Step 3 of 7" line. It opens from **Set it up step by step** on the first run, from **Set up toil, step by step** in the command palette, from the link under Settings' heading, and by its own address.
+For someone new to AI, toil and Toil UI, `#/setup` walks through setup one question a screen, with Back and one Next button, which stays disabled until the page is done (an optional page has a "Not now" choice), and a "Step 3 of 7" line. It opens from **Set it up step by step** on the first run, from **Set up toil, step by step** in the command palette, from the link under Settings' heading, and by its own address.
 
 1. **Welcome** says what toil and Toil UI are, and that nothing in your tools changes without you.
-2. **An AI helper (optional)** comes first, so it can explain the rest. It is the Agent page's own Install dialog and Save, explained for someone who has never used one: what it is, that it only reads and suggests, that it uses the subscription you already have so Toil UI stores no key, and that it never sees your login. Skip it and every later step is what it always was, with one small line, "Set up an AI helper to get explanations here", that brings you back here and then returns you to where you were.
+2. **An AI agent (optional)** comes first, so it can explain the rest. It is the Agent page's own Install dialog and Save, explained for someone who has never used one: what it is, that it only reads and suggests, that it uses the subscription you already have so Toil UI stores no key, and that it never sees your login. Choose "Not now" and every later step is what it always was, with one small line, "Set up an AI agent to get explanations here", that brings you back here and then returns you to where you were.
 3. **Which tools do you use?** lists the areas toil can connect to, from the server's own registry: GitHub, Jira, Azure DevOps, Bitbucket, Confluence and SonarQube first, the rest under **More tools**. A tool you already have a connection to says so.
-4. **Link your tools** takes each ticked tool in turn with the same form as Settings, Connections: the settings in text boxes, and the login in a masked box that goes to toil's own `connections login` path and the OS credential store, as it does in Settings. The wizard never keeps it, and no AI helper, guide or suggestion ever sees it. The new connection starts with changes off (writes off in toil's words), and the screen says so. **Test the link** runs `toil connections test`; **Prefer to type it on a terminal?** shows `toil connections add <name> --area <area>` with a Copy button.
+4. **Link your tools** takes each ticked tool in turn with the same form as Settings, Connections: the settings in text boxes, and the login in a masked box that goes to toil's own `connections login` path and the OS credential store, as it does in Settings. The wizard never keeps it, and no AI agent, guide or suggestion ever sees it. The new connection starts with changes off (writes off in toil's words), and the screen says so. **Test the link** runs `toil connections test`; **Prefer to type it on a terminal?** shows `toil connections add <name> --area <area>` with a Copy button.
 5. **Your Toil project** creates one (`projects init`, an optional repository with `projects add-repo`, then `projects link` for each tool set up) or links the tools to one you already have.
 6. **Let toil learn your Jira fields (optional)** is Settings' Find the fields.
 7. **All set** says what was set up and offers **Sync now**.
@@ -93,6 +93,15 @@ It is a guide, not an operator. The server gives it its own prompt (`ui/server/a
 **No secret reaches it.** The connection form reports only what it would send as settings (a form's `submission`, which holds no secret by construction), and the wizard whitelists `deployment` and the address from them. A message is checked before it is sent, three times over, by the same function (`looksLikeSecret`, `ui/src/guide.ts`: toil's own `checkSecret()` paste check on the message, each word and each pair, the usual credential prefixes such as `ghp_`, `github_pat_`, `ATATT`, `glpat-`, `xox` and `AKIA`, a `Bearer` header, a JWT or private key, an address with a login in it, `password:` and `token=` with a value, and one long key-shaped word): in the panel, in the page's client, and at the server's route, which refuses it before it reads another field, and again in the host before the connection list, the agent, the usage ledger or the worklog is touched. A refused message is cleared, never kept, logged, audited or echoed, and the notice says: "That looks like a token. Type it in the masked box in the step instead; the guide never needs it." Nothing is stored in the browser: closing the tab ends the chat.
 
 The wizard keeps its progress in the page only; it adds no config key. Connections it saved stay saved if you close the tab. Every change is one of the commands in the allowlist Settings uses, so each is in toil's audit log as `toil-ui`.
+
+## The New Toil project wizard
+
+`#/new-project` is a separate, short wizard for the one job of making a Toil project, so nobody who already has their tools set up lands on "Step 5 of 7" of the first run. It looks and behaves like the setup wizard (a "Step 2 of 4" line, Back, one primary button that stays disabled with a plain reason until the page is done, and a **Not now** on each optional page) and has no AI agent guide. The **New Toil project** buttons (the Toil projects page, Settings, the first-run checklist), the command palette's **Create a Toil project**, and the old addresses `#/setup/project` and `#/settings/projects/+new` (which are rewritten to it) all open it.
+
+1. **Name it**: a name (lowercase letters, digits and single hyphens, not already taken) and an optional description.
+2. **Where does it live? (optional)**: folders or repository addresses, or **Not now**.
+3. **Which tools does it use?**: your existing tool links, each tool's main one ticked, one per tool, or **Not now**.
+4. **Create it**: a summary and one **Create `<name>`** button, which runs `projects init`, `projects add-repo` for each folder, then `projects link` for each tool, never with `--shared`, and says what it is doing as it goes. A folder that fails does not undo the Toil project: it is listed with a **Retry**. Then **Open `<name>`**, and **Name your Jira fields** when Jira was linked. With changes turned off the button stays disabled and says so. The wizard keeps its place in the page only, as the setup wizard does.
 
 ## What it reads
 
@@ -128,9 +137,14 @@ in any view.
 
 ## Plain words
 
-Screens always read in everyday words: a pull request is a **code review**, an agent an **AI helper**, with toil's own term in the hover. There is no switch. Anything a person reads to act (a menu item, tab, button, label, heading, an error and its fix) is plain English and identical in every theme; a theme speaks only in ledes and explanations, loading text, empty-state sentences and its moments (**Words** in `docs/themes.md`). Facts, numbers, commands and errors read the same everywhere. Themed wording and themed agent voice are off until chosen.
+Screens always read in everyday words: a pull request is a **code review**, an agent an **AI agent**, with toil's own term in the hover. There is no switch. Anything a person reads to act (a menu item, tab, button, label, heading, an error and its fix) is plain English and identical in every theme; a theme speaks only in ledes and explanations, loading text, empty-state sentences and its moments (**Words** in `docs/themes.md`). Facts, numbers, commands and errors read the same everywhere. Themed wording and themed agent voice are off until chosen.
 
-The tabs read **Summary**, **Board**, **What blocks what** (Dependencies), **Code reviews**, **People**, **What happened** (Worklog) and **Past briefings** (Analyses); Analyze is **Get a briefing**. A panel's source reads "From Jira and GitHub", with the commands one step in. **Settings → General** has a **Font** control: the theme's own type first, then pairings made only of fonts already bundled (`docs/themes.md`, **Fonts**). Quoted titles, the tracker's words and a briefing's own sentences are never reworded.
+The tabs read **Summary**, **Board**, **What blocks what** (Dependencies), **Code reviews**, **People**, **What happened** (Worklog) and **Past briefings** (Analyses); Analyze is **Get a briefing**. A panel's source reads "From Jira and GitHub", with each tool and how many reads it took one step in. **Settings → Appearance** has a **Font** control: the theme's own type first, then pairings made only of fonts already bundled (`docs/themes.md`, **Fonts**). Quoted titles, the tracker's words and a briefing's own sentences are never reworded.
+
+## Plain copy: no terminal in the words
+
+- **Toil UI never shows a terminal command, an environment variable name or a file path as copy** (the maintainer's decision, 2026-11-09). Its readers are product owners and managers, not developers. So no "Runs `toil …`" line, no `TOIL_*` name, no config-file location, no `--flag`, no "Saves: area github, baseUrl …" summary; a login says **Saved on this computer** or **Set outside Toil UI, so it can't be changed here**. Errors and their fixes stay honest (principle 4) but are worded in plain English, and an error toil itself worded is kept as toil said it. Where a thing can only be done in a terminal, the screen says Toil UI can't do it yet, rather than quoting the command.
+- **The one exception is an approval card:** a proposed change shown before a person presses Run ("Proposed change, not applied", the Board's proposals, the AI agent's setup suggestions, an install awaiting its press) shows what will run, because that is what the person is approving.
 
 ## The Toil projects view
 
@@ -188,14 +202,17 @@ message, while a sync or an assignment of that Toil project is running, since bo
 by name as they go. What can't be moved is said beside toil's result, and the next
 sync reads the Toil project afresh under its new name.
 
+## Switching Toil projects
+
+The app's header carries a project picker right after the brand, before the views, on every page and in every theme. Its button names the Toil project you are in (**All Toil projects** on a page that belongs to none); its menu lists **All Toil projects** and each Toil project, with the current one checked. Picking one keeps the tab you are on (Code reviews stays Code reviews), and a page that is not a tab lands on the project's Summary. It is the header's way to the Toil projects page (the header has no "Toil projects" link of its own, only Settings), so it is drawn whenever there is at least one Toil project; with none, the brand goes home. On a phone the same list is the first thing in the header's Menu.
+
 ## The Toil project page
 
 A Toil project opens on its **Overview**, the briefing, in a frame all of its pages share:
 
-- **The top row:** on the Overview, a **Diagram** link (`#/project/<name>/job/diagram`) draws the Toil project's repositories as a C4 diagram in Mermaid; the steps that need a folder on disk (`util size`, `git log`, `deps scan`) are reported unchecked. Its name, with the pencil that renames it; **Switch**, for another
-  Toil project or the Toil projects view; the sprint and its day; its description, cut to one
-  line with the whole of it in its tooltip, and its sources (on a phone, a **Details** button beside the name opens them); and the Ask bar, with the
-  **AI helpers** button beside it (The agent, below).
+- **The top row:** on the Overview, a **Diagram** link (`#/project/<name>/job/diagram`) draws the Toil project's repositories as a C4 diagram in Mermaid; the steps that need a folder on disk (`util size`, `git log`, `deps scan`) are reported unchecked. Its name; the sprint and its day; its description, cut to one
+  line with the whole of it in its tooltip, its sources and a quiet **Edit** link at the end of that line (on a phone, a **Details** button beside the name opens them, the link with them); and the Ask bar, with the
+  **AI agents** button beside it (The agent, below). Moving to another Toil project is the picker in the app's header, right after the brand, on every page (see below).
 - **The tabs**, one address each: **Overview** (`#/project/<name>`), **Board**
   (`/board`, with how many of its cards need attention), **Dependencies**
   (`/dependencies`), **Pull requests** (`/prs`), **People** (`/people`), **Worklog**
@@ -203,8 +220,8 @@ A Toil project opens on its **Overview**, the briefing, in a frame all of its pa
   is the Board tab's **Readiness** view, the stand-up is the Worklog's, and an item's
   page sits under Board, so every address from before the tabs still opens. On a
   narrow screen the tabs scroll sideways; the Agents button sits beside the Ask bar at
-  every width (a compact **AI** with its count on a phone, still named "AI helpers"), so the tabs get the whole row.
-- **The Agents panel**, closed by default at every width: one **Agents** button (**AI helpers** in plain words)
+  every width (a compact **AI** with its count on a phone, still named "AI agents"), so the tabs get the whole row.
+- **The Agents panel**, closed by default at every width: one **Agents** button (**AI agents** in plain words)
   beside the Ask bar, counting what waits on you (the tracker's inbox, proposals to approve and
   questions to answer, and any assignment or proposal that failed, since a closed panel must not hide a failure). From 1200px wide it opens the panel beside every tab, and remembers
   whether you left it open (in `localStorage`); below that it opens a drawer. The palette's
@@ -376,6 +393,15 @@ The pattern every table follows (`DataTable` in `src/components/layout.tsx`; the
 - **One idea a cell.** A name and one badge, a state and one figure. Figures are compact (`32.6 d`, `326 · 8 files`); the sentence behind one is a `<details className="cell-more">` one press in. Nothing is dropped, only layered (principle 11); errors, source and verification stay on screen.
 - **Numbers as small visuals where they have a shape:** a diff-style bar of five squares for additions and deletions, never colour alone (a stripe pattern and the numbers beside it), as one `role="img"` whose `aria-label` carries every figure. An unknown figure is a dash, not zero (principle 12).
 - **Gutters:** every cell has room on its right (`1.5rem` in the queue), the actions column none, and stacked rows (under about 28rem) drop to label and value pairs. Check at 375, 768 and 1440px in Plain, Crate and Harvest.
+
+## Forms and rows of controls
+
+A label with its control is one row, and rows stacked in a card line up (the Settings, Theme card is the model, `.panel > .choice` in `src/views.css`):
+
+- **One label column, one control width.** Stacked rows share a label column wide enough for the longest label and give their controls the same width, so the controls start at the same left edge and end at the same right one. Never let each row size itself to its own label.
+- **A control that is a link is still a button.** A link that looks like one takes `btn`, which gives it the frame a `<button>` gets (`.btn:where(a)`); don't style a bare anchor and hope.
+- **Narrow:** under about 30rem a row is the label above its control, full width.
+- **Look at it, don't reason about it.** Screenshot every new or changed form at 375 and 1440px in Plain, Crate and Harvest; ragged edges, text with no frame and controls that don't line up don't show up in tests.
 
 ## Pull requests
 
@@ -549,7 +575,11 @@ Toil UI posts nothing. With sample data, notes and export are off.
 
 ### Stand-up
 
-**Stand-up since the last working day**, on the Worklog
+**Stand-up since the last working day** leads the Summary too: a compact **Stand-up** card right under the
+headline answer and what needs attention shows the same report for the default range ("Yesterday" or "Since
+Friday"), five lines with **Show more** in place, and **Open the full stand-up**. With no sync behind it the card
+shows `–` and "Not read yet" with **Sync now**, never "nothing happened". The Summary's **Go to** row and the
+command palette (**Open the stand-up**) open it as well. The page, on the Worklog
 (`#/project/<name>/worklog/standup`), reshapes the worklog for a meeting: since the last
 working day through today (Friday through Monday on a Monday), or any range of up to 31
 days you pick (`#/project/<name>/worklog/standup/<from>/<to>`, or `/<day>` for one), and each day's page has a
@@ -680,7 +710,7 @@ until you call it up.
   Pull requests, People, Worklog, Analyses), a saved analysis, a settings page, or a
   theme.
 - **Run** Sync now (where Toil UI keeps a cache), and on a Toil project's page Ask (it
-  focuses the Ask bar), Analyze, **Review a pull request**, **Ship: answer a review** and **Diagram <Toil project>** (each opens its job's page), **Open the Agents panel** (**Open the AI helpers panel** in plain words), the agent that answers this chat, and Assign the
+  focuses the Ask bar), Analyze, **Review a pull request**, **Ship: answer a review** and **Diagram <Toil project>** (each opens its job's page), **Open the Agents panel** (**Open the AI agents panel** in plain words), the agent that answers this chat, and Assign the
   item you were on to an agent: the board card that had focus, or the item whose
   page is open.
 - Matching is fuzzy and ignores case: `pay12` finds `PAY-12`, and each word you
@@ -733,6 +763,7 @@ dashboards make, for every Toil project, and stores the answers. The work items 
 through toil's Open Work Item mapping, with their status changes and the pull
 requests, builds and deployments that name them.
 
+- **Nothing moves while it runs.** A running sync shows as a small card over the lower corner of the window (along the bottom edge on a phone), with the theme's loader inside it, never in the page itself, so the page you are reading stays where it is.
 - **Incremental.** After the first sync, Jira and Azure DevOps searches, and a
   GitHub repository's issues, ask only for what changed since the last good sync (`updatedSince`, five minutes early in
   case the clocks disagree), and the GitHub board marks the issues whose
@@ -798,7 +829,7 @@ conversation stays, for the rest of the Toil project's pages, until you reload.
 
 - **The guided start** (#552) is what the chat shows before the first question:
   "What would you like to know about {name}?", then nine plain questions in four groups
-  (How are we doing? What's in the way? Backlog. For others), beside **Before you ask**. What each is good for is its hover; the one line on the page is that "Who might need help?" never ranks anyone. The dialog's title is the project's name. You can still type your own, except with no AI helper set up, when the questions are off and the notice links to **Settings → AI helper**. Pressing a question asks its text
+  (How are we doing? What's in the way? Backlog. For others), beside **Before you ask**. What each is good for is its hover; the one line on the page is that "Who might need help?" never ranks anyone. The dialog's title is the project's name. You can still type your own, except with no AI agent set up, when the questions are off and the notice links to **Settings → AI agent**. Pressing a question asks its text
   through the same path as typing it; after the first answer the same questions are the
   **Suggestions** menu. The questions are `src/guided-questions.ts`, not the server's
   starters, which still back `api/agent/starters`.
@@ -885,7 +916,7 @@ toil's config, and has no field for a key: each SDK signs in the way its CLI doe
 
 ### Installing an adapter's SDK
 
-**Settings, Agent** (**AI helper** in plain words) opens on the steps to get going and each
+**Settings, Agent** (**AI agent** in plain words) opens on the steps to get going and each
 helper with its state (Ready, Not set up yet in a calm tone, or Needs one more step with the
 reason shown), and an **Install** button on each helper that isn't installed. Whether its SDK
 is installed and at which version against the one Toil UI was tested with, which CLI it would
@@ -985,7 +1016,7 @@ for (docs/decisions/343-ask-up-front.md).
   proposals or what the tools can do. **Show the full prompt** shows exactly what
   the agent is sent.
 
-With no adapter chosen, the chat says in plain words that no AI helper is set up and where
+With no adapter chosen, the chat says in plain words that no AI agent is set up and where
 an engineer sets one up (Settings, Agent), with the three adapters and their packages one
 step in, behind **Details for whoever sets it up**; its switcher can still
 choose an installed one for that chat. The notice goes as soon as a helper can answer: the chat
@@ -993,18 +1024,6 @@ reads the helpers again whenever the page moves, so installing on the Settings p
 reload. A helper that is installed but can't start yet says so instead, with the reason one step
 in. `toil-ui --sample` keeps the scripted agent,
 which answers its starter questions, Analyze and the workflow jobs from the sample data (a job's answer says nothing was read and lists every check as unchecked).
-
-### Not ticketed yet
-
-When you ask the chat for work that names no ticket (not a question, which ends in `?` or
-opens with what, why, how and the like, and no key such as `PAY-12` or `#42`), a **Not ticketed yet** banner lists up to three of the
-Toil project's open items likeliest to cover it, scored as `toil util owi similar` scores
-them, each with why. Attach the work to one by naming its key in your branch and
-commits, which writes nothing, or press **Ticket this** for proposals: a sub-task
-under each match, and a new ticket on the Toil project's tracker. They are proposal cards
-like the chat's others, with the command line to run through toil's write gate, and
-nothing is created until you run one. With no match, it says there is no likely
-ticket and offers only a new one. It asks once per chat, and **Not now** hides it.
 
 ### What the agent's models used
 

@@ -19,7 +19,7 @@ import { sourceLabel } from '../format.ts';
 import type { Identity } from '../model/people.ts';
 import type { ToilProjectData } from '../load.ts';
 import './settings.css';
-import { commandLine, failedOutcome, OutcomeLine, outcomeOf, SelectField, TextField, type Outcome } from './settings/parts.tsx';
+import { failedOutcome, OutcomeLine, outcomeOf, SelectField, TextField, type Outcome } from './settings/parts.tsx';
 
 /** The sources whose accounts a person can have, in the order the views name them. */
 const SOURCES = ['github', 'jira', 'ado', 'bitbucket'] as const;
@@ -38,12 +38,11 @@ export function sourcesOf(toilProject: Pick<ToilProjectData, 'items' | 'pullRequ
 
 const WHY = { email: 'it has their email', name: "it is shown with their name", login: 'its id reads as their name' } as const;
 const NEW ='\u0000new';
-const quote = (v: string) => (/^[\w@.:=-]+$/.test(v) ? v : `"${v.replace(/(["\\$`])/g, '\\$1')}"`);
 
 /** Why a change can't be made from here, or null when it can. */
 function useOff(): string | null {
   const { config } = useData();
-  return !config ? "This view has no access to toil's config commands; run the command shown in a terminal." : config.disabled;
+  return !config ? "This view can't change Toil projects here. Match people across tools in Settings, Toil projects." : config.disabled;
 }
 
 /** A "Map" button on an account's card, opening the form in place. */
@@ -86,7 +85,6 @@ function MapForm({ account }: { account: Identity }) {
   const target = person ? person.name : name.trim();
   const ids = sources.flatMap((a) => (value(a).trim() !== '' && person?.ids[a]?.toLowerCase() !== value(a).trim().toLowerCase() ? [`${a}=${value(a).trim()}`] : []));
   const input = { toilProject: toilProject.name, name: target, ...(ids.length ? { id: ids } : {}), ...(!person && kind === 'agent' ? { kind } : {}), ...(!person && email.trim() ? { email: email.trim() } : {}) };
-  const line = commandLine('projects person', [quote(input.toilProject), target ? quote(target) : '<name>', ...ids.flatMap((i) => ['--id', quote(i)]), ...(input.kind ? ['--kind', 'agent'] : []), ...(input.email ? ['--email', quote(input.email)] : [])]);
 
   const save = async () => {
     if (!config || off || busy) return;
@@ -113,24 +111,21 @@ function MapForm({ account }: { account: Identity }) {
         label="This account is"
         value={who}
         onChange={setWho}
-        options={[...entries.map((p) => ({ value: p.name, label: `${p.name}${p.kind === 'agent' ? ' (agent)' : ''}` })), { value: NEW, label: 'A new person or agent' }]}
+        options={[...entries.map((p) => ({ value: p.name, label: `${p.name}${p.kind === 'agent' ? ' (agent)' : ''}` })), { value: NEW, label: 'A new person or AI agent' }]}
       />
       {!person && (
         <>
           <TextField label="Name" value={name} onChange={setName} required hint="As the team writes it, e.g. Pat Example." />
-          <SelectField label="Kind" value={kind} onChange={(v) => setKind(v === 'agent' ? 'agent' : 'human')} options={[{ value: 'human', label: 'Person' }, { value: 'agent', label: 'Agent' }]} />
+          <SelectField label="Kind" value={kind} onChange={(v) => setKind(v === 'agent' ? 'agent' : 'human')} options={[{ value: 'human', label: 'Person' }, { value: 'agent', label: 'AI agent' }]} />
           <TextField label="Email" value={email} onChange={setEmail} hint="Optional. Only compared, to suggest which accounts are theirs." />
         </>
       )}
       <fieldset className="map-ids">
         <legend>Identities in each system</legend>
         {sources.map((a) => (
-          <TextField key={a} label={`${sourceLabel(a)}`} value={value(a)} onChange={(v) => setTyped({ ...typed, [a]: v })} hint={a === account.area ? 'The account you are mapping.' : person?.ids[a] ? 'Already set; change it from Settings.' : 'Optional.'} />
+          <TextField key={a} label={`${sourceLabel(a)}`} value={value(a)} onChange={(v) => setTyped({ ...typed, [a]: v })} hint={a === account.area ? 'The account you are mapping.' : person?.ids[a] ? 'Already set; change it in Settings, Toil projects.' : 'Optional.'} />
         ))}
       </fieldset>
-      <p className="runs any-break">
-        Runs <code>{line}</code>
-      </p>
       <Cluster>
         <button type="button" className="btn btn--accent" onClick={save} disabled={off !== null || busy || outcome?.ok === true} aria-describedby={off ? offId : undefined}>
           {busy ? 'Running…' : person ? `Map to ${person.name}` : 'Add them'}
@@ -170,7 +165,6 @@ export function SaveToRepo() {
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [replace, setReplace] = useState(false);
-  const file = `.toil/projects/${toilProject.name}.json`;
   const run = async () => {
     if (!config || off || busy) return;
     setBusy(true);
@@ -178,8 +172,8 @@ export function SaveToRepo() {
     try {
       const e = await config.run('projects people save', { toilProject: toilProject.name, ...(replace ? { replace } : {}) });
       const d = (e.ok ? e.data : null) as { file?: string; created?: boolean; changed?: boolean; added?: string[]; updated?: string[] } | null;
-      const said = d?.created ? `Created ${d.file} with ${d.added?.length ?? 0} people.` : d?.changed === false ? `${d.file} already has these people. Nothing changed.` : `Updated ${d?.file}: ${d?.added?.length ?? 0} added, ${d?.updated?.length ?? 0} changed.`;
-      setOutcome(outcomeOf(e, `${said} Nothing was staged or committed: review it with git and commit it with your code.`));
+      const said = d?.created ? `Saved ${d.added?.length ?? 0} people to the repository.` : d?.changed === false ? 'The repository already has these people. Nothing changed.' : `Updated the repository's people: ${d?.added?.length ?? 0} added, ${d?.updated?.length ?? 0} changed.`;
+      setOutcome(outcomeOf(e, `${said} Nothing was committed: it goes in with your next change.`));
     } catch (err) {
       setOutcome(failedOutcome(err));
     } finally {
@@ -199,16 +193,13 @@ export function SaveToRepo() {
         )}
       </Cluster>
       <details>
-        <summary>What file changes?</summary>
+        <summary>What does this change?</summary>
         <p className="note">
-          Writes <code>{file}</code> in the repository Toil UI was started in, whether it is hosted on GitHub, Azure DevOps or Bitbucket: the people (names, kinds, emails and the login or id each system shows), so teammates who clone it share the mapping. No password or token is ever in it. If the file already exists only its people change, and people only it lists are kept. Toil never stages or commits it.
+          Saves the people (names, kinds, emails and the login or id each system shows) into this Toil project's copy in the repository Toil UI was started in, so teammates who get it share the mapping. No password or token is ever in it. If a copy already exists only its people change, and people only it lists are kept. Nothing is committed for you.
         </p>
         <label className="map-replace">
-          <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} /> Take mine where the file lists the same person differently
+          <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} /> Take mine where the repository lists the same person differently
         </label>
-        <p className="runs any-break">
-          Runs <code>{commandLine('projects people save', [quote(toilProject.name), ...(replace ? ['--replace'] : [])])}</code>
-        </p>
       </details>
       <OutcomeLine outcome={outcome} />
     </Stack>

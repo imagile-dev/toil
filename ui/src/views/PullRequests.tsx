@@ -8,6 +8,8 @@
  * queue, finally reviewed.
  */
 
+import { useState } from 'react';
+import { Button } from 'react-aria-components';
 import { PeekLinks } from '../components/briefing.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
 import { ThroughputSpark } from '../components/charts.tsx';
@@ -19,7 +21,7 @@ import { useData } from '../data.ts';
 import { dateTime, toilProjectEditHref, toilProjectHref, personText } from '../format.ts';
 import { Empty, EmptyLink, SyncOr } from '../components/empty.tsx';
 import {
-  allFlags, daysShort, daysText, diffSquares, FAILING_HOURS, KIND_LABEL, KINDS, openQueue, parseCodeowners, PICKUP_DAYS, PR_FLAG_LABEL, PR_FLAG_SHORT, prMetrics, reviewProposal, SIZE_LINES, SIZES, suggestReviewers, WAITING_LABEL,
+  allFlags, daysText, diffSquares, FAILING_HOURS, KIND_LABEL, KINDS, openQueue, parseCodeowners, PICKUP_DAYS, PR_FLAG_LABEL, PR_FLAG_SHORT, prMetrics, reviewProposal, SIZE_LINES, SIZES, suggestReviewers, WAITING_LABEL,
   type KindOrAll, type OpenRow, type PrMetrics, type Sample,
 } from '../model/prs.ts';
 import type { Change } from '../toil.ts';
@@ -91,8 +93,8 @@ function Items({ ids }: { ids: string[] }) {
 
 const queueColumns = (info: ConnectionInfo | null, plain: boolean): Array<Column<OpenRow>> => [
   {
-    header: 'Pull request',
-    label: 'Pull request',
+    header: plain ? 'Code review' : 'Pull request',
+    label: plain ? 'Code review' : 'Pull request',
     rowHeader: true,
     cell: (r) => (
       <>
@@ -109,7 +111,7 @@ const queueColumns = (info: ConnectionInfo | null, plain: boolean): Array<Column
         <strong>{WAITING_LABEL[r.wait.on]}</strong>
         {/* The age is a figure; the sentence behind it is one press in. An unknown age is a dash, not zero (principle 12). */}
         <details className="cell-more">
-          <summary>{r.wait.days === null ? '–' : daysShort(r.wait.days)}</summary>
+          <summary>{r.wait.days === null ? '–' : daysText(r.wait.days)}</summary>
           <p className="field">
             {WAITING_LABEL[r.wait.on]} {r.wait.days === null ? 'for an unknown time' : `for ${daysText(r.wait.days)}`}: {r.wait.why}
           </p>
@@ -129,7 +131,7 @@ const queueColumns = (info: ConnectionInfo | null, plain: boolean): Array<Column
           {r.flags.map((f) => (
             <li key={f.flag} title={PR_FLAG_LABEL[f.flag]}>
               {PR_FLAG_SHORT[f.flag]}
-              {f.days !== undefined && ` · ${round1(f.days)} wd`}
+              {f.days !== undefined && ` · ${daysText(f.days)}`}
               <span className="sr-only">: {PR_FLAG_LABEL[f.flag]}</span>
             </li>
           ))}
@@ -176,6 +178,48 @@ const metricColumns: Array<Column<MetricRow>> = [
   ...ALL.map((k): Column<MetricRow> => ({ header: KIND_LABEL[k], label: KIND_LABEL[k], cell: (r) => fig(r.sample[k], r.unit) })),
 ];
 
+/** How many flags show before "Show N more": a long list of the same few kinds is a wall, so they are grouped by kind and cut. */
+const FLAGS_SHOWN = 3;
+
+/** The flags, grouped by what they are, the first few shown and the rest one press away. */
+function FlagList({ flags }: { flags: ReturnType<typeof allFlags> }) {
+  const [all, setAll] = useState(false);
+  const kinds = [...new Set(flags.map((f) => f.hit.flag))];
+  const ordered = kinds.flatMap((k) => flags.filter((f) => f.hit.flag === k));
+  const shown = all ? ordered : ordered.slice(0, FLAGS_SHOWN);
+  const hidden = ordered.length - shown.length;
+  return (
+    <>
+      {kinds.map((k) => {
+        const rows = shown.filter((f) => f.hit.flag === k);
+        if (!rows.length) return null;
+        return (
+          <section key={k} className="flag-group" data-flag-group={k}>
+            <h3>
+              {PR_FLAG_LABEL[k]} <span className="count">{ordered.filter((f) => f.hit.flag === k).length}</span>
+            </h3>
+            <ul className="rows">
+              {rows.map(({ change, hit }) => (
+                <li key={`${change.id}:${hit.flag}:${hit.text}`}>
+                  <PrLink change={change} withTitle />
+                  <p className="evidence">
+                    <Cited text={hit.text} />
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+      {hidden > 0 && (
+        <Button className="btn btn--small" onPress={() => setAll(true)} data-show-more="flags">
+          Show {hidden} more
+        </Button>
+      )}
+    </>
+  );
+}
+
 export function PullRequests() {
   const { toilProject, byId, now, sync, config } = useData();
   const plain = usePlain();
@@ -221,20 +265,7 @@ export function PullRequests() {
         <p className="note">
           A first review waiting over {PICKUP_DAYS} working days, checks failing for over {FAILING_HOURS} hours, a merge conflict, no linked work item, a work item done while its pull request is open, and a merged pull request whose item isn't done.
         </p>
-        {flags.length ? (
-          <ul className="rows">
-            {flags.map(({ change, hit }) => (
-              <li key={`${change.id}:${hit.flag}:${hit.text}`}>
-                <strong>{PR_FLAG_LABEL[hit.flag]}</strong>: <PrLink change={change} withTitle />
-                <p className="evidence">
-                  <Cited text={hit.text} />
-                </p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>Nothing to flag.</p>
-        )}
+        {flags.length ? <FlagList flags={flags} /> : <p>Nothing to flag.</p>}
       </Panel>
 
       <Panel id="flow" title="Flow" calls={calls} alerts={false}>

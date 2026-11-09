@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { describe, expect, it } from 'vitest';
@@ -31,7 +31,7 @@ interface Call {
 }
 
 /** A config that answers like an empty machine, records every call, and allows changes. */
-function emptyMachine() {
+function emptyMachine(existing: unknown[] = []) {
   const calls: Call[] = [];
   const base = fixtureConfig();
   const ok = (command: string, data: unknown): Envelope => ({ ok: true, data, error: null, meta: { command, durationMs: 0, version: 'test', contractVersion: 1 } }) as Envelope;
@@ -41,7 +41,7 @@ function emptyMachine() {
     settings: () => base.settings(),
     run: async (command, input, extra) => {
       calls.push({ command, input, extra });
-      if (command === 'connections list') return ok(command, { configFile: '/home/you/.toil/config.json', connections: [] });
+      if (command === 'connections list') return ok(command, { configFile: '/home/you/.toil/config.json', connections: existing });
       if (command === 'projects list') return ok(command, { toilProjects: [], places: { user: '/home/you/.toil/projects' } });
       if (command === 'connections add') return ok(command, { name: input.name, area: input.area, secrets: { token: 'store' }, writes: false });
       if (command === 'connections test') return ok(command, { name: input.name, area: 'github', host: 'github.imagile.dev', live: true, authenticated: true, request: 'GET /user' });
@@ -58,7 +58,13 @@ async function open(config: ConfigApi, onSync?: () => void) {
   return view;
 }
 
-const press = (name: string) => userEvent.click(screen.getByRole('button', { name }));
+const press = (name: string) => userEvent.click(name === 'Next' ? screen.getByRole('button', { name: /^Next/ }) : screen.getByRole('button', { name }));
+const nextButton = () => screen.getByRole('button', { name: /^Next/ }) as HTMLButtonElement;
+const why = () => document.querySelector('[data-setup-why]')?.textContent ?? null;
+/** The optional choice on a page: the AI agent's and the Toil project's "Not now" radio. */
+const notNow = () => userEvent.click(screen.getByRole('radio', { name: /^Not now/ }));
+const laterTools = () => userEvent.click(screen.getByRole('checkbox', { name: /add tools later/ }));
+const heading = (name: string) => screen.findByRole('heading', { level: 1, name });
 const progress = () => screen.getByText(/^Step \d of 7/).textContent;
 const passwordFields = () => document.querySelectorAll('input[type="password"]').length;
 
@@ -85,7 +91,8 @@ describe('the setup wizard', () => {
     expect(more.map((a) => a.name)).toEqual(['jenkins', 'openshift']);
     await open(emptyMachine().config);
     await press('Start');
-    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    await screen.findByRole('heading', { level: 1, name: 'An AI agent (optional)' });
+    await notNow();
     await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
     const boxes = screen.getAllByRole('checkbox').map((b) => b.getAttribute('data-setup-tool'));
@@ -98,11 +105,12 @@ describe('the setup wizard', () => {
     let synced = 0;
     await open(config, () => synced++);
     await press('Start');
-    // The AI helper comes first, and is skipped here: the wizard is what it always was.
-    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    // The AI agent comes first, and is skipped here: the wizard is what it always was.
+    await screen.findByRole('heading', { level: 1, name: 'An AI agent (optional)' });
     expect(progress()).toContain('Step 2 of 7');
     expect(document.querySelector('[data-setup-optional]')!.textContent).toMatch(/Everything else works without one/);
-    await press('Skip');
+    await notNow();
+    await press('Next');
     await userEvent.click(await screen.findByRole('checkbox', { name: /GitHub/ }));
     await press('Next');
 
@@ -124,18 +132,21 @@ describe('the setup wizard', () => {
     expect(document.querySelector('[data-setup-linked]')!.textContent).toMatch(/It can only read/);
 
     await press('Test the link');
-    await screen.findByText(/GitHub answered, so the link works/);
+    await screen.findByText(/GitHub answered, so its login works/);
 
     await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'Your Toil project' });
+    expect(nextButton().disabled).toBe(true);
     await userEvent.type(screen.getByLabelText(/^Name/), 'payments');
-    await userEvent.click(screen.getByRole('button', { name: 'Create Toil project' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Create this Toil project' }));
     await screen.findByText(/payments was created\. GitHub linked to payments\./);
+    await waitFor(() => expect(nextButton().disabled).toBe(false));
+    expect(nextButton().textContent).toBe('Next: Fields');
     expect(calls.find((c) => c.command === 'projects init')!.input).toEqual({ name: 'payments' });
     expect(calls.find((c) => c.command === 'projects link')!.input).toEqual({ toilProject: 'payments', area: 'github', connection: 'github' });
 
     await press('Next');
-    // Jira isn't linked, so the optional field step has nothing to read and says to skip it.
+    // Jira isn't linked, so the optional field step has nothing to read or decide.
     await screen.findByRole('heading', { level: 1, name: 'Let toil learn your Jira fields (optional)' });
     expect(document.querySelector('[data-find-none]')!.textContent).toMatch(/Jira isn't linked/);
     await press('Next');
@@ -144,48 +155,145 @@ describe('the setup wizard', () => {
     const summary = screen.getByRole('list', { name: 'What was set up' });
     expect(summary.textContent).toContain('GitHub (github), read-only');
     expect(summary.textContent).toContain('Toil project: payments');
-    expect(summary.textContent).toContain('No AI helper, which is fine');
+    expect(summary.textContent).toContain('No AI agent, which is fine');
     await press('Sync now');
     expect(synced).toBe(1);
     expect(document.body.textContent).not.toContain(SECRET);
   }, 30_000);
 
-  it('can be skipped and walked back, with no tool ticked going straight to the Toil project', async () => {
+  it('has no Skip button; each optional page is answered with Not now, and walking back works', async () => {
     await open(emptyMachine().config);
     await press('Start');
-    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
-    await press('Skip');
+    await screen.findByRole('heading', { level: 1, name: 'An AI agent (optional)' });
+    await notNow();
+    await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
-    await press('Skip');
+    await laterTools();
+    expect(nextButton().textContent).toBe('Next: Toil project');
+    await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'Your Toil project' });
     expect(progress()).toContain('Step 5 of 7');
-    await press('Skip');
+    await notNow();
+    await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'Let toil learn your Jira fields (optional)' });
-    await press('Skip');
+    await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'All set' });
     expect(screen.getByRole('list', { name: 'What was set up' }).textContent).toContain('No new tool links');
+    expect(screen.getByRole('list', { name: 'What was set up' }).textContent).toContain('No AI agent, which is fine');
     await press('Back');
     await screen.findByRole('heading', { level: 1, name: 'Let toil learn your Jira fields (optional)' });
     await press('Back');
     await press('Back');
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
+    expect((screen.getByRole('checkbox', { name: /add tools later/ }) as HTMLInputElement).checked).toBe(true);
     await press('Back');
-    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    await screen.findByRole('heading', { level: 1, name: 'An AI agent (optional)' });
+    expect((screen.getByRole('radio', { name: /^Not now/ }) as HTMLInputElement).checked).toBe(true);
   });
 
-  it('offers a terminal command with Copy beside the form, and a refusal from toil stays on screen', async () => {
+  it('keeps Next off, with the reason beside it, until each page is done, and has no Skip anywhere', async () => {
+    await open(emptyMachine().config);
+    expect(screen.queryByRole('button', { name: /Skip/ })).toBeNull();
+    await press('Start');
+    await heading('An AI agent (optional)');
+    expect(nextButton().disabled).toBe(true);
+    expect(nextButton().textContent).toBe('Next: Tools');
+    expect(why()).toBe('Choose an AI agent, or Not now, first.');
+    expect(nextButton().getAttribute('aria-describedby')).toBe('setup-next-why');
+    expect(screen.queryByRole('button', { name: /Skip/ })).toBeNull();
+    await notNow();
+    expect(nextButton().disabled).toBe(false);
+    expect(why()).toBeNull();
+    await press('Next');
+    await heading('Which tools do you use?');
+    expect(nextButton().disabled).toBe(true);
+    expect(why()).toMatch(/Tick a tool, or choose I'll add tools later/);
+    await userEvent.click(screen.getByRole('checkbox', { name: /GitHub/ }));
+    expect(nextButton().disabled).toBe(false);
+    await userEvent.click(screen.getByRole('checkbox', { name: /GitHub/ }));
+    expect(nextButton().disabled).toBe(true);
+    await userEvent.click(screen.getByRole('checkbox', { name: /GitHub/ }));
+    await press('Next');
+    await heading('Link GitHub');
+    expect(nextButton().disabled).toBe(true);
+    expect(why()).toMatch(/Save the connection/);
+    await press('Back');
+    await laterTools();
+    await press('Next');
+    await heading('Your Toil project');
+    expect(nextButton().disabled).toBe(true);
+    expect(why()).toMatch(/Choose a Toil project, create one, or choose Not now/);
+    await notNow();
+    expect(nextButton().disabled).toBe(false);
+    expect(screen.queryByRole('button', { name: /Skip/ })).toBeNull();
+  }, 30_000);
+
+  it('keeps Next off on the Fields step until the fields are named or Not now is chosen', async () => {
+    const jira = { name: 'corp-jira', area: 'jira', isDefault: true, host: 'jira.imagile.dev', writes: false, values: {}, definedIn: 'file' };
+    const { config } = emptyMachine([jira]);
+    const run = config.run;
+    config.run = async (command, input, extra) => (command === 'projects list' ? ({ ok: true, data: { toilProjects: [{ name: 'payments', description: null }], places: {} }, error: null, meta: { command, durationMs: 0, version: 't', contractVersion: 1 } } as Envelope) : run(command, input, extra));
+    await open(config);
+    await press('Start');
+    await notNow();
+    await press('Next');
+    await laterTools();
+    await press('Next');
+    await heading('Your Toil project');
+    await press('Next');
+    await heading('Let toil learn your Jira fields (optional)');
+    expect(nextButton().disabled).toBe(true);
+    expect(nextButton().textContent).toBe('Next: All set');
+    expect(why()).toBe('Name the fields, or choose Not now, first.');
+    await userEvent.click(screen.getByRole('radio', { name: /^Not now/ }));
+    expect(nextButton().disabled).toBe(false);
+    await press('Next');
+    await heading('All set');
+  }, 30_000);
+
+  it('lists each AI agent once, as one choice with Not now, and a helper that is not ready cannot be chosen', async () => {
+    await open(emptyMachine().config);
+    await press('Start');
+    await heading('An AI agent (optional)');
+    expect(document.querySelectorAll('[data-adapter]')).toHaveLength(3);
+    expect(screen.getAllByText('GitHub Copilot')).toHaveLength(1);
+    expect(screen.queryByRole('heading', { name: 'Your AI agents' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Use this helper' })).toBeNull();
+    expect(screen.getAllByRole('radio').map((r) => (r as HTMLInputElement).value)).toEqual(['claude', 'copilot', 'codex', '__later']);
+    expect((screen.getByRole('radio', { name: /^Claude/ }) as HTMLInputElement).disabled).toBe(true);
+    expect(document.querySelector('[data-adapter="claude"]')!.textContent).toContain('It has to be installed and signed in before you can choose it.');
+    // Choosing a ready one is the whole answer.
+    await userEvent.click(screen.getByRole('radio', { name: /^GitHub Copilot/ }));
+    expect(nextButton().disabled).toBe(false);
+    await press('Next');
+    await heading('Which tools do you use?');
+  });
+
+  it('starts the tools that are already linked ticked', async () => {
+    const jira = { name: 'corp-jira', area: 'jira', isDefault: true, host: 'jira.imagile.dev', writes: false, values: {}, definedIn: 'file' };
+    await open(emptyMachine([jira]).config);
+    await press('Start');
+    await notNow();
+    await press('Next');
+    await heading('Which tools do you use?');
+    await waitFor(() => expect((screen.getByRole('checkbox', { name: /Jira/ }) as HTMLInputElement).checked).toBe(true));
+    expect(screen.getByText(/Already linked: corp-jira/)).toBeTruthy();
+    expect((screen.getByRole('checkbox', { name: /GitHub/ }) as HTMLInputElement).checked).toBe(false);
+    expect(nextButton().disabled).toBe(false);
+  });
+
+  it('offers no terminal command, and a refusal from toil stays on screen', async () => {
     const { config } = emptyMachine();
     const run = config.run;
     config.run = async (command, input, extra) => (command === 'connections add' ? { ok: false, data: null, error: { code: 'INVALID_INPUT', message: 'That name is taken.', fix: 'Pick another.' }, meta: { command, durationMs: 0, version: 't', contractVersion: 1 } } as Envelope : run(command, input, extra));
     await open(config);
     await press('Start');
+    await notNow();
     await press('Next');
     await userEvent.click(await screen.findByRole('checkbox', { name: /Jira/ }));
     await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'Link Jira' });
-    const terminal = document.querySelector('[data-setup-terminal]') as HTMLElement;
-    expect(terminal.textContent).toContain('toil connections add jira --area jira');
-    expect(within(terminal).getByRole('button', { name: 'Copy terminal command' })).toBeTruthy();
+    expect(document.querySelector('[data-setup-terminal]')).toBeNull();
     await userEvent.click(screen.getByRole('radio', { name: 'Data Center' }));
     await userEvent.type(screen.getByLabelText(/^Address/), 'https://jira.imagile.dev');
     await userEvent.type(screen.getByLabelText(/^apiToken/), SECRET);
@@ -198,8 +306,9 @@ describe('the setup wizard', () => {
     await open(emptyMachine().config);
     expect(passwordFields()).toBe(0);
     await press('Start');
-    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    await screen.findByRole('heading', { level: 1, name: 'An AI agent (optional)' });
     expect(passwordFields()).toBe(0);
+    await notNow();
     await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
     expect(passwordFields()).toBe(0);
@@ -207,8 +316,11 @@ describe('the setup wizard', () => {
     await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'Link GitHub' });
     expect(passwordFields()).toBe(1);
+    await press('Back');
+    await laterTools();
     await press('Next');
     expect(passwordFields()).toBe(0);
+    await notNow();
     await press('Next');
     expect(passwordFields()).toBe(0);
     await press('Next');
@@ -225,6 +337,7 @@ describe('the setup wizard', () => {
   it('keeps its changes off in the preview and says why', async () => {
     await open(fixtureConfig());
     await press('Start');
+    await notNow();
     await press('Next');
     await userEvent.click(await screen.findByRole('checkbox', { name: /GitHub/ }));
     await press('Next');
@@ -239,16 +352,22 @@ describe('the setup wizard', () => {
     };
     expect(await check()).toEqual([]);
     await press('Start');
-    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    await screen.findByRole('heading', { level: 1, name: 'An AI agent (optional)' });
+    expect(await check()).toEqual([]);
+    await notNow();
     expect(await check()).toEqual([]);
     await press('Next');
+    expect(await check()).toEqual([]);
     await userEvent.click(await screen.findByRole('checkbox', { name: /GitHub/ }));
     expect(await check()).toEqual([]);
     await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'Link GitHub' });
     expect(await check()).toEqual([]);
+    await press('Back');
+    await laterTools();
     await press('Next');
     expect(await check()).toEqual([]);
+    await notNow();
     await press('Next');
     expect(await check()).toEqual([]);
     await press('Next');

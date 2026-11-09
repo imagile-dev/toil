@@ -7,7 +7,7 @@ import type { ConfigAnswers, ConfigApi, ConnectionRow } from '../src/config.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import { deploymentOf, freeName, locationKind, locationProblems, projectFile, tokenState } from '../src/setup.ts';
+import { deploymentOf, freeName, locationKind, locationProblems, tokenState } from '../src/setup.ts';
 import { FIXTURE_AREAS } from '../src/fixtures/config.ts';
 import type { Envelope } from '../src/toil.ts';
 
@@ -60,10 +60,13 @@ async function toStep(config: ConfigApi, tool: RegExp, step: string) {
   render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={config} now={FIXTURE_NOW} preview />);
   await screen.findByRole('heading', { level: 1, name: 'Welcome' }, { timeout: 3000 });
   await userEvent.click(screen.getByRole('button', { name: 'Start' }));
-  await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
-  await userEvent.click(screen.getByRole('button', { name: 'Next' }));
-  await userEvent.click(await screen.findByRole('checkbox', { name: tool }));
-  await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+  await screen.findByRole('heading', { level: 1, name: 'An AI agent (optional)' });
+  await userEvent.click(screen.getByRole('radio', { name: /^Not now/ }));
+  await userEvent.click(screen.getByRole('button', { name: /^Next/ }));
+  // Tools that are already linked start ticked; tick the one under test only if it is not.
+  const box = (await screen.findByRole('checkbox', { name: tool })) as HTMLInputElement;
+  if (!box.checked) await userEvent.click(box);
+  await userEvent.click(screen.getByRole('button', { name: /^Next/ }));
   await screen.findByRole('heading', { level: 1, name: step });
 }
 
@@ -100,7 +103,7 @@ describe('the deployment radio in the wizard', () => {
     await userEvent.type(screen.getByLabelText(/^apiToken/), SECRET);
     // The badges say what is required, live.
     expect(screen.getByLabelText(/^email/).closest('.field-row')!.textContent).toContain('required');
-    expect(document.querySelector('.runs')!.textContent).toBe(`Runs toil connections add jira --area jira --set baseUrl=https://example-site.${ATL}.net --set deployment=cloud --set email=you@example.com`);
+    expect(document.querySelector('.runs')).toBeNull();
     await userEvent.click(save());
     await waitFor(() => expect(calls.some((c) => c.command === 'connections add')).toBe(true));
     const add = calls.find((c) => c.command === 'connections add')!;
@@ -195,12 +198,12 @@ describe('what already exists', () => {
     expect(existing.textContent).toContain('jira');
     expect(existing.textContent).toContain(`example-site.${ATL}.net`);
     expect(existing.textContent).toContain('(Cloud)');
-    expect(existing.textContent).toContain('changes off');
+    expect(existing.textContent).toContain('read only');
     expect(existing.textContent).toContain('token: saved');
     expect((screen.getByRole('radio', { name: /^Use jira \(already set up\)/ }) as HTMLInputElement).checked).toBe(true);
     expect(screen.queryByRole('button', { name: 'Save connection' })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Test the link' }));
-    await screen.findByText(/Jira answered, so the link works/);
+    await screen.findByText(/Jira answered, so its login works/);
     expect(calls.map((c) => c.command)).not.toContain('connections add');
     expect(calls.map((c) => c.command)).not.toContain('connections login');
   });
@@ -210,8 +213,8 @@ describe('what already exists', () => {
     const { config } = machine([env]);
     await toStep(config, /Jira/, 'Link Jira');
     const existing = document.querySelector('[data-setup-existing]')!;
-    expect(existing.textContent).toContain('token: from an environment variable');
-    expect(existing.textContent).toContain("Set by environment variables; this page can't change it.");
+    expect(existing.textContent).toContain('token: set outside Toil UI');
+    expect(existing.textContent).toContain("Set outside Toil UI, so it can't be changed here.");
     expect(screen.queryByRole('radio', { name: /Replace the saved token/ })).toBeNull();
     expect(screen.getByRole('radio', { name: /^Add another Jira connection/ })).toBeTruthy();
   });
@@ -286,20 +289,21 @@ describe('the Toil project step says what it writes', () => {
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={machineArg.config} now={FIXTURE_NOW} preview />);
     await screen.findByRole('heading', { level: 1, name: 'Welcome' }, { timeout: 3000 });
     await userEvent.click(screen.getByRole('button', { name: 'Start' }));
-    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
-    await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    await screen.findByRole('heading', { level: 1, name: 'An AI agent (optional)' });
+    await userEvent.click(screen.getByRole('radio', { name: /^Not now/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^Next/ }));
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
-    await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /add tools later/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^Next/ }));
     await screen.findByRole('heading', { level: 1, name: 'Your Toil project' });
     return machineArg;
   }
 
-  it('shows the exact file before the button is pressed, and the helper text verbatim', async () => {
+  it('says in plain words what creating it saves, with no file path', async () => {
     await toProject();
-    expect(document.querySelector('[data-setup-repos-help]')!.textContent).toBe("Lets toil infer your project from the path of where you are working. Doesn't write any configuration to this path.");
-    expect(document.querySelector('[data-setup-writes]')!.textContent).toContain('/home/you/.toil/projects/<name>.json');
-    await userEvent.type(screen.getByLabelText(/^Name/), 'payments');
-    expect(document.querySelector('[data-setup-writes]')!.textContent).toContain('Creating it writes one file, /home/you/.toil/projects/payments.json, in your own home. Nothing is saved in any folder or repository you list');
+    expect(document.querySelector('[data-setup-repos-help]')!.textContent).toBe('Lets Toil work out which project you are in from the folder you are working in. Nothing is written to that folder.');
+    expect(document.querySelector('[data-setup-writes]')!.textContent).toContain('Creating it saves one small file of your own on this computer. Nothing is saved in any folder or repository you list');
+    expect(document.querySelector('[data-setup-writes]')!.textContent).not.toContain('.toil');
   });
 
   it('two paths run init then one add-repo each, in order, and never pass --shared', async () => {
@@ -308,8 +312,8 @@ describe('the Toil project step says what it writes', () => {
     await userEvent.type(screen.getByLabelText('Folder or address 1'), '/work/payments-api');
     await userEvent.click(screen.getByRole('button', { name: 'Add another' }));
     await userEvent.type(screen.getByLabelText('Folder or address 2'), 'https://git.imagile.dev/payments/web.git');
-    expect(document.querySelector('.runs')!.textContent).toBe('Runs toil projects init payments && toil projects add-repo payments /work/payments-api && toil projects add-repo payments https://git.imagile.dev/payments/web.git');
-    await userEvent.click(screen.getByRole('button', { name: 'Create Toil project' }));
+    expect(document.querySelector('.runs')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Create this Toil project' }));
     await waitFor(() => expect(calls.filter((c) => c.command === 'projects add-repo')).toHaveLength(2));
     const steps = calls.filter((c) => c.command === 'projects init' || c.command === 'projects add-repo');
     expect(steps.map((c) => [c.command, c.input])).toEqual([
@@ -319,22 +323,23 @@ describe('the Toil project step says what it writes', () => {
     ]);
     expect(JSON.stringify(calls.map((c) => c.input))).not.toContain('shared');
     const saved = document.querySelector('[data-setup-saved]')!;
-    expect(saved.textContent).toContain('/home/you/.toil/projects/payments.json');
+    expect(saved.textContent).toContain('payments was created.');
+    expect(saved.textContent).not.toContain('.toil');
     expect(saved.textContent).toContain('Nothing in any repository or folder.');
   }, 30_000);
 
   it('reads each row as a folder or an address, refuses a repeat, and a row can be removed', async () => {
     await toProject();
     await userEvent.type(screen.getByLabelText('Folder or address 1'), '/work/payments-api');
-    expect(document.body.textContent).toContain('Read as a folder path.');
+    expect(document.body.textContent).toContain('Read as a folder.');
     await userEvent.click(screen.getByRole('button', { name: 'Add another' }));
     await userEvent.type(screen.getByLabelText('Folder or address 2'), '/work/payments-api/');
     expect(document.body.textContent).toContain('Already in the list above.');
     await userEvent.type(screen.getByLabelText(/^Name/), 'payments');
-    expect(screen.getByRole('button', { name: 'Create Toil project' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Create this Toil project' }).getAttribute('aria-disabled')).toBe('true');
     await userEvent.click(screen.getByRole('button', { name: 'Remove folder or address 2' }));
     expect(screen.queryByLabelText('Folder or address 2')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Create Toil project' }).getAttribute('aria-disabled')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Create this Toil project' }).getAttribute('aria-disabled')).toBeNull();
   });
 
   it('a failed path does not undo the project: it says which one failed and retries it', async () => {
@@ -347,7 +352,7 @@ describe('the Toil project step says what it writes', () => {
     await userEvent.type(screen.getByLabelText('Folder or address 1'), '/work/payments-api');
     await userEvent.click(screen.getByRole('button', { name: 'Add another' }));
     await userEvent.type(screen.getByLabelText('Folder or address 2'), '/work/missing');
-    await userEvent.click(screen.getByRole('button', { name: 'Create Toil project' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Create this Toil project' }));
     const results = await waitFor(() => document.querySelector('[data-setup-repo-results]')!);
     expect(results.textContent).toContain('/work/payments-api: added');
     expect(results.textContent).toContain('/work/missing: No such folder. Check the path.');
@@ -363,6 +368,5 @@ describe('the Toil project step says what it writes', () => {
     expect(locationKind('C:\\work\\payments')).toBe('folder');
     expect(locationKind('  ')).toBe('empty');
     expect(locationProblems(['/a', '', '/A/'])).toEqual([null, null, 'Already in the list above.']);
-    expect(projectFile('C:\\Users\\you\\.toil\\config.json', 'x')).toBe('C:/Users/you/.toil/projects/x.json');
   });
 });

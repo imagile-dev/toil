@@ -7,6 +7,7 @@ import { App } from '../src/App.tsx';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import type { SyncClient, SyncStatus } from '../src/server-client.ts';
 import { SyncPanel } from '../src/sync-panel.tsx';
+import { WipeCache } from '../src/views/settings/General.tsx';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { BUILT_IN_SKINS, SLOTS, skinsFor, themed } from '../src/skins.tsx';
 import { HEART, LOOT } from '../src/skins/overworld.tsx';
@@ -334,7 +335,13 @@ describe('the local app\'s sync panel', { timeout: SLOW }, () => {
   it.each(SCHEMES)('in %s (%s) shows a stale source and the wipe confirmation with no axe violations', async (theme, scheme) => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.dataset.scheme = scheme;
-    const { container } = render(<SyncPanel client={client} onChange={() => {}} />);
+    // The wipe is under Settings, General, Advanced now, so its confirmation is checked beside the bar.
+    const { container } = render(
+      <>
+        <SyncPanel client={client} onChange={() => {}} />
+        <WipeCache cache={{ wipe: async () => undefined, wipedAt: null }} />
+      </>,
+    );
     expect(await screen.findByText(/Showing the last good copy/)).toBeTruthy();
     const bar = async () => {
       const found = await violations(container);
@@ -365,7 +372,9 @@ describe('the header (#277)', { timeout: SLOW }, () => {
       await userEvent.click(menu);
       const dialog = await screen.findByRole('dialog', { name: 'Menu, on Settings' });
       expect(within(dialog).getByRole('link', { name: 'Settings' }).getAttribute('aria-current')).toBe('page');
-      expect(within(dialog).getByRole('link', { name: 'Toil projects' })).toBeTruthy();
+      // The overview is in the project list at the top of the Menu, not among the views.
+      expect(within(within(dialog).getByRole('navigation', { name: 'Views' })).queryByRole('link', { name: 'Toil projects' })).toBeNull();
+      expect(await within(dialog).findByRole('link', { name: 'All Toil projects' })).toBeTruthy();
       expect(within(dialog).getByRole('button', { name: /Theme/ })).toBeTruthy();
       await userEvent.keyboard('{Escape}');
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -377,12 +386,13 @@ describe('the header (#277)', { timeout: SLOW }, () => {
   });
 
   it('folds into the Menu at any width when its one row would wrap, as its links can in a wider font', async () => {
-    // jsdom lays nothing out, so the header's links report a row each: the last one's a second one.
+    // jsdom lays nothing out, so the header's parts report a row each: the views, after the brand, are a second one.
     const real = HTMLElement.prototype.getBoundingClientRect;
     HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
-      const below = this.tagName === 'LI' && this.closest('.top') !== null && /^Settings$/.test(this.textContent ?? '');
-      const top = this.tagName === 'LI' ? (below ? 40 : 0) : 0;
-      const height = this.tagName === 'LI' ? 20 : 0;
+      const inRow = this.closest('.top') !== null;
+      const below = this.tagName === 'NAV' && inRow;
+      const top = below ? 40 : 0;
+      const height = this.tagName === 'NAV' || this.classList.contains('brand') ? 20 : 0;
       return { top, bottom: top + height, height, left: 0, right: 0, width: 0, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
     };
     try {

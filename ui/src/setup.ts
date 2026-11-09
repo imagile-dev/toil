@@ -1,5 +1,5 @@
 /**
- * The setup wizard's pure parts (#561): its seven screens (the AI helper comes first, so the guide can explain the rest), and how the registry's
+ * The setup wizard's pure parts (#561): its seven screens (the AI agent comes first, so the guide can explain the rest), and how the registry's
  * areas are sorted into the tools most people use and the long tail behind
  * "more". Nothing here reads or changes anything. Form 27-B, stripped of its
  * boxes, and filed as one array.
@@ -18,7 +18,7 @@ export const STEP_TITLE: Record<SetupStep, string> = {
   connect: 'Link your tools',
   project: 'Your Toil project',
   fields: 'Let toil learn your Jira fields (optional)',
-  helper: 'An AI helper (optional)',
+  helper: 'An AI agent (optional)',
   done: 'All set',
 };
 
@@ -36,18 +36,30 @@ export interface SetupProgress {
   project: string | null;
   helper: string | null;
   returnTo: SetupStep | null;
+  /** The optional steps the person chose "Not now" on. */
+  skipped?: SetupStep[];
 }
 
-/** The steps that sit beside the guide once an AI helper is ready: the ones that ask the person something. */
+/** Each step as the primary button names the one it leads to: "Next: Fields". */
+export const STEP_SHORT: Record<SetupStep, string> = { welcome: 'Welcome', helper: 'AI agent', tools: 'Tools', connect: 'Link tools', project: 'Toil project', fields: 'Fields', done: 'All set' };
+
+/** The steps that sit beside the guide once an AI agent is ready: the ones that ask the person something. */
 export const GUIDED_STEPS: readonly SetupStep[] = ['tools', 'connect', 'project', 'fields'];
 
 /** The work-tracking and code tools most people reach for, in the order the list shows them. */
 export const COMMON_AREAS = ['github', 'jira', 'ado', 'bitbucket', 'confluence', 'sonarqube'] as const;
 
-const NAMES: Record<string, string> = { github: 'GitHub', jira: 'Jira', ado: 'Azure DevOps', bitbucket: 'Bitbucket', confluence: 'Confluence', sonarqube: 'SonarQube', jenkins: 'Jenkins', openshift: 'OpenShift' };
+const NAMES: Record<string, string> = {
+  github: 'GitHub', jira: 'Jira', ado: 'Azure DevOps', bitbucket: 'Bitbucket', confluence: 'Confluence', sonarqube: 'SonarQube', sonar: 'SonarQube', jenkins: 'Jenkins', openshift: 'OpenShift',
+  alation: 'Alation', artifactory: 'Artifactory', checkmarx: 'Checkmarx', contrast: 'Contrast Security', db: 'Database', dynatrace: 'Dynatrace', elasticsearch: 'Elasticsearch', figma: 'Figma', git: 'Git', kibana: 'Kibana', logscale: 'LogScale',
+  ossindex: 'OSS Index', osv: 'OSV', saucelabs: 'Sauce Labs', sde: 'SD Elements', sonatypeiq: 'Sonatype IQ', splitio: 'Split',
+};
 
-/** What an area is called to a person: its product name where toil knows it, else the area's own name. */
-export const toolName = (area: string): string => NAMES[area] ?? area;
+/** What an area is called to a person: its product name where Toil UI knows it, else the area's own name, capitalised. */
+export const toolName = (area: string): string => NAMES[area] ?? (area ? area.charAt(0).toUpperCase() + area.slice(1) : area);
+
+/** A service in a dropdown: its plain name, never the id in brackets. */
+export const areaLabel = (area: string): string => toolName(area);
 
 /** Only an area whose connection says what it holds can be added from a page. */
 export const connectable = (areas: AreaInfo[]): AreaInfo[] => areas.filter((a) => a.connection.length > 0);
@@ -60,12 +72,9 @@ export function groupAreas(areas: AreaInfo[]): { common: AreaInfo[]; more: AreaI
   return { common, more };
 }
 
-/** `toil connections add corp-jira --area jira`, for the person who would rather type it on a terminal. */
-export const terminalAdd = (name: string, area: string): string => `toil connections add ${name || '<name>'} --area ${area}`;
-
 /** Where a connection's token lives, from `connections list`'s per-key sources (never a value). `missing` is a real none; an unreadable list is the caller's dash. */
 export type TokenState = 'saved' | 'env' | 'missing';
-export const TOKEN_WORD: Record<TokenState, string> = { saved: 'saved', env: 'from an environment variable', missing: 'missing' };
+export const TOKEN_WORD: Record<TokenState, string> = { saved: 'saved', env: "set outside Toil UI", missing: 'missing' };
 
 export function tokenState(row: { values: Record<string, string> }, secretKeys: string[]): TokenState {
   const sources = secretKeys.map((k) => row.values[k]);
@@ -110,8 +119,3 @@ export function locationProblems(rows: readonly string[]): Array<string | null> 
   });
 }
 
-/** The one file `projects init <name>` writes, beside the config file, with forward slashes as toil prints paths. */
-export function projectFile(configFile: string | null, name: string): string {
-  const dir = configFile ? configFile.replace(/\\/g, '/').replace(/\/[^/]*$/, '') : '~/.toil';
-  return `${dir}/projects/${name || '<name>'}.json`;
-}

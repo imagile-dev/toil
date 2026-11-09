@@ -150,7 +150,7 @@ describe('the assignment queue', () => {
     await h.tick();
     expect(h.queue.get(a.id)).toMatchObject({ state: 'failed', stop: { reason: 'time', message: 'Stopped at the time limit of 20 minutes, before the agent finished.' } });
     const b = await h.queue.assign({ toilProject: 'card-payments', item: 'corp-jira:PAY-102', mode: 'refine', adapter: 'codex' });
-    h.runs[1]!.reject(new RunStopped('usage', "Codex's per-chat cap (codex.chat) stopped this question.", 'Raise the cap.'));
+    h.runs[1]!.reject(new RunStopped('usage', "Codex's per-chat cap stopped this question.", 'Raise the cap.'));
     await h.tick();
     expect(h.queue.get(b.id)).toMatchObject({ state: 'failed', stop: { reason: 'usage' } });
     expect(h.timers[0]!.cleared && h.timers[1]!.cleared).toBe(true);

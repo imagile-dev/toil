@@ -23,7 +23,7 @@ afterEach(() => {
 
 describe('the Font control', () => {
   it("lists the theme's own first, applies a pick over the theme, and keeps it in this browser", async () => {
-    window.location.hash = '#/settings/toil';
+    window.location.hash = '#/settings/appearance';
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview />);
     const card = await screen.findByRole('region', { name: 'Theme' });
     const button = within(card).getByRole('button', { name: /Font/ });
@@ -40,7 +40,7 @@ describe('the Font control', () => {
   });
 
   it('leaves no Plain words switch beside it', async () => {
-    window.location.hash = '#/settings/toil';
+    window.location.hash = '#/settings/appearance';
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview />);
     await screen.findByRole('region', { name: 'Theme' });
     expect(screen.queryByRole('region', { name: 'Plain words' })).toBeNull();

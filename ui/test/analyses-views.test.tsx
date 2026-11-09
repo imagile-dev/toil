@@ -90,7 +90,7 @@ describe("the Toil project's briefing (#494)", () => {
     await open('#/project/card-payments');
     const b = await screen.findByRole('region', { name: 'Briefing' });
     await waitFor(() => expect(b.dataset.recSource).toBe('analysis'));
-    expect(b.textContent).toContain('Written by an AI helper, the scripted preview, not a model, 13 Oct 2026, 07:30 UTC');
+    expect(b.textContent).toContain('Written by an AI agent, the scripted preview, not a model, 13 Oct 2026, 07:30 UTC');
     expect(within(b).getByRole('link', { name: 'Open that briefing' }).getAttribute('href')).toBe('#/project/card-payments/analyses/sample-analysis-2');
     expect(b.querySelector('.briefing__head')!.textContent).toContain('Fix');
     // The first reason is open, the rest folded.
@@ -198,8 +198,8 @@ describe('a citation chip', () => {
 describe('the sidebar', () => {
   it("lists the Toil project's three newest analyses, each linking to it", async () => {
     await open('#/project/card-payments');
-    await userEvent.click(screen.getByRole('button', { name: /^AI helpers/ }));
-    const side = await screen.findByRole('region', { name: 'AI helpers' });
+    await userEvent.click(screen.getByRole('button', { name: /^AI agents/ }));
+    const side = await screen.findByRole('region', { name: 'AI agents' });
     const recent = within(side).getByRole('region', { name: 'Recent briefings' });
     await waitFor(() => expect(within(recent).getAllByRole('listitem')).toHaveLength(2));
     const links = within(recent).getAllByRole('link');

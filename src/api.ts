@@ -30,7 +30,7 @@ import { createSecretStore, type SecretStore } from './core/keychain.js';
 import type { ProgressEvent } from './core/progress.js';
 import type { Prompter } from './core/prompt.js';
 import { runCommand } from './core/run.js';
-import { unsupportedNode } from './core/runtime.js';
+import { nodeWarning } from './core/runtime.js';
 import { checkSecret as checkSecretInput, type SecretCheck, type SecretRules } from './core/secret-input.js';
 import { inputSchemaFor } from './mcp/server.js';
 import { createNodeContext } from './node-context.js';
@@ -336,12 +336,16 @@ let secrets: SecretStore | undefined;
  * throws: an unknown command, a bad option or a failure inside is an envelope
  * with `ok: false`, like every other. `input` is the command's MCP fields
  * (`{ jql: "project = PAY", limit: 50 }`), checked strictly. On a Node toil
- * refuses (`src/core/runtime.ts`, CVE-2026-111497) every call is the CLI's
- * `UNSUPPORTED_NODE` envelope, before anything runs or fetches.
+ * flags (`src/core/runtime.ts`, CVE-2026-111497) every envelope carries the
+ * warning in `meta.warnings`; the call still runs.
  */
 export async function execute(command: string, input: Record<string, unknown> = {}, options: ExecuteOptions = {}): Promise<Envelope> {
-  const refused = unsupportedNode(process.versions.node, VERSION);
-  if (refused) return refused;
+  const envelope = await executeCall(command, input, options);
+  const warning = nodeWarning(process.versions.node);
+  return warning ? { ...envelope, meta: { ...envelope.meta, warnings: [{ code: 'UNSUPPORTED_NODE', message: warning }, ...(envelope.meta.warnings ?? [])] } } : envelope;
+}
+
+async function executeCall(command: string, input: Record<string, unknown>, options: ExecuteOptions): Promise<Envelope> {
   const refuse = (message: string, fix: string): Envelope => failure(new ToilError('INVALID_INPUT', message, { fix }), { command, durationMs: 0, version: VERSION });
   const def = byName.get(command) ?? (options.person ? personByName.get(command) : undefined);
   if (!def) {

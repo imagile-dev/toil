@@ -103,6 +103,8 @@ export function GuideBody({ guide, config, state, onRan }: GuidePanelProps) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [text, setText] = useState('');
   const [refused, setRefused] = useState(false);
+  // Only the newest question stays open: asking another folds the earlier ones to their question line, and any of them opens again on a press.
+  const [open, setOpen] = useState<ReadonlySet<number>>(new Set());
   const chat = useRef(chatId());
   const next = useRef(1);
   const abort = useRef<AbortController | null>(null);
@@ -133,6 +135,7 @@ export function GuideBody({ guide, config, state, onRan }: GuidePanelProps) {
     const controller = new AbortController();
     abort.current = controller;
     setTurns((ts) => [...ts, { id, question: message, answer: null, error: null, done: false }]);
+    setOpen(new Set([id]));
     try {
       for await (const partial of guide({ chat: chat.current, message, state }, history, controller.signal, { theme: theme.name, voice: voiceOn(theme, choice) })) {
         if (controller.signal.aborted) return;
@@ -168,8 +171,17 @@ export function GuideBody({ guide, config, state, onRan }: GuidePanelProps) {
       )}
       <div className="guide__log" ref={log} data-guide-log="">
         {turns.map((t) => (
-          <section key={t.id} className="guide__turn" aria-label={`Question: ${t.question}`}>
-            <p className="guide__question">{t.question}</p>
+          <details
+            key={t.id}
+            className="guide__turn"
+            open={open.has(t.id)}
+            onToggle={(e) => {
+              const now = e.currentTarget.open;
+              if (now !== open.has(t.id)) setOpen((o) => new Set(now ? [...o, t.id] : [...o].filter((x) => x !== t.id)));
+            }}
+            data-guide-turn=""
+          >
+            <summary className="guide__question">{t.question}</summary>
             {t.error ? (
               <p role="alert" className="failure">
                 The guide couldn't answer: {t.error}
@@ -192,7 +204,7 @@ export function GuideBody({ guide, config, state, onRan }: GuidePanelProps) {
                 {t.done && config && t.answer?.proposals.map((p) => <Suggestion key={p.id} proposal={p} config={config} onRan={onRan ?? noop} />)}
               </>
             )}
-          </section>
+          </details>
         ))}
       </div>
       <form className="guide__ask" onSubmit={submit} aria-label="Ask the guide">

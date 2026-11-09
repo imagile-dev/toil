@@ -33,8 +33,8 @@ afterEach(cleanup);
 
 /** The Agents sidebar (#394): a drawer below 1200px, which jsdom always is, behind the tab row's Agents button. */
 async function agents() {
-  await userEvent.click(screen.getByRole('button', { name: /^AI helpers/ }));
-  return screen.findByRole('region', { name: 'AI helpers' });
+  await userEvent.click(screen.getByRole('button', { name: /^AI agents/ }));
+  return screen.findByRole('region', { name: 'AI agents' });
 }
 
 describe('the Agents sidebar', () => {
@@ -42,7 +42,7 @@ describe('the Agents sidebar', () => {
     await open('#/project/card-payments');
     // The count arrives with the assignments, a tick after the heading; on a loaded runner, later still.
     // The inbox row, one proposal, one question and the failed assignment: a failure counts, since the panel starts closed.
-    expect(await screen.findByRole('button', { name: 'AI helpers, 4 waiting on you' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'AI agents, 4 waiting on you' })).toBeTruthy();
     const lane = await agents();
     const inbox = await within(lane).findByRole('region', { name: 'Asked for AI help' });
     // The raw label is the item's detail (the Start dialog), not the inbox row.
@@ -60,11 +60,11 @@ describe('the Agents sidebar', () => {
     await open('#/project/card-payments/board');
     const user = userEvent.setup();
     fireEvent.contextMenu(screen.getByRole('group', { name: 'PAY-103 Charge a stored token' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Give to an AI helper…' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Ask an AI helper' });
+    await user.click(await screen.findByRole('menuitem', { name: 'Give to an AI agent…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Ask an AI agent' });
     await within(dialog).findByRole('radiogroup', { name: 'Which AI' });
     await user.click(within(dialog).getByRole('radio', { name: /Look into/ }));
-    await user.click(within(dialog).getByRole('button', { name: 'Ask the AI helper' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Ask the AI agent' }));
     await waitFor(() => expect(window.location.hash).toMatch(/^#\/project\/card-payments\/assignment\/sample-new-/));
   }, 20_000);
 });
@@ -94,7 +94,7 @@ describe('the assignment page', () => {
 describe('the People view', () => {
   it("lists each agent's assignments as a teammate's", async () => {
     await open('#/project/card-payments/people');
-    const section = await screen.findByRole('region', { name: "AI helpers' work" });
+    const section = await screen.findByRole('region', { name: "AI agents' work" });
     await within(section).findByRole('heading', { name: 'Codex' });
     expect(within(section).getByRole('heading', { name: 'Claude' })).toBeTruthy();
   }, 20_000);
@@ -158,7 +158,7 @@ describe('stale sessions (#305)', () => {
 
   it("says on an agent's card how many of its assignments are stale", async () => {
     await open('#/project/card-payments/people');
-    const section = await screen.findByRole('region', { name: "AI helpers' work" });
+    const section = await screen.findByRole('region', { name: "AI agents' work" });
     await within(section).findByText(/2 started on instructions that have changed since/);
   }, 20_000);
 });

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { httpSync, type SyncClient, type SyncStatus } from '../src/server-client.ts';
+import { WipeCache } from '../src/views/settings/General.tsx';
 import { SyncPanel, lastSynced } from '../src/sync-panel.tsx';
 
 /**
@@ -103,25 +104,30 @@ describe('the sync panel', () => {
     expect(c.starts).toBe(1);
   });
 
+  it('has no wipe button: the cache is wiped under Settings, General, Advanced', async () => {
+    render(<SyncPanel client={client([synced])} onChange={() => {}} />);
+    await screen.findByRole('button', { name: 'Sync now' });
+    expect(screen.queryByRole('button', { name: /Wipe/ })).toBeNull();
+  });
+
   it('wipes only after the confirmation, with Cancel focused first and Escape to back out', async () => {
-    const c = client([synced]);
-    const onChange = vi.fn();
-    render(<SyncPanel client={c} onChange={onChange} />);
-    const wipe = await screen.findByRole('button', { name: 'Wipe the cache…' });
-    await userEvent.click(wipe);
+    const wipe = vi.fn(async () => undefined);
+    const view = render(<WipeCache cache={{ wipe, wipedAt: null }} />);
+    const trigger = await screen.findByRole('button', { name: 'Wipe the cache…' });
+    await userEvent.click(trigger);
     const group = screen.getByRole('group', { name: /Delete everything Toil UI synced/ });
     expect(document.activeElement).toBe(within(group).getByRole('button', { name: 'Cancel' }));
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('group')).toBeNull();
-    expect(document.activeElement).toBe(wipe);
-    expect(c.wipes).toBe(0);
+    expect(document.activeElement).toBe(trigger);
+    expect(wipe).not.toHaveBeenCalled();
 
-    await userEvent.click(wipe);
+    await userEvent.click(trigger);
     await userEvent.click(within(screen.getByRole('group')).getByRole('button', { name: 'Wipe it' }));
-    expect(c.wipes).toBe(1);
-    await waitFor(() => expect(onChange).toHaveBeenCalled());
+    await waitFor(() => expect(wipe).toHaveBeenCalledTimes(1));
+    // The page above keeps when it ran, since a wipe makes every view, this one included, read again.
+    view.rerender(<WipeCache cache={{ wipe, wipedAt: '2026-10-13T08:00:00.000Z' }} />);
     expect(screen.getByRole('status').textContent).toContain('The cache is wiped');
-    expect(await screen.findByText(/Nothing synced yet/)).toBeTruthy();
   });
 
   it("shows the server's refusal as an alert", async () => {

@@ -21,12 +21,13 @@ export function Avatar(props: AvatarProps) {
   return <Skin {...props} />;
 }
 
-export function StatusChip({ category, status }: { category: StatusCategory; status: string | null }) {
+export function StatusChip({ category, status, inColumn = false }: { category: StatusCategory; status: string | null; inColumn?: boolean }) {
   const label = STATUS_CATEGORY_LABEL[category];
   return (
     <span className={`chip chip--${category.toLowerCase()}`}>
       {status ?? label}
-      {status && status.toLowerCase() !== label.toLowerCase() && <span className="chip-cat"> · {label}</span>}
+      {/* On the board the column already says the category, so the chip doesn't say it again. */}
+      {!inColumn && status && status.toLowerCase() !== label.toLowerCase() && <span className="chip-cat"> · {label}</span>}
     </span>
   );
 }

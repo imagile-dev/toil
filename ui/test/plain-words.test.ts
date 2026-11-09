@@ -11,9 +11,9 @@ describe('plainify', () => {
   it('swaps Toil project, pull request and agent, keeping plurals and writing Toil project with its capital T', () => {
     expect(plainify('Each Toil project is one body of work.')).toBe('Each Toil project is one body of work.');
     expect(plainify('Toil projects and pull requests')).toBe('Toil projects and code reviews');
-    expect(plainify('Pull requests, then agents')).toBe('Code reviews, then AI helpers');
-    expect(plainify('An agent, two agents')).toBe('An AI helper, two AI helpers');
-    expect(plainify("the Toil project's agents")).toBe("the Toil project's AI helpers");
+    expect(plainify('Pull requests, then agents')).toBe('Code reviews, then AI agents');
+    expect(plainify('An agent, two agents')).toBe('An AI agent, two AI agents');
+    expect(plainify("the Toil project's agents")).toBe("the Toil project's AI agents");
   });
 
   it('never says team for a Toil project', () => {
@@ -26,8 +26,8 @@ describe('plainify', () => {
 
   it('leaves an agent inside a package, a path, a file name or a header alone', () => {
     for (const s of ['@anthropic-ai/claude-agent-sdk', 'ui/server/agents/install.ts', 'See AGENTS.md first', 'the user-agent header', 'label agent:refine', 'src/agent.ts']) expect(plainify(s)).toBe(s);
-    expect(plainify('Install @anthropic-ai/claude-agent-sdk, then ask the agent.')).toBe('Install @anthropic-ai/claude-agent-sdk, then ask the AI helper.');
-    expect(plainify('Ask the agent.')).toBe('Ask the AI helper.');
+    expect(plainify('Install @anthropic-ai/claude-agent-sdk, then ask the agent.')).toBe('Install @anthropic-ai/claude-agent-sdk, then ask the AI agent.');
+    expect(plainify('Ask the agent.')).toBe('Ask the AI agent.');
   });
 
   it('leaves a toil command exactly as typed', () => {
@@ -72,6 +72,6 @@ describe('usePlain', () => {
     expect(p.on).toBe(true);
     expect(p.pw('Pull requests', 'Code reviews')).toBe('Code reviews');
     expect(p.title('Pull requests')).toBe('In toil: Pull requests');
-    expect(p.text('Ask the agent.')).toBe('Ask the AI helper.');
+    expect(p.text('Ask the agent.')).toBe('Ask the AI agent.');
   });
 });

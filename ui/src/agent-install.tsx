@@ -1,5 +1,5 @@
 /**
- * Settings, Agent's adapter status and one-press install (#344). For each
+ * Settings, AI agent's adapter status and one-press install (#344). For each
  * adapter: whether its SDK is installed and at which version against the one
  * Toil UI was tested with, which CLI it would start or why it can't, and what
  * else is worth knowing (an npm shim resolved, a bundled CLI npm skipped).
@@ -22,7 +22,7 @@ import { usePlain } from './plain-words.ts';
 /** What the preview's Install shows instead of running anything. */
 export const INSTALL_PREVIEW = 'This is the preview, so nothing is installed. Toil UI on your own machine runs this command when you press Install.';
 
-function statusLines(a: AdapterStatus): string[] {
+export function statusLines(a: AdapterStatus): string[] {
   const sdk = a.installed ? `${a.package} ${a.version ?? ''} is installed beside Toil UI`.replace('  ', ' ') : `${a.package} isn't installed beside Toil UI; Toil UI was tested with ${a.tested}`;
   const cli = a.cli.path ? `It would start ${a.cli.path}` : `${a.cli.problem ?? 'Its CLI was not found.'}${a.cli.fix ? ` ${a.cli.fix}` : ''}`;
   return [`${sdk}.`, cli.endsWith('.') ? cli : `${cli}.`, ...a.notes];
@@ -65,12 +65,15 @@ export function changed(a: AdapterStatus, plan: InstallPlan): string[] {
   ];
 }
 
+/** Whether Install is offered: the SDK is missing, or it is there but its own program (a CLI Toil UI can fetch) isn't. */
+export const needsInstall = (a: AdapterStatus): boolean => !a.installed || (a.cli.path === null && Boolean(a.install.cli));
+
 export function AdaptersCard({ adapters, client, onInstalled }: { adapters: AdapterStatus[]; client: Pick<AgentSettingsClient, 'install'> & RegistryClient | null; onInstalled?: (a: AdapterStatus) => void }) {
   const [installing, setInstalling] = useState<AdapterStatus | null>(null);
   const plain = usePlain();
   return (
     <Card as="section" className="panel" aria-labelledby="agent-adapters">
-      <h2 id="agent-adapters">{plain.pw('Agents on this machine', 'Your AI helpers')}</h2>
+      <h2 id="agent-adapters">{plain.pw('Agents on this machine', 'Your AI agents')}</h2>
       <ul className="adapter-status">
         {adapters.map((a) => {
           const state = helperState(a);
@@ -79,7 +82,7 @@ export function AdaptersCard({ adapters, client, onInstalled }: { adapters: Adap
               <div className="adapter-status__head">
                 <strong>{a.label}</strong>
                 <span className={state === 'ready' ? 'agent-pick__ready' : 'note'}>{STATE_WORD[state]}</span>
-                {(!a.installed || (a.cli.path === null && Boolean(a.install.cli))) && (
+                {needsInstall(a) && (
                   <Button className="btn btn--accent" onPress={() => setInstalling(a)} data-install={a.name}>
                     Install {a.label}
                   </Button>

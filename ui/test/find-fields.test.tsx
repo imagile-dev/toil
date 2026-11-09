@@ -90,13 +90,11 @@ describe('Find the fields', () => {
     expect(ticked(/Name Story point estimate/)).toBe(true);
     expect(ticked(/Name Sprint in/)).toBe(true);
     expect(ticked(/Name Crew/)).toBe(false);
-    expect(document.body.textContent).toContain('Runs toil projects field payments jira storyPointEstimate customfield_10016');
-    expect(document.body.textContent).toContain('Runs toil projects field payments jira iteration customfield_10020 --replace');
+    expect(document.body.textContent).not.toContain('Runs ');
     await press('Name these fields');
     await screen.findByText(/4 of 4 saved/);
     expect(saves(calls)).toEqual(['storyPointEstimate=customfield_10016', 'estimate=customfield_10016 --replace', 'sprint=customfield_10020', 'iteration=customfield_10020 --replace']);
     const done = document.querySelector('[data-find-done]')!.textContent!;
-    expect(done).toContain('payments.json');
     expect(done).toContain('Nothing was changed in Jira.');
     // A name is the person's to change, and an unticked row is not sent.
     expect(calls.some((c) => c.command === 'projects field' && c.input.id === 'customfield_10200')).toBe(false);
@@ -153,7 +151,7 @@ describe('Find the fields', () => {
     mount(config);
     await userEvent.click(screen.getByRole('radio', { name: /Use issues I pick/ }));
     await userEvent.type(screen.getByLabelText(/^Issue keys/), 'NONE-1, NONE-2');
-    expect(document.body.textContent).toContain('Runs toil jira field discover --issue NONE-1 --issue NONE-2 --connection corp-jira');
+    expect(document.body.textContent).not.toContain('Runs ');
     await press('Read the fields');
     await screen.findByRole('heading', { level: 4, name: 'Story' });
     expect(reads(calls)[0]!.input).toEqual({ connection: 'corp-jira', issue: ['NONE-1', 'NONE-2'] });
@@ -203,20 +201,24 @@ describe('the wizard step', () => {
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={config} now={FIXTURE_NOW} preview />);
     await screen.findByRole('heading', { level: 1, name: 'Welcome' }, { timeout: 3000 });
     await press('Start');
-    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
-    await press('Skip');
+    await screen.findByRole('heading', { level: 1, name: 'An AI agent (optional)' });
+    await userEvent.click(screen.getByRole('radio', { name: /^Not now/ }));
+    await press(/^Next/);
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
-    await press('Skip');
+    await userEvent.click(screen.getByRole('checkbox', { name: /add tools later/ }));
+    await press(/^Next/);
     await screen.findByRole('heading', { level: 1, name: 'Your Toil project' });
-    await press('Next');
+    await press(/^Next/);
     await screen.findByRole('heading', { level: 1, name: 'Let toil learn your Jira fields (optional)' });
   }
 
-  it('is optional: Skip moves on and nothing is read or saved', async () => {
+  it('is optional: Next is off until Not now is chosen, then it moves on and nothing is read or saved', async () => {
     const { config, calls } = machine();
     await toStep(config);
-    expect(document.body.textContent).toContain('Optional.');
-    await press('Skip');
+    expect(document.body.textContent).toContain('Recommended.');
+    expect((screen.getByRole('button', { name: /^Next/ }) as HTMLButtonElement).disabled).toBe(true);
+    await userEvent.click(screen.getByRole('radio', { name: /^Not now/ }));
+    await press(/^Next/);
     await screen.findByRole('heading', { level: 1, name: 'All set' });
     expect(reads(calls)).toEqual([]);
     expect(saves(calls)).toEqual([]);

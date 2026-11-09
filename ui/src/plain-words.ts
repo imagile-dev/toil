@@ -6,7 +6,7 @@
  * The design principle (CLAUDE.md, principle 11): anything a person reads to
  * ACT (a menu item, a tab, a button, a field's label, a heading, an error and
  * its fix) is plain English, identical in every theme, preferring everyday words
- * to jargon (pull request: code review, agent: AI helper). A theme speaks only
+ * to jargon (pull request: code review, agent: AI agent). A theme speaks only
  * where nothing depends on the words: explanations and ledes, loading and
  * progress text, empty-state sentences and its moments (src/wording.ts).
  *

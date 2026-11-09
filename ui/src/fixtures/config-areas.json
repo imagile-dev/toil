@@ -376,9 +376,10 @@
           "everything": {
             "needs": [
               "repo",
-              "read:project"
+              "read:project",
+              "project"
             ],
-            "createUrl": "https://github.com/settings/tokens/new?scopes=repo,read:project&description=toil"
+            "createUrl": "https://github.com/settings/tokens/new?scopes=repo,read:project,project&description=toil"
           },
           "entries": [
             {
@@ -440,7 +441,15 @@
                 "github project fields",
                 "github project items"
               ],
-              "note": "Reading Projects (v2). toil never changes a project, so the project scope is not needed."
+              "note": "Reading Projects (v2)."
+            },
+            {
+              "name": "project",
+              "required": "write",
+              "commands": [
+                "github project status"
+              ],
+              "note": "Changing a project item's Status. It includes read:project."
             }
           ]
         },
@@ -470,7 +479,7 @@
               "Issues: Read and write",
               "Checks: Read",
               "Commit statuses: Read",
-              "Projects (organization permission): Read",
+              "Projects (organization permission): Read and write",
               "Administration: Read and write"
             ],
             "createUrl": "https://github.com/settings/personal-access-tokens/new"
@@ -590,6 +599,15 @@
                 "github commit status",
                 "github pr status"
               ]
+            },
+            {
+              "name": "Projects (organization permission)",
+              "access": "write",
+              "required": "write",
+              "commands": [
+                "github project status"
+              ],
+              "note": "Changing a project item's Status. Only an organization's projects."
             },
             {
               "name": "Projects (organization permission)",

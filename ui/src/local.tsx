@@ -8,7 +8,7 @@
  * each sync or wipe. Same building, different badge reader.
  */
 
-import { StrictMode, useCallback, useState } from 'react';
+import { StrictMode, useCallback, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import type { Agent } from './agent.ts';
@@ -16,6 +16,7 @@ import './app.css';
 import './views.css';
 import type { ConfigApi } from './config.ts';
 import type { SetupProgress } from './setup.ts';
+import type { NewProjectProgress } from './views/NewProject.tsx';
 import { httpAgent, httpAgentSettings, httpConfig, httpExecute, httpFeedback, httpModelUsage, httpServerStatus, httpSync, httpWorklog, httpAnalyses, readServerInfo, type AgentStatus, type ServerInfo, type SyncStatus } from './server-client.ts';
 import { SyncPanel, lastSynced } from './sync-panel.tsx';
 import { httpAssignments } from './assign/client.ts';
@@ -36,6 +37,8 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   // Where the setup wizard is: a saved helper or a finished sync remounts the App, and the wizard must not start again (#561).
   const [setupProgress, setSetupProgress] = useState<SetupProgress | null>(null);
   const setupKeep = { value: setupProgress, save: setSetupProgress };
+  const [newProjectProgress, setNewProjectProgress] = useState<NewProjectProgress | null>(null);
+  const newProjectKeep = { value: newProjectProgress, save: setNewProjectProgress };
   const [settingsClient] = useState(() => (session.agentSettings ? httpAgentSettings() : null));
   // A new choice of agent (#251) brings its own starters, so the agent is fetched again and the App remounted.
   const onAgent = useCallback(
@@ -70,12 +73,31 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
     setByToilProject(syncedBy(next));
     if (next.job.finishedAt) setFinished(next.job.finishedAt);
     if (next.job.finishedAt && next.job.news?.length) setNews({ id: next.job.finishedAt, byToilProject: next.job.news });
+    setWipedAt(null);
     setGeneration((g) => g + 1);
   }, []);
+  // Wiping the cache is under Settings, General, Advanced; the page holds when it ran, since every view reads again afterwards.
+  const [wipedAt, setWipedAt] = useState<string | null>(null);
+  const [panelKey, setPanelKey] = useState(0);
+  const cache = useMemo(
+    () =>
+      sync
+        ? {
+            wipe: () =>
+              sync.wipe().then((next) => {
+                onChange(next);
+                setPanelKey((k) => k + 1);
+                setWipedAt(new Date().toISOString());
+              }),
+            wipedAt,
+          }
+        : undefined,
+    [sync, onChange, wipedAt],
+  );
   return (
     <>
-      <App key={generation} setupKeep={setupKeep} syncing={syncing} news={news} syncedAt={finished} serverStatus={serverStatus} execute={execute} agent={agent} config={config} {...(session.sample ? {} : { themeSetting: config })} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byToilProject, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByToilProject(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} versions={{ ui: session.version, toil: session.toil.version }} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { toilProject: names[0] } : {}) } } : {})} />
-      {sync && <SyncPanel client={sync} onChange={onChange} onStatus={onStatus} request={syncAsked} />}
+      <App key={generation} setupKeep={setupKeep} newProjectKeep={newProjectKeep}syncing={syncing} news={news} syncedAt={finished} serverStatus={serverStatus} execute={execute} agent={agent} config={config} {...(session.sample ? {} : { themeSetting: config })} feedback={feedback} modelUsage={modelUsage} {...(cache ? { cache } : {})} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byToilProject, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByToilProject(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} versions={{ ui: session.version, toil: session.toil.version }} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { toilProject: names[0] } : {}) } } : {})} />
+      {sync && <SyncPanel key={panelKey} client={sync} onChange={onChange} onStatus={onStatus} request={syncAsked} />}
     </>
   );
 }

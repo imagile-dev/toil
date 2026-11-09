@@ -104,7 +104,7 @@ describe('the state the wizard may send, and the context built from it', () => {
     expect(context).toContain('corp-jira: Jira, jira.imagile.dev');
     expect(context).toContain('changes off');
     // The badge says where a token lives, never what it is.
-    expect(context).toMatch(/token (saved|from an environment variable|missing)/);
+    expect(context).toMatch(/token (saved|set outside Toil UI|missing)/);
   });
 
   it('says a token is missing, saved or from the environment, and says so plainly when toil could not list the connections', () => {
@@ -113,7 +113,7 @@ describe('the state the wizard may send, and the context built from it', () => {
     const secretKey = jira.connection.find((f) => f.secret)!.name;
     const row = (source?: string): ConnectionRow => ({ name: 'j', area: 'jira', isDefault: true, host: null, writes: true, values: source ? ({ [secretKey]: source } as never) : {} });
     expect(guideContext(base, [row('store')], FIXTURE_AREAS)).toContain('token saved');
-    expect(guideContext(base, [row('env')], FIXTURE_AREAS)).toContain('token from an environment variable');
+    expect(guideContext(base, [row('env')], FIXTURE_AREAS)).toContain('token set outside Toil UI');
     expect(guideContext(base, [row()], FIXTURE_AREAS)).toContain('token missing');
     expect(guideContext(base, [row('store')], FIXTURE_AREAS)).toContain('changes on');
     expect(guideContext(base, null, FIXTURE_AREAS)).toContain("toil couldn't list them");

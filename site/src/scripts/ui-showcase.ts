@@ -104,7 +104,7 @@ if (root && frame) {
       ((await find<HTMLButtonElement>(`${starters}[data-question="finish"]`, () => true, 3000)) ?? (await find<HTMLButtonElement>(starters)))?.click();
     } else if (kind === 'switcher') {
       if (!(await chat()) || !current()) return;
-      (await find<HTMLButtonElement>('[role="dialog"] button', (b) => /change the (agent|AI helper)/.test(b.textContent ?? '')))?.click();
+      (await find<HTMLButtonElement>('[role="dialog"] button', (b) => /change the (agent|AI agent)/.test(b.textContent ?? '')))?.click();
     } else if (kind === 'ticket') {
       if (!(await chat()) || !current()) return;
       const field = await find<HTMLInputElement>('[role="dialog"] form.ask-form input');

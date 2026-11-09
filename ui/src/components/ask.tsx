@@ -19,8 +19,7 @@
  * picks up where the last one left off. Citations link to items, suggested
  * changes are proposal cards, never applied, and a failure says so in the
  * pane. Usage is counted per answer and per chat (#295). The agent reads; it
- * never changes a ticket. Work that names no ticket gets the "Not ticketed
- * yet" banner (#304, ./ticket.tsx). An open-door policy, with the door on a closer.
+ * never changes a ticket. An open-door policy, with the door on a closer.
  */
 
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
@@ -33,7 +32,6 @@ import { voiceOn } from '../theme-context.ts';
 import { Cited } from './items.tsx';
 import { useMediaQuery } from './layout.tsx';
 import { ProposalCard } from './proposal.tsx';
-import { TicketBanner } from './ticket.tsx';
 import { ChatUsage, UsageFooter } from './usage.tsx';
 import type { AnswerUsage } from '../model-usage.ts';
 import type { ChatSession } from '../fingerprint.ts';
@@ -59,7 +57,7 @@ export interface Turn {
   kind: 'turn';
   id: number;
   prompt: string;
-  /** Analyze's pulse check (#343), which is a question about the toil project, never work to ticket (#304). */
+  /** Analyze's pulse check (#343), which is a question about the toil project. */
   analyze?: boolean;
   answer: Answer | null;
   error: string | null;
@@ -639,7 +637,6 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
               </div>
             ),
           )}
-          <TicketBanner prompts={turns.filter((t) => !t.analyze).map((t) => t.prompt)} />
           <div ref={end} />
         </div>
       </div>
@@ -700,7 +697,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
 /**
  * The agent switcher in the chat's strip (#344): every adapter, its model,
  * and whether it can answer. One that can't says why, with Install or Fix
- * pointing at Settings, Agent; it is never left out. A choice here holds for
+ * pointing at Settings, AI agent; it is never left out. A choice here holds for
  * this chat only, from its next question; the default stays in Settings.
  */
 function AgentSwitch({ label, list, current, onPick, compact = false }: { label: string; list: AdapterList | null; current: string | null; onPick: (name: string | null, label: string) => void; compact?: boolean }) {
@@ -763,7 +760,7 @@ function AgentSwitch({ label, list, current, onPick, compact = false }: { label:
                   })}
                 </ul>
               )}
-              <p className="note">{plain.text("Switching holds for this chat, from its next question. The chat starts on the agent last used for this Toil project, else your default under Settings, Agent, else the first agent that's ready.")}</p>
+              <p className="note">{plain.text("Switching holds for this chat, from its next question. The chat starts on the agent last used for this Toil project, else your default under Settings, AI agent, else the first agent that's ready.")}</p>
             </>
           )}
         </Dialog>
@@ -802,10 +799,10 @@ export function AskInfo({ agentLabel }: { agentLabel: string | undefined }) {
             About these answers
           </Heading>
           <p>{voice}</p>
-          <p>{plain.text(`Answered by ${agentLabel ?? 'the agent chosen in Settings'}. The chat starts on the agent last used for this Toil project, else your default under Settings, Agent, else the first agent that's ready.`)}</p>
+          <p>{plain.text(`Answered by ${agentLabel ?? 'the agent chosen in Settings'}. The chat starts on the agent last used for this Toil project, else your default under Settings, AI agent, else the first agent that's ready.`)}</p>
           <p>{plain.text("The agent only reads: its tools can't change a ticket, and anything it suggests comes back as a proposal for you to apply.")}</p>
           <p>
-            Change the voice under <a href="#/settings/toil">Settings, General</a>, and add your own instructions or voice under <a href="#/settings/agent">Settings, Agent</a>.
+            Change the voice under <a href="#/settings/appearance">Settings, Appearance</a>, and add your own instructions or voice under <a href="#/settings/agent">Settings, AI agent</a>.
           </p>
           <Glossary entries={HELP.answers.glossary} />
         </Dialog>

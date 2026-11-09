@@ -468,7 +468,7 @@ describe('the API', () => {
     const failed = await post(none.origin, '/api/agent/ask', { toilProject: 'card-payments', prompt: 'risk' });
     expect(failed.status).toBe(502);
     expect(JSON.parse(failed.body).error.message).toContain('No agent is set up');
-    expect(JSON.parse(failed.body).error.fix).toContain('Settings, Agent');
+    expect(JSON.parse(failed.body).error.fix).toContain('Settings, AI agent');
   });
 
   it('streams an answer as NDJSON, each line the answer so far, ending done; a failure partway ends with the error', async () => {

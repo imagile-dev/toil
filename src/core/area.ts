@@ -182,6 +182,20 @@ export interface Probe {
    * `authenticated: false`. Defaults to true.
    */
   authenticated?: boolean;
+  /**
+   * What the first answer's headers say about the credential itself, such as
+   * when it expires (GitHub sends `github-authentication-token-expiration`).
+   * Shown by the test; never a reason to fail it, because a credential past
+   * its expiry is refused by the read before the headers matter.
+   */
+  inspect?(headers: Headers): { expires?: string | null; scopes?: string[] | null } | undefined;
+  /**
+   * Further reads, run after the first one succeeds, that a real command would
+   * make and the first doesn't prove: a fine-grained GitHub token answers as its
+   * user on `/user` and is still refused on a repository it wasn't given. One
+   * failing fails the test, and says which.
+   */
+  deeper?: Array<{ path: string; what: string }>;
 }
 
 /** One preset of a setting; see {@link AreaSpec.choices}. */

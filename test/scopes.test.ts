@@ -61,7 +61,7 @@ describe('scopes', () => {
       expect(kind.readOnly.needs.length).toBeGreaterThan(0);
     }
     const classic = d.kinds.find((k) => k.id === 'classic')!;
-    expect(classic.everything.createUrl).toBe('https://github.com/settings/tokens/new?scopes=repo,read:project&description=toil');
+    expect(classic.everything.createUrl).toBe('https://github.com/settings/tokens/new?scopes=repo,read:project,project&description=toil');
     const fine = d.kinds.find((k) => k.id === 'fine-grained')!;
     expect(fine.readOnly.needs).toContain('Pull requests: Read');
     expect(fine.everything.needs).toContain('Pull requests: Read and write');

@@ -20,7 +20,7 @@ import type { AdapterList, Agent } from '../agent.ts';
 import type { AnalysesApi } from '../analyses.ts';
 import type { Route } from '../App.tsx';
 import { sendCommand, type UiCommand } from '../commands.ts';
-import { analysisHref, dateTime, toilProjectHref, itemHref, shortKey, STATUS_CATEGORY_LABEL, toilProjectEditHref } from '../format.ts';
+import { analysisHref, dateTime, toilProjectHref, itemHref, shortKey, standupHref, STATUS_CATEGORY_LABEL, toilProjectEditHref } from '../format.ts';
 import { fuzzyRank } from '../fuzzy.ts';
 import type { ToilProjectData } from '../load.ts';
 import type { AnalysisSummary } from '../model/analysis.ts';
@@ -105,33 +105,37 @@ export interface EntriesInput {
   adapters: AdapterList | null;
   agentSettings: boolean;
   openShortcuts: () => void;
+  /** Whether a worklog is kept, which the stand-up is folded from. */
+  hasWorklog?: boolean;
 }
 
 /** Every entry the palette can show, before any query. */
 export function paletteEntries(x: EntriesInput): PaletteEntry[] {
   const pw = (_standard: string, plain: string) => plain;
   const out: PaletteEntry[] = [];
-  const here = x.route.view === 'toilProjects' || x.route.view === 'settings' || x.route.view === 'setup' ? null : x.route.toilProject;
+  const here = x.route.view === 'toilProjects' || x.route.view === 'settings' || x.route.view === 'setup' || x.route.view === 'newProject' ? null : x.route.toilProject;
   const current = here ? x.loaded[here] : undefined;
   if (x.onSync) out.push({ id: 'cmd:sync', group: 'commands', label: 'Sync now', detail: 'Read every Toil project through toil into the cache', go: { run: x.onSync } });
   if (here && current?.ok) {
     out.push({ id: 'cmd:ask', group: 'commands', label: `Ask about ${here}`, detail: 'Focus the Ask bar', go: { command: { kind: 'ask' } } });
-    out.push({ id: 'cmd:analyze', group: 'commands', label: pw(`Analyze ${here}`, `Get a briefing on ${here}`), detail: pw("The agent's pulse check of the Toil project", "An AI helper writes a briefing of what needs attention"), go: { command: { kind: 'analyze' } } });
-    out.push({ id: 'cmd:agents', group: 'commands', label: pw('Open the Agents panel', 'Open the AI helpers panel'), detail: pw('Assignments, the inbox and limits', 'What the AI helpers are doing, and what waits on you'), text: 'agents ai helpers assignments inbox', go: { command: { kind: 'agents' } } });
+    out.push({ id: 'cmd:analyze', group: 'commands', label: pw(`Analyze ${here}`, `Get a briefing on ${here}`), detail: pw("The agent's pulse check of the Toil project", "An AI agent writes a briefing of what needs attention"), go: { command: { kind: 'analyze' } } });
+    out.push({ id: 'cmd:agents', group: 'commands', label: pw('Open the Agents panel', 'Open the AI agents panel'), detail: pw('Assignments, the inbox and limits', 'What the AI agents are doing, and what waits on you'), text: 'agents ai agents assignments inbox', go: { command: { kind: 'agents' } } });
+    if (x.hasWorklog) out.push({ id: 'cmd:standup', group: 'commands', label: 'Open the stand-up', detail: `Since the last working day, in ${here}`, text: 'stand-up standup daily meeting since yesterday what happened', go: { href: standupHref(here) } });
     // The workflow jobs (#532): each opens its own page, which says what it needs and has the Run button.
     out.push({ id: 'cmd:job:review', group: 'commands', label: pw('Review a pull request', 'Check a code change'), detail: FACE.review.gist, text: 'review pull request code review job', go: { href: jobHref(here, 'review') } });
     out.push({ id: 'cmd:job:ship', group: 'commands', label: pw('Ship: answer a review', 'Answer the review of my code change'), detail: FACE.ship.gist, text: 'ship answer review pull request job author', go: { href: jobHref(here, 'ship') } });
     out.push({ id: 'cmd:job:diagram', group: 'commands', label: pw(`Diagram ${here}`, `Draw the architecture of ${here}`), detail: FACE['map-codebase'].gist, text: 'diagram draw architecture c4 map codebase job', go: { href: jobHref(here, 'map-codebase') } });
     const item = x.focused ? current.value.items.find((i) => i.id === x.focused) : undefined;
-    if (item && x.canAssign) out.push({ id: 'cmd:assign', group: 'commands', label: pw(`Assign ${shortKey(item)} to an agent`, `Give ${shortKey(item)} to an AI helper`), detail: item.title, go: { command: { kind: 'assign', id: item.id } } });
+    if (item && x.canAssign) out.push({ id: 'cmd:assign', group: 'commands', label: pw(`Assign ${shortKey(item)} to an agent`, `Give ${shortKey(item)} to an AI agent`), detail: item.title, go: { command: { kind: 'assign', id: item.id } } });
     for (const o of x.adapters?.options ?? []) {
       if (!o.ready) continue;
       const label = o.model ? `${o.label} (${o.model})` : o.label;
       out.push({ id: `cmd:agent:${o.name}`, group: 'commands', label: `Answer with ${label}`, detail: 'For this chat, from its next question', go: { command: { kind: 'agent', name: o.name, label } } });
     }
   }
-  if (x.agentSettings) out.push({ id: 'cmd:agent-default', group: 'commands', label: 'Choose the default AI helper', detail: 'Settings, AI helper', go: { href: '#/settings/agent' } });
-  out.push({ id: 'cmd:setup', group: 'commands', label: 'Set up toil, step by step', detail: 'The setup wizard: tools, a Toil project, an AI helper', text: 'setup wizard guided get started connect tools onboarding', go: { href: '#/setup' } });
+  if (x.agentSettings) out.push({ id: 'cmd:agent-default', group: 'commands', label: 'Choose the default AI agent', detail: 'Settings, AI agent', go: { href: '#/settings/agent' } });
+  out.push({ id: 'cmd:setup', group: 'commands', label: 'Set up toil, step by step', detail: 'The setup wizard: tools, a Toil project, an AI agent', text: 'setup wizard guided get started connect tools onboarding', go: { href: '#/setup' } });
+  out.push({ id: 'cmd:new-project', group: 'commands', label: 'Create a Toil project', detail: 'Name it, say where it lives and pick its tools', text: 'new create toil project name folder repository tools', typed: true, go: { href: '#/new-project' } });
   // Reading a few Jira issues to name its custom fields in a Toil project, in Settings or, with no Toil project yet, the wizard that makes one.
   out.push({ id: 'cmd:find-fields', group: 'commands', label: 'Find your Jira fields', detail: 'Name story points and sprints in a Toil project', text: 'find jira fields custom field discover story points sprint customfield', go: { href: x.toilProjects[0] ? toilProjectEditHref(x.toilProjects[0], 'find-fields') : '#/setup' } });
   out.push({ id: 'cmd:shortcuts', group: 'commands', label: 'Keyboard shortcuts', detail: `Press ${SHORTCUTS.shortcuts.keys.join('')} anywhere`, go: { run: x.openShortcuts } });
@@ -210,7 +214,7 @@ export function CommandPalette({ isOpen, onOpenChange, agent, analysesApi, readi
   // The wall clock when it opened, for how old a cache is: the App's own clock is when its data was read.
   const [at, setAt] = useState(0);
   const names = input.toilProjects.join('\n');
-  const here = input.route.view === 'toilProjects' || input.route.view === 'settings' || input.route.view === 'setup' ? null : input.route.toilProject;
+  const here = input.route.view === 'toilProjects' || input.route.view === 'settings' || input.route.view === 'setup' || input.route.view === 'newProject' ? null : input.route.toilProject;
 
   // Each time it opens: the adapters and the saved analyses, both read from what the server already has.
   useEffect(() => {

@@ -14,9 +14,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { RadioGroup, Radio } from 'react-aria-components';
 import type { ConfigApi, ConnectionRow } from '../../config.ts';
 import { fieldCommands, type FieldCommand, type FieldPick, type OwiGuess } from '../../../../src/core/field-discovery.ts';
-import { DataTable, Path } from '../../components/layout.tsx';
+import { DataTable } from '../../components/layout.tsx';
 import { Loader } from '../../moments/Moments.tsx';
-import { Info, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
+import { Info, OutcomeLine, SelectField, TextField, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
 import './find-fields.css';
 
 /** `jira field discover`'s data, as this page reads it. */
@@ -33,7 +33,7 @@ const OWI_WORD: Record<OwiGuess['field'], string> = { estimate: 'Story points', 
 const ALIAS = /^[a-z][A-Za-z0-9]*$/;
 
 type Reading = { kind: 'idle' } | { kind: 'reading' } | { kind: 'read'; data: Discovered; warnings: string[] } | { kind: 'failed'; outcome: Outcome };
-type Result = { line: string; ok: boolean; message: string; fix: string | null };
+type Result = { line: string; /** What the person sees for it: the name being given. */ label: string; ok: boolean; message: string; fix: string | null };
 
 export interface FindFieldsProps {
   config: ConfigApi;
@@ -46,9 +46,13 @@ export interface FindFieldsProps {
   /** The connection to read through, when the page already knows. */
   connection?: string | null;
   titleId?: string;
+  /** Told when the names are saved, which is what turns the wizard's Next on. */
+  onSaved?: (() => void) | undefined;
+  /** Told while it is reading or naming, so the wizard keeps Next off until it finishes. */
+  onBusy?: ((busy: boolean) => void) | undefined;
 }
 
-export function FindFields({ config, toilProjects, toilProject, connections, connection = null, titleId }: FindFieldsProps) {
+export function FindFields({ config, toilProjects, toilProject, connections, connection = null, titleId, onSaved, onBusy }: FindFieldsProps) {
   const jira = connections.filter((c) => c.area === 'jira').map((c) => c.name);
   const [project, setProject] = useState(toilProject ?? toilProjects[0] ?? '');
   const [conn, setConn] = useState(connection ?? jira[0] ?? '');
@@ -67,6 +71,11 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
   const [results, setResults] = useState<Result[] | null>(null);
   const [saved, setSaved] = useState<{ file: string | null } | null>(null);
   const [saving, setSaving] = useState(false);
+  const working = saving || reading.kind === 'reading';
+  useEffect(() => {
+    onBusy?.(working);
+    return () => onBusy?.(false);
+  }, [working, onBusy]);
 
   // The Jira project the Toil project already names is the one to sample, until the person types another.
   useEffect(() => {
@@ -86,7 +95,6 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
 
   const issueKeys = keys.split(/[\s,]+/).filter(Boolean);
   const ready = how === 'auto' ? jiraProject.trim() !== '' : issueKeys.length > 0;
-  const readLine = commandLine('jira field discover', [...(how === 'auto' ? ['--project', jiraProject.trim() || '<project>', '--per-type', '1'] : issueKeys.flatMap((k) => ['--issue', k])), ...(conn ? ['--connection', conn] : [])]);
 
   const read = async () => {
     setReading({ kind: 'reading' });
@@ -118,17 +126,19 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
       let r: Result;
       try {
         const e = await config.run('projects field', c.input);
-        r = e.ok ? { line: c.line, ok: true, message: 'Saved.', fix: null } : { line: c.line, ok: false, message: e.error.message, fix: e.error.fix ?? null };
+        r = e.ok ? { line: c.line, label: labelOf(c), ok: true, message: 'Saved.', fix: null } : { line: c.line, label: labelOf(c), ok: false, message: e.error.message, fix: e.error.fix ?? null };
         if (e.ok && typeof (e.data as { file?: unknown } | null)?.file === 'string') file = (e.data as { file: string }).file;
       } catch (err) {
-        r = { line: c.line, ok: false, message: err instanceof Error ? err.message : String(err), fix: null };
+        r = { line: c.line, label: labelOf(c), ok: false, message: err instanceof Error ? err.message : String(err), fix: null };
       }
       out.push(r);
       setResults([...out]);
     }
     setSaved({ file });
     setSaving(false);
+    if (out.length > 0 && out.every((r) => r.ok)) onSaved?.();
   };
+  const labelOf = (c: FieldCommand) => String((c.input as { alias?: unknown }).alias ?? 'a field');
   const failed = results?.filter((r) => !r.ok) ?? [];
   const retry = () => void run(commands.filter((c) => failed.some((f) => f.line === c.line)), (results ?? []).filter((r) => r.ok));
 
@@ -140,7 +150,7 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
         </h3>
       )}
       <p className="explain">
-        Jira keeps story points and sprints in custom fields with ids like <code>customfield_10016</code>. toil reads a few issues and shows the custom fields that hold a value, so you can name them without looking the ids up. This only reads Jira, and changes nothing in it.
+        Jira keeps story points and sprints in custom fields. Toil reads a few issues and shows the custom fields that hold a value, so you can name them without looking anything up. This only reads Jira, and changes nothing in it.
       </p>
       {jira.length === 0 ? (
         <p className="note">There is no Jira connection yet. Link Jira first, then come back.</p>
@@ -161,19 +171,16 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
             </Radio>
           </RadioGroup>
           {how === 'auto' ? (
-            <TextField label="Jira project key" value={jiraProject} onChange={setJiraProject} hint="For example PAY. Filled in from the Toil project when it names one." />
+            <TextField label="Jira project key (required)" value={jiraProject} onChange={setJiraProject} required hint={jiraProject.trim() === '' ? 'Type the key of a Jira project, such as PAY, before you press Read the fields. toil needs it to find sample issues. Filled in from the Toil project when it names one.' : 'Filled in from the Toil project when it names one.'} />
           ) : (
             <TextField label="Issue keys" value={keys} onChange={setKeys} hint="Separated by spaces or commas, up to 20." />
           )}
-          <p className="runs">
-            Runs <code>{readLine}</code>
-          </p>
           <div className="setup__actions">
             <button type="button" className="btn btn--accent" onClick={() => void read()} disabled={!ready || reading.kind === 'reading'} data-find-read="">
               {reading.kind === 'reading' ? 'Reading…' : 'Read the fields'}
             </button>
           </div>
-          {reading.kind === 'reading' && <Loader size="panel" message={how === 'auto' ? `Reading one issue of each type in ${jiraProject.trim()} with toil jira field discover…` : `Reading ${issueKeys.length} issue${issueKeys.length === 1 ? '' : 's'} with toil jira field discover…`} />}
+          {reading.kind === 'reading' && <Loader size="panel" message={how === 'auto' ? `Reading one issue of each type in ${jiraProject.trim()}…` : `Reading ${issueKeys.length} issue${issueKeys.length === 1 ? '' : 's'}…`} />}
           {reading.kind === 'failed' && <OutcomeLine outcome={reading.outcome} />}
           {data && reading.kind === 'read' && (
             <>
@@ -189,20 +196,6 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
               {data.fields.length > 0 && (
                 <div className="find-fields__save">
                   <p className="note">{picks.length === 0 ? 'Tick the fields to name.' : `${picks.length} field${picks.length === 1 ? '' : 's'} ticked. Only the ones toil is sure of start ticked.`}</p>
-                  {commands.length > 0 && (
-                    <details open={commands.length <= 4}>
-                      <summary>
-                        Runs {commands.length} toil command{commands.length === 1 ? '' : 's'}
-                      </summary>
-                      <ul className="plain">
-                        {commands.map((c) => (
-                          <li key={c.line} className="any-break">
-                            Runs <code>{c.line}</code>
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
-                  )}
                   {badAlias && (
                     <p className="failure" role="alert">
                       A name is a camelCase word, such as storyPoints: change “{badAlias.alias}”.
@@ -220,14 +213,14 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
                 <ul className="plain find-fields__results" aria-label="What happened to each name">
                   {results.map((r) => (
                     <li key={r.line} className={r.ok ? 'any-break' : 'failure any-break'}>
-                      <code>{r.line}</code>: {r.ok ? 'saved' : `failed. ${r.message}${r.fix ? ` Fix: ${r.fix}` : ''}`}
+                      {r.label}: {r.ok ? 'saved' : `failed. ${r.message}${r.fix ? ` Fix: ${r.fix}` : ''}`}
                     </li>
                   ))}
                 </ul>
               )}
               {saved && !saving && (
                 <p role="status" className="find-fields__done" data-find-done="">
-                  {results!.filter((r) => r.ok).length} of {results!.length} saved{saved.file ? <> in <Path value={saved.file} what="the Toil project file" /></> : null}. Nothing was changed in Jira.
+                  {results!.filter((r) => r.ok).length} of {results!.length} saved. Nothing was changed in Jira.
                   {failed.length > 0 && (
                     <>
                       {' '}
@@ -300,25 +293,38 @@ function TypeTable({ type, data, ticked, aliases, onTick, onAlias }: { type: Dis
 /**
  * The setup wizard's optional step: the Jira connection and Toil project the
  * person just linked or chose, so there is nothing to type but the Jira project
- * key. Skippable like every step.
+ * key. Optional: the page offers a Not now choice that counts as done, and the
+ * wizard's Next waits for one of the two.
  */
-export function FieldsStep({ config, made, existing, project, projects }: { config: ConfigApi; made: Record<string, string>; existing: Array<Pick<ConnectionRow, 'name' | 'area'>>; project: string | null; projects: string[] }) {
+export function FieldsStep({ config, made, existing, project, projects, onSaved, later, onLater, onBusy }: { onSaved?: (() => void) | undefined; later: boolean; onLater: (on: boolean) => void; onBusy?: ((busy: boolean) => void) | undefined; config: ConfigApi; made: Record<string, string>; existing: Array<Pick<ConnectionRow, 'name' | 'area'>>; project: string | null; projects: string[] }) {
   const connection = made.jira ?? existing.find((c) => c.area === 'jira')?.name ?? null;
+  const [choice, setChoice] = useState<'name' | 'later'>(later ? 'later' : 'name');
   return (
     <>
       <p>
-        <strong>Optional.</strong> Skip it if you like: you can do this later under Settings, Toil projects.
+        <strong>Recommended.</strong> Naming your story points and sprint fields is what lets the sprint card and burn-up show real numbers. It takes two presses: <strong>Read the fields</strong>, then <strong>Name these fields</strong>.
       </p>
       {!connection ? (
         <p className="note" data-find-none="">
-          Jira isn't linked, so there is nothing to read. Skip this step.
+          Jira isn't linked, so there is nothing to read here. Carry on.
         </p>
       ) : !project ? (
         <p className="note" data-find-none="">
-          Choose or create a Toil project first (Back), then come here. Or skip this step.
+          There is no Toil project to name the fields in yet. Carry on, or go Back to choose or create one.
         </p>
       ) : (
-        <FindFields config={config} toilProjects={projects.includes(project) ? projects : [project, ...projects]} toilProject={project} connections={[{ name: connection, area: 'jira' }]} connection={connection} />
+        <>
+          <RadioGroup className="agent-adapters" value={choice} aria-label="Name your Jira fields now?" onChange={(v) => (setChoice(v === 'later' ? 'later' : 'name'), onLater(v === 'later'))}>
+            <Radio value="name" className="agent-choice">
+              <strong>Name my Jira fields now</strong>
+            </Radio>
+            <Radio value="later" className="agent-choice">
+              <strong>Not now</strong>
+              <span className="note">Do it later under Settings, Toil projects.</span>
+            </Radio>
+          </RadioGroup>
+          {choice === 'name' && <FindFields config={config} toilProjects={projects.includes(project) ? projects : [project, ...projects]} toilProject={project} connections={[{ name: connection, area: 'jira' }]} connection={connection} onSaved={onSaved} onBusy={onBusy} />}
+        </>
       )}
     </>
   );

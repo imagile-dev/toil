@@ -70,7 +70,18 @@ export const githubArea = defineArea({
       schema: pathIdSchema('A GitHub repository name'),
     },
   },
-  probe: () => ({ path: '/user' }),
+  // /user answers as the token's own user even when a fine-grained token was given no repository, so when the connection names
+  // one, read it too; the expiry GitHub reports on the token, and a classic token's scopes, come back in the headers.
+  probe: (connection) => ({
+    path: '/user',
+    inspect: (headers) => {
+      const raw = headers.get('github-authentication-token-expiration');
+      const parsed = raw ? Date.parse(raw.replace(' UTC', 'Z').replace(' ', 'T')) : Number.NaN;
+      const scopes = headers.get('x-oauth-scopes');
+      return { expires: Number.isNaN(parsed) ? null : new Date(parsed).toISOString().slice(0, 10), scopes: scopes === null ? null : scopes.split(',').map((s) => s.trim()).filter(Boolean) };
+    },
+    ...(connection.owner && connection.repo ? { deeper: [{ path: `/repos/${encodeURIComponent(connection.owner)}/${encodeURIComponent(connection.repo)}`, what: `reading the repository ${connection.owner}/${connection.repo} it names` }] } : {}),
+  }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Bearer ${connection.token}` },

@@ -208,8 +208,9 @@ gets made again in the next place it applies.
   (`src/core/network.ts`). The floor also has to be a release patched for every
   known remote code execution in Node, so it is each line's release that fixes
   CVE-2026-111497 (24.22.1 and 26.12.1, #479), and 25.x, which gets no fix, is
-  refused. On any other Node the CLI prints one `UNSUPPORTED_NODE` envelope naming
-  the CVE and exits 1 (`src/core/runtime.ts`). A test that is skipped on one platform says why in its name.
+  flagged. On any other Node toil still runs (the maintainer's call, 2026-11-09), but the CLI
+  prints a large stderr warning naming the CVE and the API adds an `UNSUPPORTED_NODE`
+  entry to `meta.warnings` on every call (`src/core/runtime.ts`). A test that is skipped on one platform says why in its name.
 
 ## No Executables
 
