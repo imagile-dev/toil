@@ -10,8 +10,7 @@
  * - **One at a time by default.** Queued assignments start in order as
  *   slots free up (`concurrent` in the settings).
  * - **A time limit per run.** At the limit the run is aborted and the
- *   assignment fails saying so; a usage cap stops it the same way through
- *   the agent's own caps (#295), and says which.
+ *   assignment fails saying so.
  * - **The tracker only queues.** An item labelled `agent:<mode>` or assigned
  *   to one of the toil project's agents becomes a queued assignment waiting for
  *   Start, which only a person presses (principle 2).
@@ -68,7 +67,7 @@ export class AssignError extends Error {
   }
 }
 
-/** Thrown by a runner that stopped short: at a usage cap, on an injection attempt, or failing. */
+/** Thrown by a runner that stopped short: on an injection attempt, or failing. */
 export class RunStopped extends Error {
   constructor(
     readonly reason: Stop['reason'],

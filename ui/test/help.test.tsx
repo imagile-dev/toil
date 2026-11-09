@@ -123,8 +123,12 @@ describe('edit links', () => {
   it('routes a settings page to the place an edit link names', () => {
     expect(parseRoute('#/settings/connections/corp-jira')).toEqual({ view: 'settings', page: 'connections', at: ['corp-jira'] });
     expect(parseRoute('#/settings/projects/card-payments/wip')).toEqual({ view: 'settings', page: 'projects', at: ['card-payments', 'wip'] });
-    expect(parseRoute('#/settings/agent-usage/caps')).toEqual({ view: 'settings', page: 'usage', at: ['caps'] });
-    expect(parseRoute('#/settings/agent/caps')).toEqual({ view: 'settings', page: 'usage', at: ['caps'] });
+    expect(parseRoute('#/settings/usage/rates')).toEqual({ view: 'settings', page: 'usage', at: ['rates'] });
+    expect(parseRoute('#/settings/agent-usage/rates')).toEqual({ view: 'settings', page: 'usage', at: ['rates'] });
+    // The caps card held the rates, so its old addresses land on them.
+    expect(parseRoute('#/settings/usage/caps')).toEqual({ view: 'settings', page: 'usage', at: ['rates'] });
+    expect(parseRoute('#/settings/agent-usage/caps')).toEqual({ view: 'settings', page: 'usage', at: ['rates'] });
+    expect(parseRoute('#/settings/agent/caps')).toEqual({ view: 'settings', page: 'usage', at: ['rates'] });
     expect(parseRoute('#/settings/agent')).toEqual({ view: 'settings', page: 'agent' });
     // General is first: the bare address, its own and the old one all open it.
     expect(parseRoute('#/settings')).toEqual({ view: 'settings', page: 'general' });

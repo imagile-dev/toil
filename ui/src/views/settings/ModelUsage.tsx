@@ -2,9 +2,8 @@
  * Settings, Usage, the AI agent half (#295): what the helper's models used over the last
  * 30 days, by day, AI agent, model and toil project, and the chats that used the
  * most, all added up in the page by the meter's one function from the
- * records the server keeps in its local cache. Below that, the caps, each
- * off until it's turned on, and the rates Codex's dollar figure is computed
- * from. A CSV of the records downloads from here; nothing is sent anywhere.
+ * records the server keeps in its local cache. Under the totals, the rates Codex's
+ * dollar figure is computed from. A CSV of the records downloads from here; nothing is sent anywhere.
  * The figures are the SDKs' own reports, and the page says the vendor's bill
  * is the authority. It sits under the audit summary on the Usage page (#309),
  * and the tables and the audit detail share one "More detail". A budget office, staffed by the budget.
@@ -17,8 +16,6 @@ import { Help, useLandOn } from '../../components/help.tsx';
 import { dateTime, day } from '../../format.ts';
 import {
   ADAPTER_LABEL,
-  CAP_SETTINGS,
-  UNIT_LABEL,
   addUp,
   amount,
   compact,
@@ -28,8 +25,6 @@ import {
   modelLabel,
   totalsBy,
   usageCsv,
-  type CapKey,
-  type CapUnit,
   type UsageAdapter,
   type UsageRecord,
   type UsageSettings,
@@ -85,7 +80,7 @@ export function ModelUsage({ api, landOn = null, detail = null }: { api: ModelUs
       live = false;
     };
   }, [api]);
-  // An edit link to the caps (#346) lands on their heading once the figures have loaded.
+  // An edit link to the Codex rates (#346) lands on their heading once the figures have loaded.
   useLandOn(landOn, view !== null || problem !== null);
 
   if (!api) return <><p className="failure">This app can't read what the AI agent used, so there is nothing to show.</p>{detail && <MoreDetail>{detail}</MoreDetail>}</>;
@@ -169,7 +164,7 @@ function Loaded({ view, api, onSaved, detail }: { view: UsageView; api: ModelUsa
         </div>
       </Card>
 
-      <CapsForm view={view} api={api} onSaved={onSaved} />
+      <RatesForm view={view} api={api} onSaved={onSaved} />
 
       <MoreDetail>
       <Card as="section" className="panel" aria-labelledby="model-usage-adapters">
@@ -246,30 +241,21 @@ function Loaded({ view, api, onSaved, detail }: { view: UsageView; api: ModelUsa
   );
 }
 
-type CapRow = { on: boolean; unit: CapUnit; limit: string };
 type RateRow = { input: string; cached: string; output: string };
 
-const capRows = (s: UsageSettings): Record<CapKey, CapRow> =>
-  Object.fromEntries(
-    CAP_SETTINGS.map((c) => {
-      const v = s.caps[c.key];
-      return [c.key, v && v !== 'off' ? { on: true, unit: v.unit, limit: String(v.limit) } : { on: false, unit: c.units[0], limit: '' }];
-    }),
-  ) as Record<CapKey, CapRow>;
-
 /**
- * The caps and Codex rates. A cap is off until its box is ticked, and an "on"
- * cap's limit is sent as typed: the server refuses anything that isn't a
- * number above 0, naming the setting, rather than read it as 0 or off.
+ * The Codex rates: what Toil UI computes each Codex answer's dollar figure
+ * from, since the SDK reports tokens only. The rates are sent as typed: the
+ * server refuses anything that isn't a number of 0 or more, naming the
+ * setting, rather than read it as 0.
  */
-function CapsForm({ view, api, onSaved }: { view: UsageView; api: ModelUsageApi; onSaved: (v: UsageView) => void }) {
-  const [rows, setRows] = useState(() => capRows(view.settings));
+function RatesForm({ view, api, onSaved }: { view: UsageView; api: ModelUsageApi; onSaved: (v: UsageView) => void }) {
   const r = view.settings.codexRates;
   const [rates, setRates] = useState<RateRow>(() => ({ input: r ? String(r.inputPerMillion) : '', cached: r ? String(r.cachedInputPerMillion) : '', output: r ? String(r.outputPerMillion) : '' }));
   const [problem, setProblem] = useState<string | null>(null);
   const [saved, setSaved] = useState('');
   const [busy, setBusy] = useState(false);
-  const off = view.sample ? "This preview shows sample caps, so they can't be saved." : null;
+  const off = view.sample ? "This preview shows sample rates, so they can't be saved." : null;
 
   // A number as typed goes as a number; anything else goes as the text, for the server to refuse by name.
   const number = (text: string) => (text.trim() !== '' && Number.isFinite(Number(text)) ? Number(text) : text);
@@ -279,14 +265,13 @@ function CapsForm({ view, api, onSaved }: { view: UsageView; api: ModelUsageApi;
     setSaved('');
     const anyRate = rates.input.trim() || rates.cached.trim() || rates.output.trim();
     const settings = {
-      caps: Object.fromEntries(CAP_SETTINGS.map((c) => [c.key, rows[c.key].on ? { unit: rows[c.key].unit, limit: number(rows[c.key].limit) } : 'off'])),
       codexRates: anyRate ? { inputPerMillion: number(rates.input), cachedInputPerMillion: number(rates.cached), outputPerMillion: number(rates.output) } : null,
     } as unknown as UsageSettings;
     setBusy(true);
     try {
       const next = await api.save(settings);
       onSaved(next);
-      setSaved('Saved. The next question is held to these caps.');
+      setSaved('Saved. Codex answers from now on carry a dollar figure from these rates.');
     } catch (err) {
       setProblem(err instanceof Error ? err.message : String(err));
     } finally {
@@ -295,53 +280,22 @@ function CapsForm({ view, api, onSaved }: { view: UsageView; api: ModelUsageApi;
   };
 
   return (
-    <Card as="section" className="panel" aria-labelledby="model-usage-caps">
-      <h2 id="model-usage-caps" tabIndex={-1}>
-        Caps
+    <Card as="section" className="panel" aria-labelledby="model-usage-rates">
+      <h2 id="model-usage-rates" tabIndex={-1}>
+        Codex rates
       </h2>
       <p className="lede">
-        Optional, and off until you turn one on. Codex reports usage when an answer ends, so its cap refuses the next question rather than stopping one partway. <Help topic="caps" />
+        The Codex SDK reports tokens and no dollar figure. With your rates, Toil UI computes one for each Codex answer from now on, labelled as computed from your rates. Leave all three empty for none.
       </p>
       {view.problem && (
         <p role="alert" className="failure">
-          {view.problem} Until the caps can be read, the agent answers nothing.
+          {view.problem} Until the rates can be read, Codex answers carry no dollar figure.
         </p>
       )}
       {off && <p className="note">{off}</p>}
-      <form className="caps-form" onSubmit={(e) => void submit(e)}>
-        <fieldset className="caps-grid" disabled={!!off || busy}>
-          <legend className="sr-only">Caps per chat and per day</legend>
-          {CAP_SETTINGS.map((c) => {
-            const row = rows[c.key];
-            const set = (patch: Partial<CapRow>) => setRows((rs) => ({ ...rs, [c.key]: { ...rs[c.key], ...patch } }));
-            const id = `cap-${c.key.replace('.', '-')}`;
-            return (
-              <div key={c.key} className="cap-row" data-cap={c.key}>
-                <label className="cap-on">
-                  <input type="checkbox" checked={row.on} onChange={(e) => set({ on: e.target.checked })} />
-                  {ADAPTER_LABEL[c.adapter]}, {c.scope === 'chat' ? 'per chat' : 'per day'}
-                </label>
-                <label htmlFor={`${id}-limit`} className="sr-only">
-                  {ADAPTER_LABEL[c.adapter]} {c.scope === 'chat' ? 'per-chat' : 'per-day'} limit
-                </label>
-                <input id={`${id}-limit`} className="cap-limit" inputMode="decimal" value={row.limit} disabled={!row.on} placeholder={row.on ? 'limit' : 'off'} onChange={(e) => set({ limit: e.target.value })} />
-                <label htmlFor={`${id}-unit`} className="sr-only">
-                  {ADAPTER_LABEL[c.adapter]} {c.scope === 'chat' ? 'per-chat' : 'per-day'} unit
-                </label>
-                <select id={`${id}-unit`} value={row.unit} disabled={!row.on} onChange={(e) => set({ unit: e.target.value as CapUnit })}>
-                  {c.units.map((u) => (
-                    <option key={u} value={u}>
-                      {UNIT_LABEL[u]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            );
-          })}
-        </fieldset>
+      <form className="rates-form" onSubmit={(e) => void submit(e)}>
         <fieldset className="rates-grid" disabled={!!off || busy}>
-          <legend>Codex rates, in dollars per million tokens</legend>
-          <p className="note">The Codex SDK reports tokens and no dollar figure. With your rates, Toil UI computes one for each Codex answer from now on, labelled as computed from your rates. Leave all three empty for none.</p>
+          <legend>In dollars per million tokens</legend>
           {(
             [
               ['input', 'Input'],
@@ -357,7 +311,7 @@ function CapsForm({ view, api, onSaved }: { view: UsageView; api: ModelUsageApi;
         </fieldset>
         <div className="conn-actions">
           <button type="submit" className="btn btn--accent" disabled={!!off || busy}>
-            Save caps and rates
+            Save rates
           </button>
           <span className="runs" role="status">
             {saved}

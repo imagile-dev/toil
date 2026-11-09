@@ -8,7 +8,7 @@ import type { Agent, Answer } from '../src/agent.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import { fixtureModelUsage, SAMPLE_USAGE_SETTINGS, sampleUsageRecords } from '../src/fixtures/model-usage.ts';
+import { fixtureModelUsage, sampleUsageRecords } from '../src/fixtures/model-usage.ts';
 import { addUp, compact, type ChatTurn, type ModelUsageApi, type UsageSettings, type UsageView } from '../src/model-usage.ts';
 
 /**
@@ -49,7 +49,7 @@ function reportingAgent(asked: ChatTurn[]): Agent {
       }
       return {
         ...answer,
-        usage: { adapter: 'copilot', records: [{ id: `copilot:e${turn}`, chatId: chat!.id, turn, toilProject, adapter: 'copilot', model: 'gpt-5-mini', inputTokens: 3000, cachedInputTokens: 1000, outputTokens: 200, premiumRequests: 1, costSource: 'none', at }], context: { used: 7400, window: 128000 }, notices: ["This chat has used 41,000 tokens of Codex's per-chat cap of 50,000 tokens (82%)."] },
+        usage: { adapter: 'copilot', records: [{ id: `copilot:e${turn}`, chatId: chat!.id, turn, toilProject, adapter: 'copilot', model: 'gpt-5-mini', inputTokens: 3000, cachedInputTokens: 1000, outputTokens: 200, premiumRequests: 1, costSource: 'none', at }], context: { used: 7400, window: 128000 }, notices: ["Toil UI's saved Codex rates can't be read: the file isn't JSON. Save the rates again under Settings, Usage, which rewrites them."] },
       };
     },
   };
@@ -73,8 +73,9 @@ describe('the chat', () => {
     const second = screen.getAllByRole('group', { name: 'What this answer used' })[1]!;
     expect(second.textContent).toContain('GitHub Copilot, gpt-5-mini: 3k in · 200 out · 1k cached · cache write not reported · 1 premium request');
     expect(second.textContent).not.toContain('$');
-    // A cap notice is out in the open, beside the answer's fold rather than inside it.
-    expect(screen.getAllByRole('status').some((n) => n.textContent!.includes('(82%)'))).toBe(true);
+    // The rates notice is out in the open, beside the answer's fold rather than inside it, and its link goes to the rates.
+    expect(screen.getAllByRole('status').some((n) => n.textContent!.includes("saved Codex rates can't be read"))).toBe(true);
+    expect(screen.getByRole('link', { name: 'Edit the Codex rates' }).getAttribute('href')).toBe('#/settings/usage/rates');
 
     // One chat id for the pane, the turns numbered in order.
     expect(asked.map((c) => c.turn)).toEqual([1, 2]);
@@ -89,7 +90,7 @@ describe('the chat', () => {
 
   it('counts what a stopped run used, under its error and in the chat total, as the server does', async () => {
     const usage = { adapter: 'claude' as const, records: [{ id: 'claude:msg_1', chatId: 'c', turn: 1, toilProject: 'card-payments', adapter: 'claude' as const, model: 'claude-sonnet-4-6', inputTokens: 600, outputTokens: 50, cachedInputTokens: 1000, costSource: 'none' as const, at: FIXTURE_NOW }], notices: [] };
-    const agent: Agent = { ...scriptedAgent(), stream: undefined, ask: async () => Promise.reject(Object.assign(new Error("Claude's per-chat cap stopped this question: this chat has used 1,650 tokens, and the cap is 1,000 tokens."), { usage })) };
+    const agent: Agent = { ...scriptedAgent(), stream: undefined, ask: async () => Promise.reject(Object.assign(new Error('Claude stopped this question partway.'), { usage })) };
     await open('#/project/card-payments', { agent });
     await openChat('card-payments');
     await userEvent.click(within(screen.getByRole('group', { name: 'Starter questions' })).getAllByRole('button')[0]!);
@@ -118,13 +119,13 @@ describe('Settings, Usage, the AI agent half', () => {
     const nav = screen.getByRole('navigation', { name: 'Settings pages' });
     expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(['General', 'Connections', 'Toil projects', 'Appearance', 'Usage', 'AI agent']);
     await screen.findByRole('heading', { name: 'What your AI agent used' });
-    // The AI agent's tables are behind the page's one More detail; the caps are not.
+    // The AI agent's tables are behind the page's one More detail; the Codex rates are not.
     expect(container.querySelector('[data-usage-more]')!.querySelectorAll('summary')[0]!.textContent).toBe('More detail');
     const all = addUp(sampleUsageRecords());
     expect(screen.getByText('These are sample figures, made up for the preview. No model reported them.')).toBeTruthy();
     const totals = container.querySelector('.usage-totals')!;
     expect(totals.textContent).toContain(compact(all.tokens!));
-    for (const name of ['By AI agent', 'By model', 'By Toil project', 'Chats that used the most', 'Caps']) expect(screen.getByRole('heading', { name })).toBeTruthy();
+    for (const name of ['By AI agent', 'By model', 'By Toil project', 'Chats that used the most', 'Codex rates']) expect(screen.getByRole('heading', { name })).toBeTruthy();
     const adapters = screen.getByRole('table', { name: 'Usage by AI agent' });
     expect(within(adapters).getAllByRole('rowheader').map((c) => c.querySelector('.l-table__value')!.textContent).sort()).toEqual(['Claude', 'Codex', 'GitHub Copilot']);
     // Copilot's row is premium requests, never dollars.
@@ -135,39 +136,33 @@ describe('Settings, Usage, the AI agent half', () => {
     expect(await violations(container)).toEqual([]);
   }, AXE);
 
-  it('shows the sample caps with saving off in the preview', async () => {
+  it('shows the Codex rates with saving off in the preview', async () => {
     await open('#/settings/usage');
-    await screen.findByRole('heading', { name: 'Caps' });
-    expect(screen.getByText("This preview shows sample caps, so they can't be saved.")).toBeTruthy();
-    const codexChat = document.querySelector('[data-cap="codex.chat"]')!;
-    expect((within(codexChat as HTMLElement).getByRole('checkbox') as HTMLInputElement).checked).toBe(true);
-    expect((within(codexChat as HTMLElement).getByRole('textbox') as HTMLInputElement).value).toBe(String((SAMPLE_USAGE_SETTINGS.caps['codex.chat'] as { limit: number }).limit));
-    expect((screen.getByRole('button', { name: 'Save caps and rates' }) as HTMLButtonElement).disabled).toBe(true);
-    // The rows say who and per what, in plain words, never the setting's own id.
-    expect(codexChat.textContent).toContain('Codex, per chat');
-    expect(codexChat.textContent).not.toContain('codex.chat');
+    await screen.findByRole('heading', { name: 'Codex rates' });
+    expect(screen.getByText("This preview shows sample rates, so they can't be saved.")).toBeTruthy();
+    expect(document.querySelector('[data-cap]')).toBeNull();
+    expect((screen.getByRole('button', { name: 'Save rates' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('sends a cap as typed, and shows the refusal naming the setting rather than saving 0 or off', async () => {
+  it('sends a rate as typed, and shows the refusal naming the setting rather than saving 0', async () => {
     const sent: UsageSettings[] = [];
-    const view: UsageView = { since: '2026-09-14T00:00:00.000Z', now: FIXTURE_NOW, records: [], retentionDays: 30, settings: { caps: {}, codexRates: null }, problem: null, sample: false };
+    const view: UsageView = { since: '2026-09-14T00:00:00.000Z', now: FIXTURE_NOW, records: [], retentionDays: 30, settings: { codexRates: null }, problem: null, sample: false };
     const api: ModelUsageApi = {
       view: async () => view,
       save: async (s) => {
         sent.push(s);
-        throw new Error('codex.chat: the limit "fifty" isn\'t a number above 0. Give a number above 0, or set codex.chat to "off" to turn the cap off.');
+        throw new Error("codexRates.inputPerMillion must be a number of dollars per million tokens, 0 or more, not \"cheap\". Enter the rate from your OpenAI price list, or clear all three rates.");
       },
     };
     await open('#/settings/usage', { modelUsage: api });
-    await screen.findByRole('heading', { name: 'Caps' });
+    await screen.findByRole('heading', { name: 'Codex rates' });
     expect(screen.getByText(/No chat has used a model in this window yet/)).toBeTruthy();
-    const row = document.querySelector('[data-cap="codex.chat"]') as HTMLElement;
-    await userEvent.click(within(row).getByRole('checkbox'));
-    await userEvent.type(within(row).getByRole('textbox'), 'fifty');
-    await userEvent.click(screen.getByRole('button', { name: 'Save caps and rates' }));
-    expect((await screen.findByRole('alert')).textContent).toContain('codex.chat: the limit "fifty"');
-    expect(sent[0]!.caps['codex.chat']).toEqual({ unit: 'tokens', limit: 'fifty' });
-    expect(sent[0]!.caps['claude.chat']).toBe('off');
+    await userEvent.type(screen.getByLabelText('Input'), 'cheap');
+    await userEvent.type(screen.getByLabelText('Cached input'), '0.1');
+    await userEvent.type(screen.getByLabelText('Output'), '5');
+    await userEvent.click(screen.getByRole('button', { name: 'Save rates' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('codexRates.inputPerMillion');
+    expect(sent[0]).toEqual({ codexRates: { inputPerMillion: 'cheap', cachedInputPerMillion: 0.1, outputPerMillion: 5 } });
   });
 });
 
