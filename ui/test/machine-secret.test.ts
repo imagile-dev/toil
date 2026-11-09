@@ -54,9 +54,9 @@ describe('the machine secret file', () => {
 
   it('refuses, with the fix, a secret it cannot read or write, rather than run without one', () => {
     const dir = folder();
-    // A folder where the file should be: reading it fails with something other than "not there".
+    // A path through a file: Windows says it isn't there and the write then fails, Linux fails the read first (ENOTDIR); either way it refuses.
     writeFileSync(join(dir, 'x'), '');
-    expect(() => loadMachineSecret(join(dir, 'x', 'sub'))).toThrow(/can't write its machine secret/);
+    expect(() => loadMachineSecret(join(dir, 'x', 'sub'))).toThrow(/can't (read|write) its machine secret/);
   });
 });
 
