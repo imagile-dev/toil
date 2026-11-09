@@ -15,9 +15,9 @@ import { projectStatusCommand } from './projects.js';
 
 const BASE = { owner: 'imagile', repo: 'toil-probe' };
 
-async function run(def: AnyCommand, input: Record<string, unknown>, routes: Route[] = fixture.routes!) {
+async function run(def: AnyCommand, input: Record<string, unknown>, routes: Route[] = fixture.routes!, extra: object = {}) {
   const t = testContext({ config: { github: { ...fixture.config!.github } }, routes, files: fixture.files! });
-  const envelope = await execute(def, input, t.context);
+  const envelope = await execute(def, input, { ...t.context, ...extra });
   return { envelope, calls: t.http.calls };
 }
 
@@ -95,5 +95,16 @@ describe('github project status', () => {
     const denied = { data: null, errors: [{ type: 'INSUFFICIENT_SCOPES', message: 'Your token has not been granted the required scopes' }] };
     const { envelope } = await run(projectStatusCommand, move, graphql(read([statusItem()]), denied));
     expect(envelope.error).toMatchObject({ code: 'AUTH', message: expect.stringContaining("can't change the Status of item PVTI_abc12345"), fix: expect.stringContaining('read:project') });
+  });
+
+  it("an unadopted toil project's owner never blocks --item, which does not use it, but does block the project and number form", async () => {
+    // A checked-in toil project (never adopted) that says the owner is someone else.
+    const unadopted = { toilProject: (area: string, key: string) => (area === 'github' && key === 'owner' ? 'someone-else' : key === 'repo' ? 'elsewhere' : undefined), adopted: () => false };
+    const byItem = await run(projectStatusCommand, { item: 'PVTI_abc12345', to: 'Todo', allowWrite: true }, fixture.routes!, unadopted);
+    expect(byItem.envelope.error?.code).not.toBe('WRITE_DISABLED');
+    expect(byItem.envelope.data).toMatchObject({ to: 'Todo', changed: true });
+    const byNumbers = await run(projectStatusCommand, { project: '3', number: '9', to: 'Done', allowWrite: true }, fixture.routes!, unadopted);
+    expect(byNumbers.envelope.error).toMatchObject({ code: 'WRITE_DISABLED', message: expect.stringContaining("which you haven't adopted") });
+    expect(byNumbers.calls).toHaveLength(0);
   });
 });

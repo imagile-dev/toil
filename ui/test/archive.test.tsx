@@ -241,7 +241,7 @@ describe('the archive in Settings, Toil projects', () => {
     };
     await open('#/settings/projects', execute, settings);
     const card = await screen.findByRole('article', { name: 'settlement' });
-    await user.click(within(card).getByRole('button', { name: 'More actions for settlement' }));
+    await user.click(within(card).getByRole('button', { name: 'Menu for settlement' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Archive' }));
     await waitFor(() => expect(config.runs).toContainEqual({ command: 'projects archive', input: { toilProject: 'settlement' } }));
     await waitFor(() => expect(screen.queryByRole('article', { name: 'settlement' })).toBeNull());

@@ -117,7 +117,7 @@ export function guideSystem(context: string, pages: readonly DocPage[], now: str
     '```',
     `   The commands you may suggest, and nothing else:\n${COMMAND_TABLE}`,
     `   The page shows each as a card with a Run this button the person presses. Never say a change was made: it is only suggested. At most ${MAX_GUIDE_PROPOSALS} suggestions.`,
-    '5. Be brief and specific: short paragraphs of plain text (no Markdown, no headings, no bold). Say AI helper, not agent; code review, not pull request; Toil project, not dossier.',
+    '5. Be brief and specific: short paragraphs of plain text (no Markdown, no headings, no bold). Say AI agent; code review, not pull request; Toil project, not dossier.',
     '',
     'What is true now (the only things you know about this person\'s setup):',
     context,

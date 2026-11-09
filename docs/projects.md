@@ -9,7 +9,7 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
 - host selectors, environments and the write rule
 - `meta.context.toilProject`
 - `toil projects list | show | check | context`, which read
-- `toil projects init | add-repo | link | env | field | person | people suggest | people save | wip-limit | describe | export | import | unlink | remove`, which
+- `toil projects init | add-repo | link | env | field | person | people suggest | people save | wip-limit | describe | archive | unarchive | export | import | unlink | remove`, which
   build and share (`src/core/toil-project.ts`, `src/projects/`)
 - `toil projects migrate`, which moves your own `~/.toil/dossiers/*.json` to `~/.toil/projects/` (#555, `src/projects/migrate.ts`)
 - `toil projects onboard`, which sets a reader up for a repository's toil project (#333,

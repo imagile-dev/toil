@@ -621,7 +621,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
       case 'POST agent/guide': {
         // The setup guide (#561). The refusal comes first, before the body is read any further: a message that looks like a secret is never passed on, kept or logged.
         const body = await readJson(req);
-        if (!agent.guide) throw new HttpError(404, 'This Toil UI has no setup guide.', 'Start toil-ui without --sample, with an AI helper chosen in Settings.');
+        if (!agent.guide) throw new HttpError(404, 'This Toil UI has no setup guide.', 'Start toil-ui without --sample, with an AI agent chosen in Settings.');
         if (typeof body.message !== 'string' || !body.message.trim()) throw new HttpError(400, 'A question needs its text.', 'Send { "chat": "<chat id>", "message": "<question>", "state": { "step": "connect", "areas": [] } }.');
         if (body.message.length > GUIDE_MAX || looksLikeSecret(body.message)) throw new HttpError(400, GUIDE_REFUSAL, GUIDE_REFUSAL_FIX);
         if (typeof body.chat !== 'string' || !CHAT_ID.test(body.chat)) throw new HttpError(400, 'Name the chat by its id: letters, digits and hyphens.', 'Send chat as an id of 8 to 64 letters, digits and hyphens.');

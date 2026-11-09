@@ -86,7 +86,6 @@ export function Overview() {
         </p>
       )}
       <NeedsAttention cards={cards} />
-      {worklog && <StandupCard api={worklog} />}
       {/* What principle 4 keeps on screen when the fold is closed: a red reason no card covers, and what couldn't be read. */}
       {(alerts.length > 0 || view.unchecked.length > 0) && (
         <div className="reasons briefing__alerts" data-alerts="">
@@ -119,6 +118,7 @@ export function Overview() {
           )}
         </div>
       )}
+      {worklog && <StandupCard api={worklog} />}
       <details
         className="briefing__full"
         open={prefs.fullOpen}

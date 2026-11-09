@@ -189,6 +189,8 @@ h1:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
 .project-links { padding-bottom: 0.75rem; border-bottom: 1px solid var(--line); }
 /* The project picker beside the brand: its name is cut to fit, never wrapped onto a second row. */
 .project-switch { gap: 0.35rem; max-width: 16rem; }
+/* A column of its own on every item, so the names line up whether or not one carries the mark. */
+.project-switch__check { display: inline-block; width: 1.25em; }
 .project-switch__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A running sync: a small card over the page's lower corner, out of the flow, so the page never moves for it.
    It is only as big as the card, so nothing else is covered; on a phone it is full width and short, along the bottom edge. */
@@ -336,3 +338,6 @@ tbody th { font-weight: 400; }
 }
 /* "Reduce motion and effects" in Settings (#271, src/motion.ts) stops the same things. */
 :root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+
+/* A link alone in a note, or an item named in an evidence line, has a hit area of at least 24px (WCAG 2.5.8) without changing how it reads. */
+.back-link, .evidence .item-link { display: inline-block; min-height: 24px; padding-block: 2px; box-sizing: border-box; }

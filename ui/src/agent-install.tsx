@@ -22,10 +22,9 @@ import { usePlain } from './plain-words.ts';
 /** What the preview's Install shows instead of running anything. */
 export const INSTALL_PREVIEW = 'This is the preview, so nothing is installed. Toil UI on your own machine runs this command when you press Install.';
 
+/** Two plain lines on where one helper stands. Package names, file locations and npm's own notes stay out of sight; what must be fixed is said above, and what Install will do is shown before it runs. */
 export function statusLines(a: AdapterStatus): string[] {
-  const sdk = a.installed ? `${a.package} ${a.version ?? ''} is installed beside Toil UI`.replace('  ', ' ') : `${a.package} isn't installed beside Toil UI; Toil UI was tested with ${a.tested}`;
-  const cli = a.cli.path ? `It would start ${a.cli.path}` : `${a.cli.problem ?? 'Its CLI was not found.'}${a.cli.fix ? ` ${a.cli.fix}` : ''}`;
-  return [`${sdk}.`, cli.endsWith('.') ? cli : `${cli}.`, ...a.notes];
+  return [a.installed ? `${a.label} is connected to Toil UI.` : `${a.label} isn't connected to Toil UI yet.`, a.cli.path ? `Toil UI can start ${a.label}.` : `${a.cli.problem ?? `Toil UI can't start ${a.label} yet.`}${a.cli.fix ? ` ${a.cli.fix}` : ''}`];
 }
 
 /**

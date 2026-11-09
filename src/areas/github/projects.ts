@@ -126,7 +126,7 @@ async function projectsCall<T>(owner: string, what: string, call: () => Promise<
     if (denied) throw new ToilError('AUTH', `The GitHub token can't ${verb} ${what}: ${denied.message ?? 'missing scope'}`, { fix: SCOPES });
     if (errors.some((e) => e.type === 'NOT_FOUND')) {
       throw new ToilError('NOT_FOUND', `GitHub found no ${what}: ${errors.find((e) => e.type === 'NOT_FOUND')?.message ?? ''}`.trim(), {
-        fix: `Check --owner (${owner}) and the project number, and that the token can see the project. ${SCOPES}`,
+        fix: `Check ${owner ? `--owner (${owner}) and the project number` : 'the item id'}, and that the token can see the project. ${SCOPES}`,
       });
     }
     if (errors.some((e) => e.extensions?.code === 'undefinedField' || e.extensions?.code === 'undefinedType' || /doesn't exist on type|unknown type/i.test(e.message ?? ''))) {
@@ -299,7 +299,8 @@ export const projectStatusCommand = githubArea.command({
       throw new ToilError('INVALID_INPUT', 'Say which item to move: the project and issue numbers, or --item.', { fix: 'Pass <project> <number> (toil github project status 3 9 --to Done), or --item <project item id> from project items.' });
     }
     const wanted = input.to.trim();
-    let owner = ctx.context.owner ?? '';
+    // Read only where a path needs it: core refuses a write whose owner came from an unadopted toil project, and --item never uses it.
+    let owner = '';
     let found: StatusItem;
     if (byItem) {
       // The item id says which project it is on, so the owner and repo core resolved were never used.

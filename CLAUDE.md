@@ -321,7 +321,7 @@ GitHub Actions; its build tooling is out of scope.
   (`secret-input.ts`), and
   JMESPath (`query/`, behind `--select` and `toil wait --until`), and `toil wait`
   (`wait.ts`), which runs a read through `execute()` once per attempt
-- `src/connections/` — `toil connections add | login | list | remove | test | writes | default | migrate | import`; `import-command.ts` is `import` and `import/` its pure parsers, one per tool (DBeaver, SSMS, pgAdmin, DataGrip, ...), which map a tool's file to `db` connections and never carry a secret (`docs/bounds.md`, `connections.import`)
+- `src/connections/` — `toil connections add | login | list | remove | test | scopes | writes | default | migrate | import`; `import-command.ts` is `import` and `import/` its pure parsers, one per tool (DBeaver, SSMS, pgAdmin, DataGrip, ...), which map a tool's file to `db` connections and never carry a secret (`docs/bounds.md`, `connections.import`)
 - `src/setup/` — `toil setup alias | remove-alias`, the `toil` alias for a clone
   (CLI only; the profile editing is `src/core/shell-profile.ts`)
 - `src/skills/` — the skills folders and marketplace clones (`docs/bounds.md`,
@@ -329,7 +329,7 @@ GitHub Actions; its build tooling is out of scope.
   skill itself (`bundled.ts`, and `skill install | show` in `skill-commands.ts`); the
   `skills` area's own commands are in `src/areas/skills/`
 - `src/projects/` — `toil projects list | show | check | context` (`commands.ts`),
-  `init | add-repo | link | env | field | person | wip-limit | analyze set | describe | export | import | unlink | remove` (`build.ts`),
+  `init | add-repo | link | env | field | person | people suggest | people save | wip-limit | analyze set | describe | archive | unarchive | export | import | unlink | remove` (`build.ts`),
   `onboard` (`onboard.ts`), and `brief | analyze show | analyze prompt` (`brief.ts`); the
   model, resolution and writing are `src/core/toil-project.ts`, and the briefing's lenses,
   its reader and the Analyze prompt are `src/core/brief/`, which Toil UI reads too
@@ -429,13 +429,13 @@ GitHub Actions; its build tooling is out of scope.
   from source where it needs them in the page (`src/core/brief/`, the briefing and
   the Analyze prompt, #494; `src/core/owi/similar.ts`; the workflow pages in `skills/toil/workflows/`, read when it is built for its Review, Ship and Diagram jobs, #532), which is why it releases with
   the toil it needs; the server answers both behind its `Store`
-  and `Agent` interfaces, behind a launch token. It reads by default and writes only
+  and `Agent` interfaces, behind a machine-secret cookie and loopback, Host, Origin and Fetch Metadata checks (#561). It reads by default and writes only
   what a person presses: a worklog export, through `util encode --out` and toil's file
   service (#308), and the connection and toil project changes Settings runs through toil's
   own commands (`CONFIG_COMMANDS`, #253), each behind its own write gate, including a
-  toil project's name and description (`projects describe`, #342). Each agent run starts
+  toil project's name and description (`projects describe`, #342) and, on a press after a failed install, one `registry=<url>` line in the user npmrc (`ui/server/agents/npmrc.ts`). Each agent run starts
   that agent's own CLI through its SDK (#251). The server itself spawns one thing:
-  `npm install` of an agent SDK the repo already pins, from Settings → Agent, shown
+  `npm install` of an agent SDK the repo already pins, from Settings → AI agent, shown
   first and run on a press, in `ui/server/agents/install.ts`, the only server file
   `check:package` lets spawn (#344). Themes are in
   `ui/themes/` (CSS, JSON and assets only, built in only: each game theme's

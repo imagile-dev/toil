@@ -152,13 +152,6 @@ export function SprintLine({ sprint }: { sprint: PreviewSprint }) {
 
 export type Described = { name: string; description: string | null; renamed: { from: string; to: string } | null };
 
-/**
- * The name or the description, with a pencil beside it that opens an inline
- * field. Enter saves through `toil projects describe`, Escape cancels, and a
- * refusal shows toil's message and fix under the field, which stays open.
- * Without a config path that may change anything (the preview), there's no
- * pencil.
- */
 /** The name and description edited together: one form, one Save, one `projects describe` call holding only what changed. */
 export function EditDetails({ toilProject, name, description, config, onSaved, onClose }: { toilProject: string; name: string; description: string | null; config: ConfigApi | null; onSaved: (d: Described) => void; onClose: () => void }) {
   const [nameText, setName] = useState(name);
@@ -227,6 +220,13 @@ export function EditDetails({ toilProject, name, description, config, onSaved, o
   );
 }
 
+/**
+ * The name or the description, with a pencil beside it that opens an inline
+ * field. Enter saves through `toil projects describe`, Escape cancels, and a
+ * refusal shows toil's message and fix under the field, which stays open.
+ * Without a config path that may change anything (the preview), there's no
+ * pencil.
+ */
 export function Editable({
   field,
   toilProject,

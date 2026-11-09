@@ -225,6 +225,18 @@ describe('the New Toil project wizard', () => {
     expect(screen.queryByRole('button', { name: /^Retry/ })).toBeNull();
   });
 
+  it('disables a writes-on connection that is not the main one of its tool, with the reason beside it', async () => {
+    const risky = { ...row('alt-jira', 'jira', false), writes: true };
+    const { config } = machine({ connections: [row('corp-jira', 'jira', true), risky] });
+    await open(config);
+    await toTools();
+    const box = (await screen.findByRole('checkbox', { name: /alt-jira/ })) as HTMLInputElement;
+    expect(box.disabled).toBe(true);
+    expect(box.closest('li')!.textContent).toContain("Can't link here");
+    expect((screen.getByRole('checkbox', { name: /corp-jira/ }) as HTMLInputElement).disabled).toBe(false);
+    expect((screen.getByRole('checkbox', { name: /corp-jira/ }) as HTMLInputElement).checked).toBe(true);
+  });
+
   it('with Not now everywhere, runs only projects init, and offers no Jira fields', async () => {
     const { config, calls } = machine({ connections: [row('corp-github', 'github', true)] });
     await open(config);

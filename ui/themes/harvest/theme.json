@@ -104,7 +104,7 @@
     "graph.note": "Arrows run the way each link reads, from the source's own links. Blocking chains run left to right, like water downhill.",
     "ask.note": "Answers cite the items they rest on. The almanac reads; it never changes a ticket. What it suggests comes back as a proposal for you to plant.",
     "ask.welcome": "Ask about {name}: what is growing, who is tending what, where the fence is down. Every answer says which rows it was picked from.",
-    "empty.toilProjects": "The fields are fallow: toil sees no Toil projects yet. A Toil project is sown with toil projects init.",
+    "empty.toilProjects": "The fields are fallow: toil sees no Toil projects yet.",
     "empty.sprint": "No season is under way in this Toil project's work items.",
     "empty.burnup": "No season is under way, so there is no harvest to chart.",
     "empty.column": "Bare soil.",

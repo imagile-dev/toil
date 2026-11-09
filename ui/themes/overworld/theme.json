@@ -109,7 +109,7 @@
     "graph.note": "Arrows run the way each link reads, from the source's own links. Blocking chains run left to right: follow the key path.",
     "ask.note": "Answers cite the items they rest on. The sage reads; it never changes a ticket. What it advises comes back as a proposal for you to carry out.",
     "ask.welcome": "Ask the sage about {name}: how the journey goes, who carries which quest, which doors are locked. Every answer names the items it rests on.",
-    "empty.toilProjects": "The map is blank: toil sees no Toil projects yet. A Toil project is charted with toil projects init.",
+    "empty.toilProjects": "The map is blank: toil sees no Toil projects yet.",
     "empty.sprint": "No journey is under way in this Toil project's work items.",
     "empty.burnup": "No journey is under way, so there is no trail to chart.",
     "empty.column": "An empty room.",

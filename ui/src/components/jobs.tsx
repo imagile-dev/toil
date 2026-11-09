@@ -135,7 +135,7 @@ export function DiagramLink() {
   const { toilProject } = useData();
   return (
     <p className="note jobs-link">
-      <a href={jobHref(toilProject.name, 'map-codebase')} data-job-link="map-codebase">
+      <a href={jobHref(toilProject.name, 'map-codebase')} data-job-link="map-codebase" className="nowrap">
         Draw its architecture
       </a>
     </p>

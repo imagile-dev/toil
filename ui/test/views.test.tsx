@@ -1174,10 +1174,12 @@ describe('settings', () => {
     const { config, sent } = recording();
     await open('#/settings/projects', { config });
     const card = await screen.findByRole('article', { name: 'settlement' });
-    await userEvent.click(within(card).getByRole('button', { name: 'Check' }));
+    await userEvent.click(within(card).getByRole('button', { name: /^Menu for / }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Check' }));
     expect(await within(card).findByText('settlement checks out: no problems.')).toBeTruthy();
     expect(within(card).getByText('settlement checks out: no problems.').closest('[role="status"]')).toBeTruthy();
-    await userEvent.click(within(card).getByRole('button', { name: 'Show' }));
+    await userEvent.click(within(card).getByRole('button', { name: /^Menu for / }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Show details' }));
     expect(within(card).getByRole('table').textContent).toContain('corp-ado (toil-project)');
 
     expect(screen.queryByRole('form', { name: 'Create a Toil project' })).toBeNull();
@@ -1189,7 +1191,7 @@ describe('settings', () => {
     window.location.hash = '#/settings/projects/card-payments/fields';
     await screen.findByRole('heading', { level: 2, name: 'Edit card-payments' });
     const field = screen.getByRole('form', { name: 'Name a field in card-payments' });
-    await userEvent.type(within(field).getByRole('textbox', { name: /^Alias/ }), 'storyPoints');
+    await userEvent.type(within(field).getByRole('textbox', { name: /^Name/ }), 'storyPoints');
     await userEvent.type(within(field).getByRole('textbox', { name: /^Field id/ }), 'customfield_10002');
     await userEvent.click(within(field).getByRole('button', { name: 'Name field' }));
     await userEvent.click(screen.getByText('Sources'));
@@ -1393,10 +1395,10 @@ describe('settings', () => {
     const rows = [...document.querySelectorAll('.helper-row[data-adapter]')];
     expect(rows.map((r) => r.getAttribute('data-state'))).toEqual(['new', 'new', 'new']);
     expect(rows[0]!.textContent).toContain('Not set up yet');
-    // The package, the tested version and the CLI problem are one step in, behind the details.
+    // The CLI problem is one step in; package names and npm notes aren't on screen, behind the details.
     const fold = rows[0]!.querySelector('details')!;
     expect(fold.open).toBe(false);
-    expect(fold.textContent).toContain('@anthropic-ai/claude-agent-sdk');
+    expect(fold.textContent).not.toContain('@anthropic-ai/claude-agent-sdk');
     expect(fold.textContent).toContain('Toil UI found no claude on PATH');
     // Models, CLI path and endpoint are advanced: behind a fold, below the steps.
     expect((choice.querySelector('details[data-advanced]') as HTMLDetailsElement).open).toBe(false);
@@ -1875,7 +1877,8 @@ describe('the people view (#292)', () => {
   it('shows the people and the limit on the settings page, with forms to add a person and set the limit', async () => {
     await open('#/settings/projects');
     const card = await screen.findByRole('article', { name: 'card-payments' });
-    await userEvent.click(within(card).getByRole('button', { name: 'Show' }));
+    await userEvent.click(within(card).getByRole('button', { name: /^Menu for / }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Show details' }));
     await waitFor(() => expect(card.textContent).toContain('J. Smith jira jsmith, bitbucket jsmith'));
     expect(card.textContent).toContain('Work-in-progress limit: 2 per person.');
     window.location.hash = '#/settings/projects/card-payments/people';

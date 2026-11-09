@@ -40,7 +40,7 @@ export function ProjectSwitcher({ current, toilProjects, tab, loaded = true }: {
         <Menu className="menu" aria-label="Toil projects">
           {projectEntries(current, toilProjects, tab).map((e) => (
             <MenuItem key={e.key} id={e.key} href={e.href} className="menu-item" textValue={e.label} data-current={e.current || undefined}>
-              <span aria-hidden="true">{e.current ? '✓ ' : ''}</span>
+              <span aria-hidden="true" className="project-switch__check">{e.current ? '✓' : ''}</span>
               {e.label}
               {e.current && <span className="sr-only"> (current)</span>}
             </MenuItem>

@@ -17,6 +17,7 @@
  * door with a different sign on it, which is the only kind the facilities
  * committee ever approves.
  */
+import { nodeWarning } from './core/runtime.js';
 import { homedir } from 'node:os';
 import type { z } from 'zod';
 import type { AnyArea, ChoiceSet } from './core/area.js';
@@ -30,7 +31,6 @@ import { createSecretStore, type SecretStore } from './core/keychain.js';
 import type { ProgressEvent } from './core/progress.js';
 import type { Prompter } from './core/prompt.js';
 import { runCommand } from './core/run.js';
-import { nodeWarning } from './core/runtime.js';
 import { checkSecret as checkSecretInput, type SecretCheck, type SecretRules } from './core/secret-input.js';
 import { inputSchemaFor } from './mcp/server.js';
 import { createNodeContext } from './node-context.js';
@@ -337,16 +337,13 @@ let secrets: SecretStore | undefined;
  * with `ok: false`, like every other. `input` is the command's MCP fields
  * (`{ jql: "project = PAY", limit: 50 }`), checked strictly. On a Node toil
  * flags (`src/core/runtime.ts`, CVE-2026-111497) every envelope carries the
- * warning in `meta.warnings`; the call still runs.
+ * warning in `meta.warnings`, from core like the other front doors; the call still runs.
  */
 export async function execute(command: string, input: Record<string, unknown> = {}, options: ExecuteOptions = {}): Promise<Envelope> {
-  const envelope = await executeCall(command, input, options);
-  const warning = nodeWarning(process.versions.node);
-  return warning ? { ...envelope, meta: { ...envelope.meta, warnings: [{ code: 'UNSUPPORTED_NODE', message: warning }, ...(envelope.meta.warnings ?? [])] } } : envelope;
-}
-
-async function executeCall(command: string, input: Record<string, unknown>, options: ExecuteOptions): Promise<Envelope> {
-  const refuse = (message: string, fix: string): Envelope => failure(new ToilError('INVALID_INPUT', message, { fix }), { command, durationMs: 0, version: VERSION });
+  // The API's own refusals never reach core, so they carry the unpatched-Node warning here.
+  const unpatched = nodeWarning(process.versions.node);
+  const refuse = (message: string, fix: string): Envelope =>
+    failure(new ToilError('INVALID_INPUT', message, { fix }), { command, durationMs: 0, version: VERSION, ...(unpatched ? { warnings: [{ code: 'UNSUPPORTED_NODE', message: unpatched }] } : {}) });
   const def = byName.get(command) ?? (options.person ? personByName.get(command) : undefined);
   if (!def) {
     const known = commands.find((d) => commandName(d) === command);

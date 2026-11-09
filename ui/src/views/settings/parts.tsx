@@ -71,7 +71,10 @@ export function ChangeForm({
   titleId,
   blockedBy = null,
   onBlocked,
+  quietTitle = false,
 }: {
+  /** The heading only repeats the section it sits in: it stays for screen readers and for a link to land on, but isn't drawn. */
+  quietTitle?: boolean;
   /** Why Save can't run yet, in one line ("Choose Cloud or Data Center first"). The button stays and says so; pressing it points at what's missing. */
   blockedBy?: string | null;
   onBlocked?: () => void;
@@ -105,7 +108,7 @@ export function ChangeForm({
   };
   return (
     <form className="change" aria-labelledby={titleId ?? `${id}-title`} onSubmit={handle} noValidate>
-      <h3 id={titleId ?? `${id}-title`} tabIndex={titleId ? -1 : undefined}>
+      <h3 id={titleId ?? `${id}-title`} tabIndex={titleId ? -1 : undefined} className={quietTitle ? 'sr-only' : undefined}>
         {title}
       </h3>
       <p className="explain">{explain}</p>

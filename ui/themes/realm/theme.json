@@ -114,7 +114,7 @@
     "graph.note": "Arrows run the way each link reads, from the source's own links. Blocking chains run left to right across the war table, room to room as on a dungeon map.",
     "ask.note": "Answers cite the items they rest on. The dungeon master narrates; it never changes a ticket. What it counsels comes back as a proposal, for you to seal.",
     "ask.welcome": "Ask the dungeon master about {name}: this season's ledger, the party and their charges, which roads are broken. Every answer names the records it rests on, and no roll changes them.",
-    "empty.toilProjects": "The ledgers are empty: toil sees no Toil projects yet. A campaign begins with toil projects init.",
+    "empty.toilProjects": "The ledgers are empty: toil sees no Toil projects yet.",
     "empty.sprint": "No sprint is entered in this Toil project's work items, so there are no hit points to count.",
     "empty.burnup": "No sprint is entered, so there is no experience to reckon.",
     "empty.column": "None stand here.",

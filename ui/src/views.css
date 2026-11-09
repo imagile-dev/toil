@@ -28,6 +28,9 @@
 .menu-item[data-selected] { font-weight: 600; }
 .menu-item[data-selected]::after { content: "\2713"; margin-left: auto; padding-left: 1rem; }
 .menu-header { padding: 0.4rem 0.75rem 0.2rem; font-size: 0.8125rem; font-weight: 600; color: var(--muted); }
+.nowrap { white-space: nowrap; }
+/* A heading that takes focus by script (a wizard moving to its next step) shows no ring; keyboard focus elsewhere keeps its own. */
+.focus-quiet:focus, .focus-quiet:focus-visible { outline: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* Status chips, avatars and insight chips. */

@@ -188,7 +188,7 @@ export function Setup({ config, agent, guide, keep, onSync }: SetupProps) {
       <div className="setup__layout" {...(guided && ready ? { 'data-guided': '' } : {})}>
       <Card as="section" className="panel setup__card" aria-labelledby="setup-title">
         <div className="setup__title">
-          <h1 id="setup-title" tabIndex={-1} ref={heading}>
+          <h1 id="setup-title" tabIndex={-1} ref={heading} className="focus-quiet">
             {title}
           </h1>
           <Help topic="setup" />
@@ -258,12 +258,11 @@ function Tools({ tools, connections, picked, onPick, later, onLater }: { tools: 
     const have = connections.filter((c) => c.area === a.name).map((c) => c.name);
     return (
       <li key={a.name} className="setup__tool">
-        <label>
+        <label {...(a.description ? { title: a.description } : {})}>
           <input type="checkbox" checked={picked.includes(a.name)} onChange={() => toggle(a.name)} data-setup-tool={a.name} />
           <span>
             <strong>{toolName(a.name)}</strong>
             {have.length > 0 && <span className="tag tag--accent">Already linked: {have.join(', ')}</span>}
-            <span className="note">{a.description}</span>
           </span>
         </label>
       </li>

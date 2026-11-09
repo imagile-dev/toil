@@ -2,9 +2,8 @@
    and the change forms. Colours come from the theme's tokens, so Plain and
    Crate both style them; every control is at least 44px tall. */
 
-/* The tabs share the row evenly, and on a phone fall into even rows of two rather than leave one on its own. */
-.subnav ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), max-content)); gap: 0.25rem; list-style: none; padding: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
-@media (max-width: 600px) { .subnav ul { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* The tabs size to their words with an even gap, and wrap onto a second row on a phone. */
+.subnav ul { display: flex; flex-wrap: wrap; gap: 0 1.25rem; list-style: none; padding: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
 .subnav a { display: flex; align-items: center; min-height: 44px; padding: 0 0.75rem; color: var(--ink); text-decoration: none; border-bottom: 3px solid transparent; }
 .subnav a:hover { border-bottom-color: var(--line); }
 .subnav a[aria-current="page"] { border-bottom-color: var(--accent); font-weight: 600; }

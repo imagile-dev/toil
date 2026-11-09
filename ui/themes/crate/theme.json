@@ -89,7 +89,7 @@
     "graph.note": "Arrows run the way each link reads, from the source's own links. Blocking chains are stacked left to right.",
     "ask.note": "Answers cite the crates they rest on. The agent reads the manifest; it never changes a ticket. What it suggests comes back as a proposal, for you to sign for.",
     "ask.welcome": "Ask about {name}: what is on the floor, who is loading what, what is stuck in the aisle. Every answer comes with its paperwork: the items it rests on.",
-    "empty.toilProjects": "No consignments on the floor: toil sees no Toil projects yet. One is made with toil projects init.",
+    "empty.toilProjects": "No consignments on the floor: toil sees no Toil projects yet.",
     "empty.sprint": "No sprint is on the loading schedule for this Toil project's work items.",
     "empty.burnup": "No sprint is on the schedule, so there is nothing to tally.",
     "empty.column": "Bay empty.",

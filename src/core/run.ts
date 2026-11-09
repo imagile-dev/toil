@@ -1,3 +1,4 @@
+import { nodeWarning } from './runtime.js';
 import { z } from 'zod';
 import { areaOf, changesAnythingFor, commandName, isCliOnly, managesConfig, takesAllowWrite, usesConnection, writesFor, type AnyCommand } from './command.js';
 import type { Connection, ContextInput } from './area.js';
@@ -171,7 +172,9 @@ export const DEFAULT_TIMEOUT_MS = 120_000;
 export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, via: FrontDoor = 'cli', how: CallOptions = {}): Promise<Envelope> {
   const started = performance.now();
   const requests: RequestLog[] = [];
-  const warnings: Warning[] = [...ctx.config.warnings];
+  // An unpatched Node is said in every envelope, on every front door (src/core/runtime.ts), not only in the API's.
+  const unpatched = nodeWarning(process.versions.node);
+  const warnings: Warning[] = [...(unpatched ? [{ code: 'UNSUPPORTED_NODE', message: unpatched }] : []), ...ctx.config.warnings];
   let page: Page | undefined;
   let response: ApiAnswer | undefined;
   let transition: TransitionReport | undefined;

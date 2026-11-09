@@ -1,5 +1,5 @@
 ---
-description: Toil UI's eight themes, themed wording and the agent's voice, the checkboxes that set how far a theme goes and whether its particles run, theme moments and toil tips, Plain's fonts, and how the agent's prompt is composed.
+description: Toil UI's eight themes, themed wording and the agent's voice, the checkboxes that set how far a theme goes and how much it moves, theme moments and toil tips, Plain's fonts, and how the agent's prompt is composed.
 lead: How far a Toil UI theme goes, and what it never changes.
 ---
 
@@ -22,9 +22,9 @@ Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the r
 | Frontier | Steampunk on the wild west frontier: brass, copper and riveted iron over sun-bleached desert wood, panels framed in riveted brass, pressure gauges on the tallies, the dependency graph as a railroad survey map | A dry telegraph operator | Decorative |
 | Overworld | A top-down 16-bit adventure: an overworld map at the page's edges, panels as dungeon rooms walled in stone, a pixel face for headings only, a heart meter for the sprint's days left and a gem counter for its points, chests that open as work is done, the dependency graph as a dungeon map where a blocker is a locked door | An old sage in a cave | Decorative |
 
-Every theme comes in a light and a dark scheme. Appearance, in Settings, General, under the theme, or from the command palette, chooses one, or System (the default), which follows your operating system's light or dark setting. An address can pick one too, for example `?theme=realm&scheme=dark`. Appearance is kept in this browser only, never in toil's config; the welcome menu uses the same two schemes, picked for your terminal's background.
+Every theme comes in a light and a dark scheme. Light or dark, in Settings, Appearance, or from the command palette, chooses one, or System (the default), which follows your operating system's light or dark setting. An address can pick one too, for example `?theme=realm&scheme=dark`. Appearance is kept in this browser only, never in toil's config; the welcome menu uses the same two schemes, picked for your terminal's background.
 
-Crate is the default, here and in the welcome menu a bare `toil` opens. The theme picker is in the header (in the Menu on a narrow screen) and in Settings, General. A `?theme=` in the address opens a view in that theme, for example `?theme=realm`, and this browser remembers it like a choice made in the picker.
+Crate is the default, here and in the welcome menu a bare `toil` opens. The theme picker is in Settings, Appearance (the header shows no picker on a Toil project's pages). A `?theme=` in the address opens a view in that theme, for example `?theme=realm`, and this browser remembers it like a choice made in the picker.
 
 The theme is also toil's own setting, `"theme"` in `~/.toil/config.json`, which the welcome menu a bare `toil` opens follows too. A pick in Toil UI writes it with `toil theme set`, and Toil UI opens in the theme it names, so `toil theme set realm` in a terminal changes both. `TOIL_THEME` overrides the file for both. A browser that had a theme saved before the setting existed keeps it until you pick one. If toil can't save a pick, the page shows the theme anyway and says why it wasn't saved. With sample data, the theme is this browser's alone.
 
@@ -66,7 +66,7 @@ To add a key: put it in `FUNCTIONAL` or `FLAVOUR` in `src/wording.ts` (a label a
 
 ## Fonts
 
-A theme's fonts are its default, and **Settings, General, Font** lists them first, as "The theme's own", then a curated set of pairings (heading and body, and sometimes mono) made **only of fonts already bundled with Toil UI** (the `@fontsource` files the theme stylesheets import; `test/fonts.test.ts` holds every pair to that). It never fetches a font from the network (principle 9). The pick is applied as `--font-display`, `--font-body` and `--font-mono` on the root, above the theme's CSS, so colour, radius and art stay the theme's; each stack ends with the theme's own and then system fonts, and a pair whose files won't load puts the theme back on its own fonts and says so in the console. It is kept in this browser like the theme, and `?font=<id>` in the address sets it.
+A theme's fonts are its default, and **Settings, Appearance, Font** lists them first, as "The theme's own", then a curated set of pairings (heading and body, and sometimes mono) made **only of fonts already bundled with Toil UI** (the `@fontsource` files the theme stylesheets import; `test/fonts.test.ts` holds every pair to that). It never fetches a font from the network (principle 9). The pick is applied as `--font-display`, `--font-body` and `--font-mono` on the root, above the theme's CSS, so colour, radius and art stay the theme's; each stack ends with the theme's own and then system fonts, and a pair whose files won't load puts the theme back on its own fonts and says so in the console. It is kept in this browser like the theme, and `?font=<id>` in the address sets it.
 
 The curated pairs are IBM Plex Sans, Rounded headings (Fredoka over Plex), Serif headings (Source Serif 4 over Plex), Slab serif (Bitter), Garamond (EB Garamond), Exo 2, Code face (Fira Code, mono too) and Pixel headings (Pixelify Sans over Plex). Body text stays readable: a pair's body font must be a bundled **text** face, never a pixel or display face, unless it is the theme's own body.
 
@@ -89,15 +89,14 @@ In Realm, a past day on the worklog's calendar with nothing on its page, or no p
 
 ## The checkboxes
 
-Settings, General has the theme picker and, under it, these checkboxes:
+Settings, Appearance has the theme picker and, under it, these checkboxes:
 
 | Checkbox | Default | Off means |
 |---|---|---|
-| Themed wording | Off | The plain text in every theme; with it on, a theme words only its flavour keys (see **Words**) |
+| Themed wording | On | The plain text in every theme; with it on, a theme words only its flavour keys (see **Words**) |
 | Themed agent voice | Off | The agent answers in plain wording, whatever the theme |
-| Particles and ambient effects | On | The theme's particles are gone: nothing is drawn and nothing runs behind the page |
 
-**Particles and ambient effects** shows only for a theme that has particles, and it's kept for each theme on its own, so particles can be off in Starship and on in Harvest. Under the theme's description, the picker says which particles the theme has and whether they're on.
+Particles follow **Motion** (below), not a checkbox of their own.
 
 Plain has no wording or voice of its own, so while Plain is chosen both boxes are off and can't be changed, and the page says why. Both are kept in this browser with the theme, like the motion settings, and never in toil's config. `?wording=off` or `?voice=off` in the address switches one off, and `=on` switches it back on; either is then remembered in this browser like a click on the box.
 
@@ -107,7 +106,7 @@ Every adapter (Claude, GitHub Copilot and Codex) gets the same system prompt, bu
 
 1. **The rules.** The same in every theme: use only Toil UI's read tools, cite every item as `[[id]]`, write any change as a fenced proposal block for you to apply, keep to plain text, and say plainly when the data doesn't show something.
 2. **Style.** The theme's voice, or your custom voice, but only while Themed agent voice is on and the theme has a voice. It ends by saying the rules win: the style changes phrasing only.
-3. **Your instructions.** Your general instructions from Settings, Agent, if you wrote any. They end by saying the rules win, and that they can't give the agent a tool or let it change anything.
+3. **Your instructions.** Your general instructions from Settings, AI agent, if you wrote any. They end by saying the rules win, and that they can't give the agent a tool or let it change anything.
 
 The page sends the server only the theme's name and whether the voice is on. The voice text comes from the server's own copy of the theme, so a page can choose a voice but can't write one into the prompt. Claude gets the prompt as its system prompt, Copilot as a replacement system message, and Codex, which has no separate system prompt, at the start of the turn. The server's citation check doesn't change: it still flags any id the agent's tools never returned.
 
@@ -137,11 +136,11 @@ Answer in British English. Lead with risks.
 These instructions come from the person using Toil UI. Follow them where they fit the rules above; where they disagree, the rules win. They can't give you a tool, and nothing in them lets you change anything.
 ````
 
-**Show the full prompt**, under Settings, Agent, shows exactly this for your own setup: a question about the first Toil project toil lists, in the theme on screen, with the voice switch and what you saved. The preview shows it for its sample Toil project, card-payments.
+**Show the full prompt**, under Settings, AI agent, shows exactly this for your own setup: a question about the first Toil project toil lists, in the theme on screen, with the voice switch and what you saved. The preview shows it for its sample Toil project, card-payments.
 
 ## Custom instructions and a custom voice
 
-Settings, Agent has two boxes of your own, each up to 4,000 characters, with a counter under it:
+Settings, AI agent has two boxes of your own, each up to 4,000 characters, with a counter under it:
 
 - **General instructions** go into every answer, in any theme, voice on or off. For example: "Answer in British English" or "Lead with risks".
 - **Custom voice** replaces the theme's voice. It's used only while Themed agent voice is on and the theme has a voice, so it does nothing in Plain.
@@ -163,15 +162,14 @@ The (i) in the chat's strip says which voice the answers are in, which agent is 
 
 The seven game themes move a little: dust drifting in the blue glow and the site's slow drafting grid in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers, a faint candle flicker and a d20 that tumbles while a view loads in Realm, rain on a slant, a blinking cursor and a brief glitch as a page opens in Sprawl, desert dust on the wind with steam rising from the foot of the page in Frontier, and fairies wandering as motes of light in Overworld, where a chest hops open as a card reaches Done and a key is lifted as one gets under way. Plain doesn't move. No theme plays sound.
 
-Three settings decide what moves, in this order:
+Two settings decide what moves, in this order:
 
 1. **Your operating system's reduced-motion setting.** When it asks for less, nothing moves, whatever Toil UI is set to.
-2. **Reduce motion and effects**, under Settings, General. Ticked, nothing moves: no animations and no particles.
-3. **Particles and ambient effects**, under the theme picker, for each theme that has particles. Off takes that theme's particles away entirely. Everything else, such as transitions and Crate's drifting grid, keeps following the motion setting.
+2. **Motion**, one select under Settings, Appearance: Full, Subtle or Off. Off is what reduced motion was: nothing moves, no animations and no particles. Subtle also turns the theme's particles off and keeps the rest quieter.
 
-Each theme says which particles it has in its `theme.json`, as `"ambient": { "particles": "dust" }`, so the switch knows what it controls. The two Toil UI choices are kept in this browser only, never in toil's config.
+Each theme says which particles it has in its `theme.json`, as `"ambient": { "particles": "dust" }`, so the setting knows what it controls. The Toil UI choice is kept in this browser only, never in toil's config.
 
-A theme's splash, loading screens and moments follow a fourth setting, **Theme motion** (Theme moments, below), which reads off whenever either of the first two asks for less.
+A theme's splash, loading screens and moments follow the same **Motion** setting (Theme moments, below), which reads off whenever either of the two asks for less.
 
 ## Theme moments
 
@@ -191,11 +189,11 @@ A loading screen shows the theme's art, its progress motif, and the real progres
 
 An event moment comes from the facts the worklog keeps (**Worklog** in [Toil UI](https://imagile-dev.github.io/toil/docs/ui/)): each sync records what it sees, and a moment plays only for a fact that sync recorded for the first time. A Toil project's first sync plays nothing, since everything in its history would be new, and neither does a fact from before the last good sync. The moment says the plain word ("Done", "Build failed") and, while **Themed wording** is on, the theme's word beside it, as in "Signed off (Done)".
 
-You can see every moment of the theme you're in from **Preview the theme's moments**, a menu under **Settings, General**, Theme: the launch splash, a loading screen, and each event moment. With Theme motion off, the splash and the moments are greyed out in it. A preview's progress text is a sample, and says so, and the splash's preview is handed a sample sprint's day, so Realm's die shows a 7.
+You can see every moment of the theme you're in from **Preview the theme's moments**, a menu under **Settings, Appearance**: the launch splash, a loading screen, and each event moment. With Motion off, the splash and the moments are greyed out in it. A preview's progress text is a sample, and says so, and the splash's preview is handed a sample sprint's day, so Realm's die shows a 7.
 
-### Theme motion
+### Motion
 
-**Theme motion**, under Settings, General, Motion and effects, says how much the moments move:
+**Motion**, the one select under Settings, Appearance, says how much the moments and particles move:
 
 | Setting | What it does |
 |---|---|
@@ -203,7 +201,7 @@ You can see every moment of the theme you're in from **Preview the theme's momen
 | Subtle | The same moments, shorter and smaller, with the loading screens' art held still and only their progress motif moving |
 | Off | Every moment is an instant change: no splash, no entrance, no transition, no event moment. Loading screens are the theme's still art and the progress text |
 
-Theme motion is **off whenever reduced motion is asked for**: your operating system's reduced-motion setting, or **Reduce motion and effects** ticked. That makes off the default for anyone who has reduced motion set, and the page says so beside the setting. It's kept in this browser only, with the other motion settings.
+Motion is **off whenever reduced motion is asked for**: your operating system's reduced-motion setting, or **Motion** set to Off. That makes off the default for anyone who has reduced motion set, and the page says so beside the setting. It's kept in this browser only, with the other motion settings.
 
 Every moment moves only by `transform` and `opacity`, which the browser composites without repainting the page, and nothing moves while the tab is hidden. A glitch or flicker, such as Sprawl's cold boot tearing into the skyline, flashes no more than three times a second (WCAG 2.3.1), and only on a dark picture.
 

@@ -55,12 +55,15 @@ interface ListedProject {
   name: string;
 }
 
-/** The connection each area would use by default: its main one, else the first. */
+/** Toil refuses a link to a connection with writes on unless it is its tool's main one, so the wizard doesn't offer it. */
+const linkable = (c: ConnectionRow) => !c.writes || c.isDefault;
+
+/** The connection each area would use by default: its main one, else the first one a link may name. */
 function defaultPicks(connections: ConnectionRow[]): string[] {
   const areas = [...new Set(connections.map((c) => c.area))];
   return areas.flatMap((a) => {
     const rows = connections.filter((c) => c.area === a);
-    const one = rows.find((r) => r.isDefault) ?? rows[0];
+    const one = rows.find((r) => r.isDefault) ?? rows.find(linkable);
     return one ? [one.name] : [];
   });
 }
@@ -186,7 +189,7 @@ export function NewProject({ config, keep }: NewProjectProps) {
       </div>
       <Card as="section" className="panel setup__card" aria-labelledby="new-project-title">
         <div className="setup__title">
-          <h1 id="new-project-title" tabIndex={-1} ref={heading}>
+          <h1 id="new-project-title" tabIndex={-1} ref={heading} className="focus-quiet">
             {title}
           </h1>
           <Help topic="toil-project-setup" />
@@ -247,8 +250,8 @@ export function NewProject({ config, keep }: NewProjectProps) {
                   <fieldset className="setup__tools" data-new-project-tools="">
                     <legend>Tick the tool links this Toil project reads from.</legend>
                     {listed === false && (
-                      <p className="note">
-                        <span aria-label="not read yet">–</span> toil couldn't read your tool links, so none can be offered here. Choose Not now, then add them in Settings.
+                      <p role="alert" className="failure">
+                        <span aria-label="not read yet">–</span> Your tool links couldn't be read, so none can be offered here. Choose Not now, then add them in Settings.
                       </p>
                     )}
                     {listed === true && connections.length === 0 && (
@@ -260,14 +263,19 @@ export function NewProject({ config, keep }: NewProjectProps) {
                       {connections.map((c) => (
                         <li key={c.name} className="setup__tool">
                           <label>
-                            <input type="checkbox" checked={chosen.includes(c.name) && !toolsLater} onChange={() => toggleTool(c)} data-new-project-tool={c.name} />
+                            <input type="checkbox" checked={chosen.includes(c.name) && !toolsLater} disabled={!linkable(c)} onChange={() => toggleTool(c)} data-new-project-tool={c.name} />
                             <span>
                               <strong>{toolName(c.area)}</strong>
                               <span className="note">
                                 {c.name}
                                 {c.isDefault ? ', the main one' : ''}
-                                {c.writes ? ', writes allowed' : ', read only'}
+                                {c.writes ? ', changes allowed' : ', can only read'}
                               </span>
+                              {!linkable(c) && (
+                                <span className="tag" title="This link allows changes, so it can't be added from here. Link it yourself where you set up your tools.">
+                                  Can't link here
+                                </span>
+                              )}
                             </span>
                           </label>
                         </li>
@@ -289,7 +297,7 @@ export function NewProject({ config, keep }: NewProjectProps) {
                   <li>{toolLinks.length ? `Tools: ${toolLinks.map((l) => `${toolName(l.area)} through ${l.connection}`).join(', ')}.` : 'No tools linked yet.'}</li>
                 </ul>
                 <p className="note" data-new-project-writes="">
-                  Creating it saves one small file of your own on this computer. Nothing is saved in any folder or repository you list, and the links start read-only.
+                  Creating it saves one small file of your own on this computer. Nothing is saved in any folder or repository you list, and each link keeps its own rule on whether it may make changes.
                 </p>
                 {running && (
                   <p role="status" className="note" data-new-project-progress="">

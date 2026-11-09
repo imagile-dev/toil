@@ -96,7 +96,7 @@ export function Scroller({ label, className, children, hint = 'Scroll sideways f
   const hintId = useId();
   return (
     <div className={cx('l-scroll', className)} data-more-start={edges.start || undefined} data-more-end={edges.end || undefined}>
-      <div ref={ref} className="l-scroll__body" data-scroller="" role="region" aria-label={label} tabIndex={overflowing ? 0 : undefined} aria-describedby={overflowing ? hintId : undefined}>
+      <div ref={ref} className="l-scroll__body" data-scroller="" role="region" aria-label={label} tabIndex={0} aria-describedby={overflowing ? hintId : undefined}>
         {children}
       </div>
       {overflowing && (

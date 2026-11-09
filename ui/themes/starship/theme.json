@@ -100,7 +100,7 @@
     "graph.note": "Arrows run the way each link reads, from the source's own links. Blocking chains plot left to right.",
     "ask.note": "Answers cite the items they rest on. The ship's computer reads; it never changes a ticket. What it suggests comes back as a proposal, for the bridge to authorise.",
     "ask.welcome": "Query the ship's computer about {name}: the mission, the duty roster, the hazards on the heading. It cites every record it used.",
-    "empty.toilProjects": "No missions on the board: toil sees no Toil projects yet. Commission one with toil projects init.",
+    "empty.toilProjects": "No missions on the board: toil sees no Toil projects yet.",
     "empty.sprint": "No sprint is under way in this Toil project's work items. All stations standing by.",
     "empty.burnup": "No sprint is under way, so there is no burn to plot.",
     "empty.column": "Sector clear.",

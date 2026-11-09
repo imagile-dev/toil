@@ -103,7 +103,7 @@
     "graph.note": "Arrows run the way each link reads, from the source's own links. Blocking chains run left to right across the net.",
     "ask.note": "Answers cite the gigs they rest on. The netrunner reads; it never changes a ticket. What it suggests comes back as a proposal, for you to run.",
     "ask.welcome": "Ping the netrunner about {name}: the run, who is on which gig, where the black ICE sits. Every answer cites the records it rests on.",
-    "empty.toilProjects": "No jobs on the wire: toil sees no Toil projects yet. Cut one with toil projects init.",
+    "empty.toilProjects": "No jobs on the wire: toil sees no Toil projects yet.",
     "empty.sprint": "No run is live in this Toil project's work items. The street is quiet.",
     "empty.burnup": "No run is live, so there is nothing to burn up.",
     "empty.column": "Dead channel.",

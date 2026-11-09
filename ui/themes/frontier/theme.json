@@ -105,7 +105,7 @@
     "graph.note": "Arrows run the way each link reads, from the source's own links. Blocking chains run left to right, like track laid west.",
     "ask.note": "Answers cite the claims they rest on. The operator reads the wire; it never changes a ticket. What it suggests comes back as a proposal, for you to sign.",
     "ask.welcome": "Wire the operator about {name}: how the cattle drive is going, who is working which claim, which axles are busted. Every answer names the claims it rests on.",
-    "empty.toilProjects": "Nothing staked yet: toil sees no Toil projects. A claim is filed with toil projects init.",
+    "empty.toilProjects": "Nothing staked yet: toil sees no Toil projects.",
     "empty.sprint": "No cattle drive is under way in this Toil project's work items.",
     "empty.burnup": "No drive is under way, so there are no head to count.",
     "empty.column": "Nobody's staked a claim here.",
