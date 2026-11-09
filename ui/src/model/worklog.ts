@@ -655,7 +655,7 @@ export function eventLine(e: WorklogEvent): string {
   return `- ${timeOf(e.at)} ${subject}${title}: ${cited(e.text, e.refs)}${by}${seen}`;
 }
 
-export const OUTCOME_TEXT: Record<AgentRun['outcome'], string> = { running: 'still running', finished: 'finished', failed: 'failed', stopped: 'stopped before it finished', capped: 'stopped at its cap' };
+export const OUTCOME_TEXT: Record<AgentRun['outcome'], string> = { running: 'still running', finished: 'finished', failed: 'failed', stopped: 'stopped before it finished', capped: 'stopped at a usage cap, before caps were removed' };
 
 /** What the audit log says about a proposal, in words. */
 export function appliedText(a: Applied): string {

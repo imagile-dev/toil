@@ -578,8 +578,8 @@ export class AgentHost implements Agent {
   }
 
   /**
-   * One run, whatever asked for it: loads the SDK, finds the CLI, holds the
-   * prices Codex usage from the person's rates, and settles the usage in the
+   * One run, whatever asked for it: loads the SDK, finds the CLI, prices
+   * Codex usage from the person's rates, and settles the usage in the
    * ledger before the text or the error leaves. Stops on the caller's signal.
    */
   private async once(s: RunSpec): Promise<{ text: string; usage: AnswerUsage }> {
@@ -597,7 +597,7 @@ export class AgentHost implements Agent {
       try {
         rates = loadUsageSettings(this.o.dataDir).codexRates;
       } catch (e) {
-        notices.push(e instanceof UsageSettingsError ? `${e.message} ${e.fix}` : e instanceof Error ? e.message : String(e));
+        notices.push('This answer has no dollar figure: ' + (e instanceof UsageSettingsError ? `${e.message} ${e.fix}` : e instanceof Error ? e.message : String(e)));
       }
     }
     let records: UsageRecord[] = [];

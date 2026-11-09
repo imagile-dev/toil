@@ -55,13 +55,13 @@ export function loadUsageSettings(dataDir: string): UsageSettings {
     text = readFileSync(file, 'utf8');
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') return { ...DEFAULT_USAGE_SETTINGS };
-    throw new UsageSettingsError(`Toil UI couldn't open its saved Codex rates (${(e as NodeJS.ErrnoException).code ?? 'unknown error'}).`, 'Check that this computer lets Toil UI read its own data folder, or save the rates again under Settings, Usage.');
+    throw new UsageSettingsError(`Toil UI couldn't open its saved Codex rates.`, 'Check that this computer lets Toil UI read its own data folder, or save the rates again under Settings, Usage.');
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new UsageSettingsError("Toil UI's saved Codex rates can't be read: the file isn't JSON.", 'Save the rates again under Settings, Usage, which rewrites them.');
+    throw new UsageSettingsError("Toil UI's saved Codex rates can't be read: the file is damaged.", 'Save the rates again under Settings, Usage, which rewrites them.');
   }
   // Files saved before usage caps were removed carry a `caps` key; it is ignored here, and the next save rewrites the file without it.
   if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {

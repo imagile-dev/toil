@@ -1234,13 +1234,18 @@ describe('assignments on the agent host (#293)', () => {
   });
 
   it('records the model Settings gave the adapter when the run starts, so even a run that fails still names it (#318, seen live)', async () => {
-    const { host, rec, dataDir } = hostFor('claude', claudeStub(SCRIPT).module);
+    // A Claude that throws as soon as it is asked, so the run really does fail.
+    const failing = {
+      ...claudeStub(SCRIPT).module,
+      query: () => ({ [Symbol.asyncIterator]: () => ({ next: () => Promise.reject(new Error('the agent fell over')) }) }),
+    };
+    const { host, rec, dataDir } = hostFor('claude', failing);
     const runner = hostRunner({ host, dataDir, registry: registry.commands, execute: rec.execute, mapIds: () => [], data: () => data, version: 't', toilVersion: '0.0.0-test', now: () => FIXTURE_NOW });
     const assignment = { id: 'abc12345-0000-0000-0000-000000000009', toilProject: 'card-payments', item: 'corp-jira:PAY-107', itemTitle: 'x', mode: 'refine', adapter: 'claude', origin: 'person', trigger: null, state: 'working', waiting: null, repo: null, createdAt: FIXTURE_NOW, startedAt: FIXTURE_NOW, endedAt: null, stop: null, report: null, questions: [], proposals: [], usage: null, startedOn: null, branch: null } as const;
     const started: Array<{ adapter: string; model: string | null }> = [];
-    await runner
-      .run({ assignment: { ...assignment, proposals: [], questions: [] }, item: data.items().find((i) => i.id === 'corp-jira:PAY-107')!, signal: new AbortController().signal, record: () => undefined, started: (s) => void started.push(s) })
-      .catch(() => undefined);
+    await expect(
+      runner.run({ assignment: { ...assignment, proposals: [], questions: [] }, item: data.items().find((i) => i.id === 'corp-jira:PAY-107')!, signal: new AbortController().signal, record: () => undefined, started: (s) => void started.push(s) }),
+    ).rejects.toMatchObject({ reason: 'error' });
     expect(started).toEqual([expect.objectContaining({ adapter: 'claude', model: 'test-model' })]);
   });
 });

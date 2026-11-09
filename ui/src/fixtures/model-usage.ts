@@ -3,7 +3,7 @@
  * (#295): a month of chats across the three sample toil projects on all three
  * adapters, shaped like what each SDK reports (Claude with an SDK estimate,
  * Codex in tokens with no dollar figure, Copilot in premium requests), and
- * the Codex rates. Generated from a fixed seed, so every build
+ * no Codex rates. Generated from a fixed seed, so every build
  * shows the same month. None of it came from a model, and every page that
  * shows it says so. A budget for a budget that was never spent.
  */

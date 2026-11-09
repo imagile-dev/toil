@@ -9,9 +9,10 @@
  * and the tables and the audit detail share one "More detail". A budget office, staffed by the budget.
  */
 
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react';
 import { TokensPerDay } from '../../components/charts.tsx';
 import { Card, DataTable } from '../../components/layout.tsx';
+import { Empty, EmptyLink } from '../../components/empty.tsx';
 import { Help, useLandOn } from '../../components/help.tsx';
 import { dateTime, day } from '../../format.ts';
 import {
@@ -33,6 +34,7 @@ import {
 import type { ModelUsageApi, UsageView } from '../../server-client.ts';
 import { Loader } from '../../moments/Moments.tsx';
 
+const RATES_ID = 'model-usage-rates';
 const tokens = (t: UsageTotals) => (t.tokens === undefined ? 'not reported' : compact(t.tokens));
 const figure = (n: number | undefined) => (n === undefined ? 'not reported' : compact(n));
 
@@ -57,9 +59,9 @@ function tokenDays(records: readonly UsageRecord[], since: string, today: string
 }
 
 /** The one place the page's detail lives: closed until asked for (principle 11). `detail` is what the audit log adds. */
-function MoreDetail({ children }: { children?: ReactNode }) {
+function MoreDetail({ children, detailsRef }: { children?: ReactNode; detailsRef?: RefObject<HTMLDetailsElement | null> }) {
   return (
-    <details className="usage-more" data-usage-more="">
+    <details ref={detailsRef} className="usage-more" data-usage-more="">
       <summary>More detail</summary>
       {children}
     </details>
@@ -100,10 +102,15 @@ export function ModelUsage({ api, landOn = null, detail = null }: { api: ModelUs
         {detail && <MoreDetail>{detail}</MoreDetail>}
       </>
     );
-  return <Loaded view={view} api={api} onSaved={setView} detail={detail} />;
+  return <Loaded view={view} api={api} onSaved={setView} detail={detail} landOn={landOn} />;
 }
 
-function Loaded({ view, api, onSaved, detail }: { view: UsageView; api: ModelUsageApi; onSaved: (v: UsageView) => void; detail: ReactNode }) {
+function Loaded({ view, api, onSaved, detail, landOn }: { view: UsageView; api: ModelUsageApi; onSaved: (v: UsageView) => void; detail: ReactNode; landOn: string | null }) {
+  // The Codex rates sit inside More detail, so a link to them (RATES_HREF) opens it first; a layout effect runs before ModelUsage's useLandOn tries to focus the heading.
+  const more = useRef<HTMLDetailsElement>(null);
+  useLayoutEffect(() => {
+    if (landOn === RATES_ID && more.current) more.current.open = true;
+  }, [landOn]);
   const records = view.records;
   const all = useMemo(() => addUp(records), [records]);
   const byAdapter = useMemo(() => totalsBy(records, (r) => r.adapter), [records]);
@@ -154,19 +161,18 @@ function Loaded({ view, api, onSaved, detail }: { view: UsageView; api: ModelUsa
           <dt>Premium requests</dt>
           <dd>{all.premiumRequests === undefined ? 'none reported' : amount(all.premiumRequests, 'premium-requests')}</dd>
         </dl>
-        {all.reports === 0 && <p className="note">No chat has used a model in this window yet. Each answer the agent gives adds what its SDK reported.</p>}
+        {all.reports === 0 && <Empty message="No chat has used an AI agent in this window yet." action={<EmptyLink href="#/">Open a Toil project to ask</EmptyLink>} />}
         <TokensPerDay days={tokenDays(records, view.since, today)} compact={compact} />
         <div className="conn-actions">
           <button type="button" className="btn" onClick={download} disabled={all.reports === 0} data-usage-export="">
             Export as CSV
           </button>
-          <span className="runs">one row per report, a figure the SDK didn't report left empty</span>
-        </div>
+                  </div>
       </Card>
 
+      <MoreDetail detailsRef={more}>
       <RatesForm view={view} api={api} onSaved={onSaved} />
 
-      <MoreDetail>
       <Card as="section" className="panel" aria-labelledby="model-usage-adapters">
         <h3 id="model-usage-adapters">By AI agent</h3>
         <DataTable
@@ -255,7 +261,7 @@ function RatesForm({ view, api, onSaved }: { view: UsageView; api: ModelUsageApi
   const [problem, setProblem] = useState<string | null>(null);
   const [saved, setSaved] = useState('');
   const [busy, setBusy] = useState(false);
-  const off = view.sample ? "This preview shows sample rates, so they can't be saved." : null;
+  const off = view.sample ? "This preview can't save rates." : null;
 
   // A number as typed goes as a number; anything else goes as the text, for the server to refuse by name.
   const number = (text: string) => (text.trim() !== '' && Number.isFinite(Number(text)) ? Number(text) : text);
@@ -271,7 +277,7 @@ function RatesForm({ view, api, onSaved }: { view: UsageView; api: ModelUsageApi
     try {
       const next = await api.save(settings);
       onSaved(next);
-      setSaved('Saved. Codex answers from now on carry a dollar figure from these rates.');
+      setSaved(settings.codexRates ? 'Saved. Codex answers from now on carry a dollar figure from these rates.' : "Saved. Codex answers won't show a dollar figure.");
     } catch (err) {
       setProblem(err instanceof Error ? err.message : String(err));
     } finally {
@@ -280,12 +286,12 @@ function RatesForm({ view, api, onSaved }: { view: UsageView; api: ModelUsageApi
   };
 
   return (
-    <Card as="section" className="panel" aria-labelledby="model-usage-rates">
-      <h2 id="model-usage-rates" tabIndex={-1}>
-        Codex rates
-      </h2>
+    <Card as="section" className="panel" aria-labelledby={RATES_ID}>
+      <h3 id={RATES_ID} tabIndex={-1}>
+        Codex rates <Help topic="rates" />
+      </h3>
       <p className="lede">
-        The Codex SDK reports tokens and no dollar figure. With your rates, Toil UI computes one for each Codex answer from now on, labelled as computed from your rates. Leave all three empty for none.
+        Codex reports tokens, not dollars. Enter your rates to see a cost.
       </p>
       {view.problem && (
         <p role="alert" className="failure">
@@ -295,7 +301,7 @@ function RatesForm({ view, api, onSaved }: { view: UsageView; api: ModelUsageApi
       {off && <p className="note">{off}</p>}
       <form className="rates-form" onSubmit={(e) => void submit(e)}>
         <fieldset className="rates-grid" disabled={!!off || busy}>
-          <legend>In dollars per million tokens</legend>
+          <legend>Dollars per million tokens</legend>
           {(
             [
               ['input', 'Input'],
@@ -309,6 +315,7 @@ function RatesForm({ view, api, onSaved }: { view: UsageView; api: ModelUsageApi
             </label>
           ))}
         </fieldset>
+        <p className="note">Leave all three empty for none.</p>
         <div className="conn-actions">
           <button type="submit" className="btn btn--accent" disabled={!!off || busy}>
             Save rates

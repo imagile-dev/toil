@@ -49,7 +49,8 @@ export function parseHistory(text: string | null): History {
   if (!text) return EMPTY;
   try {
     const v = JSON.parse(text) as Partial<History> | null;
-    const entries = (Array.isArray(v?.entries) ? v.entries : []).filter(
+    // Usage caps are gone; a bell entry saved with their kind is read as the failure it was.
+    const entries = (Array.isArray(v?.entries) ? v.entries : []).map((e) => ((e as { kind?: unknown } | null)?.kind === 'cap' ? { ...e, kind: 'failed' as const } : e)).filter(
       (e): e is HistoryEntry => !!e && typeof e === 'object' && Number.isInteger(e.seq) && typeof e.id === 'string' && typeof e.at === 'string' && KINDS.has(e.kind) && typeof e.title === 'string' && typeof e.line === 'string' && typeof e.href === 'string' && /^#\//.test(e.href),
     );
     return { entries: entries.slice(0, MAX_HISTORY), read: typeof v?.read === 'number' ? v.read : 0 };

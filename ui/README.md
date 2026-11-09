@@ -1056,7 +1056,8 @@ called):
   sync's cleanup or a Toil project leaving never lowers a total. It follows the cache's
   retention, `toil-ui wipe` clears it, and it is never sent anywhere.
 
-**Codex rates** are optional, under Settings, Usage: the Codex SDK reports
+**Codex rates** are optional, under Settings, Usage, inside **More detail** (a link to them,
+`#/settings/usage/rates`, opens it and focuses their heading): the Codex SDK reports
 tokens and no dollar figure, so with your input, cached input and output rates, in
 dollars per million tokens, Toil UI computes one for each Codex answer from then on,
 labelled as computed from your rates. They live in `<data folder>/usage.json`. A value

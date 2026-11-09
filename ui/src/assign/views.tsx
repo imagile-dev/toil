@@ -9,7 +9,7 @@
  * marked "pending signature".
  */
 
-import { useCallback, useEffect, useId, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Button, Dialog, DialogTrigger, Heading, Input, Label, Modal, ModalOverlay, Radio, RadioGroup, TextField } from 'react-aria-components';
 import { ItemLink } from '../components/items.tsx';
 import { Card, CardGrid, Cluster, Stack } from '../components/layout.tsx';
@@ -196,9 +196,7 @@ export function AssignForm({ item, list, start, close, onDone }: { item: Pick<Wo
       )}
       {implementOff && <p className="failure">{implementOff}</p>}
       <p className="note">
-        {plain.on
-          ? `It runs on your own AI subscription, ${list.settings.concurrent === 1 ? 'one at a time' : `${list.settings.concurrent} at a time`}, for up to ${list.settings.timeLimitMinutes} minutes. Nothing it suggests leaves this computer until you approve it.`
-          : <>It runs on your adapter's own subscription, {list.settings.concurrent === 1 ? 'one assignment at a time' : `${list.settings.concurrent} assignments at a time`}, for up to {list.settings.timeLimitMinutes} minutes. Nothing it proposes leaves this machine until you apply it, and applying runs toil's own command through its write gate.</>}
+        It runs on your own AI subscription, {list.settings.concurrent === 1 ? 'one at a time' : `${list.settings.concurrent} at a time`}, for up to {list.settings.timeLimitMinutes} minutes.
       </p>
       {list.settings.problem && <p className="failure">{list.settings.problem}</p>}
       {api?.disabled && <p className="failure">{api.disabled}</p>}
@@ -306,7 +304,6 @@ export function Limits({ list, onSaved }: { list: AssignmentList; onSaved: () =>
   const [concurrent, setConcurrent] = useState(String(list.settings.concurrent || 1));
   const [minutes, setMinutes] = useState(String(list.settings.timeLimitMinutes));
   const [said, setSaid] = useState<string | null>(null);
-  const id = useId();
   if (!api?.saveSettings) return null;
   const save = async (e: FormEvent) => {
     e.preventDefault();
@@ -321,7 +318,7 @@ export function Limits({ list, onSaved }: { list: AssignmentList; onSaved: () =>
   return (
     <details className="assign-limits">
       <summary>Limits</summary>
-      <form className="assign-limits__form" onSubmit={save} aria-describedby={id}>
+      <form className="assign-limits__form" onSubmit={save}>
         <TextField className="field-text" value={concurrent} onChange={setConcurrent} inputMode="numeric">
           <Label>Assignments at once (1 to 3)</Label>
           <Input />
@@ -333,7 +330,7 @@ export function Limits({ list, onSaved }: { list: AssignmentList; onSaved: () =>
         <Button type="submit" className="btn">
           Save the limits
         </Button>
-        <p id={id} className="note" role="status">
+        <p className="note" role="status">
           {said}
         </p>
       </form>

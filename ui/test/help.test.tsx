@@ -196,7 +196,7 @@ describe('learning links (#418)', () => {
     resetLearningLinks();
   });
   const entries = Object.entries(HELP).flatMap(([id, t]) => ((t as HelpTopic).glossary ?? []).map((g) => [id, g] as const));
-  const terms = ['token', 'input-tokens', 'output-tokens', 'cache-tokens', 'context-window', 'effort', 'model', 'model-provider', 'harness', 'mcp', 'tool-call', 'sandbox', 'permission-mode', 'human-in-the-loop', 'human-review', 'session', 'system-prompt', 'skill', 'hallucination', 'primary-source', 'non-determinism'];
+  const terms = ['token', 'input-tokens', 'output-tokens', 'cache-tokens', 'model', 'model-provider', 'harness', 'mcp', 'tool-call', 'sandbox', 'permission-mode', 'human-in-the-loop', 'human-review', 'session', 'system-prompt', 'skill', 'hallucination', 'primary-source', 'non-determinism'];
 
   it("covers the issue's terms, each once, and every slug is one Context Overflow's glossary has", () => {
     expect(entries.map(([, g]) => g.slug).sort()).toEqual([...terms].sort());

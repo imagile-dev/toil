@@ -19,7 +19,7 @@ Toil UI's users are often new to agents, so where a screen uses an AI term, its 
 
 | Where | Terms |
 |---|---|
-| Settings, Usage | token, input tokens, output tokens, cache tokens, context window, effort |
+| Settings, Usage | token, input tokens, output tokens, cache tokens |
 | Settings, AI agent | model, model provider, harness, MCP, tool call |
 | The Assign dialog's modes | sandbox, permission mode, human-in-the-loop, human review |
 | Renew all stale | session, system prompt, skill |

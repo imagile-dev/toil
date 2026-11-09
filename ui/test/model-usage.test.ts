@@ -211,7 +211,7 @@ describe('usage settings', () => {
     expect(() => loadUsageSettings(dir)).toThrow(/^Toil UI's saved Codex rates: codexRates\.inputPerMillion/);
     expect(() => loadUsageSettings(dir)).not.toThrow(/usage\.json/);
     writeFileSync(usageSettingsFile(dir), '{ not json');
-    expect(() => loadUsageSettings(dir)).toThrow(/isn't JSON/);
+    expect(() => loadUsageSettings(dir)).toThrow(/is damaged/);
     saveUsageSettings(dir, { codexRates: { inputPerMillion: 1, cachedInputPerMillion: 0.1, outputPerMillion: 5 } });
     expect(loadUsageSettings(dir).codexRates).toEqual({ inputPerMillion: 1, cachedInputPerMillion: 0.1, outputPerMillion: 5 });
   });
@@ -475,7 +475,7 @@ describe("the host, recording a chat's usage", () => {
     expect(a.parts[0]!.text).toBe('Answer.');
     expect(a.usage!.records[0]!.costUsd).toBeUndefined();
     expect(a.usage!.notices).toHaveLength(1);
-    expect(a.usage!.notices[0]).toMatch(/^Toil UI's saved Codex rates: codexRates\.inputPerMillion.* Or save the rates again under Settings, Usage\.$/);
+    expect(a.usage!.notices[0]).toMatch(/^This answer has no dollar figure: Toil UI's saved Codex rates: codexRates\.inputPerMillion.* Or save the rates again under Settings, Usage\.$/);
   });
 });
 

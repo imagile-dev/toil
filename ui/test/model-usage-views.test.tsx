@@ -119,13 +119,18 @@ describe('Settings, Usage, the AI agent half', () => {
     const nav = screen.getByRole('navigation', { name: 'Settings pages' });
     expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(['General', 'Connections', 'Toil projects', 'Appearance', 'Usage', 'AI agent']);
     await screen.findByRole('heading', { name: 'What your AI agent used' });
-    // The AI agent's tables are behind the page's one More detail; the Codex rates are not.
+    // The AI agent's tables and the Codex rates are behind the page's one More detail.
     expect(container.querySelector('[data-usage-more]')!.querySelectorAll('summary')[0]!.textContent).toBe('More detail');
     const all = addUp(sampleUsageRecords());
     expect(screen.getByText('These are sample figures, made up for the preview. No model reported them.')).toBeTruthy();
     const totals = container.querySelector('.usage-totals')!;
     expect(totals.textContent).toContain(compact(all.tokens!));
-    for (const name of ['By AI agent', 'By model', 'By Toil project', 'Chats that used the most', 'Codex rates']) expect(screen.getByRole('heading', { name })).toBeTruthy();
+    for (const name of ['By AI agent', 'By model', 'By Toil project', 'Chats that used the most', /^Codex rates/]) expect(screen.getByRole('heading', { name })).toBeTruthy();
+    // The rates are one heading inside the disclosure, not a panel of their own beside the totals.
+    const rates = screen.getByRole('heading', { name: /^Codex rates/ });
+    expect(rates.tagName).toBe('H3');
+    expect(rates.closest('details[data-usage-more]')).not.toBeNull();
+    expect(within(rates).getByRole('button', { name: 'About the Codex rates' })).toBeTruthy();
     const adapters = screen.getByRole('table', { name: 'Usage by AI agent' });
     expect(within(adapters).getAllByRole('rowheader').map((c) => c.querySelector('.l-table__value')!.textContent).sort()).toEqual(['Claude', 'Codex', 'GitHub Copilot']);
     // Copilot's row is premium requests, never dollars.
@@ -138,8 +143,11 @@ describe('Settings, Usage, the AI agent half', () => {
 
   it('shows the Codex rates with saving off in the preview', async () => {
     await open('#/settings/usage');
-    await screen.findByRole('heading', { name: 'Codex rates' });
-    expect(screen.getByText("This preview shows sample rates, so they can't be saved.")).toBeTruthy();
+    await screen.findByRole('heading', { name: /^Codex rates/ });
+    expect(screen.getByText("This preview can't save rates.")).toBeTruthy();
+    expect(screen.getByText('Codex reports tokens, not dollars. Enter your rates to see a cost.')).toBeTruthy();
+    expect(screen.getByText('Dollars per million tokens')).toBeTruthy();
+    expect(screen.getByText('Leave all three empty for none.')).toBeTruthy();
     expect(document.querySelector('[data-cap]')).toBeNull();
     expect((screen.getByRole('button', { name: 'Save rates' }) as HTMLButtonElement).disabled).toBe(true);
   });
@@ -155,8 +163,11 @@ describe('Settings, Usage, the AI agent half', () => {
       },
     };
     await open('#/settings/usage', { modelUsage: api });
-    await screen.findByRole('heading', { name: 'Codex rates' });
-    expect(screen.getByText(/No chat has used a model in this window yet/)).toBeTruthy();
+    await screen.findByRole('heading', { name: /^Codex rates/ });
+    const empty = screen.getByText('No chat has used an AI agent in this window yet.');
+    expect(empty.closest('[data-empty-action]') ?? empty.parentElement!.querySelector('[data-empty-action]')).not.toBeNull();
+    expect(screen.getByRole('link', { name: 'Open a Toil project to ask' }).getAttribute('href')).toBe('#/');
+    expect(document.body.textContent).not.toMatch(/SDK reported|SDK didn't/);
     await userEvent.type(screen.getByLabelText('Input'), 'cheap');
     await userEvent.type(screen.getByLabelText('Cached input'), '0.1');
     await userEvent.type(screen.getByLabelText('Output'), '5');
@@ -170,3 +181,37 @@ async function violations(container: HTMLElement) {
   const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false } }, resultTypes: ['violations'] });
   return result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`);
 }
+
+describe('the Codex rates, inside More detail', () => {
+  const view = (rates: UsageView['settings']['codexRates']): UsageView => ({ since: '2026-09-14T00:00:00.000Z', now: FIXTURE_NOW, records: [], retentionDays: 30, settings: { codexRates: rates }, problem: null, sample: false });
+
+  it.each(['#/settings/usage/rates', '#/settings/usage/caps'])('%s opens More detail and puts focus on the rates heading', async (hash) => {
+    const api: ModelUsageApi = { view: async () => view(null), save: async () => view(null) };
+    await open(hash, { modelUsage: api });
+    const heading = await screen.findByRole('heading', { name: /^Codex rates/ });
+    await waitFor(() => expect(document.activeElement).toBe(heading));
+    expect((heading.closest('details') as HTMLDetailsElement).open).toBe(true);
+  });
+
+  it('stays closed on the plain Usage page', async () => {
+    const api: ModelUsageApi = { view: async () => view(null), save: async () => view(null) };
+    const { container } = await open('#/settings/usage', { modelUsage: api });
+    await screen.findByRole('heading', { name: /^Codex rates/ });
+    expect((container.querySelector('details[data-usage-more]') as HTMLDetailsElement).open).toBe(false);
+  });
+
+  it('says what saving does: a dollar figure with rates, none without', async () => {
+    const saved: UsageView[] = [view({ inputPerMillion: 1, cachedInputPerMillion: 0.1, outputPerMillion: 5 }), view(null)];
+    const api: ModelUsageApi = { view: async () => view(null), save: async () => saved.shift()! };
+    await open('#/settings/usage/rates', { modelUsage: api });
+    await screen.findByRole('heading', { name: /^Codex rates/ });
+    await userEvent.type(screen.getByLabelText('Input'), '1');
+    await userEvent.type(screen.getByLabelText('Cached input'), '0.1');
+    await userEvent.type(screen.getByLabelText('Output'), '5');
+    await userEvent.click(screen.getByRole('button', { name: 'Save rates' }));
+    await screen.findByText('Saved. Codex answers from now on carry a dollar figure from these rates.');
+    for (const label of ['Input', 'Cached input', 'Output']) await userEvent.clear(screen.getByLabelText(label));
+    await userEvent.click(screen.getByRole('button', { name: 'Save rates' }));
+    await screen.findByText("Saved. Codex answers won't show a dollar figure.");
+  });
+});

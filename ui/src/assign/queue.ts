@@ -618,7 +618,7 @@ export class AssignmentQueue {
       const why = controller.signal.aborted ? controller.signal.reason : null;
       if (e instanceof RunStopped && e.usage) r.usage = e.usage;
       let stop: Stop;
-      if (why === 'time') stop = { reason: 'time', message: `Stopped at the time limit of ${timeLimitMinutes} minutes, before the agent finished.`, fix: 'Raise the limit under Settings, AI agent, or assign a smaller piece of the item.' };
+      if (why === 'time') stop = { reason: 'time', message: `Stopped at the time limit of ${timeLimitMinutes} minutes, before the agent finished.`, fix: 'Raise the limit under Limits in the AI agents panel, or assign a smaller piece of the item.' };
       else if (why === 'cancelled') stop = { reason: 'cancelled', message: 'Stopped by a person in Toil UI.', fix: null };
       else if (e instanceof RunStopped) stop = { reason: e.reason, message: e.message, fix: e.fix };
       else if (e instanceof AssignError) stop = { reason: 'error', message: e.message, fix: e.fix };
