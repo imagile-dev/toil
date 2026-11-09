@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { pathIdSchema } from '../../core/api-path.js';
+import { apiPath, pathIdSchema } from '../../core/api-path.js';
 import { defineArea } from '../../core/area.js';
 import type { GitRemote } from '../../core/call-context.js';
 import { parseGitHubRemote } from '../../core/git-remote.js';
@@ -80,7 +80,7 @@ export const githubArea = defineArea({
       const scopes = headers.get('x-oauth-scopes');
       return { expires: Number.isNaN(parsed) ? null : new Date(parsed).toISOString().slice(0, 10), scopes: scopes === null ? null : scopes.split(',').map((s) => s.trim()).filter(Boolean) };
     },
-    ...(connection.owner && connection.repo ? { deeper: [{ path: `/repos/${encodeURIComponent(connection.owner)}/${encodeURIComponent(connection.repo)}`, what: `reading the repository ${connection.owner}/${connection.repo} it names` }] } : {}),
+    ...(connection.owner && connection.repo ? { deeper: [{ path: apiPath`/repos/${connection.owner}/${connection.repo}`, what: `reading the repository ${connection.owner}/${connection.repo} it names` }] } : {}),
   }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,

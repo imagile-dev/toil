@@ -30,6 +30,25 @@ describe('toil CLI', () => {
     }
   });
 
+  it('carries the unpatched-Node warning on a failure that happens before the command runs', async () => {
+    const real = Object.getOwnPropertyDescriptor(process.versions, 'node')!;
+    Object.defineProperty(process.versions, 'node', { ...real, value: '24.22.0' });
+    try {
+      const { context } = testContext();
+      const run = await runCli(['version'], {
+        commands,
+        context,
+        createContext: () => {
+          throw new Error('the config would not load');
+        },
+      });
+      expect(run.envelope?.ok).toBe(false);
+      expect(run.envelope?.meta.warnings?.[0]).toMatchObject({ code: 'UNSUPPORTED_NODE' });
+    } finally {
+      Object.defineProperty(process.versions, 'node', real);
+    }
+  });
+
   it('reports the build commit next to contractVersion, null when the build recorded none', async () => {
     const { context } = testContext();
     const run = await runCli(['version'], { commands, context });

@@ -89,7 +89,9 @@ export async function runCommand(
     if (def.dispatches) envelope = await runWait(def, input, make, version, via, wait ?? { targets: [] }, call);
     else envelope = await execute(def, input, first ?? make(def), via, call);
   } catch (err) {
-    envelope = failure(toToilError(err), { command: commandName(def), durationMs: 0, version });
+    // A failure before execute() ran (a broken config, say) still carries the unpatched-Node warning.
+    const unpatched = nodeWarning(process.versions.node);
+    envelope = failure(toToilError(err), { command: commandName(def), durationMs: 0, version, ...(unpatched ? { warnings: [{ code: 'UNSUPPORTED_NODE', message: unpatched }] } : {}) });
   }
   envelope = keepExitCode(envelope, shapeEnvelope(envelope, output, files, writesForInput(def, rawInput)));
   // MCP and the API both send fields, so their input errors name fields.
