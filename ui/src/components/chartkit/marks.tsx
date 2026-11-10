@@ -26,11 +26,12 @@
  *
  * Frames (the decorative themes' picture borders) are a seam in this slice:
  * with `frames` true, a mark that names a frame, and the sprite symbols
- * `#<frame>-corner` and `#<frame>-edge` in the page, `MarkRect` draws the nine
+ * `#<frame>-corner` and `#<frame>-edge` in the page (sprite.ts puts the theme's there), `MarkRect` draws the nine
  * slices (`nineSlice`, below); without any of the three it falls back to the
  * simple style, which is also what a segment under 26 by 22 px, forced colours
  * and Simple chart marks get. Dropping a sprite into the page is all the art
- * work left (ui/docs/themes.md, Series marks).
+ * work left (ui/docs/themes.md, Series marks). Both symbols are 8 by 8 with
+ * `preserveAspectRatio="none"`, so a tile stretched a little to fit a side keeps its art.
  *
  * A border drawn inside a segment, so as not to colour outside the lines, as the form requires.
  */
@@ -42,8 +43,10 @@ export type MarkKind = 'value' | 'other' | 'none';
 
 /** A segment smaller than this in either direction is drawn with the simple border: a frame wants room. */
 export const FRAME_MIN = { width: 26, height: 22 } as const;
-/** Frames stay within this many px of the segment's edge (ui/docs/themes.md). */
-export const FRAME_EDGE = 7;
+/** A frame's tile is this many px square on the page, and its art stays within 7 of them so the middle stays clear (ui/docs/themes.md). */
+export const FRAME_EDGE = 8;
+/** How far each edge tile runs under the next, hiding the seam anti-aliasing leaves between them. */
+const OVERLAP = 0.5;
 
 export interface StrokeStyle {
   strokeWidth: number;
@@ -99,7 +102,7 @@ export function frameAvailable(frame: string, root: Pick<Document, 'getElementBy
  * 90 degrees each, and the edge symbol (drawn for the top edge, `edge` px
  * square) tiled along each side, turned to face it. The middle is left clear.
  * Each side holds a whole number of tiles, stretched a little along the side
- * so none is cut. Pure, so a test can check the geometry without a sprite.
+ * so none is cut, and each overlaps the next by half a px. Pure, so a test can check the geometry without a sprite.
  */
 export function nineSlice(frame: string, x: number, y: number, width: number, height: number, edge = FRAME_EDGE): Slice[] {
   const out: Slice[] = [];
@@ -113,7 +116,6 @@ export function nineSlice(frame: string, x: number, y: number, width: number, he
   };
   const corner = `#${frame}-corner`;
   const side = `#${frame}-edge`;
-  out.push(turned(corner, x, y, edge, edge, 0), turned(corner, x + width - edge, y, edge, edge, 90), turned(corner, x + width - edge, y + height - edge, edge, edge, 180), turned(corner, x, y + height - edge, edge, edge, 270));
   const run = (length: number, place: (offset: number, tile: number) => Slice) => {
     const span = length - 2 * edge;
     if (span <= 0) return;
@@ -121,10 +123,12 @@ export function nineSlice(frame: string, x: number, y: number, width: number, he
     const tile = span / n;
     for (let i = 0; i < n; i++) out.push(place(edge + i * tile, tile));
   };
-  run(width, (o, t) => turned(side, x + o, y, t, edge, 0));
-  run(height, (o, t) => turned(side, x + width - edge, y + o, edge, t, 90));
-  run(width, (o, t) => turned(side, x + width - o - t, y + height - edge, t, edge, 180));
-  run(height, (o, t) => turned(side, x, y + height - o - t, edge, t, 270));
+  // Each tile runs OVERLAP px under its neighbour, so no hairline of the page shows where two meet; the corners go last, over the ends.
+  run(width, (o, t) => turned(side, x + o, y, t + OVERLAP, edge, 0));
+  run(height, (o, t) => turned(side, x + width - edge, y + o, edge, t + OVERLAP, 90));
+  run(width, (o, t) => turned(side, x + width - o - t - OVERLAP, y + height - edge, t + OVERLAP, edge, 180));
+  run(height, (o, t) => turned(side, x, y + height - o - t - OVERLAP, edge, t + OVERLAP, 270));
+  out.push(turned(corner, x, y, edge, edge, 0), turned(corner, x + width - edge, y, edge, edge, 90), turned(corner, x + width - edge, y + height - edge, edge, edge, 180), turned(corner, x, y + height - edge, edge, edge, 270));
   return out;
 }
 

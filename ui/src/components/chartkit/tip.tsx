@@ -19,6 +19,7 @@
  * The tooltip is a speech bubble for the figures, signed and initialled by the chart.
  */
 
+import { matches, matchesAny } from '../../shortcuts.ts';
 import { useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode, type RefObject, type SVGProps } from 'react';
 
 export interface MarkOptions {
@@ -100,7 +101,7 @@ export function useMarkHost(): MarkHost {
         act(e.shiftKey);
       },
       onKeyDown: (e: KeyboardEvent<Element>) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (matchesAny('chartDrill', e)) {
           e.preventDefault();
           act(e.shiftKey);
         }
@@ -110,12 +111,14 @@ export function useMarkHost(): MarkHost {
 
   const hostProps = {
     onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
-      const keys: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
-      if (!(e.key in keys) && e.key !== 'Home' && e.key !== 'End') return;
+      const step = matchesAny('chartNext', e) ? 1 : matchesAny('chartPrev', e) ? -1 : 0;
+      const first = matches('chartFirst', e);
+      const last = matches('chartLast', e);
+      if (!step && !first && !last) return;
       const marks = [...(hostRef.current?.querySelectorAll<HTMLElement | SVGElement>('[data-mark]') ?? [])];
       const here = marks.indexOf((e.target as Element).closest('[data-mark]') as HTMLElement);
       if (here < 0 || marks.length === 0) return;
-      const next = e.key === 'Home' ? 0 : e.key === 'End' ? marks.length - 1 : Math.min(marks.length - 1, Math.max(0, here + keys[e.key]!));
+      const next = first ? 0 : last ? marks.length - 1 : Math.min(marks.length - 1, Math.max(0, here + step));
       e.preventDefault();
       marks[next]!.focus();
     },

@@ -12,7 +12,7 @@ import { Swatch } from './marks.tsx';
 import { ChartFrame } from './ChartFrame.tsx';
 import { Heatmap, Lines, MixBar, RampKey, SmallMultiples, StackedArea, StackedBars, StackedColumns } from './forms.tsx';
 import { BURNUP, BURNUP_FORECAST, BURNUP_SCOPE, PERSON_MIX, RELEASES, UNREAD_SPLIT, WORK_MIX, WORK_MIX_COMPLETE } from './sample.ts';
-import { useSeriesMarks } from './series.ts';
+import { useFrames, useSeriesMarks } from './series.ts';
 import { setSimpleMarks, useSimpleMarksSetting } from '../../simple-marks.ts';
 import type { CellRef } from './view.tsx';
 
@@ -34,6 +34,7 @@ function useSimpleFromAddress() {
 export function ChartkitGallery() {
   useSimpleFromAddress();
   const marks = useSeriesMarks();
+  const frames = useFrames();
   const [simple, setSimple] = useSimpleMarksSetting();
   const [last, setLast] = useState('Nothing clicked yet.');
   const drill = (c: CellRef) => setLast(`Drilled into ${c.row.label}, ${c.column.label}.`);
@@ -56,7 +57,7 @@ export function ChartkitGallery() {
           {marks.map((m, i) => (
             <li key={m.name} className="ck-legend__item">
               <span className="ck-legend__btn">
-                <Swatch mark={m} frames={!simple} />
+                <Swatch mark={m} frames={frames} />
                 <span>Mark {i + 1}</span>
               </span>
             </li>

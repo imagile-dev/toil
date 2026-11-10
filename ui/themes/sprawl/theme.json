@@ -62,6 +62,7 @@
   "ambient": { "particles": "rain" },
   "sounds": {},
   "assets": {
+    "series": "assets/series.svg",
     "skyline": "assets/skyline.webp",
     "netMap": "assets/net-map.svg",
     "netMapLight": "assets/net-map-light.svg",

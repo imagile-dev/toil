@@ -34,7 +34,7 @@ import { axisName, columnText, num, percent, quantity, unreadRows, NOT_READ_YET,
 import { MarkLine, MarkRect, gapped } from './marks.tsx';
 import { useMarkHost } from './tip.tsx';
 import type { CellRef, ChartView } from './view.tsx';
-import { useSeriesMarks, useDrawSimple } from './series.ts';
+import { useSeriesMarks, useFrames } from './series.ts';
 import { Unread } from '../unread.tsx';
 
 const W = 560;
@@ -546,7 +546,7 @@ export interface MixBarProps {
  */
 export function MixBar({ result, scheme, pins, onDrill, label = 'Mix' }: MixBarProps) {
   const marks = useSeriesMarks();
-  const simple = useDrawSimple();
+  const frames = useFrames();
   const host = useMarkHost();
   const assignment = assignMarks(result.rows, { ...(scheme ? { scheme } : {}), ...(pins ? { pins } : {}) });
   const totals = result.rowTotals.map((t) => t.value);
@@ -569,7 +569,7 @@ export function MixBar({ result, scheme, pins, onDrill, label = 'Mix' }: MixBarP
           const kind = typeof slot === 'number' ? 'value' : (slot ?? 'other');
           const text = `${axisName(r)}: ${quantity(result, v)}, ${percent(v / sum)} of ${quantity(result, sum)}`;
           const drill = onDrill && (() => onDrill({ row: r, column: result.columns[0]!, rowIndex: ri, columnIndex: 0, cell: result.rowTotals[ri]! }));
-          return <MarkRect key={r.key} {...seg} mark={mark} kind={kind} frames={!simple} {...host.mark(`m${ri}`, text, { first: first(), onDrill: drill })} />;
+          return <MarkRect key={r.key} {...seg} mark={mark} kind={kind} frames={frames} {...host.mark(`m${ri}`, text, { first: first(), onDrill: drill })} />;
         })}
       </svg>
       {host.tip}

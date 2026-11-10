@@ -64,6 +64,7 @@
   },
   "sounds": {},
   "assets": {
+    "series": "assets/series.svg",
     "vellum": "assets/vellum.webp",
     "frame": "assets/iron-band.svg",
     "rule": "assets/rule.svg",

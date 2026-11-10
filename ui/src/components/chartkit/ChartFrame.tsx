@@ -18,7 +18,7 @@
  *  - `children(view)` draws the chart from the `ChartView` (view.tsx).
  *
  * It owns: the tooltip and keyboard (tip.tsx), the legend (click isolates one
- * series, Alt-click or the context menu opens a small menu to hide it or show
+ * series, Alt-click, the context menu or M opens a small menu to hide it or show
  * all), Count / Share, "Show the figures" (the pivot as a table, an unread cell
  * a dash titled "not read yet", totals), the source and coverage line, and the
  * unread state: when the split or the across was never read the frame says
@@ -29,6 +29,7 @@
 
 import { useId, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { ALL_KEY, type PivotResult } from '../../../../src/core/insights/types.ts';
+import { matches, matchesAny } from '../../shortcuts.ts';
 import { useWords } from '../../theme-context.ts';
 import { Figures } from '../charts.tsx';
 import { Unread } from '../unread.tsx';
@@ -104,8 +105,8 @@ export function ChartFrame({ title, result, source, coverage, modes = true, defa
     } else isolate(key);
   };
   const legendKey = (key: string) => (e: KeyboardEvent) => {
-    if (e.key === 'Escape') setMenu(null);
-    if (e.key === 'ArrowDown' && e.altKey) {
+    if (matches('chartClose', e)) setMenu(null);
+    if (matchesAny('chartMenu', e)) {
       e.preventDefault();
       setMenu(key);
     }

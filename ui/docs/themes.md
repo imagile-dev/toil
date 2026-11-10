@@ -192,12 +192,16 @@ A mark follows the value, never its rank: a classification's categories take the
 
 ### Frames are art
 
-A decorative theme's frames are one sprite, `ui/themes/<name>/assets/series.svg`, holding for each of its four frames two `<symbol>`s:
+A decorative theme's frames are one sprite, `ui/themes/<name>/assets/series.svg` (listed in its `assets` as `series`), holding for each of its four frames, the names in `series[...].frame`, two `<symbol>`s:
 
-- `<frame>-corner`, drawn for the top-left corner, on a 7 by 7 grid;
-- `<frame>-edge`, drawn for the top edge as a tile 7 px square, which tiles along the side.
+- `<frame>-corner`, drawn for the **top-left** corner, `viewBox="0 0 8 8"`;
+- `<frame>-edge`, drawn for the **top** edge as a tile, `viewBox="0 0 8 8"`, which tiles along each side.
 
-Paint in `currentColor` (the mark's `stroke`) and `var(--mark-detail)` (its `detail`), so one asset serves light and dark. Keep the art within 7px of the edge, so the segment's middle stays clear. The chart kit places the four corners (turned 90 degrees each) and tiles the edge along each side, the nine slices of CSS `border-image`, drawn in SVG so it works inside a chart. The budget is the theme art budget: 64 KB a file and 320 KB a theme.
+Both carry `preserveAspectRatio="none"`, so a tile stretched a little to fit a side keeps its art; the pixel themes (Harvest, Overworld) add `shape-rendering="crispEdges"` and draw axis-aligned rectangles on the 8 by 8 grid.
+
+Paint only in `currentColor` (the mark's `stroke`) and `var(--mark-detail)` (its `detail`), so one asset serves light and dark; `none` is allowed too. Keep the art within 7 of the tile's 8 units from the segment's edge, so the middle stays clear. No raster images, text, external references, scripts or `<style>`. A corner's two outer edges must have the same cross-section as the edge tile, so build it as the edge, plus the same edge turned about the diagonal, plus a decoration on top.
+
+The chart kit places the four corners (turned 0, 90, 180 and 270 degrees) and tiles the edge along each side, turned to face it: the nine slices of CSS `border-image`, drawn in SVG so it works inside a chart. Each tile overlaps the next by half a pixel, so no seam shows. The page gets the current theme's sprite inline (`src/components/chartkit/sprite.ts`: bundled as text, injected once into a hidden element, swapped when the theme changes), not as an external `<use>`, so it needs no extra request and works under Toil UI's Content-Security-Policy and in the site's showcase. The budget is the theme art budget: 64 KB a file and 320 KB a theme, which `ui/test/themes.test.ts` and `ui/test/chartkit-marks.test.ts` hold, along with every frame having both symbols and the paints being only the two above.
 
 The simple border is drawn instead of the frame when a segment is under 26 by 22 px, in forced-colours mode (every mark is then a system colour and only the border style tells them apart), on lines, and when **Simple chart marks** is on.
 

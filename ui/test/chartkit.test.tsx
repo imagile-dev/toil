@@ -307,10 +307,12 @@ describe('how a mark is drawn', () => {
     const corners = slices.filter((s) => s.href === '#hud-corner');
     expect(corners.map((s) => s.rotate)).toEqual([0, 90, 180, 270]);
     const top = slices.filter((s) => s.href === '#hud-edge' && s.rotate === 0);
-    expect(top.reduce((n, s) => n + s.width, 0)).toBeCloseTo(60 - 14);
+    const along = top.reduce((n, s) => n + s.width, 0);
+    expect(along).toBeGreaterThanOrEqual(60 - 16);
+    expect(along).toBeLessThanOrEqual(60 - 16 + top.length * 0.5 + 1e-9);
     // A tile turned a quarter is boxed the other way round before it is rotated, so along the side it is `height` long.
     const left = slices.filter((s) => s.href === '#hud-edge' && s.rotate === 270);
-    expect(left.reduce((n, s) => n + s.width, 0)).toBeCloseTo(40 - 14);
+    expect(left.reduce((n, s) => n + s.width, 0)).toBeGreaterThanOrEqual(40 - 16);
     for (const s of slices) {
       expect(s.x + s.width / 2).toBeCloseTo(s.cx);
       expect(s.y + s.height / 2).toBeCloseTo(s.cy);

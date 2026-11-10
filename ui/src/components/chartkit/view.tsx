@@ -25,7 +25,7 @@ import type { Mark } from '../../theme-pack.ts';
 import { assignMarks, type Assignment, type AssignOptions } from './assign.ts';
 import { cellText, shareOf, type ChartMode } from './describe.ts';
 import type { MarkKind } from './marks.tsx';
-import { useDrawSimple, useSeriesMarks } from './series.ts';
+import { useFrames, useSeriesMarks } from './series.ts';
 import { useMarkHost, type MarkHost, type MarkProps } from './tip.tsx';
 
 /** The cell a mark stands for, as `onDrill` and `onFilter` receive it. */
@@ -64,7 +64,7 @@ export interface ViewOptions extends AssignOptions {
 
 export function useChartView({ result, mode = 'count', hidden, isolated = null, scheme, pins, onDrill, onFilter }: ViewOptions): ChartView {
   const marks = useSeriesMarks();
-  const simple = useDrawSimple();
+  const frames = useFrames();
   const host = useMarkHost();
   const assignment = useMemo(() => assignMarks(result.rows, { ...(scheme ? { scheme } : {}), ...(pins ? { pins } : {}) }), [result.rows, scheme, pins]);
   const rows = result.rows.map((_, i) => i).filter((i) => (isolated ? result.rows[i]!.key === isolated : !hidden?.has(result.rows[i]!.key)));
@@ -81,5 +81,5 @@ export function useChartView({ result, mode = 'count', hidden, isolated = null, 
   const ref = (row: number, column: number): CellRef => ({ row: result.rows[row]!, column: result.columns[column]!, rowIndex: row, columnIndex: column, cell: result.cells[row]![column]! });
   const cellMark = (row: number, column: number, first = false) =>
     host.mark(`r${row}c${column}`, cellText(result, row, column), { first, onDrill: onDrill && (() => onDrill(ref(row, column))), onFilter: onFilter && (() => onFilter(ref(row, column))) });
-  return { result, mode, rows, frames: !simple, marks, assignment, host, look, figure, cellMark };
+  return { result, mode, rows, frames, marks, assignment, host, look, figure, cellMark };
 }

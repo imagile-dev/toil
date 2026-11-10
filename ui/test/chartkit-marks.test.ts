@@ -1,6 +1,8 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { frameAvailable } from '../src/components/chartkit/marks.tsx';
+import { ensureFrameSprite, spriteFor, symbolIds } from '../src/components/chartkit/sprite.ts';
 import { MARK_STYLES, type Scheme } from '../src/theme-pack.ts';
 import { THEMES } from '../src/themes.ts';
 
@@ -69,5 +71,64 @@ describe('the series marks', () => {
         expect(contrast(m.stroke, m.fill), `${theme.name} ${scheme} mark ${i + 1} (${m.name}) against its fill`).toBeGreaterThanOrEqual(3);
       });
     });
+  });
+});
+
+describe('the frame sprites', () => {
+  const themesDir = join(import.meta.dirname, '..', 'themes');
+  const framed = THEMES.filter((t) => t.series.light.some((m) => m.frame));
+
+  it('are shipped by exactly the six decorative themes, listed in their assets', () => {
+    expect(framed.map((t) => t.name).sort()).toEqual(['frontier', 'harvest', 'overworld', 'realm', 'sprawl', 'starship']);
+    for (const t of framed) expect(t.assets.series, t.name).toBe('assets/series.svg');
+    for (const t of THEMES.filter((x) => !framed.includes(x))) expect(t.assets.series, t.name).toBeUndefined();
+  });
+
+  describe.each(framed.map((t) => [t.name, t] as const))('%s', (name, theme) => {
+    const path = join(themesDir, name, 'assets', 'series.svg');
+    const svg = readFileSync(path, 'utf8');
+
+    it('holds a corner and an edge for each of its four frames, and nothing else', () => {
+      const frames = theme.series.light.map((m) => m.frame!);
+      expect(symbolIds(svg).sort()).toEqual(frames.flatMap((f) => [`${f}-corner`, `${f}-edge`]).sort());
+      expect(spriteFor(name)).toBe(svg);
+      for (const m of svg.matchAll(/<symbol\s[^>]*>/g)) expect(m[0]).toMatch(/viewBox="0 0 8 8"/);
+    });
+
+    it('is painted only in the mark colours, and is plain art: no script, style, text, picture or link', () => {
+      const paints = [...svg.matchAll(/\b(?:fill|stroke)="([^"]*)"/g)].map((m) => m[1]);
+      expect(paints.length).toBeGreaterThan(0);
+      for (const p of paints) expect(['currentColor', 'var(--mark-detail)', 'none']).toContain(p);
+      expect(svg).not.toMatch(/<(script|style|text|image|foreignObject|a|use)\b|href=|\bon\w+=|style=|url\(|data:/i);
+    });
+
+    it('keeps its art within the tile, and its frames differ', () => {
+      const symbols = [...svg.matchAll(/<symbol id="([^"]+)"[^>]*>([\s\S]*?)<\/symbol>/g)].map((m) => [m[1]!, m[2]!] as const);
+      expect(new Set(symbols.map(([, body]) => body)).size).toBe(symbols.length);
+      for (const [id, body] of symbols.filter(([i]) => i.endsWith('-edge'))) {
+        for (const r of body.matchAll(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)) {
+          const [x, y, w, h] = r.slice(1).map(Number) as [number, number, number, number];
+          expect(x + w, id).toBeLessThanOrEqual(8.01);
+          expect(y + h, id).toBeLessThanOrEqual(7.01);
+        }
+      }
+    });
+
+    it('stays within 64 KB', () => {
+      expect(statSync(path).size).toBeLessThanOrEqual(64 * 1024);
+    });
+  });
+
+  it("puts the current theme's sprite on the page, once, and swaps it with the theme", () => {
+    expect(ensureFrameSprite('frontier')).toBe(true);
+    expect(frameAvailable('ironplate')).toBe(true);
+    expect(frameAvailable('pipe')).toBe(true);
+    expect(ensureFrameSprite('frontier')).toBe(true);
+    expect(document.querySelectorAll('#ck-frame-sprite')).toHaveLength(1);
+    expect(ensureFrameSprite('harvest')).toBe(true);
+    expect(frameAvailable('ironplate')).toBe(false);
+    expect(frameAvailable('picket')).toBe(true);
+    expect(ensureFrameSprite('plain')).toBe(false);
+    expect(document.getElementById('ck-frame-sprite')).toBeNull();
   });
 });

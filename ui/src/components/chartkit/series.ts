@@ -6,6 +6,9 @@
  *
  * - `useSeriesMarks(): Mark[]` is the four marks of the current theme and scheme.
  * - `marksFor(theme, scheme)` is the same without React.
+ * - `useFrames(): boolean` is whether to draw the theme's picture frames: it
+ *   puts the theme's sprite on the page (sprite.ts) and is false under Simple
+ *   chart marks, forced colours, and in a theme with no frames.
  * - `useDrawSimple(): boolean` is whether to draw plain borders rather than
  *   frames: Simple chart marks is on, or the system forces colours.
  *
@@ -14,6 +17,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSimpleMarks } from '../../simple-marks.ts';
+import { ensureFrameSprite } from './sprite.ts';
 import { useTheme, useThemeChoiceContext } from '../../theme-context.ts';
 import { useResolvedScheme } from '../../theme-choice.ts';
 import type { Mark, Scheme, ThemeManifest } from '../../theme-pack.ts';
@@ -45,4 +49,12 @@ export function useDrawSimple(): boolean {
   const simple = useSimpleMarks();
   const forced = useForcedColors();
   return simple || forced;
+}
+
+/** Whether to draw picture frames, with the current theme's sprite on the page by the time anything asks for a symbol. */
+export function useFrames(): boolean {
+  const simple = useDrawSimple();
+  const theme = useTheme();
+  const has = ensureFrameSprite(theme.name);
+  return !simple && has;
 }

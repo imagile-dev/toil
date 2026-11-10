@@ -31,6 +31,13 @@ export const SHORTCUTS = {
   editSave: { keys: ['Enter'], where: "Editing a Toil project's name or description", what: 'Save it' },
   editCancel: { keys: ['Escape'], where: "Editing a Toil project's name or description", what: 'Leave it as it was' },
   wipeCancel: { keys: ['Escape'], where: 'Asked whether to wipe the cache', what: 'Keep the cache' },
+  chartNext: { keys: ['→'], or: [['↓']], where: 'Charts', what: 'Move to the next mark' },
+  chartPrev: { keys: ['←'], or: [['↑']], where: 'Charts', what: 'Move to the previous mark' },
+  chartFirst: { keys: ['Home'], where: 'Charts', what: 'Move to the first mark' },
+  chartLast: { keys: ['End'], where: 'Charts', what: 'Move to the last mark' },
+  chartDrill: { keys: ['Enter'], or: [['Space']], where: 'Charts', what: 'Open the items behind the focused mark; with Shift, filter to it' },
+  chartMenu: { keys: ['M'], or: [['Menu']], where: 'Charts, on a legend entry', what: 'Open its menu: show only it, or hide it' },
+  chartClose: { keys: ['Escape'], where: 'Charts, on a legend entry', what: 'Close its menu' },
   drawerClose: { keys: ['Escape'], where: "In an item's drawer", what: 'Close it, and go back to the view behind it' },
 } as const satisfies Record<string, Shortcut>;
 
@@ -69,7 +76,16 @@ const EVENT_KEY: Record<string, string> = { Space: ' ', Menu: 'ContextMenu', '�
  * which a `?` needs on most layouts.
  */
 export function matches(id: ShortcutId, e: KeyPress): boolean {
-  const keys: readonly string[] = SHORTCUTS[id].keys;
+  return matchesKeys(SHORTCUTS[id].keys, e);
+}
+
+/** Like `matches`, but any of the ways of pressing it counts (`↓` as well as `→`). */
+export function matchesAny(id: ShortcutId, e: KeyPress): boolean {
+  const s: Shortcut = SHORTCUTS[id];
+  return [s.keys, ...(s.or ?? [])].some((keys) => matchesKeys(keys, e));
+}
+
+function matchesKeys(keys: readonly string[], e: KeyPress): boolean {
   const mod = keys.includes('Mod');
   const main = keys.filter((k) => k !== 'Mod');
   if (main.length !== 1 || e.altKey) return false;
