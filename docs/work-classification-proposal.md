@@ -280,7 +280,8 @@ toil jira issue search --jql "project = PAY AND statusCategory != Done" --fields
   in its field, keeps it (unless `--recheck`). Then come the team's own rules, then the
   built-in signals, then the parent's verdict, which children inherit. Anything left is
   `unsure`. (As built: a person's say, from the
-  ledger, comes after labels and fields and before the rules.)
+  ledger, comes after labels and fields and before the rules, except that a person's say
+  outranks a label or field that still holds what the tracker held before they spoke.)
 - **Built-in KTLO signals**, on by default and ranked below the team's rules:
   - type `BUG` or `INCIDENT`;
   - a CVE or GHSA id in the title or body;

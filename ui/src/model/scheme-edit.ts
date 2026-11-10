@@ -154,13 +154,15 @@ export function schemeChangeLines(before: Scheme, after: Scheme): string[] {
   const d = diffSchemes(before, after);
   const lines: string[] = [];
   const cat = (id: string, from: Scheme) => from.categories.find((c: Category) => c.id === id);
-  for (const id of d.categories.added) lines.push(`Adds the category "${nameOf(after, id)}": ${cat(id, after)?.definition ?? ''}`);
+  // A label is what `categorize` writes into a tracker, so it is named wherever a category appears or changes.
+  for (const id of d.categories.added) lines.push(`Adds the category "${nameOf(after, id)}", written to trackers as the label \`${cat(id, after)?.label ?? id}\`: ${cat(id, after)?.definition ?? ''}`);
   for (const id of d.categories.removed) lines.push(`Removes the category "${nameOf(before, id)}".`);
   for (const id of d.categories.changed) {
     const was = cat(id, before);
     const now = cat(id, after);
     if (was && now && was.definition !== now.definition) lines.push(`Rewrites the definition of "${now.name}". Before: ${was.definition} After: ${now.definition}`);
-    else lines.push(`Changes the category "${nameOf(after, id)}" (its name, short form or label).`);
+    else if (was && now && was.label !== now.label) lines.push(`Writes the category "${now.name}" to trackers as the label \`${now.label}\` instead of \`${was.label}\`.`);
+    else lines.push(`Changes the category "${nameOf(after, id)}" (its name or short form).`);
   }
   const rule = (id: string, from: Scheme): Rule | undefined => from.rules.find((r) => r.id === id);
   for (const id of d.rules.added) lines.push(`Adds the rule "${id}": when ${whenText(rule(id, after)!.when)}, the category is ${nameOf(after, rule(id, after)!.then)}.`);
@@ -182,6 +184,32 @@ export function schemeChangeLines(before: Scheme, after: Scheme): string[] {
   if (d.signals) lines.push(after.signals ? 'Turns the built-in signals on.' : 'Turns the built-in signals off.');
   if (d.labels) lines.push("Changes a tracker's own spelling of a label.");
   return lines;
+}
+
+const stable = (value: unknown): string => JSON.stringify(value, (_k, v: unknown) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))) : v));
+
+/**
+ * What an AI agent's revised scheme may not change. A label is what `categorize` writes into a tracker, and a category id is
+ * what the ledger records, so an agent's revision keeps every existing one exactly: a label it rewrites is put back and
+ * listed as ignored, a category it removes or renames refuses the whole revision, and a category it adds keeps the label
+ * it gave (the card names it, so a person sees what would be written). Per-tracker spellings (`labels`) stay as they were.
+ */
+export function guardRevision(before: Scheme, proposed: Scheme): { ok: true; scheme: Scheme; ignored: string[] } | { ok: false; message: string } {
+  const had = new Map(before.categories.map((c) => [c.id, c]));
+  const has = new Set(proposed.categories.map((c) => c.id));
+  const lost = before.categories.filter((c) => !has.has(c.id));
+  if (lost.length > 0) {
+    return { ok: false, message: `It removes or renames the ${lost.length === 1 ? 'category' : 'categories'} ${lost.map((c) => `"${c.id}"`).join(', ')}. Category ids are what the ledger records, so an AI agent's revision may not change them.` };
+  }
+  const ignored: string[] = [];
+  const categories = proposed.categories.map((c) => {
+    const was = had.get(c.id);
+    if (!was || c.label === was.label) return c;
+    ignored.push(`Ignored: an AI agent can't change a label, so "${was.name}" is still written to trackers as the label \`${was.label}\`, not \`${c.label}\`.`);
+    return { ...c, label: was.label };
+  });
+  if (stable(proposed.labels) !== stable(before.labels)) ignored.push("Ignored: an AI agent can't change a label, so each tracker's own spelling of a label is as it was.");
+  return { ok: true, scheme: { ...proposed, categories, labels: before.labels }, ignored };
 }
 
 /** The scheme on one line, for the editor's closed section: "Keep the lights on / Feature, 2 rules, signals on, revision 3". */

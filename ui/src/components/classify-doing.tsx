@@ -20,7 +20,7 @@ import { useWorkInsights } from '../insights-data.ts';
 import { shareText, shareWords, sourceName, TUNE_AFTER, timesText } from '../model/classify.ts';
 import { Help } from './help.tsx';
 
-const KEPT: Record<SaveResult['kept'], string> = { 'built-in': 'kept as a built-in scheme', yours: 'kept as your own copy', shared: 'saved in the repository, ready for a pull request' };
+const KEPT: Record<SaveResult['kept'], string> = { 'built-in': 'kept as a built-in scheme', yours: 'kept as your own copy', shared: 'saved in the repository, ready for a pull request', beside: 'saved beside this Toil project' };
 
 /** The first sentence about the source people overrule most, or null when nobody has overruled anything. */
 export function overruledLine(stats: ClassifyStats | null, scheme: Parameters<typeof sourceName>[1], names: Record<string, string>): string | null {

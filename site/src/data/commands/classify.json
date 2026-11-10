@@ -16,7 +16,8 @@
     "writes": false,
     "connection": false,
     "flags": [
-      "<name>",
+      "[name]",
+      "--toil-project <name|file>",
       "--cwd <dir>"
     ]
   },
@@ -53,8 +54,9 @@
     "writes": false,
     "connection": false,
     "flags": [
-      "<name>",
+      "[name]",
       "--from <file>",
+      "--toil-project <name|file>",
       "--cwd <dir>"
     ]
   },

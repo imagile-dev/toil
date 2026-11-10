@@ -8,6 +8,7 @@ import { SCHEME_NAME, type Scheme } from '../core/classify/types.js';
 import type { CommandContext } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
 import { forwardSlashes } from '../core/files.js';
+import { resolveScheme, toilProjectField, toilProjectFor, toilProjectOption } from './run.js';
 
 /**
  * `toil classify scheme list | show | init | export | set | import`: the
@@ -54,18 +55,22 @@ export function classifySchemeCommands(): AnyCommand[] {
     path: ['classify', 'scheme', 'show'],
     description: 'Show one classification scheme in full',
     toolDescription:
-      'Returns one classification scheme in full: its categories with definitions, guidance, examples, rules, signals and labels, with the source it was found in (file, user, repo, toil-project or built-in) and its file. name is a scheme name (yours, the repository\'s, or built in) or the path to a scheme file. Reads local files only.',
+      'Returns one classification scheme in full: its categories with definitions, guidance, examples, rules, signals and labels, with the source it was found in (file, user, repo, toil-project or built-in) and its file. name is a scheme name (yours, the repository\'s, or built in) or the path to a scheme file. Without name, toilProject names a toil project and the scheme it uses is shown, found the way classify_run finds it (a scheme path beside the toil project file included). Reads local files only.',
     input: z.object({
-      name: z.string().min(1).describe('A scheme name, or the path to a scheme file ending in .json'),
+      name: z.string().min(1).optional().describe('A scheme name, or the path to a scheme file ending in .json. Required unless toilProject is given.'),
+      toilProject: toilProjectField,
       cwd: cwdField,
     }),
     writes: false,
     writesLocal: false,
-    args: [{ name: 'name', field: 'name', description: 'A scheme name, or the path to a scheme file' }],
-    options: [cwdOption],
-    examples: [{ name: 'ktlo-feature' }, { name: 'balance', cwd: '.' }],
+    args: [{ name: 'name', field: 'name', description: 'A scheme name, or the path to a scheme file (omit with --toil-project)', required: false }],
+    options: [toilProjectOption, cwdOption],
+    examples: [{ name: 'ktlo-feature' }, { name: 'balance', cwd: '.' }, { toilProject: 'payments', cwd: '.' }],
     run: async (input, ctx) => {
-      const found = catalogOf(ctx).resolve({ scheme: input.name, cwd: input.cwd });
+      if (input.name === undefined && input.toilProject === undefined) {
+        throw new ToilError('INVALID_INPUT', 'Name a scheme, or a toil project whose scheme to show.', { fix: 'toil classify scheme show <name>, or toil classify scheme show --toil-project <name>.' });
+      }
+      const found = currentScheme(ctx, input);
       for (const w of found.warnings) ctx.warn(w);
       return { scheme: found.scheme, source: found.source, ...(found.file ? { file: found.file } : {}) };
     },
@@ -137,24 +142,28 @@ export function classifySchemeCommands(): AnyCommand[] {
     path: ['classify', 'scheme', 'set'],
     description: "Change a scheme from a revised file, raising its revision (a person's command)",
     input: z.object({
-      name: z.string().min(1).describe('The scheme to change: a name, or the path to a scheme file'),
+      name: z.string().min(1).optional().describe('The scheme to change: a name, or the path to a scheme file. Required unless toilProject is given.'),
       from: z.string().min(1).describe('A file holding the revised scheme, inside the workspace'),
+      toilProject: toilProjectField,
       cwd: cwdField,
     }),
     writes: false,
     writesLocal: true,
     // The scheme is the rulebook an agent's verdicts are held to, and agents never loosen the rules that constrain them (principle 2).
     kind: 'cli-only',
-    args: [{ name: 'name', field: 'name', description: 'The scheme to change: a name, or a scheme file' }],
-    options: [{ flags: '--from <file>', field: 'from', description: 'A file holding the revised scheme' }, cwdOption],
-    examples: [{ name: 'team', from: 'schemes/team-v2.json', cwd: '.' }, { name: 'ktlo-feature', from: 'schemes/ktlo-feature-v2.json' }],
+    args: [{ name: 'name', field: 'name', description: 'The scheme to change: a name, or a scheme file (omit with --toil-project)', required: false }],
+    options: [{ flags: '--from <file>', field: 'from', description: 'A file holding the revised scheme' }, toilProjectOption, cwdOption],
+    examples: [{ name: 'team', from: 'schemes/team-v2.json', cwd: '.' }, { name: 'ktlo-feature', from: 'schemes/ktlo-feature-v2.json' }, { toilProject: 'payments', from: 'schemes/team-v2.json', cwd: '.' }],
     run: async (input, ctx) => {
+      if (input.name === undefined && input.toilProject === undefined) {
+        throw new ToilError('INVALID_INPUT', 'Name the scheme to change, or a toil project whose scheme to change.', { fix: 'toil classify scheme set <name> --from <file>, or toil classify scheme set --toil-project <name> --from <file>.' });
+      }
       const catalog = catalogOf(ctx);
-      const current = catalog.resolve({ scheme: input.name, cwd: input.cwd });
+      const current = currentScheme(ctx, input);
       const incoming = catalog.readFile(input.from, input.cwd, current.scheme.name);
       for (const w of [...current.warnings, ...incoming.warnings]) ctx.warn(w);
       if (incoming.scheme.name !== current.scheme.name) {
-        throw new ToilError('INVALID_INPUT', `${forwardSlashes(incoming.file!)} holds a scheme named "${incoming.scheme.name}", and ${input.name} is "${current.scheme.name}".`, {
+        throw new ToilError('INVALID_INPUT', `${forwardSlashes(incoming.file!)} holds a scheme named "${incoming.scheme.name}", and ${input.name ?? "the toil project's scheme"} is "${current.scheme.name}".`, {
           fix: `Set "name" to "${current.scheme.name}" in the file, or leave it out; toil classify scheme import brings in a scheme under its own name.`,
         });
       }
@@ -210,6 +219,16 @@ export function classifySchemeCommands(): AnyCommand[] {
   });
 
   return [list, show, init, exportCommand, set, importCommand];
+}
+
+/**
+ * The scheme a call means: the one `name` names, else the one the toil project uses, found exactly as `classify run`
+ * finds it, so a scheme path beside the toil project file is the file that is shown and, for `set`, rewritten in place.
+ */
+function currentScheme(ctx: CommandContext<unknown>, input: { name?: string | undefined; toilProject?: string | undefined; cwd?: string | undefined }) {
+  if (input.name !== undefined) return catalogOf(ctx).resolve({ scheme: input.name, cwd: input.cwd });
+  const applied = toilProjectFor(ctx, { toilProject: input.toilProject, cwd: input.cwd });
+  return resolveScheme(ctx, { toilProject: input.toilProject, cwd: input.cwd }, applied).found;
 }
 
 /** The catalog a scheme command works through, which only config commands are handed. */

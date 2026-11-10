@@ -361,8 +361,6 @@ agent made where the proposal was silent, or where it couldn't be built as writt
   labels and fields are ignored. A row whose parent is in the list says how many items
   follow its answer. K and F are bound only for the two-category scheme; any other
   scheme uses 1 to 9, and U is always Unsure.
-- **Known gap: the Classification editor resolves a scheme by name.** A scheme that
-  sits beside the toil project file by relative path is not resolved by the editor.
 - **Known gap: the page's build stubs `node:async_hooks`.** The scheme reader the page
   imports reaches toil's progress listener, which makes an `AsyncLocalStorage` when it
   loads. The page never runs a command, so `ui/vite.config.ts` aliases the module to a
@@ -372,6 +370,45 @@ agent made where the proposal was silent, or where it couldn't be built as writt
 - **Not verified: the real tracker path and a real AI agent in Toil UI.** No
   `categorize` has run against a live Jira, GitHub or Azure DevOps from Toil UI; its
   tests fake that one command, and the scripted sample agent stands in for a real one.
+- **A second review of the write paths found nine things; all are fixed.** The two that
+  mattered: recording again before Apply let an item's old label undo the person's
+  correction, and the editor could save a scheme file the toil project never reads.
+  The rest are the next six entries, plus a ledger past its size limit no longer
+  stopping a plain `classify run` (it warns `LEDGER_UNREADABLE` and carries on without
+  people's corrections; `--record`, `correct`, `stats` and `tune` still fail).
+- **A person's say outranks a label that hasn't caught up.** A correction keeps the
+  category it replaced. While the tracker still shows that category, the person's say
+  is the verdict and no correction from the tracker is recorded; a label that is
+  neither is still a correction made in the tracker. Known gap: after Apply writes a
+  say to the tracker, a later say on the same item can still be read as a change in
+  the tracker, since only the category before the first say is remembered. Where:
+  `src/core/classify/engine.ts`, `src/classify/run.ts`.
+- **`classify scheme show` and `set` take `--toil-project`.** Additive. With it they
+  resolve the scheme exactly as `classify run` does, so Toil UI's editor shows and
+  saves the file the toil project reads, a file beside the project included. A
+  project that names no scheme uses the built-in one, and the editor says so and
+  offers to point the project at a saved copy.
+- **An AI agent's revision can't change a label or a category's id.** Labels are what
+  `categorize` writes to trackers and ids are what the ledger records, so Toil UI puts
+  existing labels back, lists each attempt as ignored, and refuses a revision that
+  renames or removes a category. A new category's label is named on the card.
+- **Apply runs the plan the card showed.** Planning stages the plan file and returns an
+  id that is good for one Apply and thirty minutes; Apply takes only the id. A revision
+  is applied only to the scheme revision it was made from, and so is an editor draft.
+- **Toil UI's working files are removed when their flow ends,** and leftovers older
+  than a day are swept when the server starts. A revision a person dismisses is
+  removed when it expires.
+- **Every ledger field is held to a pattern on the way in and on the way out.** The
+  item id is cleaned like a title, a line whose category or source isn't of the right
+  form is skipped and counted, and the tune prompt prints nothing from the ledger
+  outside its fence unless it passes those forms.
+- **A verdict says which door a person's say came through.** "A person chose", "Recorded
+  by an AI agent for a person" (a correction over MCP) or "Changed in the tracker". The
+  source stays `person` in all three, as the maintainer's decision 9 counts them.
+- **Apply names the connection, so the adoption gate for a toil project's connection
+  doesn't apply.** The person pressed Apply on a card that names the connection, which
+  is the same as naming it on the command line. The connection's `writes` still
+  decides.
 
 **Not verified:** no command here has been run against a real Jira, GitHub or Azure
 DevOps. Every request is checked against canned responses shaped from the vendors'

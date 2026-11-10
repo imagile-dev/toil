@@ -134,7 +134,7 @@ describe('the sample ledger', () => {
     expect(got.answers).toHaveLength(unsure.length);
     expect(got.answers.every((a) => ['ktlo', 'feature', 'unsure'].includes(a.category))).toBe(true);
     expect(scriptedVerdict('x', 'Upgrade the build').category).toBe('ktlo');
-    await expect(api.apply('sample-team', { items: [], accepted: [] })).rejects.toThrow(/sample data/);
+    await expect(api.apply('sample-team', 'sample-plan')).rejects.toThrow(/sample data/);
     expect(api.disabled).toMatch(/sample data/);
   });
 

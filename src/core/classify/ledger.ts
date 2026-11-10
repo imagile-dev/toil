@@ -31,11 +31,15 @@ import {
   type LedgerVerdict,
   type SourceScore,
 } from './ledger-types.js';
-import { SCHEME_NAME, UNSURE, type Scheme } from './types.js';
+import { CATEGORY_ID, SCHEME_NAME, UNSURE, VERDICT_SOURCE, type PersonSay, type Scheme } from './types.js';
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isText = (v: unknown): v is string => typeof v === 'string';
 const isTextOrNull = (v: unknown): v is string | null => v === null || typeof v === 'string';
+const isCategory = (v: unknown): v is string => typeof v === 'string' && CATEGORY_ID.test(v);
+const isCategoryOrNull = (v: unknown): v is string | null => v === null || isCategory(v);
+const isSource = (v: unknown): v is string => typeof v === 'string' && VERDICT_SOURCE.test(v);
+const isSourceOrNull = (v: unknown): v is string | null => v === null || isSource(v);
 
 /** A title or reason as the ledger keeps it: control and bidirectional-override characters dropped, one line, cut to LEDGER_TEXT_MAX. */
 export function cleanText(text: string): string {
@@ -54,22 +58,24 @@ export function safeText(text: string): string {
   return cleanText(out);
 }
 
-/** A line as the ledger keeps it: title and reason cleaned and scrubbed of anything shaped like a credential. */
+/** A line as the ledger keeps it: item, title and reason cleaned and scrubbed of anything shaped like a credential. */
 export function cleanLine(line: LedgerLine): LedgerLine {
-  return line.kind === 'correction' ? { ...line, title: safeText(line.title), reason: line.reason === null ? null : safeText(line.reason) } : { ...line, title: safeText(line.title) };
+  const item = safeText(line.item);
+  return line.kind === 'correction' ? { ...line, item, title: safeText(line.title), reason: line.reason === null ? null : safeText(line.reason) } : { ...line, item, title: safeText(line.title) };
 }
 
 function readLine(value: unknown): LedgerLine | undefined {
   if (!isRecord(value)) return undefined;
-  const common = isText(value.at) && isText(value.item) && isText(value.title) && isTextOrNull(value.toilProject) && isText(value.scheme) && typeof value.revision === 'number';
+  const common = isText(value.at) && isText(value.item) && cleanText(value.item) === value.item && isText(value.title) && isTextOrNull(value.toilProject) && isText(value.scheme) && typeof value.revision === 'number';
   if (!common) return undefined;
   if (value.kind === 'verdict') {
-    if (!isTextOrNull(value.category) || !isText(value.source)) return undefined;
+    // Ids and sources are printed into prompts and screens, so a hand-edited line that isn't shaped like one is skipped, not trusted.
+    if (!isCategoryOrNull(value.category) || !isSource(value.source)) return undefined;
     return value as unknown as LedgerVerdict;
   }
   if (value.kind === 'correction') {
     const via = value.via;
-    if (!isTextOrNull(value.from) || !isTextOrNull(value.fromSource) || !isText(value.to) || typeof value.confirmed !== 'boolean') return undefined;
+    if (!isCategoryOrNull(value.from) || !isSourceOrNull(value.fromSource) || !isCategory(value.to) || typeof value.confirmed !== 'boolean') return undefined;
     if (!isText(via) || !(LEDGER_DOORS as readonly string[]).includes(via) || !isTextOrNull(value.by) || !isTextOrNull(value.reason)) return undefined;
     return value as unknown as LedgerCorrection;
   }
@@ -119,28 +125,39 @@ export function standing(lines: readonly LedgerLine[]): Map<string, LedgerStandi
   return out;
 }
 
-/** Each item's last correction, for the engine: a person's say, by item id. */
-export function personSay(lines: readonly LedgerLine[]): Record<string, { category: string; reason: string | null }> {
-  const out: Record<string, { category: string; reason: string | null }> = {};
+/** What a correction sets, given the say it follows: `from` is what the tracker held, carried through a person changing their mind and dropped for a correction that came from the tracker, which is the tracker speaking. */
+function nextSay(before: { category: string | null; from?: string | undefined } | undefined, line: LedgerCorrection): { from?: string } {
+  if (line.via === 'tracker') return {};
+  const from = line.fromSource === 'person' && before?.category != null && before.from !== undefined ? before.from : (line.from ?? undefined);
+  return from !== undefined ? { from } : {};
+}
+
+/**
+ * Each item's last correction, for the engine: a person's say, by item id. `from` is what the tracker held when the say was
+ * made, so a label or field that still says it is the tracker not having caught up, and `via` is the door that recorded it.
+ */
+export function personSay(lines: readonly LedgerLine[]): Record<string, PersonSay> {
+  const out: Record<string, PersonSay> = {};
   for (const line of lines) {
     if (line.kind !== 'correction') continue;
     // Saying "unsure" asks for a fresh look, so it is no category to hold the rules to.
     if (line.to === UNSURE) delete out[line.item];
-    else out[line.item] = { category: line.to, reason: line.reason };
+    else out[line.item] = { category: line.to, reason: line.reason, via: line.via, ...nextSay(out[line.item], line) };
   }
   return out;
 }
 
 /**
- * Each item's last say, for a screen: the category a person chose, or null where they took the category back
- * ("unsure"), with the reason. Unlike `personSay` it keeps the takings-back, because a screen must not show an item
- * a person already answered as one still waiting for an answer.
+ * Each item's last say, for a screen: the category a person chose, or null where they took it back ("unsure"), with the
+ * reason, the door (`via`) and what the tracker held (`from`), the same as `personSay` holds. Unlike `personSay` it keeps the
+ * takings-back, because a screen must not show an item a person already answered as one still waiting for an answer.
  */
-export function lastSays(lines: readonly LedgerLine[]): Record<string, { category: string | null; reason: string | null }> {
-  const out: Record<string, { category: string | null; reason: string | null }> = {};
+export function lastSays(lines: readonly LedgerLine[]): Record<string, { category: string | null; reason: string | null; via: LedgerDoor; from?: string }> {
+  const out: Record<string, { category: string | null; reason: string | null; via: LedgerDoor; from?: string }> = {};
   for (const line of lines) {
     if (line.kind !== 'correction') continue;
-    out[line.item] = { category: line.to === UNSURE ? null : line.to, reason: line.reason };
+    const unsure = line.to === UNSURE;
+    out[line.item] = { category: unsure ? null : line.to, reason: line.reason, via: line.via, ...(unsure ? {} : nextSay(out[line.item], line)) };
   }
   return out;
 }
@@ -392,11 +409,16 @@ export class Ledger {
       throw new ToilError('CONFIG_INVALID', `The ledger ${forwardSlashes(file)} can't be read: ${(err as NodeJS.ErrnoException).code ?? (err as Error).message}.`, { fix: `Check that ${forwardSlashes(file)} is readable.` });
     }
     try {
-      if (fstatSync(fd).size > MAX_LEDGER_BYTES) throw this.tooBig(file);
-      // Read from the open file and stop a byte past the cap, so a file that grows meanwhile still can't be read whole.
-      const buffer = Buffer.alloc(MAX_LEDGER_BYTES + 1);
+      const size = fstatSync(fd).size;
+      if (size > MAX_LEDGER_BYTES) throw this.tooBig(file);
+      // Sized to the file, not to the cap, and one byte of slack: a file that grows meanwhile still stops at the cap, never read whole.
+      let buffer = Buffer.alloc(Math.min(size + 1, MAX_LEDGER_BYTES + 1));
       let length = 0;
       for (;;) {
+        if (length === buffer.length) {
+          if (length > MAX_LEDGER_BYTES) throw this.tooBig(file);
+          buffer = Buffer.concat([buffer, Buffer.alloc(Math.min(buffer.length, MAX_LEDGER_BYTES + 1 - buffer.length))]);
+        }
         const n = readSync(fd, buffer, length, buffer.length - length, null);
         if (n === 0) break;
         length += n;

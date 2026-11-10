@@ -400,6 +400,23 @@ describe("a person's say", () => {
     expect(only({ items: [labelled], person, recheck: true })).toMatchObject({ category: 'feature', source: 'person' });
   });
 
+  it("outranks a label that still says what the tracker held before the person spoke, and only that label", () => {
+    const person = { 'corp-jira:PAY-1': { category: 'feature', reason: null, from: 'ktlo' } };
+    expect(only({ items: [bug({ labels: ['ktlo'] })], person })).toMatchObject({ category: 'feature', source: 'person' });
+    // Someone set the label to something else since: that is the tracker speaking, and it wins.
+    const three = scheme({ categories: [...scheme().categories, { id: 'chore', short: 'Chore', name: 'Chore', label: 'chore', definition: 'Housekeeping.' }] });
+    expect(only({ scheme: three, items: [bug({ labels: ['chore'] })], person })).toMatchObject({ category: 'chore', source: 'label' });
+    // With nothing to compare (no `from`), a label still wins.
+    expect(only({ items: [bug({ labels: ['ktlo'] })], person: { 'corp-jira:PAY-1': { category: 'feature', reason: null } } })).toMatchObject({ source: 'label' });
+  });
+
+  it('words the reason by the door that recorded it', () => {
+    const say = (via: 'cli' | 'mcp' | 'api' | 'tracker', reason: string | null) => only({ items: [bug()], person: { 'corp-jira:PAY-1': { category: 'feature', reason, via } } });
+    expect(say('mcp', 'You said so.')).toMatchObject({ source: 'person', reason: 'Recorded by an AI agent for a person: Feature (You said so.).' });
+    expect(say('tracker', null)).toMatchObject({ source: 'person', reason: 'Changed in the tracker to Feature.' });
+    expect(say('api', 'ok').reason).toBe('A person chose Feature: ok.');
+  });
+
   it('is ignored with one warning when the scheme no longer has the category', () => {
     const { result, warnings } = run({ items: [bug(), item('PAY-3', { type: 'BUG', typeName: 'Bug' })], person: { 'corp-jira:PAY-1': { category: 'chore', reason: null }, 'corp-jira:PAY-3': { category: 'gone', reason: null } } });
     expect(result.verdicts.map((v) => v.source)).toEqual(['signal:type', 'signal:type']);

@@ -113,7 +113,8 @@ export function ApplyCard({ connection, work, onClose }: { connection: string; w
     if (!api) return;
     setBusy(true);
     try {
-      const r = await api.apply(toilProject.name, work);
+      if (!plan || !('id' in plan)) return;
+      const r = await api.apply(toilProject.name, plan.id);
       setResult(r);
       const byId = new Map(work.items.map((i) => [i.id, i]));
       const wanted = new Map((plan && 'groups' in plan ? plan.groups : []).flatMap((g) => g.changes.map((c) => [c.key, c.category] as const)));

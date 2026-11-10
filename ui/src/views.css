@@ -169,6 +169,8 @@
 .gnode--unknown { border-style: dashed; }
 .gnode-title { font-weight: 600; line-height: 1.3; }
 .gnode .chip { white-space: normal; max-width: 100%; }
+/* A node's link is a target of its own: at least 24px tall, so a node whose neighbour sits close still meets WCAG 2.5.8. */
+.gnode .item-link { display: inline-block; min-height: 24px; padding-block: 2px; box-sizing: border-box; }
 .graph .react-flow__handle { opacity: 0; }
 /* The invisible handles sit just inside the node, rather than half outside it, so a node is exactly as wide as its box. */
 .graph .react-flow__handle-left { left: 0; transform: translate(0, -50%); }

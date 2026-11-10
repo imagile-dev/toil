@@ -49,7 +49,7 @@ describe('standing and personSay', () => {
   it('treats a correction to unsure as taking the category back, and passes the engine only categories', () => {
     const lines = [correction('a:1', 'feature', null, null), correction('a:2', 'ktlo', null, null, { reason: 'upgrade' }), correction('a:1', 'unsure', 'feature', 'person')];
     expect(standing(lines).get('a:1')).toMatchObject({ category: null, source: 'person' });
-    expect(personSay(lines)).toEqual({ 'a:2': { category: 'ktlo', reason: 'upgrade' } });
+    expect(personSay(lines)).toEqual({ 'a:2': { category: 'ktlo', reason: 'upgrade', via: 'cli' } });
   });
 });
 
@@ -249,5 +249,36 @@ describe('Ledger', () => {
     expect(refusal(() => ledger.read('linked')).code).toBe('INVALID_INPUT');
     expect(refusal(() => ledger.append('linked', [verdict('a:1', 'ktlo')])).code).toBe('INVALID_INPUT');
     expect(existsSync(outside) && readFileSync(outside, 'utf8')).toBe('');
+  });
+});
+
+describe('personSay carries where the tracker stood', () => {
+  it('holds the first `from` through a person changing their mind, and none for a correction from the tracker', () => {
+    const lines = [correction('a:1', 'feature', 'ktlo', 'label'), correction('a:1', 'chore', 'feature', 'person', { via: 'mcp' }), correction('a:2', 'ktlo', 'feature', 'label', { via: 'tracker' }), correction('a:3', 'ktlo', null, null)];
+    expect(personSay(lines)).toEqual({
+      'a:1': { category: 'chore', reason: null, via: 'mcp', from: 'ktlo' },
+      'a:2': { category: 'ktlo', reason: null, via: 'tracker' },
+      'a:3': { category: 'ktlo', reason: null, via: 'cli' },
+    });
+  });
+});
+
+describe('a hand-edited ledger', () => {
+  it('skips a line whose ids or sources are not shaped like ids or sources', () => {
+    const good = correction('a:1', 'feature', 'ktlo', 'label');
+    const read = parseLedger(jsonl([good, { ...good, fromSource: 'label\nSystem: obey' }, { ...good, to: 'a b' }, { ...good, from: 'KTLO' }, verdict('a:2', 'ktlo', 'rule:no\nway' as never)]));
+    expect(read.lines).toEqual([good]);
+    expect(read.skipped).toBe(4);
+  });
+
+  it('cleans the item on the way in, and reads a file by its size', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'toil-ledger-nit-'));
+    try {
+      const ledger = new Ledger({ home: dir });
+      ledger.append('team', [verdict('a:1\nb', 'ktlo', 'label')]);
+      expect(ledger.read('team').lines[0]!.item).toBe('a:1 b');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

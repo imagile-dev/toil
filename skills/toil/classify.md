@@ -75,10 +75,10 @@ None needs `--allow-write`: they write local files, never a service.
 | Command | Flags | What it does |
 |---------|-------|--------------|
 | `toil classify scheme list` | `--cwd` | Every scheme visible by name, each from its highest place, with its categories |
-| `toil classify scheme show <name>` | `--cwd` | One scheme in full, and where it was found; `<name>` is a name or a file |
+| `toil classify scheme show [name]` | `--toil-project`, `--cwd` | One scheme in full, and where it was found; `[name]` is a name or a file, or leave it out with `--toil-project` for the scheme that toil project uses (a path beside the toil project file included) |
 | `toil classify scheme init <name>` | `--from`, `--cwd` | Create `~/.toil/classify/<name>.json` as a copy of `--from` (default `ktlo-feature`), revision 1; refuses a name you have |
 | `toil classify scheme export <name>` | `--repo`, `--file`, `--replace`, `--cwd` | Write `<repo>/.toil/classify/<name>.json`, or one `.json` file; never stages or commits |
-| `toil classify scheme set <name>` | `--from`, `--cwd` | Replace a scheme with a revised file, setting the revision to the current one plus 1. CLI only |
+| `toil classify scheme set [name]` | `--from`, `--toil-project`, `--cwd` | Replace a scheme with a revised file, setting the revision to the current one plus 1; with `--toil-project` and no name, the scheme that toil project uses, rewritten where it lives. CLI only |
 | `toil classify scheme import <file>` | `--name`, `--replace`, `--cwd` | Copy a scheme file into your own folder to adapt it. CLI only |
 
 - `set` writes the scheme where it lives: your folder, the repository's working-tree file
@@ -137,7 +137,10 @@ First match wins, in this order:
    scheme's labels (the field wins if they disagree; two different scheme labels settle
    nothing). `--recheck` skips this step.
 2. A person's recorded correction from the ledger (`source: person`; see **Corrections
-   and the ledger**), so a person's say is never undone by a rule.
+   and the ledger**), so a person's say is never undone by a rule. It also outranks a
+   label or field that still holds what the tracker held before the person spoke (the
+   tracker hasn't caught up yet; `categorize` writes it). The reason says who recorded it:
+   a person, an AI agent for a person (over MCP), or a label changed in the tracker.
 3. The scheme's own rules, in order (`source: rule:<id>`).
 4. toil's built-in keep-the-lights-on signals, when the scheme has `signals` on
    (`source: signal:<name>`).
@@ -254,8 +257,11 @@ way to start a new one (rename the old file). Lines that can't be read are skipp
 a `LEDGER_LINES_SKIPPED` warning.
 
 A correction made through any door decides the item on the next `classify run`
-(`source: person`, with the person's reason) until a label or field already on the item
-says otherwise; `categorize` writes it to the tracker.
+(`source: person`, with the person's reason) until someone sets a different label or field
+in the tracker (that is recorded as a correction from the tracker); `categorize` writes it
+to the tracker. The old label the tracker still holds does not undo it. A `classify run`
+without `--record` that can't read the ledger (over 32 MiB, say) carries on without
+people's corrections and warns `LEDGER_UNREADABLE`; `--record`, `correct`, `stats` and `tune` refuse.
 
 ### Where the scheme gets it wrong: `classify stats`
 

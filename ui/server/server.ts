@@ -635,7 +635,8 @@ export function createUiServer(options: UiServerOptions): UiServer {
           json(res, 200, await service.plan(toilProjectOf(body.toilProject), { items: itemsOf(body.items), accepted: acceptedOf(body.accepted) }));
           return;
         case 'POST classify/apply':
-          json(res, 200, await service.apply(toilProjectOf(body.toilProject), { items: itemsOf(body.items), accepted: acceptedOf(body.accepted) }, ctx.signal));
+          if (typeof body.plan !== 'string' || !body.plan) throw new HttpError(400, 'Name the plan by its id.', 'Send { "toilProject": "<name>", "plan": "<id from classify/plan>" }.');
+          json(res, 200, await service.apply(toilProjectOf(body.toilProject), body.plan, ctx.signal));
           return;
         case 'POST classify/tune':
           json(res, 200, await service.tune(toilProjectOf(body.toilProject), itemsOf(body.items), adapterOf(body.adapter), ctx.signal));

@@ -19,7 +19,7 @@
  */
 
 import { classify } from '../../../src/core/classify/engine.ts';
-import type { AgentVerdict, ClassifyArea, ResolvedTarget, Scheme, Verdict } from '../../../src/core/classify/types.ts';
+import type { AgentVerdict, ClassifyArea, PersonSay, ResolvedTarget, Scheme, Verdict } from '../../../src/core/classify/types.ts';
 import { CLASSIFY_AREAS, UNSURE } from '../../../src/core/classify/types.ts';
 import type { WorkItem } from '../toil.ts';
 
@@ -27,12 +27,18 @@ import type { WorkItem } from '../toil.ts';
 export interface Say {
   category: string | null;
   reason: string | null;
+  /** The door that recorded it, where the ledger says: a person, an AI agent for a person (`mcp`), or a label changed in the tracker. */
+  via?: 'cli' | 'mcp' | 'api' | 'tracker' | undefined;
+  /** What the tracker held when they said it; a label that still says it is the tracker not having caught up. */
+  from?: string | undefined;
 }
 
 /** What the engine takes as `person`: only an actual category stands as a person's say. */
-export function personOf(standing: Readonly<Record<string, Say>>): Record<string, { category: string; reason: string | null }> {
-  const out: Record<string, { category: string; reason: string | null }> = {};
-  for (const [id, say] of Object.entries(standing)) if (say.category !== null) out[id] = { category: say.category, reason: say.reason };
+export function personOf(standing: Readonly<Record<string, Say>>): Record<string, PersonSay> {
+  const out: Record<string, PersonSay> = {};
+  for (const [id, say] of Object.entries(standing)) {
+    if (say.category !== null) out[id] = { category: say.category, reason: say.reason, ...(say.via ? { via: say.via } : {}), ...(say.from !== undefined ? { from: say.from } : {}) };
+  }
   return out;
 }
 

@@ -19,6 +19,19 @@ export const SCHEME_NAME = /^[a-z][a-z0-9-]{0,62}$/;
 export const CATEGORY_ID = /^[a-z][a-z0-9-]{0,30}$/;
 /** What a verdict says when nothing settled the item. Never a category's id. */
 export const UNSURE = 'unsure';
+/**
+ * A person's standing say on an item, as the engine takes it. `from` is the category the tracker held when the say was made, so a
+ * label or field that still says it is the tracker not having caught up, and the say stands; absent where there is no such
+ * thing to compare (a say with nothing before it, or one that came from the tracker itself). `via` says which door recorded it.
+ */
+export interface PersonSay {
+  category: string;
+  reason: string | null;
+  from?: string | undefined;
+  via?: 'cli' | 'mcp' | 'api' | 'tracker' | undefined;
+}
+/** The shape of a verdict's source; a ledger line holding anything else is a hand edit and is skipped, never printed. */
+export const VERDICT_SOURCE = /^(?:label|field|parent|agent|person|unsure|rule:[a-z][a-z0-9-]{0,40}|signal:[a-z][a-z0-9-]{0,40})$/;
 /** The scheme a toil project gets when it names none. */
 export const DEFAULT_SCHEME = 'ktlo-feature';
 

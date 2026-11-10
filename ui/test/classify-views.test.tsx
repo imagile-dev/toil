@@ -200,11 +200,23 @@ describe('Apply', () => {
 
   it("applies on one press, reports each item's result, and a second press changes nothing more", async () => {
     const api = fixtureClassify();
-    const apply = vi.fn(async (_p: string, work: { items: Array<{ source: { key: string } }> }) => ({
-      outcomes: [{ connection: 'sample-jira', changed: work.items.slice(0, 1).map((i) => ({ key: i.source.key, text: 'added feature' })), unchanged: work.items.slice(1).map((i) => i.source.key), failed: [{ key: 'SHOP-999', reason: 'Jira said no.' }], refused: null }],
-      recorded: { ok: true as const },
-    }));
-    await accepted({ ...api, disabled: null, apply: apply as unknown as ClassifyApi['apply'], plan: async (p, w) => ({ groups: (await api.plan(p, w)).groups.map((g) => ({ ...g, writes: true })), notes: [] }) });
+    let planned: Array<{ source: { key: string } }> = [];
+    const apply = vi.fn(async (_p: string, planId: string) => {
+      expect(planId).toBe('plan-1');
+      return {
+        outcomes: [{ connection: 'sample-jira', changed: planned.slice(0, 1).map((i) => ({ key: i.source.key, text: 'added feature' })), unchanged: planned.slice(1).map((i) => i.source.key), failed: [{ key: 'SHOP-999', reason: 'Jira said no.' }], refused: null }],
+        recorded: { ok: true as const },
+      };
+    });
+    await accepted({
+      ...api,
+      disabled: null,
+      apply: apply as unknown as ClassifyApi['apply'],
+      plan: async (p, w) => {
+        planned = w.items;
+        return { id: 'plan-1', groups: (await api.plan(p, w)).groups.map((g) => ({ ...g, writes: true })), notes: [] };
+      },
+    });
     const card = await until<HTMLElement>('[data-apply]');
     await waitFor(() => expect(card.querySelectorAll('[data-change]').length).toBeGreaterThan(3));
     const button = within(card).getByRole('button', { name: /^Apply \d+ changes$/ });

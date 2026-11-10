@@ -83,3 +83,16 @@ describe('classify mix', () => {
     expect(out.overall.every((s: any) => s.share === null)).toBe(true);
   });
 });
+
+describe('a ledger toil cannot read', () => {
+  it('does not stop a mix or a pivot: they carry on without the corrections, and say so', async () => {
+    const d = disk();
+    d.write('home/.toil/classify/ktlo-feature.jsonl', 'x'.repeat(33 * 1024 * 1024));
+    const mix = await cli(d, mixArgs);
+    expect(data(mix).overall).toHaveLength(3);
+    expect(codes(mix)).toContain('LEDGER_UNREADABLE');
+    const pivot = await cli(d, ['projects', 'pivot', 'payments', '--file', 'work.json', '--as-of', AS_OF, '--split', 'category']);
+    expect(data(pivot).total).toBeDefined();
+    expect(codes(pivot)).toContain('LEDGER_UNREADABLE');
+  });
+});

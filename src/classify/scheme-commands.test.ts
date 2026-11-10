@@ -182,6 +182,30 @@ describe('classify scheme set', () => {
     expect(out).toMatchObject({ source: 'file', revision: 4, file: forwardSlashes(join(d.workspace, 'shared', 'team.json')) });
   });
 
+  it("reads and rewrites the scheme file beside a toil project, through the toil project, even in toil's own folder", async () => {
+    const d = disk({
+      'home/.toil/projects/mine.json': { name: 'mine', classify: { scheme: './schemes/team.json' } },
+      'home/.toil/projects/schemes/team.json': team(),
+      'work/v2.json': team({ guidance: ['Changed.'] }),
+    });
+    const file = forwardSlashes(join(d.home, '.toil', 'projects', 'schemes', 'team.json'));
+    // By path alone the file is toil's own and refused; through the toil project it is the scheme the toil project uses.
+    expect((await cli(d, ['classify', 'scheme', 'show', file])).ok).toBe(false);
+    const shown = data(await cli(d, ['classify', 'scheme', 'show', '--toil-project', 'mine']));
+    expect(shown).toMatchObject({ source: 'toil-project', file, scheme: { name: 'team', revision: 3 } });
+    const out = data(await cli(d, ['classify', 'scheme', 'set', '--toil-project', 'mine', '--from', 'v2.json']));
+    expect(out).toMatchObject({ source: 'toil-project', revision: 4, previousRevision: 3, file });
+    expect(read(file)).toMatchObject({ revision: 4, guidance: ['Changed.'] });
+    expect(existsSync(join(d.home, '.toil', 'classify', 'team.json'))).toBe(false);
+  });
+
+  it('needs a scheme name or a toil project, and a name still wins over the toil project', async () => {
+    const d = disk({ 'home/.toil/projects/mine.json': { name: 'mine', classify: { scheme: 'balance' } } });
+    expect((await cli(d, ['classify', 'scheme', 'show'])).error?.code).toBe('INVALID_INPUT');
+    expect(data(await cli(d, ['classify', 'scheme', 'show', '--toil-project', 'mine'])).scheme.name).toBe('balance');
+    expect(data(await cli(d, ['classify', 'scheme', 'show', 'ktlo-feature', '--toil-project', 'mine'])).scheme.name).toBe('ktlo-feature');
+  });
+
   it('writes a user copy for a built-in scheme, leaving the built-in as it was', async () => {
     const d = disk({ 'work/v2.json': { ...builtinScheme('ktlo-feature'), guidance: ['Mine.'] } });
     const out = data(await cli(d, ['classify', 'scheme', 'set', 'ktlo-feature', '--from', 'v2.json']));

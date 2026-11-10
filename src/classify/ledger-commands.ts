@@ -51,21 +51,17 @@ const emptyAdvice = 'A ledger fills as you use it: toil classify run --record ke
 /** Each item people changed, as a tune prompt shows it: what the classifier first said, and the person's last word. */
 function correctionsOf(lines: readonly LedgerLine[], toilProject: string | null): TuneCorrection[] {
   const first = new Map<string, LedgerCorrection>();
+  // A Map keeps insertion order, so deleting and setting again moves an item to the end: the order of each item's latest correction.
   const last = new Map<string, LedgerCorrection>();
-  const order: string[] = [];
   for (const line of lines) {
     if (line.kind !== 'correction' || line.confirmed) continue;
     if (toilProject !== null && line.toilProject !== toilProject) continue;
     if (!first.has(line.item)) first.set(line.item, line);
     last.delete(line.item);
     last.set(line.item, line);
-    const at = order.indexOf(line.item);
-    if (at >= 0) order.splice(at, 1);
-    order.push(line.item);
   }
-  return order.map((item) => {
+  return [...last].map(([item, z]) => {
     const a = first.get(item)!;
-    const z = last.get(item)!;
     return { item, title: z.title, from: a.from, fromSource: a.fromSource, to: z.to, reason: z.reason, via: z.via };
   });
 }
@@ -144,7 +140,7 @@ export function classifyLedgerCommands(): AnyCommand[] {
     path: ['classify', 'stats'],
     description: "Where a scheme gets it wrong: agreement, the sources people overrule, and which way the errors run, from the ledger (local only)",
     toolDescription:
-      "Reads the scheme's ledger on this machine (what classify_run recorded and what people corrected) and reports how often people agreed: overall, per category and per scheme revision; per source (each rule, each built-in signal, label, field, parent and the AI agent) how often it was overruled and to what; which way errors run (from a category to another); corrections since the last tune, items corrected more than once, and corrections by door (mcp is what an AI agent recorded for a person). Every share is null, never 0, where nothing was checked. An empty or missing ledger is not an error: zero counts and a LEDGER_EMPTY warning. toilProject narrows to one toil project. backtest scores a revised scheme (revised, a scheme file in the workspace) on the corrections held back from classify_tune: backtest is a workspace file of the AI agent's answers for those items, [{ id, category, reason }] from classify_prompt over them with the revised scheme; file or text may add the items as OWI records so the revised scheme's rules run by code. standing adds standing { <item id>: { category, reason } }, each item's last say from a person (category null where they took it back), which a screen needs to show an item as answered. Returns the statistics, plus backtest { heldBack, before, after, disagreements, worse } with it, and file. Changes nothing, not even a scheme; sends nothing anywhere.",
+      "Reads the scheme's ledger on this machine (what classify_run recorded and what people corrected) and reports how often people agreed: overall, per category and per scheme revision; per source (each rule, each built-in signal, label, field, parent and the AI agent) how often it was overruled and to what; which way errors run (from a category to another); corrections since the last tune, items corrected more than once, and corrections by door (mcp is what an AI agent recorded for a person). Every share is null, never 0, where nothing was checked. An empty or missing ledger is not an error: zero counts and a LEDGER_EMPTY warning. toilProject narrows to one toil project. backtest scores a revised scheme (revised, a scheme file in the workspace) on the corrections held back from classify_tune: backtest is a workspace file of the AI agent's answers for those items, [{ id, category, reason }] from classify_prompt over them with the revised scheme; file or text may add the items as OWI records so the revised scheme's rules run by code. standing adds standing { <item id>: { category, reason, via, from } }, each item's last say from a person (category null where they took it back; via the door that recorded it; from what the tracker held when they said it, absent where there is none), which a screen needs to show an item as answered. Returns the statistics, plus backtest { heldBack, before, after, disagreements, worse } with it, and file. Changes nothing, not even a scheme; sends nothing anywhere.",
     input: z.object({
       ...inputFields,
       toilProject: toilProjectField,

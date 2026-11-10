@@ -12,6 +12,8 @@ export interface Shortcut {
   keys: readonly string[];
   /** Other keys that do the same, read the same way. */
   or?: ReadonlyArray<readonly string[]>;
+  /** How the `?` sheet reads the keys when listing each would run on (`1 to 9`); matching still accepts every one. */
+  range?: readonly [string, string];
   /** Where it works. */
   where: string;
   /** What it does, in a few words. */
@@ -41,7 +43,7 @@ export const SHORTCUTS = {
   classifyK: { keys: ['K'], where: 'Sort work into categories, on a row', what: 'Pick Keep the lights on for the row' },
   classifyF: { keys: ['F'], where: 'Sort work into categories, on a row', what: 'Pick Feature for the row' },
   classifyU: { keys: ['U'], where: 'Sort work into categories, on a row', what: 'Pick Unsure for the row' },
-  classifyDigit: { keys: ['1'], or: [['2'], ['3'], ['4'], ['5'], ['6'], ['7'], ['8'], ['9']], where: 'Sort work into categories, on a row, for a scheme of other categories', what: 'Pick the numbered category for the row' },
+  classifyDigit: { keys: ['1'], or: [['2'], ['3'], ['4'], ['5'], ['6'], ['7'], ['8'], ['9']], range: ['1', '9'], where: 'Sort work into categories, on a row, for a scheme of other categories', what: 'Pick the numbered category for the row' },
   classifyConfirm: { keys: ['Enter'], where: 'Sort work into categories, on a row', what: 'Confirm the pick and move to the next row' },
   drawerClose: { keys: ['Escape'], where: "In an item's drawer", what: 'Close it, and go back to the view behind it' },
 } as const satisfies Record<string, Shortcut>;

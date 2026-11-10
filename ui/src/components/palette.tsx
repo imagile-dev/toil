@@ -325,13 +325,23 @@ export function ShortcutsSheet({ isOpen, onOpenChange }: { isOpen: boolean; onOp
                     {list.map((s) => (
                       <div key={s.what} className="shortcuts__row">
                         <dt>
-                          {keys(s.keys)}
-                          {(s.or ?? []).map((o) => (
-                            <span key={o.join('+')}>
-                              {' or '}
-                              {keys(o)}
-                            </span>
-                          ))}
+                          {s.range ? (
+                            <>
+                              <kbd>{s.range[0]}</kbd>
+                              {' to '}
+                              <kbd>{s.range[1]}</kbd>
+                            </>
+                          ) : (
+                            <>
+                              {keys(s.keys)}
+                              {(s.or ?? []).map((o) => (
+                                <span key={o.join('+')}>
+                                  {' or '}
+                                  {keys(o)}
+                                </span>
+                              ))}
+                            </>
+                          )}
                         </dt>
                         <dd>{s.what}</dd>
                       </div>

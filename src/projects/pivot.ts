@@ -81,7 +81,7 @@ export interface Classified {
 export async function classified(input: Parameters<typeof prepare>[0], ctx: CommandContext<unknown>): Promise<Classified> {
   const prepared = await prepare(input, ctx);
   const ledger = ledgerOf(ctx);
-  const held = ledger ? readLedger(ledger, prepared.scheme.name, ctx) : undefined;
+  const held = ledger ? readLedger(ledger, prepared.scheme.name, ctx, { optional: true }) : undefined;
   const result = runOn(prepared, ctx, { planFields: false, ...(held ? { person: personSay(held.lines) } : {}) });
   const categories: Record<string, string | null> = {};
   const sources: Classified['sources'] = { rules: 0, signals: 0, labels: 0, parent: 0, agent: 0, person: 0, unsure: 0 };

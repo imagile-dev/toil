@@ -45,6 +45,9 @@ function ItemBox({ data }: NodeProps<ItemNode>) {
 
 const nodeTypes = { item: ItemBox };
 
+/** Fit the whole graph in view, keeping the bottom clear of the zoom buttons so no node ends up under them (a covered link fails WCAG 2.5.8). */
+const FIT = { padding: { top: 0.15, right: 0.15, left: 0.15, bottom: '72px' }, maxZoom: 1, duration: 0 } as const;
+
 /** Zoom and fit, as plain labelled buttons (xyflow's own panel carries an aria-label on a div with no role). */
 function Zoom() {
   const flow = useReactFlow();
@@ -57,7 +60,7 @@ function Zoom() {
         <button type="button" onClick={() => flow.zoomOut({ duration: 0 })} aria-label="Zoom out">
           −
         </button>
-        <button type="button" onClick={() => flow.fitView({ padding: 0.15, maxZoom: 1, duration: 0 })}>
+        <button type="button" onClick={() => flow.fitView(FIT)}>
           Fit
         </button>
       </div>
@@ -147,7 +150,7 @@ export function Graph() {
           preventScrolling={false}
           zoomOnDoubleClick={false}
           fitView
-          fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
+          fitViewOptions={FIT}
           minZoom={0.4}
           maxZoom={1.5}
           proOptions={{ hideAttribution: false }}

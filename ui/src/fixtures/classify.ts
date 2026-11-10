@@ -113,7 +113,7 @@ export function fixtureClassify(): ClassifyApi {
         return { id: p.id, key: p.key, title: item.title, category: p.category, labelsFrom: item.labels.filter((l) => own.has(l.toLowerCase())), labelsAdd: p.labels.add, labelsRemove: p.labels.remove, field: null };
       }),
     }));
-    return { groups, notes: [] };
+    return { id: 'sample-plan', groups, notes: [] };
   };
   const agents = async (): Promise<AgentChoice[]> => [{ name: 'scripted', label: 'The sample agent (a script, not a model)', ready: true, problem: null }];
   return {

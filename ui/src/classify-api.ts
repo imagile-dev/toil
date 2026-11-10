@@ -22,8 +22,8 @@ import type { Say } from './model/classify.ts';
 
 export type { ClassifyStats };
 
-/** Where the scheme is kept, in words: never a path. */
-export type SchemeKept = 'built-in' | 'yours' | 'shared';
+/** Where the scheme is kept, in words: never a path. `beside` is a file next to the toil project's own file. */
+export type SchemeKept = 'built-in' | 'yours' | 'shared' | 'beside';
 
 /** What the ledger says now: the scheme toil resolved, how it has been doing, and each item's last say. */
 export interface LedgerView {
@@ -80,6 +80,8 @@ export interface PlanGroupView {
 }
 
 export interface ApplyPlan {
+  /** Names this plan for Apply: what is written is exactly the plan the card showed. The server keeps the plan a short while. */
+  id: string;
   groups: PlanGroupView[];
   /** What the plan leaves out and why, in words. */
   notes: string[];
@@ -123,6 +125,8 @@ export interface SaveResult {
   revision: number;
   /** How it was kept, in words. */
   kept: SchemeKept;
+  /** Set when the toil project does not read the scheme just saved (it names none, so it uses the built-in one): the name to point it at. */
+  pointProject?: string;
   warnings: string[];
 }
 
@@ -141,7 +145,8 @@ export interface ClassifyApi {
   agents(): Promise<AgentChoice[]>;
   ask(toilProject: string, items: WorkItem[], adapter?: string): Promise<AgentAnswers>;
   plan(toilProject: string, work: ApplyWork): Promise<ApplyPlan>;
-  apply(toilProject: string, work: ApplyWork): Promise<ApplyResult>;
+  /** Applies exactly the plan `plan` returned under this id; an id the server no longer keeps is refused. */
+  apply(toilProject: string, planId: string): Promise<ApplyResult>;
   tune(toilProject: string, items: WorkItem[], adapter?: string): Promise<TuneResult>;
   applyRevision(id: string): Promise<SaveResult>;
   saveScheme(toilProject: string, scheme: Scheme): Promise<SaveResult>;

@@ -42,11 +42,13 @@ interface Shown {
   areas: string[];
 }
 
-const KEPT = { 'built-in': 'built in to toil', yours: 'your own copy', shared: 'shared in the repository' } as const;
+const KEPT = { 'built-in': 'built in to toil', yours: 'your own copy', shared: 'shared in the repository', beside: 'beside this Toil project' } as const;
 const AREA_NAME: Record<string, string> = { jira: 'Jira', github: 'GitHub', ado: 'Azure DevOps' };
 const CLASSIFY_AREAS = ['jira', 'github', 'ado'];
 
-const said = (r: SaveResult) => `Saved as revision ${r.revision}, ${r.kept === 'yours' ? 'kept as your own copy' : r.kept === 'shared' ? 'in the repository, ready for a pull request' : 'as a built-in scheme'}.`;
+const SAVED = { yours: 'kept as your own copy', shared: 'in the repository, ready for a pull request', beside: 'in the file beside this Toil project, where it reads it', 'built-in': 'as a built-in scheme' } as const;
+const said = (r: SaveResult, toilProject: string) =>
+  `Saved as revision ${r.revision}, ${SAVED[r.kept]}.${r.pointProject ? ` ${toilProject} does not read this copy yet: choose it under "Which categories this Toil project uses", then press Use these categories.` : ''}`;
 
 function Field({ label, value, onChange, hint, wide = false }: { label: string; value: string; onChange: (v: string) => void; hint?: string; wide?: boolean }) {
   return (
@@ -131,6 +133,8 @@ export function ClassificationEditor({ config, classify, toilProject, loadItems 
   const changed = !sameDraft(draft, base);
   const valid = checked !== null && checked.scheme !== null;
   const disabled = config.disabled ?? classify?.disabled ?? null;
+  // A Toil project that names no scheme uses the built-in one, so choosing a copy of the same name (yours, once saved) is a real change.
+  const alreadyUsed = shown.classify?.scheme ? chosen === shown.classify.scheme : chosen === view.scheme.name && schemes.find((s) => s.name === chosen)?.source !== 'user';
 
   const choose = async () => {
     setPicked(null);
@@ -158,7 +162,7 @@ export function ClassificationEditor({ config, classify, toilProject, loadItems 
     setSavedAs(null);
     try {
       const result = await classify.saveScheme(toilProject, checked.scheme);
-      setSavedAs({ ok: true, message: said(result), warnings: result.warnings });
+      setSavedAs({ ok: true, message: said(result, toilProject), warnings: result.warnings });
       setRound((n) => n + 1);
     } catch (e) {
       setSavedAs(failedOutcome(e));
@@ -188,7 +192,7 @@ export function ClassificationEditor({ config, classify, toilProject, loadItems 
             </select>
           </label>
           <div>
-            <Button className="btn" onPress={() => void choose()} isDisabled={Boolean(disabled) || chosen === (shown.classify?.scheme ?? view.scheme.name)} data-scheme-use="">
+            <Button className="btn" onPress={() => void choose()} isDisabled={Boolean(disabled) || alreadyUsed} data-scheme-use="">
               Use these categories
             </Button>
           </div>
@@ -311,7 +315,13 @@ export function ClassificationEditor({ config, classify, toilProject, loadItems 
           </ul>
         </div>
       )}
-      {view.kept === 'built-in' && changed && <p className="note">These categories are built in, so saving makes your own copy; the built-in ones stay as they are.</p>}
+      {view.kept === 'built-in' && changed && (
+        <p className="note">
+          These categories are built in, so saving makes your own copy; the built-in ones stay as they are.
+          {shown.classify?.scheme ? '' : ` ${toilProject} reads your copy only once you choose it under "Which categories this Toil project uses".`}
+        </p>
+      )}
+      {view.kept === 'beside' && changed && <p className="note">These categories are in a file beside this Toil project, and saving changes that file.</p>}
       {disabled && changed && <p className="note" data-sample-cannot-write="">{disabled}</p>}
       {changed && (
         <div className="apply__actions">

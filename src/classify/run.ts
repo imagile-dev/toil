@@ -8,7 +8,7 @@ import type { Ledger } from '../core/classify/ledger.js';
 import type { LedgerCorrection, LedgerVerdict } from '../core/classify/ledger-types.js';
 import { DEFAULT_PROMPT_LIMIT, classifyPrompt } from '../core/classify/prompt.js';
 import { readVerdicts } from '../core/classify/verdicts.js';
-import { CLASSIFY_AREAS, type AgentVerdict, type ClassifyResult, type ResolvedTarget, type Scheme, type SchemeSource } from '../core/classify/types.js';
+import { CLASSIFY_AREAS, type AgentVerdict, type ClassifyResult, type PersonSay, type ResolvedTarget, type Scheme, type SchemeSource } from '../core/classify/types.js';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
 import type { CommandContext } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
@@ -162,7 +162,7 @@ export async function prepare(input: { file?: string | undefined; text?: string 
   };
 }
 
-export function runOn(p: Prepared, ctx: CommandContext<unknown>, options: { recheck?: boolean | undefined; verdicts?: AgentVerdict[]; planFields?: boolean; person?: Record<string, { category: string; reason: string | null }> }): ClassifyResult {
+export function runOn(p: Prepared, ctx: CommandContext<unknown>, options: { recheck?: boolean | undefined; verdicts?: AgentVerdict[]; planFields?: boolean; person?: Record<string, PersonSay> }): ClassifyResult {
   const { result, warnings } = classify({
     scheme: p.scheme,
     items: p.items,
@@ -183,9 +183,24 @@ export function ledgerOf(ctx: CommandContext<unknown>): Ledger | undefined {
   return ctx.manage?.ledger;
 }
 
-/** Reads a scheme's ledger and reports lines that couldn't be read, once. */
-export function readLedger(ledger: Ledger, scheme: string, ctx: CommandContext<unknown>) {
-  const read = ledger.read(scheme);
+/**
+ * Reads a scheme's ledger and reports lines that couldn't be read, once. A caller that only wants people's corrections
+ * for a read (`classify run` without `--record`, a pivot, a mix) passes `optional`: a ledger that can't be read at all
+ * (too big, unreadable) then costs it those corrections, with a `LEDGER_UNREADABLE` warning that says how to fix it,
+ * instead of the whole run. Recording, correcting, stats and tune keep the error.
+ */
+type LedgerRead = ReturnType<Ledger['read']>;
+export function readLedger(ledger: Ledger, scheme: string, ctx: CommandContext<unknown>): LedgerRead;
+export function readLedger(ledger: Ledger, scheme: string, ctx: CommandContext<unknown>, how: { optional?: boolean }): LedgerRead | undefined;
+export function readLedger(ledger: Ledger, scheme: string, ctx: CommandContext<unknown>, how: { optional?: boolean } = {}): LedgerRead | undefined {
+  let read: LedgerRead;
+  try {
+    read = ledger.read(scheme);
+  } catch (err) {
+    if (!how.optional || !(err instanceof ToilError)) throw err;
+    ctx.warn({ code: 'LEDGER_UNREADABLE', message: `The ledger for ${scheme} couldn't be read, so people's corrections were not applied to this run: ${err.message}${err.fix ? ` ${err.fix}` : ''}` });
+    return undefined;
+  }
   if (read.skipped > 0) {
     ctx.warn({ code: 'LEDGER_LINES_SKIPPED', message: `${read.skipped} line${read.skipped === 1 ? '' : 's'} of ${read.file} could not be read and ${read.skipped === 1 ? 'was' : 'were'} skipped; the rest are used.` });
   }
@@ -203,12 +218,16 @@ export function readLedger(ledger: Ledger, scheme: string, ctx: CommandContext<u
  */
 export function recordable(result: ClassifyResult, lines: Parameters<typeof standing>[0], toilProject: string | null, at: string): { verdicts: LedgerVerdict[]; corrections: LedgerCorrection[] } {
   const held = standing(lines);
+  const said = personSay(lines);
   const verdicts: LedgerVerdict[] = [];
   const corrections: LedgerCorrection[] = [];
   for (const v of result.verdicts) {
     const was = held.get(v.id);
     const stamp = { at, item: v.id, title: v.title, toilProject, scheme: v.scheme, revision: v.revision };
     if ((v.source === 'label' || v.source === 'field') && v.category !== null && was && was.category !== v.category) {
+      // A person's say the tracker hasn't caught up with: the old label is what it held before they spoke, not someone changing it back.
+      const mine = said[v.id];
+      if (was.source === 'person' && mine !== undefined && mine.via !== 'tracker' && mine.from === v.category) continue;
       corrections.push({ kind: 'correction', ...stamp, from: was.category, fromSource: was.source, to: v.category, confirmed: false, via: 'tracker', by: null, reason: null });
       continue;
     }
@@ -261,7 +280,7 @@ export function classifyRunCommands(): AnyCommand[] {
       if (input.record === true && !ledger) {
         throw new ToilError('NOT_CONFIGURED', 'The classification ledger is not available here, so nothing can be recorded.', { fix: 'Run toil classify from the CLI or toil mcp, or leave out --record.' });
       }
-      const held = ledger ? readLedger(ledger, p.scheme.name, ctx) : undefined;
+      const held = ledger ? readLedger(ledger, p.scheme.name, ctx, { optional: input.record !== true }) : undefined;
       let verdicts: AgentVerdict[] | undefined;
       if (input.verdicts !== undefined) {
         if (input.verdicts === '-') {

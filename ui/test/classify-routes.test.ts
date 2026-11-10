@@ -68,7 +68,7 @@ describe('the classify routes', () => {
     const asked = await call('/api/classify/ask', { toilProject: 'sample-team', items });
     expect(asked.status).toBe(200);
     expect(asked.body.answers).toHaveLength(3);
-    const applied = await call('/api/classify/apply', { toilProject: 'sample-team', items, accepted: [] });
+    const applied = await call('/api/classify/apply', { toilProject: 'sample-team', plan: 'sample-plan' });
     expect(applied.status).toBeGreaterThanOrEqual(400);
     expect(JSON.stringify(applied.body)).toMatch(/sample data/);
   });
@@ -83,7 +83,7 @@ describe('the classify routes', () => {
   it("show a refusal the way every other refusal is shown, with its status and its fix", async () => {
     const refusing: ClassifyBackend = { ...sampleBackend(), apply: async () => { throw new ClassifyRefusal('Changes to corp-jira are switched off.', 'Turn them on under Settings, Connections.', 403); } };
     const call = await serve(refusing);
-    const r = await call('/api/classify/apply', { toilProject: 'sample-team', items, accepted: [] });
+    const r = await call('/api/classify/apply', { toilProject: 'sample-team', plan: 'p1' });
     expect(r.status).toBe(403);
     expect(r.body.error).toEqual({ message: 'Changes to corp-jira are switched off.', fix: 'Turn them on under Settings, Connections.' });
   });
@@ -98,6 +98,7 @@ describe('the classify routes', () => {
     expect((await call('/api/classify/correct', { toilProject: 'sample-team', item: items[0], to: 'Not An Id', reason: '' })).status).toBe(400);
     expect((await call('/api/classify/correct', { toilProject: 'sample-team', item: items[0], to: null, reason: 'x'.repeat(301) })).status).toBe(400);
     expect((await call('/api/classify/revision/apply', {})).status).toBe(400);
+    expect((await call('/api/classify/apply', { toilProject: 'sample-team', items, accepted: [] })).status).toBe(400);
   });
 
   it('take no command, file or path from the page: anything else under classify is not in the API', async () => {

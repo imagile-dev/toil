@@ -6,6 +6,7 @@
 .drill-sort[aria-pressed="true"] { background: transparent; color: var(--ink); text-decoration: underline; }
 .drill-sortmenu { display: flex; }
 .cat-chip { display: inline-flex; align-items: baseline; gap: 0.15rem; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid var(--line); background: var(--raised); font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+.drill-drawer .cat-chip { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; border-radius: 0.9rem; }
 .cat-chip--unsure { color: var(--muted); border-style: dashed; }
 .cat-chip__how { font-weight: 400; color: var(--muted); }
 .cat-name { text-decoration: underline dotted; text-underline-offset: 0.2em; cursor: help; }

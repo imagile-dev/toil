@@ -19,6 +19,7 @@ import {
   labelFor,
   type AgentVerdict,
   type Category,
+  type PersonSay,
   type ClassifyArea,
   type ClassifyResult,
   type ClassifySummary,
@@ -51,9 +52,10 @@ export interface ClassifyInput {
   /**
    * What a person said about an item, by id (the ledger's standing correction). It comes after a
    * category already on the item and before every rule: a person's word beats the scheme's rules,
-   * and the tracker's own label or field beats the person's until someone writes theirs back.
+   * and the tracker's own label or field beats the person's, except a label or field that still says what
+   * the person's `from` says: the tracker hasn't caught up with them yet, so their say stands until Apply writes it.
    */
-  person?: Record<string, { category: string; reason: string | null }>;
+  person?: Record<string, PersonSay>;
   toilProject?: string | null;
 }
 
@@ -159,24 +161,33 @@ export function classify(input: ClassifyInput): { result: ClassifyResult; warnin
   const decide = (item: WorkItem): Verdict => {
     const area = item.source.area;
 
+    const said = Object.hasOwn(person, item.id) ? person[item.id] : undefined;
+    // A person's say the tracker hasn't caught up with: what is on the item is what it held before they spoke, so it is not news.
+    const stale = (id: string) => said !== undefined && said.from === id && said.category !== id && category.has(said.category);
+
     // 1. A category already on the item: the field wins, since it is picked from a fixed list.
     if (!input.recheck) {
       const target = isClassifyArea(area) ? targets[area] : undefined;
       const value = target?.field ? readCategoryField(item, target) : undefined;
       if (typeof value === 'string') {
         const hits = scheme.categories.filter((c) => lower(fieldValueFor(target, c)) === lower(value));
-        if (hits.length === 1) return settle(item, hits[0]!.id, 'field', `The ${target!.field} field already says "${value}".`);
+        if (hits.length === 1 && !stale(hits[0]!.id)) return settle(item, hits[0]!.id, 'field', `The ${target!.field} field already says "${value}".`);
       }
       const held = scheme.categories.filter((c) => item.labels.some((l) => lower(l) === lower(labelFor(scheme, area, c))));
-      if (held.length === 1) return settle(item, held[0]!.id, 'label', `It already carries the label "${item.labels.find((l) => lower(l) === lower(labelFor(scheme, area, held[0]!)))}".`);
+      if (held.length === 1 && !stale(held[0]!.id)) return settle(item, held[0]!.id, 'label', `It already carries the label "${item.labels.find((l) => lower(l) === lower(labelFor(scheme, area, held[0]!)))}".`);
     }
 
     // 2. A person's say, recorded in the ledger.
-    const said = Object.hasOwn(person, item.id) ? person[item.id] : undefined;
     if (said) {
       if (category.has(said.category)) {
         const name = category.get(said.category)!.name;
-        return settle(item, said.category, 'person', `A person chose ${name}${said.reason ? `: ${oneLine(said.reason, 300)}` : ''}.`);
+        const why = said.reason ? oneLine(said.reason, 300) : null;
+        // Over MCP an AI agent recorded it for a person, and in the tracker it was a label someone changed: the source stays `person`, the words say which.
+        const reason =
+          said.via === 'mcp' ? `Recorded by an AI agent for a person: ${name}${why ? ` (${why})` : ''}.`
+          : said.via === 'tracker' ? `Changed in the tracker to ${name}.`
+          : `A person chose ${name}${why ? `: ${why}` : ''}.`;
+        return settle(item, said.category, 'person', reason);
       }
       unknownPerson.add(item.id);
     }
