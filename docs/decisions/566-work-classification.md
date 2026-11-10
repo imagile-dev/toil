@@ -271,6 +271,66 @@ agent made where the proposal was silent, or where it couldn't be built as writt
   carries the counts so far in `details.categorize`, and its message ends "N of M items
   were changed before this." Nothing is added when no item had been processed (a
   review finding). Because the calls are idempotent, the caller can rerun.
+- **The ledger is reached only through `ctx.manage.ledger`, and is a documented
+  exception to the bound on toil's own files.** `~/.toil/classify/<scheme>.jsonl` sits
+  where `ctx.files` refuses to read, so a `Ledger` class beside the scheme catalog owns
+  it: one append per write, the folder `0o700` and the file `0o600`, a file over 32 MiB
+  refused with a fix, and every title and reason cut to 300 characters, stripped of
+  control, bidi-override and zero-width characters, and replaced by `[redacted]` when
+  it is shaped like a credential. No area command can reach it. Where:
+  `src/core/classify/ledger.ts`, `docs/bounds.md` (`classify.ledger`).
+- **`classify stats --backtest`, not a `classify backtest` command.** The proposal's
+  shape is kept: the backtest is the stats scored twice. It takes the agent's answers
+  (`--backtest <file>`), the revised scheme (`--revised <file>`) and, when passed, the
+  items, so the revised rules are rerun by code.
+- **A person's say in the ledger outranks the rules in `classify run`.** The order is
+  field, label, person, rules, signals, parent, agent. A label or field in the tracker
+  still comes first, because changing it there is how a person corrects from the
+  tracker. `--recheck` ignores labels and fields, never a person's say. `--to unsure`
+  stands as no category and is not passed to the engine, so the rules apply again.
+  `classify prompt` does not read the ledger: a backtest reuses the scheme's name, and
+  a person's say would otherwise settle the very items the agent is being asked about.
+- **`classify correct` is served over MCP and marked `via: mcp`.** The maintainer's
+  decision 9. It returns the correction without `at` and `via`, which differ by door
+  and by clock; both are in the ledger line.
+- **A correction from the tracker is recorded only for an item the ledger already
+  holds.** Without an earlier verdict there is nothing a label could be correcting. It
+  then stands as a person's say, with `by: null`: the read carries no changelog for
+  labels yet, so who changed it is unknown and is not guessed.
+- **`--record` writes only what changed.** A verdict line is written when the item's
+  category or source differs from what the ledger holds, so a second run appends
+  nothing. `--record` is a local write (`writesLocalWhen`), refused under the API's
+  `readOnly` and allowed over MCP.
+- **Only a correction to a classifier's verdict counts as a check.** A correction with
+  no earlier verdict, or to a person's own earlier say, is left out of agreement, the
+  sources and the confusion table; it still counts in the totals, the doors and the
+  items changed twice. Agreement is grouped by the revision of the verdict that was
+  checked, and every share is `null` where nothing was checked.
+- **Which third is held back is fixed by the item's id.** `heldBack()` hashes the id,
+  so `classify tune` and `classify stats --backtest` agree without passing a list. The
+  backtest scores only held-back items the ledger saw a classifier verdict for, counts
+  an item with no answer as not agreed (`BACKTEST_MISSING`), includes confirmations so
+  a revision that breaks something right shows up, and reruns the revised rules with
+  `recheck` and no person's say.
+- **The three-corrections rule for a rule change is in the tune prompt, not enforced
+  by `scheme set`.** `scheme set` sees a scheme file, not the corrections behind it. A
+  person applies every revision and sees both backtest scores first.
+- **`classify mix` is a thin wrapper over the insights pivot.** One model counts the
+  mix on the CLI, in Toil UI and for an agent (#567). The split is always the category,
+  the unsure share is its own entry, and `sources` says how each item was decided
+  (rules, signals, labels, parent, agent, person, unsure). Where: `src/classify/mix.ts`.
+- **The sample team is generated, not stored, and is relative to an as-of date.**
+  `sampleTeam(asOf)` in `src/core/sample/` builds Jira and GitHub data in their own
+  shapes from a fixed seed, with every date an offset from `asOf`, and maps it with the
+  real mapper. Why: a stored file goes stale ("the last 90 days" would empty out), and
+  hand-written Open Work Items would skip the mapper every real team's data goes
+  through. `toil sample team` is a standalone command, so it works with no config; it
+  is served over MCP, and `--out` is a local write that never replaces a file. Known
+  gap: the sprint calendar is counted from a Tuesday, so on another weekday a sprint
+  boundary can fall on a weekend.
+- **`readBriefRecords` accepts the `sample team` envelope.** It took only `util owi
+  map`'s, so `toil sample team | toil classify run` could not work. Where:
+  `src/core/brief/read.ts`.
 
 **Not verified:** no command here has been run against a real Jira, GitHub or Azure
 DevOps. Every request is checked against canned responses shaped from the vendors'

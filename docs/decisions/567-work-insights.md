@@ -58,6 +58,53 @@ no independent review yet. Nothing here has met a real Jira, GitHub or Azure Dev
   <name>` sets it, needs `--replace` to change one already set, and treats the same
   name in another case as the same team, keeping it as first written. Where:
   `src/projects/build.ts`.
+- **Review findings on the first slice, all fixed.** An item in a sprint whose history
+  held no sprint change read as `sprints: []`; the current iteration is now always in
+  `sprints`. An Azure DevOps root iteration path is not a sprint. A Jira sprint value,
+  a GitHub board field or an Azure DevOps field that could not be read leaves its key
+  absent with an `unmapped` note, never `[]`, which closes the gap recorded above for
+  Azure DevOps. A `release` or `affects` pointer on Jira or GitHub gets a note saying
+  it was not used. Where: `src/core/owi/`.
+- **The insights model is one contract file and pure functions.**
+  `src/core/insights/types.ts` fixes the dimension grammar (`release`, `parent:Epic`,
+  `label:area/`, `resolved:month`, `dim:customer`), seven measures, and a pivot result
+  that carries the item ids behind every cell. An item whose dimension was never read
+  goes in no bucket and is counted in coverage; one that was read and has none goes in
+  a named "none" bucket. `asOf` is always passed in. Toil UI imports it from source.
+- **An item counts once in each value of a multi-valued dimension.** The proposal's
+  decision 4, taken as the simpler option: totals count an item once, and coverage says
+  that rows may add up to more than the total.
+- **Four values, then Other; ordered axes keep their order.** Rows and columns show the
+  four largest values (pins first) and fold the rest. Time, categories and derived
+  buckets never fold. Releases and sprints read in date order and keep the latest four.
+- **Notable changes: ten share points, ten percent more scope.** The proposal's
+  decision 6. A share that moves ten points between the last two complete periods, a
+  release whose scope grew ten percent after its start date, and the row that grew
+  fastest are worked out by code. A release with no start date gets no scope figure: it
+  is unknown, not zero. `Release` gained an optional `start` for this, read from a Jira
+  version's `startDate`.
+- **A filter can't judge an item whose dimension was never read.** The item fails `=`
+  and passes `!=`, and a coverage note says how many.
+- **Days in progress use the current assignee.** An item's history keeps no assignee
+  changes, so each person-day goes to whoever holds the item now. Known gap.
+- **Saved views live in the toil project, and a bad one stops the file loading.** The
+  proposal's decision 3, taken as "the team shares them". `views` is an object keyed by
+  name, at most 50. A view that fails validation is an error by key path, not a
+  warning: a warning would let the next rewrite of the file drop the view silently.
+  `view set` is served over MCP, since a view holds no host, connection or secret;
+  `view remove` is CLI only. `--where` on `projects pivot --view` replaces the view's
+  filters.
+- **`projects pivot` classifies as it counts.** It runs the classification engine over
+  the input with the toil project's scheme and the ledger's standing corrections, so
+  `--split category` needs no earlier `classify run`. Every item is then either settled
+  or unsure; none is unread.
+- **The value lists return the service's own records.** `jira version list` and
+  `jira component list` (Data Center and Cloud) return Jira's arrays and page locally,
+  since Jira sends each list whole; `github milestone list` pages like `issue list`;
+  `ado work-item areas` is served on Services with Server's wording. `util owi map
+  --dimension <name>=<area>:<field>` is the CLI's way to the dimension map. None has
+  met a real server.
+
 
 **Still the maintainer's to take**
 
