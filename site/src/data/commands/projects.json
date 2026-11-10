@@ -184,6 +184,7 @@
       "--bitbucket <identity>",
       "--kind <kind>",
       "--email <address>",
+      "--team <name>",
       "--remove",
       "--replace"
     ]

@@ -61,6 +61,37 @@ work item alone can't show it.
 | `history` | object or null | `{ transitions, iterations }`, from the history commands. Null when no history was mapped, which is not the same as an empty one |
 | `unmapped` | object[] | `{ field, reason }` for each field the record couldn't fill |
 | `native` | object | The source records, keyed by the command that returned each |
+| `releases` | Release[], optional | `{ id, name, released, date }`: Jira's `fixVersions`, a GitHub milestone, or the field `fields release` names (Azure DevOps). `released` is `true`, `false` or null where the source can't say; `date` is a `YYYY-MM-DD` day or null |
+| `affects` | Release[], optional | The same shape: Jira's `versions`, or the field `fields affects` names (Azure DevOps). GitHub has none |
+| `components` | string[], optional | Jira's components, by name. Azure DevOps has `area` and GitHub has labels instead |
+| `area` | `{ path }` or null, optional | Azure DevOps' `System.AreaPath`, whole, so a split can cut it at any depth. Jira and GitHub have none |
+| `sprints` | Iteration[], optional | Every sprint or iteration the item has been in, in the shape of `iteration`, which stays the current one. Jira: every value of the Sprint field. Azure DevOps and GitHub: the iterations the attached history names, in order; absent without a history |
+| `dims` | object, optional | `{ <dimension>: string[] }` for each dimension a toil project's `dimensions` names (below). A value is always a list, since a field can hold several |
+| `ancestors` | Ancestor[], optional | `{ id, type, typeName, title }` for the parent, then its parent and so on, nearest first, taken from the other items mapped together |
+
+**Read, or not read.** Every optional field above has two empty states that mean
+different things (principle 4). **Absent** means the read never fetched it: a Jira
+search whose `--fields` didn't ask for `fixVersions` gives no `releases` key at all.
+**Empty** (`[]`, or null for `area`) means it was read and the item has none:
+`fixVersions: []` gives `releases: []`. A reader treats an absent field as unknown,
+never as "none", and a sentence that claims an absence needs a reading behind it.
+No existing field changed: these only add. A record written without them is a valid
+record, and every mapper before them wrote such records.
+
+**Version.** They are added to 0.2 without raising it. Each is optional, so a 0.2
+record that lacks them stays valid and nothing a consumer reads moved; the new
+properties are listed in the schema, which has no `required` entry for them.
+
+**Ancestors.** Computed where the items are joined, from the `parent` chain among the
+records in the input. It is present when the item's parent was read, `[]` for an item with
+no parent, and absent otherwise. What counts as read differs by source. Jira: `parent` or
+Epic Link, or, since Jira leaves a missing parent out of the record, a record that carries
+`subtasks` or `issuelinks` (a read of the issue as a whole, where an absent parent means
+none). Azure DevOps: the record has its `relations` or a `System.Parent`; one read without
+its relations has none, and neither does one with no relations at all, which Azure DevOps
+leaves out. GitHub: the issue has a `parent_issue_url`, null when there is no parent. The
+chain stops at an item with no parent, at a parent that isn't in the input (it simply
+ends there; fetch the missing parent and map again to extend it), and at a cycle.
 
 **History.** A transition is `{ from, to, fromCategory, toCategory, at, by }`,
 the first one recorded having `from: null`; cycle time is the time between
@@ -108,6 +139,17 @@ below). Any other command's output is refused.
 - `issue search` returns the fields it asks for (`--fields`), and only the custom fields
   the connection registers; `issue get` returns every field. A field missing from
   the record is listed in `unmapped`.
+- **Releases, affected versions, components and sprints**: `releases` from
+  `fixVersions`, `affects` from `versions` (each version's `id`, `name`, `released`
+  and `releaseDate`), `components` from `components`' names, and `sprints` from every
+  value in the Sprint field, not only the current one. Each is set only when the record
+  holds the field (`fixVersions` in `fields`); a field the search didn't ask for leaves
+  its key out, and `fixVersions: []` is `releases: []`. `fields release` and
+  `fields affects` are not read for Jira, which has its own.
+- **Dimensions**: each `dimensions` entry for `jira` names a field id or its registered
+  name, and `dims` takes its values (an option's value, a name, a user's display name, a
+  list of them). A field the record doesn't hold leaves the key out and says so in
+  `unmapped` (`dims.<name>`).
 
 ### Azure DevOps (Server and Services)
 
@@ -143,6 +185,17 @@ Services differs, the mapping already holds:
   relations; **links** from the dependency links, Successor and its reverse (`blocks`), Related,
   Duplicate and Duplicate Of. History from `ado work-item history`: each change of
   `System.State` and `System.IterationPath`.
+- **Area** from `System.AreaPath`, whole: `area` is `{ path }` when the record holds the
+  field, null when it holds it empty, and absent when it holds no such field (a read
+  narrowed with `--fields`). **Releases** and **affected versions** only from the fields a
+  toil project names with `fields release` and `fields affects` (a reference name):
+  Azure DevOps has no release on a work item of its own. Each value of the field is one
+  release with just a `name`. Azure DevOps leaves an empty field out of the record, so a
+  named field the record lacks reads as `[]` and is listed in `unmapped`, saying it may
+  also never have been asked for. **Sprints** from the iterations the attached
+  `work-item history` names, in order, with dates when `work-item iterations` is in the
+  input; without a history there is no `sprints`. **Dimensions** from each `dimensions`
+  entry for `ado` (a reference name), read and listed the same way.
 
 ### GitHub
 
@@ -183,6 +236,17 @@ Services differs, the mapping already holds:
   lists `links` in `unmapped`, saying how many.
 - GitHub's newer **issue fields** have a REST API (`/repos/{owner}/{repo}/issues/{number}/issue-field-values`),
   but no toil command reads them yet, so OWI doesn't map them yet.
+- **Release** from the milestone: `releases` holds one release (`id` the milestone's number,
+  `name` its title, `released` true when it is closed, `date` its `due_on` day), or `[]`
+  when the issue has none, whenever the record carries a `milestone` key, which the REST API
+  always sends. The milestone is still also `iteration` as described above. A board-only
+  item never read it and has no `releases`. **Sprints** from the iterations the attached
+  `issue history` names (its milestone events), absent without one. GitHub has no affected
+  version, component or area, so `affects`, `components` and `area` are never set.
+- **Dimensions**: each `dimensions` entry for `github` names a Projects field (its name),
+  and `dims` takes its option, iteration title, text, date or number from the board item.
+  The board leaves an empty field out, so a field the item lacks reads as `[]` and is listed
+  in `unmapped`; an issue no board covers has no value for it at all, and says why.
 - History from `github issue history`: each `closed` and `reopened` as a
   transition, and each `milestoned` and `demilestoned` as an iteration change
   (moving an issue between milestones is both, in the same second, read as one
@@ -336,7 +400,9 @@ regenerates it (`npx vitest run test/owi-changes.test.ts -u`) and fails when it 
 ## Pointing a field at your own
 
 Teams rarely keep the defaults, so these OWI fields can be pointed at any field:
-`estimate`, `estimateUnit`, `priority`, `type`, `team`, `dueDate` and `iteration`.
+`estimate`, `estimateUnit`, `priority`, `type`, `team`, `dueDate`, `iteration`, `release` and
+`affects`. The last two are read for Azure DevOps only (Jira and GitHub have a release
+of their own), and each names the field that holds the release or the affected version.
 The keys are the ones a toil project section's `fields` uses for its aliases
 (`docs/projects.md`):
 
@@ -362,6 +428,24 @@ Two more keys are for a GitHub repository run without a board:
 ```json
 { "github": { "owner": "imagile", "repo": "payments-web", "fields": { "estimateLabel": "size/{n}", "iterationDays": "10" } } }
 ```
+
+## Dimensions of your own
+
+A toil project names extra dimensions once, in its `dimensions` key, and mapping copies
+each onto every item as `dims`, so a team can split by its own fields (a customer, a risk,
+a product line) without toil knowing them:
+
+```json
+{ "dimensions": { "customer": { "jira": "customfield_10500", "ado": "Custom.Customer" } } }
+```
+
+The key is a dimension name (lowercase letters, digits and hyphens); each value maps an
+area to the field that holds it: a Jira field id or registered name, an Azure DevOps
+reference name, a GitHub Projects field's name. The mapper doesn't read a toil project:
+the caller hands the map over, as `dimensions` to `mapOwi` in `@imagile-dev/toil/api`,
+and resolves a friendly alias in a section's `fields` to its field id first. Label
+families (`area/`, `team:`) and a path cut at a depth are worked out from `labels` and
+`area` when read, and are not stored.
 
 ## OSLC CM mapping
 
@@ -400,6 +484,9 @@ and OSLC's configuration management domain has no pull request either.
 | `updated` | `dcterms:modified` |
 | `resolved` | `oslc_cm:closeDate` |
 | `dueDate` | No equivalent |
+| `releases`, `affects`, `components`, `area`, `dims` | No equivalent |
+| `sprints` | `oslc_cm:affectsPlanItem`, one per sprint, as for `iteration` |
+| `ancestors` | Derived from `oslc_cm:parent` up the chain; no property of its own |
 
 ## Finding likely duplicates
 

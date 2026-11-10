@@ -1,4 +1,4 @@
-import { blank, current, idFor, instant, isRecord, num, overrideUnit, person, setDay, setInstant, str, text, typeOf, unknownState, unmapped, type MapState, type OwiDocument } from './common.js';
+import { blank, current, dimensionsFor, idFor, instant, isRecord, num, overrideUnit, person, releasesOf, setDay, setDim, setInstant, str, text, textsOf, typeOf, unknownState, unmapped, type MapState, type OwiDocument } from './common.js';
 import type { History, Iteration, Link, Person, StatusCategory, WorkItem } from './types.js';
 
 /**
@@ -120,12 +120,24 @@ export function jiraItem(doc: OwiDocument, issue: Issue, state: MapState, catego
     else unmapped(item, 'team', `the record has no field "${state.fields.team}" (fields team)`);
   }
 
+  // The dimensions people split by. A field the record doesn't hold was never read, so its key is left out; one it holds empty is [].
+  if ('fixVersions' in f) item.releases = releasesOf(f.fixVersions);
+  if ('versions' in f) item.affects = releasesOf(f.versions);
+  if ('components' in f) item.components = (Array.isArray(f.components) ? f.components : []).flatMap((c) => (isRecord(c) && str(c.name) !== null ? [str(c.name)!] : typeof c === 'string' && c !== '' ? [c] : []));
+  for (const [name, pointer] of dimensionsFor(state, doc.area)) {
+    const key = fieldKey(issue, pointer);
+    if (key === undefined) unmapped(item, `dims.${name}`, `the record has no field "${pointer}" (dimensions ${name}): ask for it with --fields`);
+    else setDim(item, name, textsOf(f[key]));
+  }
+
   estimate(item, issue, state);
   iteration(item, issue, state);
 
   // Parent: Jira's parent, else Data Center's epic link; children: the sub-tasks.
   const parent = isRecord(f.parent) ? str(f.parent.key) : (str(f[fieldKey(issue, EPIC_LINK) ?? EPIC_LINK]) ?? null);
   item.parent = parent === null ? null : idFor(doc.connection, parent);
+  // Jira leaves a missing parent out of the record, so `parent` alone can't say "none". A record that carries its sub-tasks or links came from a read of the issue as a whole (a default search, issue get, or a sync asking for links with its parent), and an absent parent in it is none.
+  if ('parent' in f || fieldKey(issue, EPIC_LINK) !== undefined || 'subtasks' in f || 'issuelinks' in f) state.parentRead?.add(item.id);
   item.children = (Array.isArray(f.subtasks) ? f.subtasks : []).flatMap((s) => (isRecord(s) && typeof s.key === 'string' ? [idFor(doc.connection, s.key)] : []));
   for (const link of Array.isArray(f.issuelinks) ? f.issuelinks : []) {
     if (!isRecord(link) || !isRecord(link.type)) continue;
@@ -198,7 +210,10 @@ function iteration(item: WorkItem, issue: Issue, state: MapState): void {
   const values = raw === null || raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
   const sprints = values.map(sprintOf);
   if (sprints.some((s) => s === undefined)) unmapped(item, 'iteration', `"${key}" holds a value that isn't a sprint`);
-  item.iteration = current(sprints.filter((s): s is Iteration => s !== undefined));
+  const found = sprints.filter((s): s is Iteration => s !== undefined);
+  item.iteration = current(found);
+  // Every sprint the field lists, not only the current one: an item carried over three sprints is in three.
+  item.sprints = found;
 }
 
 /** The change history `issue history` returns, as transitions and sprint moves. */

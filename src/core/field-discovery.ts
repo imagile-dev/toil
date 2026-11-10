@@ -24,7 +24,7 @@ export interface FieldSchema {
 }
 
 /** OWI keys a toil project's `fields` also reads as pointers; a friendly alias must never be one by accident. */
-const OWI_KEYS = ['estimate', 'estimateUnit', 'priority', 'type', 'team', 'dueDate', 'iteration', 'estimateLabel', 'iterationDays'];
+const OWI_KEYS = ['estimate', 'estimateUnit', 'priority', 'type', 'team', 'dueDate', 'iteration', 'release', 'affects', 'estimateLabel', 'iterationDays'];
 
 const PREVIEW_MAX = 80;
 

@@ -122,7 +122,7 @@ describe('validateToilProject', () => {
         people: [
           { name: 'Pat', kind: 'robot', email: 'not-an-email', ids: { jira: 'pat' } },
           { name: 'pat', ids: { jira: 'PAT', wiki: 'pat' } },
-          { name: 'Sam', ids: { jira: 'ghp_abcdefghijklmnopqrstuvwxyz0123456789', github: 7 }, team: 'x' },
+          { name: 'Sam', ids: { jira: 'ghp_abcdefghijklmnopqrstuvwxyz0123456789', github: 7 }, colour: 'x' },
           { ids: {} },
         ],
         wipLimit: 2.5,
@@ -136,7 +136,7 @@ describe('validateToilProject', () => {
       ['error', 'people[1].name'],
       ['error', 'people[1].ids.jira'],
       ['warning', 'people[1].ids.wiki'],
-      ['warning', 'people[2].team'],
+      ['warning', 'people[2].colour'],
       ['error', 'people[2].ids.jira'],
       ['error', 'people[2].ids.github'],
       ['error', 'people[3]'],
@@ -245,5 +245,64 @@ describe("a toil project's classify key (#566)", () => {
 
   it('keeps a toil project that has an error in classify from loading', () => {
     expect(read({ writes: true }).toilProject).toBeUndefined();
+  });
+});
+
+describe("a toil project's dimensions key and a person's team (#567)", () => {
+  const LF = String.fromCharCode(10);
+  const read = (dimensions: unknown) => validateToilProject({ name: 'payments', dimensions }, areas);
+  const errors = (dimensions: unknown) => read(dimensions).problems.filter((p) => p.level === 'error');
+  const full = { customer: { jira: 'customfield_10500', openshift: 'Custom.Customer' }, 'product-line': { jira: 'Product line' } };
+
+  it('reads each dimension with its field per area, and writes it back as it read it', () => {
+    const out = read(full);
+    expect(out.problems).toEqual([]);
+    expect(out.toilProject?.dimensions).toEqual(full);
+    expect(toilProjectContent(out.toilProject!).dimensions).toEqual(full);
+    expect(validateToilProject({ name: 'payments' }, areas).toilProject).not.toHaveProperty('dimensions');
+    expect(toilProjectContent(validateToilProject({ name: 'payments' }, areas).toilProject!)).not.toHaveProperty('dimensions');
+    // The key is a dimension register, never an area's section.
+    expect(out.toilProject?.sections).not.toHaveProperty('dimensions');
+  });
+
+  it('refuses a dimension named for what a section holds, saying so by key path', () => {
+    for (const key of ['fields', 'connection', 'host', 'transitions', 'writes']) {
+      const found = errors({ [key]: { jira: 'f' } });
+      expect(found.map((p) => p.path), key).toEqual([`dimensions.${key}`]);
+      expect(found[0]!.message).toContain(`"dimensions" never holds a key named "${key}"`);
+    }
+  });
+
+  it('refuses a bad name, a bad shape, an empty or credential-shaped field, and keeps the file from loading', () => {
+    expect(errors({ Customer: { jira: 'f' } }).map((p) => p.path)).toEqual(['dimensions.Customer']);
+    expect(errors({ 'a--b': { jira: 'f' } }).map((p) => p.path)).toEqual(['dimensions.a--b']);
+    expect(errors({ customer: 'customfield_1' }).map((p) => p.path)).toEqual(['dimensions.customer']);
+    expect(errors({ customer: { jira: '' } }).map((p) => p.path)).toEqual(['dimensions.customer.jira']);
+    expect(errors({ customer: { jira: 7 } }).map((p) => p.path)).toEqual(['dimensions.customer.jira']);
+    expect(errors({ customer: { jira: `a${LF}b` } }).map((p) => p.path)).toEqual(['dimensions.customer.jira']);
+    const token = errors({ customer: { jira: 'ghp_abcdefghijklmnopqrstuvwxyz0123456789' } });
+    expect(token.map((p) => p.path)).toEqual(['dimensions.customer.jira']);
+    expect(JSON.stringify(token)).not.toContain('ghp_');
+    expect(errors([]).map((p) => p.path)).toEqual(['dimensions']);
+    expect(read({ customer: 'x' }).toilProject).toBeUndefined();
+  });
+
+  it("keeps a field for an area this toil hasn't got, with a warning", () => {
+    const out = read({ customer: { gitlab: 'Customer' } });
+    expect(out.toilProject?.dimensions).toEqual({ customer: { gitlab: 'Customer' } });
+    expect(out.problems.map((p) => [p.level, p.code, p.path])).toEqual([['warning', 'TOIL_PROJECT_UNKNOWN_SECTION', 'dimensions.customer.gitlab']]);
+  });
+
+  it("reads a person's team, trims it, and refuses one that isn't a short line of text or is a credential", () => {
+    const people = (team: unknown) => validateToilProject({ name: 'payments', people: [{ name: 'Pat Example', team, ids: {} }] }, areas);
+    expect(people(' Checkout ').toilProject?.people).toEqual([{ name: 'Pat Example', team: 'Checkout', ids: {} }]);
+    expect(toilProjectContent(people('Checkout').toilProject!).people).toEqual([{ name: 'Pat Example', team: 'Checkout', ids: {} }]);
+    expect(validateToilProject({ name: 'payments', people: [{ name: 'Pat Example', ids: {} }] }, areas).toilProject?.people[0]).not.toHaveProperty('team');
+    for (const bad of ['', '   ', 7, 'x'.repeat(101), `a${LF}b`, 'ghp_abcdefghijklmnopqrstuvwxyz0123456789']) {
+      const problems = people(bad).problems.filter((p) => p.level === 'error');
+      expect(problems.map((p) => p.path), String(bad)).toEqual(['people[0].team']);
+    }
+    // A team is a known person key now: no unknown-key warning.
+    expect(people('Checkout').problems).toEqual([]);
   });
 });

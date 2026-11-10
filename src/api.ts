@@ -36,7 +36,7 @@ import { inputSchemaFor } from './mcp/server.js';
 import { createNodeContext } from './node-context.js';
 import { areas, commands } from './registry.js';
 import { VERSION } from './version.js';
-import { authorKinds, documentsFrom, fieldOverrides, findSimilar as findSimilarItems, inputValues, keyPatterns, mapOwi as mapDocuments, OWI_VERSION, parseOwiInput, parseOwiRecords, type KeyPattern, type OwiResult, type SimilarItem, type SimilarOptions, type SimilarRequest, type SimilarResult } from './core/owi/index.js';
+import { authorKinds, dimensionMap, documentsFrom, fieldOverrides, findSimilar as findSimilarItems, inputValues, keyPatterns, mapOwi as mapDocuments, OWI_VERSION, parseOwiInput, parseOwiRecords, type KeyPattern, type OwiResult, type SimilarItem, type SimilarOptions, type SimilarRequest, type SimilarResult } from './core/owi/index.js';
 import owiSchemaJson from '../docs/owi/schema.json' with { type: 'json' };
 
 export type { ApiAnswer, ContextReport, ContextSource, ContextValue, ToilProjectReport, Envelope, ErrorBody, Meta, Page, Warning } from './core/envelope.js';
@@ -401,7 +401,7 @@ export async function execute(command: string, input: Record<string, unknown> = 
 export function mapOwi(input: unknown, options: OwiMapOptions = {}): OwiResult {
   const values = typeof input === 'string' ? parseOwiInput(input) : inputValues(input);
   const { documents, skipped } = documentsFrom(values, { command: options.command, key: options.key });
-  return mapDocuments(documents, { fields: fieldOverrides(options.fields), skipped, keys: keyPatterns(options.keyPatterns), authors: authorKinds(options.authorKinds) });
+  return mapDocuments(documents, { fields: fieldOverrides(options.fields), dimensions: dimensionMap(options.dimensions), skipped, keys: keyPatterns(options.keyPatterns), authors: authorKinds(options.authorKinds) });
 }
 
 export interface OwiMapOptions {
@@ -415,6 +415,8 @@ export interface OwiMapOptions {
   keyPatterns?: Array<string | KeyPattern>;
   /** Pull request author kinds set by hand, by author id: `{ "release-bot": "BOT" }`, or `id=KIND` strings. */
   authorKinds?: Record<string, string> | string[];
+  /** The toil project's `dimensions`: each dimension's name to the field that holds it per area. Copied onto each item's `dims`. */
+  dimensions?: Record<string, Record<string, string>>;
 }
 
 /**

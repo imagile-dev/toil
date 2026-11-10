@@ -191,14 +191,26 @@ TOIL_CONN_OCP_PROD_TOKEN=...
 - **`env`** names the environment the toil project works in by default; it must be a key of
   `environments`.
 - **`people`** (#292) lists the team, agents included: `{ "name": "Pat Example",
-  "kind": "human", "email": "you@example.com", "ids": { "jira": "pat", "github":
-  "pat-ex", "ado": "you@example.com" } }`. `kind` is `human` (the default) or `agent`;
+  "kind": "human", "email": "you@example.com", "team": "Checkout", "ids": { "jira": "pat",
+  "github": "pat-ex", "ado": "you@example.com" } }`. `kind` is `human` (the default) or `agent`;
+  `team` (#567) is the team they work in, one short line of text (at most 100 characters),
+  which a split by team takes an item's assignee to;
   `ids` maps an area to the account it knows the person by. Names and identities are
   unique (an identity compares without case), and a value shaped like a token is
   refused by key path, never echoed: an identity is a name, not a credential.
   `wipLimit`, a whole number above 0, is how many items one person may have in
   progress at once. toil reads `wipLimit` only in `toil projects brief`, for its load
   lens, and reads `people` not at all; Toil UI's People view reads both.
+- **`dimensions`** (#567) names extra dimensions to split work by, once: `{ "customer": {
+  "jira": "customfield_10500", "ado": "Custom.Customer" } }`. The key is a dimension name
+  (lowercase letters, digits and single hyphens) and each value maps an area to the field that
+  holds it there: a field id or name the tracker shows, or on GitHub the name of a Projects
+  field. Mapping copies each onto every item as `dims` (`docs/owi/spec.md`), so a team can
+  split by its own fields without toil knowing them. toil reads any other unknown top-level key
+  as an area's section, so `dimensions` is reserved, and it never holds a dimension named
+  `fields`, `connection`, `host`, `transitions` or `writes` (an error by key path), so it
+  picks no connection and turns on no writes. Each field is one line of at most 200 characters,
+  never shaped like a credential; an area toil doesn't have is kept with a warning.
 - **`analyze`** holds how Analyze briefs the toil project (#494): `goal`, `audience`
   (`lead`, `engineer` or `stakeholder`), `lenses` (each `{ id, on, threshold }`, in the
   order to apply them; any not listed follow in the standard order), and `watchFor`
@@ -524,7 +536,7 @@ files directly:
     `environments.<env>.<area>`. `--default` makes it the toil project's `env`.
   - `toil projects field <toil-project> <area> <alias> <field-id>` names a field.
   - `toil projects person <toil-project> <name> [--id area=identity ...] [--kind human|agent]
-    [--email <address>]` adds someone to the toil project's `people`, or more identities to
+    [--email <address>] [--team <name>]` adds someone to the toil project's `people`, or more identities to
     someone already there: the user name, login or email each area knows them by. A
     value shaped like a token is refused, as is an identity already another person's.
     `--remove` takes the person out, or with `--id` only those identities; it's a

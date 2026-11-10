@@ -1,5 +1,5 @@
 import { ToilError } from '../errors.js';
-import { blank, idFor, instant, isRecord, num, overrideUnit, person, setDay, setInstant, str, typeOf, unknownState, unmapped, type MapState, type OwiDocument } from './common.js';
+import { blank, day, dimensionsFor, idFor, instant, isRecord, num, overrideUnit, person, setDay, setDim, setInstant, str, typeOf, unknownState, unmapped, type MapState, type OwiDocument } from './common.js';
 import type { History, Iteration, Link, Person, StatusCategory, WorkItem } from './types.js';
 
 /**
@@ -121,6 +121,12 @@ export function githubItem(doc: OwiDocument, issue: Issue, state: MapState): Wor
   item.labels = (Array.isArray(issue.labels) ? issue.labels : []).flatMap((l) => (typeof l === 'string' ? [l] : isRecord(l) && typeof l.name === 'string' ? [l.name] : []));
   const parent = keyOfApiUrl(issue.parent_issue_url);
   if (parent) item.parent = idFor(doc.connection, parent);
+  if ('parent_issue_url' in issue) state.parentRead?.add(item.id);
+  // The milestone is also a release (and, with no board, the iteration). The REST record always sends the key, null when there is none.
+  if ('milestone' in issue) {
+    const m = milestoneOf(issue);
+    item.releases = m ? [{ id: String(m.number), name: m.title, released: m.closed, date: m.due === null ? null : (day(m.due) ?? null) }] : [];
+  }
   if (Array.isArray(issue.sub_issues)) item.children = issue.sub_issues.flatMap((s) => (isRecord(s) && issueKey(s) ? [idFor(doc.connection, issueKey(s)!)] : []));
   setInstant(item, 'created', issue.created_at, 'created_at');
   setInstant(item, 'updated', issue.updated_at, 'updated_at');
@@ -348,6 +354,13 @@ export function applyBoard(item: WorkItem, entry: BoardEntry, doc: OwiDocument, 
     else if (field === 'dueDate') setDay(item, read, fieldName);
     else item[field] = read;
   }
+  // Dimensions a toil project names: any single-select, iteration, text, number or date field of the board. The board leaves an empty field out, so "empty" and "no such field" read alike, and are said so.
+  for (const [name, pointer] of dimensionsFor(state, doc.area)) {
+    const value = entry.values.get(pointer);
+    const read = value ? [str(value.name) ?? str(value.title) ?? str(value.text) ?? str(value.date) ?? (num(value.number) === null ? null : String(value.number))].filter((v): v is string => v !== null) : [];
+    setDim(item, name, read);
+    if (!value) absent(pointer, `dims.${name}`);
+  }
   if (state.fields.type !== undefined) {
     const value = entry.values.get(state.fields.type);
     const typeName = value ? (str(value.name) ?? str(value.text)) : null;
@@ -370,6 +383,7 @@ export function noBoard(item: WorkItem, state: MapState): void {
   if (item.estimate === null) unmapped(item, 'estimate', `no label holds an estimate (${labelWords(state)}), and no project board covers the issue: label it, name the team's own label with fields estimateLabel, or add github project items output to the input`);
   if (item.iteration === null) unmapped(item, 'iteration', 'the issue has no milestone, and no project board covers it: set a milestone, or add github project items output to the input');
   for (const field of ['priority', 'team', 'dueDate', 'type'] as const) if (state.fields[field] !== undefined) unmapped(item, field, `"${state.fields[field]}" is a project field: add github project items output to the input`);
+  for (const [name, pointer] of dimensionsFor(state, item.source.area)) unmapped(item, `dims.${name}`, `"${pointer}" is a project field: add github project items output to the input`);
 }
 
 /**

@@ -131,7 +131,7 @@ The request it sent was
     "prod": { "openshift": { "host": "api.ocp.imagile.dev", "namespace": "payments-prod" } }
   },
   "people": [                                   // who is who in each system
-    { "name": "Pat Example", "email": "you@example.com",
+    { "name": "Pat Example", "email": "you@example.com", "team": "Checkout",
       "ids": { "jira": "pat", "github": "pat-ex", "ado": "you@example.com" } },
     { "name": "Claude", "kind": "agent", "ids": { "github": "claude" } }
   ],
@@ -171,7 +171,7 @@ The request it sent was
 - **`environments`**: per environment, sections that replace the area's own section
   when that environment applies (`--env prod`, or the toil project's `env`).
 - **`people`**: the team, agents included, each with a `name`, an optional `kind`
-  (`human`, the default, or `agent`), an optional `email`, and `ids`: the account each
+  (`human`, the default, or `agent`), an optional `email`, an optional `team` (the team they work in, one short line), and `ids`: the account each
   area knows them by, keyed by area. An identity is the user name, login or email that
   system shows (a Jira user name, a GitHub login, an Azure DevOps unique name or
   email, a Bitbucket Cloud account id); a `jira` or `ado` identity covers the Cloud
@@ -184,6 +184,12 @@ The request it sent was
 - **`wipLimit`**: how many items one person may have in progress at once, as the team
   agreed. Toil UI counts each person's work in progress against it, and `toil projects
   brief` flags anyone over it (**Brief**).
+- **`dimensions`**: extra dimensions to split work by, named once: `{ "customer": { "jira":
+  "customfield_10500", "ado": "Custom.Customer" } }`. A key is a dimension name (lowercase letters,
+  digits and hyphens); each value maps an area to the field that holds it (a field id or name, or a
+  GitHub Projects field's name). Mapping copies each onto every item as `dims`. It holds no
+  connection, host, `fields`, `transitions` or `writes`, and a dimension can't be named for one
+  of those.
 - **`analyze`**: how Analyze briefs the toil project: its goal, reader, lenses and what to
   watch for or leave out (**Analyze**). Absent, the standard applies.
 - **`classify`**: the classification scheme that sorts the toil project's work, and where each
@@ -236,7 +242,7 @@ toil projects link card-payments jira --host jira.imagile.dev --set project=PAY
 toil projects link card-payments bitbucket --host bitbucket.imagile.dev --set project=PAY --set repo=payments-core
 toil projects env card-payments dev openshift --host api.ocp-nonprod.imagile.dev --default
 toil projects field card-payments jira storyPoints customfield_10002
-toil projects person card-payments "Pat Example" --id jira=pat --id github=pat-ex --email you@example.com
+toil projects person card-payments "Pat Example" --id jira=pat --id github=pat-ex --email you@example.com --team Checkout
 toil projects person card-payments Claude --kind agent --id github=claude
 toil projects wip-limit card-payments 3
 toil projects describe card-payments --name payments-v2 --description "Card payments v2"

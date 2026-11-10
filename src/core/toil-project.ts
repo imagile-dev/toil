@@ -65,6 +65,8 @@ export interface ToilProjectPerson {
   kind?: PersonKind;
   email?: string;
   ids: Record<string, string>;
+  /** The team they work in, as the team writes it; the `team` dimension takes an item's assignee to this. */
+  team?: string;
 }
 
 /** One area's section: `connection` or `host`, `fields`, context input values, and reference data kept as written. */
@@ -92,6 +94,8 @@ export interface ToilProject {
   analyze?: ToilProjectAnalyze;
   /** Which scheme classifies its work and where each tracker keeps the category (#566); absent for the built-in `ktlo-feature` and labels only. */
   classify?: ClassifySettings;
+  /** Extra dimensions to split work by: a dimension's name to the field that holds it in each area (`{ "customer": { "jira": "customfield_10500" } }`); absent when it names none. */
+  dimensions?: Record<string, Record<string, string>>;
 }
 
 
@@ -124,7 +128,7 @@ export interface ToilProjectArea {
 
 /** Keys of a section that core reads itself; every other key is a context input or reference data. */
 const CORE_SECTION_KEYS = new Set(['connection', 'host', 'fields', 'transitions']);
-const TOP_LEVEL = new Set(['$schema', 'name', 'description', 'env', 'repos', 'environments', 'people', 'wipLimit', 'archived', 'analyze', 'classify']);
+const TOP_LEVEL = new Set(['$schema', 'name', 'description', 'env', 'repos', 'environments', 'people', 'wipLimit', 'archived', 'analyze', 'classify', 'dimensions']);
 const ALIAS = /^[a-z][a-zA-Z0-9]*$/;
 const HOST = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:\d{1,5})?$/i;
 
@@ -406,6 +410,7 @@ export function validateToilProject(input: unknown, areas: readonly ToilProjectA
 
   const analyze = readAnalyze(raw.analyze, error, warn);
   const classify = readClassify(raw.classify, error, warn);
+  const dimensions = readDimensions(raw.dimensions, byName, error, warn);
 
   if (problems.some((p) => p.level === 'error')) return { problems };
   return {
@@ -422,6 +427,7 @@ export function validateToilProject(input: unknown, areas: readonly ToilProjectA
       ...(raw.archived === true ? { archived: true as const } : {}),
       ...(analyze ? { analyze } : {}),
       ...(classify ? { classify } : {}),
+      ...(dimensions ? { dimensions } : {}),
     },
     problems,
   };
@@ -589,6 +595,67 @@ function classifyContent(c: ClassifySettings): Record<string, unknown> {
   return { ...(c.scheme !== undefined ? { scheme: c.scheme } : {}), ...(Object.keys(c.targets).length > 0 ? { targets: c.targets } : {}) };
 }
 
+const DIMENSION_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+/** What a tracker section holds, never a `dimensions` key, for the same reason `classify` refuses them. */
+const DIMENSIONS_REFUSED = ['fields', 'connection', 'host', 'transitions', 'writes'];
+
+/**
+ * The `dimensions` object: each extra dimension to split work by, named once
+ * (`customer`) with the field that holds it in each area, as an id or name the
+ * tracker shows (`customfield_10500`, `Custom.Customer`). Toil reads any unknown
+ * top-level key as an area's section, so `dimensions` is reserved, and a
+ * dimension is never named `fields`, `connection`, `host`, `transitions` or `writes`:
+ * it picks no connection and turns on nothing. A field is text on one line,
+ * short, never shaped like a credential. A dimension register, which is a
+ * spreadsheet with a purpose.
+ */
+function readDimensions(
+  value: unknown,
+  areas: Map<string, ToilProjectArea>,
+  error: (path: string, message: string) => void,
+  warn: (code: string, path: string, message: string) => void,
+): Record<string, Record<string, string>> | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    error('dimensions', '"dimensions" must be an object keyed by dimension name: { "customer": { "jira": "customfield_10500" } }.');
+    return undefined;
+  }
+  const out: Record<string, Record<string, string>> = {};
+  for (const [name, byArea] of Object.entries(value)) {
+    const path = `dimensions.${name}`;
+    if (DIMENSIONS_REFUSED.includes(name)) {
+      error(path, `"dimensions" never holds a key named "${name}": a dimension is a name for a field, and a connection, host, fields, transitions or writes belong to the area's own section or to your connections.`);
+      continue;
+    }
+    if (!DIMENSION_NAME.test(name)) {
+      error(path, `"${name}" isn't a dimension name: lowercase letters, digits and single hyphens, e.g. "customer" or "product-line".`);
+      continue;
+    }
+    if (!isRecord(byArea)) {
+      error(path, `"${name}" must map each area to the field that holds it there: { "jira": "customfield_10500", "ado": "Custom.Customer" }.`);
+      continue;
+    }
+    const fields: Record<string, string> = {};
+    for (const [area, field] of Object.entries(byArea)) {
+      const where = `${path}.${area}`;
+      if (RESERVED_OBJECT_KEYS.has(area)) continue;
+      if (typeof field !== 'string' || field.trim() === '') {
+        error(where, `The ${area} field must be text: the id or name of the field in ${area}.`);
+        continue;
+      }
+      if (field.length > MAX_CLASSIFY_TEXT) error(where, `The ${area} field is ${field.length} characters; the most is ${MAX_CLASSIFY_TEXT}.`);
+      else if (findSecrets(field).length > 0) error(where, 'This field holds something shaped like a credential, and a toil project never holds one.');
+      else if ([...field].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f)) error(where, 'A field must be one line of text, with no line breaks or control characters.');
+      else {
+        if (!areas.has(area)) warn('TOIL_PROJECT_UNKNOWN_SECTION', where, `"${area}" isn't an area this toil has, so this field is kept but nothing reads it.`);
+        fields[area] = field.trim();
+      }
+    }
+    out[name] = fields;
+  }
+  return out;
+}
+
 /** Why a value can't be an identity: it's shaped like a credential, which a toil project never holds. Undefined when it can. */
 export function identityProblem(value: string): string | undefined {
   if (findSecrets(value).length > 0) return "it's shaped like a credential, and a toil project never holds one. Give the user name, login or email the system shows";
@@ -627,9 +694,10 @@ function readPeople(
     const seen = names.get(name.toLowerCase());
     if (seen) error(at(path, 'name'), `"${name}" is listed twice (also ${seen}).`);
     names.set(name.toLowerCase(), path);
-    for (const key of Object.keys(entry)) if (!['name', 'kind', 'email', 'ids'].includes(key)) warn('TOIL_PROJECT_UNKNOWN_KEY', at(path, key), `"${key}" isn't a person key; people take name, kind, email and ids. It was ignored.`);
+    for (const key of Object.keys(entry)) if (!['name', 'kind', 'email', 'team', 'ids'].includes(key)) warn('TOIL_PROJECT_UNKNOWN_KEY', at(path, key), `"${key}" isn't a person key; people take name, kind, email, team and ids. It was ignored.`);
     if (entry.kind !== undefined && !(PERSON_KINDS as readonly unknown[]).includes(entry.kind)) error(at(path, 'kind'), `"kind" must be ${PERSON_KINDS.join(' or ')}.`);
     if (entry.email !== undefined && (typeof entry.email !== 'string' || !EMAIL.test(entry.email) || identityProblem(entry.email))) error(at(path, 'email'), '"email" must be an email address, e.g. you@example.com, and never a credential.');
+    if (entry.team !== undefined && (typeof entry.team !== 'string' || entry.team.trim() === '' || entry.team.length > 100 || identityProblem(entry.team) || [...entry.team].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f))) error(at(path, 'team'), '"team" must be a team name as one short line of text (at most 100 characters), and never a credential.');
     if (entry.ids !== undefined && !isRecord(entry.ids)) error(at(path, 'ids'), '"ids" must map each area to the identity it knows this person by, e.g. { "github": "pat-ex" }.');
     const ids: Record<string, string> = {};
     for (const [area, value] of Object.entries(isRecord(entry.ids) ? entry.ids : {})) {
@@ -651,7 +719,7 @@ function readPeople(
       owners.set(key, name);
       ids[area] = value.trim();
     }
-    out.push({ name, ...(typeof entry.kind === 'string' ? { kind: entry.kind as PersonKind } : {}), ...(typeof entry.email === 'string' ? { email: entry.email } : {}), ids });
+    out.push({ name, ...(typeof entry.kind === 'string' ? { kind: entry.kind as PersonKind } : {}), ...(typeof entry.email === 'string' ? { email: entry.email } : {}), ...(typeof entry.team === 'string' && entry.team.trim() !== '' ? { team: entry.team.trim() } : {}), ids });
   });
   return out;
 }
@@ -724,6 +792,7 @@ export function toilProjectContent(toilProject: ToilProject): Record<string, unk
     ...(toilProject.archived ? { archived: true } : {}),
     ...(toilProject.analyze !== undefined ? { analyze: toilProject.analyze } : {}),
     ...(toilProject.classify !== undefined ? { classify: classifyContent(toilProject.classify) } : {}),
+    ...(toilProject.dimensions !== undefined ? { dimensions: toilProject.dimensions } : {}),
   };
 }
 
