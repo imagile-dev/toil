@@ -374,3 +374,41 @@ describe('the contract with categorize', () => {
     }
   });
 });
+
+describe("a person's say", () => {
+  const bug = (extra: Parameters<typeof item>[1] = {}) => item('PAY-1', { type: 'BUG', typeName: 'Bug', ...extra });
+  const rule = { id: 'all-bugs', when: { type: ['BUG'] }, then: 'ktlo' };
+
+  it('beats a rule and a signal, and says so with their reason', () => {
+    const v = only({ scheme: scheme({ rules: [rule] }), items: [bug()], person: { 'corp-jira:PAY-1': { category: 'feature', reason: 'adds a new export format' } } });
+    expect(v).toMatchObject({ category: 'feature', source: 'person' });
+    expect(v.reason).toBe('A person chose Feature: adds a new export format.');
+    expect(only({ items: [bug()], person: { 'corp-jira:PAY-1': { category: 'feature', reason: null } } }).reason).toBe('A person chose Feature.');
+  });
+
+  it('beats the parent and the agent, since a person decided before either could', () => {
+    const epic = item('PAY-9', { type: 'EPIC', typeName: 'Epic', labels: ['ktlo'] });
+    const child = item('PAY-2', { parent: epic.id });
+    const { result } = run({ items: [epic, child], person: { [child.id]: { category: 'feature', reason: null } }, verdicts: [{ id: child.id, category: 'ktlo', reason: 'agent' }] });
+    expect(result.verdicts.find((x) => x.key === 'PAY-2')).toMatchObject({ category: 'feature', source: 'person' });
+  });
+
+  it("loses to a category already on the item, and --recheck hands the say back to the person over the label", () => {
+    const labelled = bug({ labels: ['ktlo'] });
+    const person = { 'corp-jira:PAY-1': { category: 'feature', reason: null } };
+    expect(only({ items: [labelled], person })).toMatchObject({ category: 'ktlo', source: 'label' });
+    expect(only({ items: [labelled], person, recheck: true })).toMatchObject({ category: 'feature', source: 'person' });
+  });
+
+  it('is ignored with one warning when the scheme no longer has the category', () => {
+    const { result, warnings } = run({ items: [bug(), item('PAY-3', { type: 'BUG', typeName: 'Bug' })], person: { 'corp-jira:PAY-1': { category: 'chore', reason: null }, 'corp-jira:PAY-3': { category: 'gone', reason: null } } });
+    expect(result.verdicts.map((v) => v.source)).toEqual(['signal:type', 'signal:type']);
+    expect(warnings.filter((w) => w.code === 'CLASSIFY_PERSON_UNKNOWN_CATEGORY')).toHaveLength(1);
+    expect(warnings.find((w) => w.code === 'CLASSIFY_PERSON_UNKNOWN_CATEGORY')!.message).toContain('corp-jira:PAY-1');
+  });
+
+  it('changes nothing for an item with no entry, and `person: {}` is the same as none', () => {
+    const items = [bug(), item('PAY-2')];
+    expect(run({ items, person: {} })).toEqual(run({ items }));
+  });
+});

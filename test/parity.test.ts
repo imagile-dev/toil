@@ -107,7 +107,7 @@ afterAll(() => outsideDisk.cleanup());
 // An area fixture's own toil project (`toil-project`), as your own and named by TOIL_PROJECT, for its check-toil-project.
 const fixtureDisks = new Map<LoadedFixture, ReturnType<typeof toilProjectDisk>>();
 afterAll(() => fixtureDisks.forEach((d) => d.cleanup()));
-type Local = { repo?: GitContext; git?: GitRunner; home?: Record<string, string>; toilProjects?: ReturnType<typeof toilProjectDisk>['catalog']; schemes?: ReturnType<typeof toilProjectDisk>['schemes']; configFile?: string };
+type Local = { repo?: GitContext; git?: GitRunner; home?: Record<string, string>; toilProjects?: ReturnType<typeof toilProjectDisk>['catalog']; schemes?: ReturnType<typeof toilProjectDisk>['schemes']; ledger?: ReturnType<typeof toilProjectDisk>['ledger']; configFile?: string };
 function localOf(f: LoadedFixture): Local {
   const local: Local = { ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}), ...(f.home ? { home: f.home } : {}) };
   if (f === outside) {
@@ -118,6 +118,7 @@ function localOf(f: LoadedFixture): Local {
       return outsideDisk.catalog(config, { areas: toilProjectAreas });
     };
     local.schemes = (config) => outsideDisk.schemes(config);
+    local.ledger = () => outsideDisk.ledger();
   } else if (f.toilProject) {
     const name = String(f.toilProject.name);
     if (!fixtureDisks.has(f)) fixtureDisks.set(f, toilProjectDisk({ [`home/.toil/projects/${name}.json`]: f.toilProject }));

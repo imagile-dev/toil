@@ -2,6 +2,7 @@ import type { AuditLog } from './audit.js';
 import type { ToilProjectLookup, GitRemoteReader, SuppliedSource } from './call-context.js';
 import type { ResolvedConfig } from './config.js';
 import type { SchemeCatalog } from './classify/catalog.js';
+import type { Ledger } from './classify/ledger.js';
 import type { ToilProjectCatalog, ToilProjectView } from './toil-project.js';
 import type { ApiAnswer, ContextReport, LintReport, Page, Warning } from './envelope.js';
 import type { FileAccess } from './files.js';
@@ -67,6 +68,8 @@ export interface Context {
   toilProjects?: ToilProjectCatalog;
   /** The classification schemes toil can see (src/core/classify/catalog.ts); only config commands reach them, through `ctx.manage.schemes`. Absent in tests that have none. */
   schemes?: SchemeCatalog;
+  /** The classification ledger (src/core/classify/ledger.ts); only config commands reach it, through `ctx.manage.ledger`. Absent in tests that have none. */
+  ledger?: Ledger;
   /** Context values from a toil project, for a test that supplies one without files. `projects` overrides it per call. */
   toilProject?: ToilProjectLookup;
   /** The working folder's git remote, for areas that read context from it. Absent means no git step. */
@@ -124,6 +127,8 @@ export interface ConfigAccess {
   toilProjects: ToilProjectCatalog | undefined;
   /** The classification schemes toil can see, for `toil classify scheme ...`. Undefined where there are none (tests). */
   schemes: SchemeCatalog | undefined;
+  /** The classification ledger, for `toil classify run --record`, `correct`, `stats` and `tune`. Undefined where there is none (tests). */
+  ledger: Ledger | undefined;
   /** The audit log, for `toil audit`. Undefined where there is none. */
   audit: AuditLog | undefined;
   /**
@@ -145,7 +150,7 @@ export interface ConfigAccess {
  * connection's, on its own.
  */
 export interface CommandContext<C = undefined, X = Record<string, string | undefined>>
-  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'toilProjects' | 'schemes' | 'toilProject' | 'gitRemote' | 'adopted' | 'repo' | 'audit' | 'skillUpkeep' | 'progress'> {
+  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'toilProjects' | 'schemes' | 'ledger' | 'toilProject' | 'gitRemote' | 'adopted' | 'repo' | 'audit' | 'skillUpkeep' | 'progress'> {
   connection: C;
   /** The area's context inputs, resolved (`ctx.context.project`). Unset ones are absent. */
   context: X;

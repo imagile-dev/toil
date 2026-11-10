@@ -106,8 +106,11 @@ toil jira issue search --jql "project = PAY AND statusCategory != Done" --fields
 
 | Command | Flags | What it does |
 |---------|-------|--------------|
-| `toil classify run` | `--file`, `--text`, `--toil-project`, `--cwd`, `--scheme`, `--recheck`, `--verdicts` | One verdict per item, the summary, and the plan `categorize` applies |
+| `toil classify run` | `--file`, `--text`, `--toil-project`, `--cwd`, `--scheme`, `--recheck`, `--record`, `--verdicts` | One verdict per item, the summary, and the plan `categorize` applies; `--record` also keeps the verdicts in the ledger |
 | `toil classify prompt` | `--file`, `--text`, `--toil-project`, `--cwd`, `--scheme`, `--recheck`, `--limit` | The prompt that asks the AI agent about the items `run` left `unsure` |
+| `toil classify correct <item-id>` | `--to`, `--reason`, `--title`, `--toil-project`, `--cwd`, `--scheme` | Record that an item belongs in another category (or confirm its verdict) in the ledger |
+| `toil classify stats` | `--file`, `--text`, `--toil-project`, `--cwd`, `--scheme`, `--backtest`, `--revised` | Agreement, the sources people overrule and which way the errors run; with `--backtest`, a revised scheme scored against the corrections held back |
+| `toil classify tune` | `--toil-project`, `--cwd`, `--scheme`, `--limit` | The prompt that asks the AI agent to sharpen the scheme from the corrections |
 
 Both read the records from `--file` (a file in the workspace, or `-`), `--text`, or
 stdin on the CLI; over MCP, `file` or `text`. Input with no work items is
@@ -133,11 +136,13 @@ First match wins, in this order:
 1. A category already on the item: the target field's value, else exactly one of the
    scheme's labels (the field wins if they disagree; two different scheme labels settle
    nothing). `--recheck` skips this step.
-2. The scheme's own rules, in order (`source: rule:<id>`).
-3. toil's built-in keep-the-lights-on signals, when the scheme has `signals` on
+2. A person's recorded correction from the ledger (`source: person`; see **Corrections
+   and the ledger**), so a person's say is never undone by a rule.
+3. The scheme's own rules, in order (`source: rule:<id>`).
+4. toil's built-in keep-the-lights-on signals, when the scheme has `signals` on
    (`source: signal:<name>`).
-4. The parent's verdict, which children inherit (`source: parent`).
-5. Otherwise `unsure`.
+5. The parent's verdict, which children inherit (`source: parent`).
+6. Otherwise `unsure`.
 
 `--verdicts <file>` is the AI agent's answer to `classify prompt`: a file in the
 workspace holding a JSON array of `{ "id", "category", "reason" }`, `category` a
@@ -162,6 +167,13 @@ The result:
   One that is checked in, listed or loose still lets `run` read a category from its field,
   but its field targets are left out of the plan and `CLASSIFY_TARGETS_NOT_ADOPTED` says so;
   `toil projects import <name>` adopts it.
+
+`--record` keeps what the run decided in the scheme's ledger on this machine (a local
+write, so a read-only caller is refused) and adds `recorded: { verdicts, corrections,
+file }` to the result. It keeps one line for each item whose verdict is new or changed,
+so running it twice keeps nothing the second time, and a correction (`via: tracker`)
+for each item whose label or field was changed in the tracker since the ledger last
+held it. Over MCP an agent may record.
 
 To apply it, pass the result to a `categorize` command: on the CLI as stdin or
 `--from <file>`; over MCP `from` must be a workspace file, which `--summary-file`
@@ -189,3 +201,69 @@ Over MCP the prompt `classify` is `classify_prompt`'s answer, served when that t
 Its arguments are `file` (required: a workspace file holding the OWI records, since MCP
 has no stdin), `toilProject` and `scheme`. A missing `file` is an error naming it.
 
+## Corrections and the ledger
+
+People will disagree with some verdicts, and each disagreement is the best evidence of
+where the scheme is wrong. The **ledger** keeps them: `~/.toil/classify/<scheme>.jsonl`,
+beside your own schemes, one file per scheme, so a scheme used across several toil
+projects learns from all of them (`--toil-project` narrows `stats` and `tune` to one).
+Three things put a line in it:
+
+- `classify run --record`: a **verdict** line per new or changed verdict, and a
+  **correction** (`via: tracker`) where someone changed an item's label or field in the
+  tracker.
+- `toil classify correct <item-id> --to <category|unsure> [--reason <text>]`: a
+  correction. `--to` the category the ledger already holds records a **confirmation**, so
+  agreement can be measured and not only disagreement. An agent may record a correction
+  the person told it about, with the person's words in `--reason`; the line says `mcp`,
+  and `stats` and `tune` show those apart. Saying `unsure` takes the category back.
+- A host that calls toil through `@imagile-dev/toil/api`, which records `via: api`.
+
+A line holds the item's id, its title (cut to 300 characters, one line), the toil
+project, the category, the source, scheme and revision that decided it, and for a
+correction who made it (a tracker account name, never an email), through which door and
+why. It never holds an item's body, a host or a credential: anything shaped like one is
+replaced with `[redacted]`. The ledger stays on this machine and toil sends it nowhere;
+what a team shares is the sharper scheme file. A ledger over 32 MiB is refused with the
+way to start a new one (rename the old file). Lines that can't be read are skipped with
+a `LEDGER_LINES_SKIPPED` warning.
+
+A correction made through any door decides the item on the next `classify run`
+(`source: person`, with the person's reason) until a label or field already on the item
+says otherwise; `categorize` writes it to the tracker.
+
+### Where the scheme gets it wrong: `classify stats`
+
+`toil classify stats` returns agreement overall, per category and per scheme revision;
+for each source (every rule, built-in signal, label, field, parent, and the AI agent)
+how often people overruled it and to what; which way the errors run; corrections since
+the last tune; items corrected more than once; and corrections by door. Only a verdict
+the scheme gave counts as checked: a person changing a person's earlier say shows under
+the items corrected twice. Every share is `null`, never 0, where nothing was checked. An
+empty ledger is not an error: zero counts and a `LEDGER_EMPTY` warning that says how to
+fill one.
+
+### Tuning: `classify tune` and the backtest
+
+`toil classify tune` (over MCP the prompt `classify-tune`) returns the prompt that asks
+your AI agent for a revised scheme: the scheme, the statistics, and the corrections
+inside a fenced block of untrusted data. It asks for sharper definitions and guidance
+for the boundary people keep correcting, at most four examples per confused pair chosen
+from real corrections, a rule added only where at least three corrections share a
+pattern, and a rule or `signals` narrowed or turned off where people overrule it often,
+with each change tied to the corrections that answer it. A third of the corrections (by
+item id, the same third every time) is held back from the prompt, and the result lists
+them in `corrections.heldBackItems`.
+
+The revision is scored before anyone accepts it. The agent classifies the held-back
+items under the revised scheme (`classify prompt --scheme revised.json --recheck`), and
+`toil classify stats --backtest <answers file> --revised revised.json` scores the scheme
+as it was and as revised against what people said: before from the ledger alone, after
+from the revised rules run by code (pass the items with `--file` or `--text`) and then
+the agent's answers. An item nothing answers counts as `missing` and as not agreed. A
+revision that scores lower is reported as worse (`worse: true`, a `BACKTEST_WORSE`
+warning) and nothing is changed either way.
+
+Only a person applies a revision, with `toil classify scheme set --from revised.json`,
+which bumps `revision`. That is a person's command, and an agent can propose a revision
+but not apply it. toil never rewrites its own scheme.

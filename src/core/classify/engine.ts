@@ -3,7 +3,7 @@
  * plan out. Pure data in and data out, no files, no network and no config, so
  * `toil classify run` can be exactly as safe as its inputs and a test can run
  * it on a laptop with the wifi off. The order is fixed, first match wins: a
- * category already on the item, the team's rules, toil's signals, the parent's
+ * category already on the item, a person's recorded say (the ledger), the team's rules, toil's signals, the parent's
  * verdict, and only then "unsure". The agent fills the unsure and never
  * overrules the rest. Every verdict says which step decided it, so the
  * review meeting can argue about the rule instead of the person.
@@ -48,6 +48,12 @@ export interface ClassifyInput {
   /** Ignore a category already on the item and classify afresh. */
   recheck?: boolean;
   verdicts?: AgentVerdict[];
+  /**
+   * What a person said about an item, by id (the ledger's standing correction). It comes after a
+   * category already on the item and before every rule: a person's word beats the scheme's rules,
+   * and the tracker's own label or field beats the person's until someone writes theirs back.
+   */
+  person?: Record<string, { category: string; reason: string | null }>;
   toilProject?: string | null;
 }
 
@@ -145,6 +151,8 @@ export function classify(input: ClassifyInput): { result: ClassifyResult; warnin
     return { ...base(item), category: c.id, name: c.name, short: c.short, source, reason };
   };
 
+  const person = input.person ?? {};
+  const unknownPerson = new Set<string>();
   const ktlo = category.get('ktlo');
   const brokenRules = new Set<string>();
 
@@ -163,7 +171,17 @@ export function classify(input: ClassifyInput): { result: ClassifyResult; warnin
       if (held.length === 1) return settle(item, held[0]!.id, 'label', `It already carries the label "${item.labels.find((l) => lower(l) === lower(labelFor(scheme, area, held[0]!)))}".`);
     }
 
-    // 2. The team's rules, in file order.
+    // 2. A person's say, recorded in the ledger.
+    const said = Object.hasOwn(person, item.id) ? person[item.id] : undefined;
+    if (said) {
+      if (category.has(said.category)) {
+        const name = category.get(said.category)!.name;
+        return settle(item, said.category, 'person', `A person chose ${name}${said.reason ? `: ${oneLine(said.reason, 300)}` : ''}.`);
+      }
+      unknownPerson.add(item.id);
+    }
+
+    // 3. The team's rules, in file order.
     for (const rule of scheme.rules) {
       if (!category.has(rule.then)) {
         brokenRules.add(rule.id);
@@ -173,7 +191,7 @@ export function classify(input: ClassifyInput): { result: ClassifyResult; warnin
       if (why !== null) return settle(item, rule.then, `rule:${rule.id}`, `Rule ${rule.id}: ${why}.`);
     }
 
-    // 3. Toil's signals, which all mean keep the lights on.
+    // 4. Toil's signals, which all mean keep the lights on.
     if (scheme.signals && ktlo) {
       const hit = detectSignal(item, byId);
       if (hit) return settle(item, ktlo.id, `signal:${hit.name}`, hit.reason);
@@ -183,7 +201,7 @@ export function classify(input: ClassifyInput): { result: ClassifyResult; warnin
 
   const verdicts = new Map<string, Verdict>(items.map((item) => [item.id, decide(item)]));
 
-  // 4. The parent's verdict, recursively so the order of the input doesn't matter.
+  // 5. The parent's verdict, recursively so the order of the input doesn't matter.
   const inherit = (): void => {
     const done = new Map<string, Verdict>();
     const resolve = (item: WorkItem, stack: Set<string>): Verdict => {
@@ -231,6 +249,12 @@ export function classify(input: ClassifyInput): { result: ClassifyResult; warnin
     warnings.push({
       code: 'CLASSIFY_VERDICT_IGNORED',
       message: `${ignored.length} agent ${ignored.length === 1 ? 'verdict was' : 'verdicts were'} ignored: they name an item already settled by a label, field, rule, signal or parent, or one that isn't in the input. Agent verdicts fill only unsure items. First: ${ignored.slice(0, 3).join(', ')}${ignored.length > 3 ? ', ...' : ''}.`,
+    });
+  }
+  if (unknownPerson.size > 0) {
+    warnings.push({
+      code: 'CLASSIFY_PERSON_UNKNOWN_CATEGORY',
+      message: `${unknownPerson.size} recorded ${unknownPerson.size === 1 ? 'correction names' : 'corrections name'} a category the scheme "${scheme.name}" no longer has and ${unknownPerson.size === 1 ? 'was' : 'were'} ignored: ${[...unknownPerson].slice(0, 3).join(', ')}${unknownPerson.size > 3 ? ', ...' : ''}.`,
     });
   }
   if (brokenRules.size > 0) {

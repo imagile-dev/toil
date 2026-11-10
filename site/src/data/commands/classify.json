@@ -84,6 +84,7 @@
       "--cwd <dir>",
       "--scheme <name|file>",
       "--recheck",
+      "--record",
       "--verdicts <file>"
     ]
   },
@@ -100,6 +101,51 @@
       "--cwd <dir>",
       "--scheme <name|file>",
       "--recheck",
+      "--limit <n>"
+    ]
+  },
+  {
+    "name": "correct",
+    "tool": "classify_correct",
+    "description": "Record that an item belongs in another category (or confirm its verdict), in the scheme's ledger on this machine",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<item-id>",
+      "--to <category>",
+      "--reason <text>",
+      "--title <text>",
+      "--toil-project <name|file>",
+      "--cwd <dir>",
+      "--scheme <name|file>"
+    ]
+  },
+  {
+    "name": "stats",
+    "tool": "classify_stats",
+    "description": "Where a scheme gets it wrong: agreement, the sources people overrule, and which way the errors run, from the ledger (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--file <path>",
+      "--text <text>",
+      "--toil-project <name|file>",
+      "--cwd <dir>",
+      "--scheme <name|file>",
+      "--backtest <file>",
+      "--revised <file>"
+    ]
+  },
+  {
+    "name": "tune",
+    "tool": "classify_tune",
+    "description": "Write the prompt that asks an AI agent to sharpen a scheme from the corrections people made (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--toil-project <name|file>",
+      "--cwd <dir>",
+      "--scheme <name|file>",
       "--limit <n>"
     ]
   }

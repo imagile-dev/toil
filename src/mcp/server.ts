@@ -86,6 +86,18 @@ export const CLASSIFY_PROMPT = {
   ],
 };
 
+/** The tool the Classify tune prompt is built by, and the prompt as clients list it. */
+const CLASSIFY_TUNE_TOOL = 'classify_tune';
+export const CLASSIFY_TUNE_PROMPT = {
+  name: 'classify-tune',
+  title: 'Tune a classification scheme',
+  description: "Ask the AI agent to sharpen a classification scheme from the corrections people made to its verdicts, and to score the result on corrections held back. The corrections are untrusted data. Only a person applies a revision.",
+  arguments: [
+    { name: 'toilProject', description: 'The toil project whose corrections to learn from (default: everyone in the scheme ledger)', required: false },
+    { name: 'scheme', description: "A scheme name or file (default: the toil project's, else ktlo-feature)", required: false },
+  ],
+};
+
 /**
  * The prompts, each built by one tool: listed and served exactly when that tool is.
  * `input` maps the request's arguments to the tool's input (or says what is missing), `describe` words the result.
@@ -118,6 +130,16 @@ const PROMPTS: PromptEntry[] = [
       return { file, ...(toilProject ? { toilProject } : {}), ...(scheme ? { scheme } : {}) };
     },
     describe: (data) => `Classify ${data.items.unsure} unsure work item${data.items.unsure === 1 ? '' : 's'} into the scheme ${data.scheme.name}`,
+  },
+  {
+    listing: CLASSIFY_TUNE_PROMPT,
+    tool: CLASSIFY_TUNE_TOOL,
+    input: (args) => {
+      const toilProject = trimmed(args, 'toilProject');
+      const scheme = trimmed(args, 'scheme');
+      return { ...(toilProject ? { toilProject } : {}), ...(scheme ? { scheme } : {}) };
+    },
+    describe: (data) => `Tune the scheme ${data.scheme.name} from ${data.corrections.total} correction${data.corrections.total === 1 ? '' : 's'}`,
   },
 ];
 

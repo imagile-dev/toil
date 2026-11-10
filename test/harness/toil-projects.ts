@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { ResolvedConfig } from '../../src/core/config.js';
 import { createSchemeCatalog, type SchemeCatalog } from '../../src/core/classify/catalog.js';
+import { Ledger } from '../../src/core/classify/ledger.js';
 import { createToilProjectCatalog, stripUserinfo, type ToilProjectArea, type ToilProjectCatalog } from '../../src/core/toil-project.js';
 import { findGitRepo, readGitContext, readGitRemotes } from '../../src/core/git-repo.js';
 
@@ -25,6 +26,8 @@ export interface ToilProjectDisk {
   catalog: (config: ResolvedConfig, options?: { env?: NodeJS.ProcessEnv; mcp?: boolean; workspace?: string | null; areas?: readonly ToilProjectArea[] }) => ToilProjectCatalog;
   /** A scheme catalog over the same disk, for `testContext({ schemes })` or a direct call. */
   schemes: (config: ResolvedConfig, options?: { env?: NodeJS.ProcessEnv; mcp?: boolean; workspace?: string | null }) => SchemeCatalog;
+  /** The classification ledger in this disk's home, for `testContext({ ledger })` or a direct call. */
+  ledger: () => Ledger;
   cleanup: () => void;
 }
 
@@ -103,6 +106,7 @@ export function toilProjectDisk(files: Record<string, unknown> = {}): ToilProjec
         }),
       });
     },
+    ledger: () => new Ledger({ home }),
     cleanup: () => rmSync(root, { recursive: true, force: true }),
   };
 }

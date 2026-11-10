@@ -49,6 +49,12 @@ function bodyExcerpt(item: WorkItem): string {
   return flat.length > BODY_EXCERPT ? `${flat.slice(0, BODY_EXCERPT)}...` : flat;
 }
 
+/** A fence one backtick longer than the longest run inside the data, so nothing inside can close it from within. */
+export function fenceFor(data: string): string {
+  const longest = Math.max(2, ...[...data.matchAll(/`+/g)].map((m) => m[0].length));
+  return '`'.repeat(longest + 1);
+}
+
 export function classifyPrompt(input: PromptInput): { prompt: string; included: number; omitted: number } {
   const { scheme } = input;
   const limit = Math.max(0, input.limit ?? DEFAULT_PROMPT_LIMIT);
@@ -70,9 +76,7 @@ export function classifyPrompt(input: PromptInput): { prompt: string; included: 
     ].join('\n');
   });
   const data = blocks.join('\n---\n');
-  // A fence one backtick longer than the longest run inside it can't be closed from within.
-  const longest = Math.max(2, ...[...data.matchAll(/`+/g)].map((m) => m[0].length));
-  const fence = '`'.repeat(longest + 1);
+  const fence = fenceFor(data);
 
   const lines = [
     `Classify each work item below into one category of the scheme "${scheme.name}"${input.toilProject ? ` for the toil project "${input.toilProject}"` : ''}.`,
