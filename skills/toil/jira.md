@@ -137,6 +137,7 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 | `issue log-work` ✎ | `<key> --time-spent --comment --started` | The worklog (on Cloud plus `commentText`) |
 | `issue search` | `--jql` or `--jql-file`, `--limit --start-at --cursor --updated-since --changelog --fields` | Data Center: `{ issues, total, startAt, maxResults }`. Cloud: `{ issues, maxResults, isLast }`. `--start-at` is Data Center only |
 | `issue label` ✎ / `issue unlabel` ✎ | `<key> --labels a,b` | `{ updated, labelsAdded }` / `{ updated, labelsRemoved }` |
+| `issue categorize` ✎ | `--from <file>` | `{ connection, scheme, field, changed, unchanged, failed, skipped, counts }`: applies a classification plan; see **Categorizing issues** |
 | `issue assign` ✎ | `<key> --assignee <user>` | `{ assigned, assignee }`: a username on Data Center, an accountId on Cloud |
 | `issue link` ✎ | `<key> --target --type` | `{ linked, to, type }` |
 | `issue attach` ✎ | `<key> --file` | The attachments created |
@@ -455,6 +456,43 @@ old names are gone, not deprecated:
   person's `ids`), with a `TOIL_PROJECT_RENAMED_AREA` warning to rename it (`toil projects check`
   reports it). With both, `jira` wins. A toil project has one `jira` section, so it picks one Jira
   connection: a body of work that uses both a Data Center and a Cloud Jira takes two toil projects.
+
+## Categorizing issues
+
+`issue categorize` applies a classification plan, the result of `toil classify run`, to Jira
+issues. It never classifies: the plan says which category each issue belongs to, and this
+command writes that down.
+
+```bash
+toil jira issue search --jql "project = PAY AND statusCategory != Done" --fields summary,description,issuetype,labels,parent,customfield_10042 | toil util owi map | toil classify run --toil-project payments --summary-file plan.json
+toil jira issue categorize --from plan.json --allow-write
+```
+
+- **Labels.** Each issue gets its category's label, and loses the scheme's other labels.
+  Labels are compared without regard to case, so `KTLO` already there counts as `ktlo`; a
+  label to remove is spelled as the issue spells it. No label outside the scheme is touched.
+- **A field, when the plan names one.** The toil project's `classify` target names it by
+  alias, by id (`customfield_10042`) or by name, looked up in Jira's field list. A select
+  field is set to the option whose value or name matches the category's value, sent as the
+  option's id; a text field is sent the value. toil never creates a field or an option.
+- **Read first, write once.** Every issue is read before any is changed, and one update
+  carries an issue's label and field changes together. An issue that already matches is left
+  alone and listed in `unchanged`, so running a plan twice changes nothing.
+- **Refused before anything is written:** a field Jira has no such name for (`NOT_FOUND`),
+  two fields with the name (`INVALID_INPUT`, which names the ids), and an option the field
+  doesn't offer (`INVALID_INPUT`, which lists the options).
+- **An issue type without the field** gets the label only, and `CATEGORIZE_FIELD_NOT_ON_TYPE`
+  names the types; an admin adds the field to them, and the same plan applied again fills it in.
+- **An issue that fails** (not found, no permission to edit) is in `failed` with Jira's reason
+  and a `CATEGORIZE_FAILED` warning; the rest are applied, and the command still succeeds.
+  A refused token stops the whole call.
+- **One connection per call.** Entries in the plan for other connections are left alone
+  (`skipped`, `CATEGORIZE_SKIPPED`); a plan with entries but none for this connection is refused.
+
+It is a write: the connection needs `writes: true` and the call `--allow-write`. It sends
+no `notifyUsers` option, so Jira's own notification settings decide who is told. Over MCP it
+is `jira_issue_categorize`, and `from` must name a file in the workspace, since there is no
+stdin.
 
 ## Ticket the work
 

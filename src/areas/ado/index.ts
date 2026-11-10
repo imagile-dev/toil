@@ -1,6 +1,7 @@
 import { commandName, type AnyCommand } from '../../core/command.js';
 import { apiCommand } from '../../core/passthrough.js';
 import { adoArea, adoSupported } from './area.js';
+import { workCategorizeCommand as cloudCategorize } from './cloud/categorize.js';
 import { commentCommands as cloudComments } from './cloud/comments.js';
 import { pullRequestCommands as cloudPullRequests } from './cloud/pull-requests.js';
 import { repoCommands as cloudRepos } from './cloud/repos.js';
@@ -8,6 +9,7 @@ import { teamCommands as cloudTeam } from './cloud/team.js';
 import { workCommands as cloudWork } from './cloud/work.js';
 
 import { overrides } from './overrides.js';
+import { workCategorizeCommand as serverCategorize } from './server/categorize.js';
 import { checkToilProject as serverCheckToilProject } from './server/check-toil-project.js';
 import { commentCommands as serverComments } from './server/comments.js';
 import { pipelineCommands as serverPipelines } from './server/pipeline.js';
@@ -39,8 +41,8 @@ const isSchema = (d: AnyCommand) => commandName(d) === 'ado work-item schema';
 export const commands = [
   ...adoArea.byDeployment(
     {
-      server: [...serverCommands, ...serverWork, ...serverWorkMeta.filter((d) => !isSchema(d)), ...serverRepos, ...serverComments, ...serverPipelines, serverCheckToilProject],
-      cloud: [...cloudRepos, ...cloudWork, ...cloudPullRequests, ...cloudComments, ...cloudTeam, adoApi],
+      server: [...serverCommands, ...serverWork, serverCategorize, ...serverWorkMeta.filter((d) => !isSchema(d)), ...serverRepos, ...serverComments, ...serverPipelines, serverCheckToilProject],
+      cloud: [...cloudRepos, ...cloudWork, cloudCategorize, ...cloudPullRequests, ...cloudComments, ...cloudTeam, adoApi],
     },
     { overrides },
   ),

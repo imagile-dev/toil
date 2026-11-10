@@ -207,30 +207,32 @@ export const projectItemsCommand = githubArea.command({
 });
 
 /**
- * What `project status` reads about one project item before it changes
- * anything: the item, its project, the project's Status field with its
- * options, and the option the item holds now. One selection for both ways of
- * naming the item, so the mutation is the second request and the last.
+ * What `project status` and `issue categorize` read about one project item
+ * before they change anything: the item, its project, the named single-select
+ * field with its options, and the option the item holds now. One selection for
+ * both ways of naming the item, so the mutation is the second request and the
+ * last. `project status` asks for `Status`, and its query is the same text as
+ * it was when the field name was typed in by hand.
  */
-const ITEM_FIELDS = `
+const itemFields = (fieldName: string) => `
   id
   project {
     id
     number
     title
     owner { __typename ... on Organization { login } ... on User { login } }
-    field(name: "Status") { ... on ProjectV2SingleSelectField { id name options { id name } } }
+    field(name: ${JSON.stringify(fieldName)}) { ... on ProjectV2SingleSelectField { id name options { id name } } }
   }
-  fieldValueByName(name: "Status") { ... on ProjectV2ItemFieldSingleSelectValue { name optionId } }
+  fieldValueByName(name: ${JSON.stringify(fieldName)}) { ... on ProjectV2ItemFieldSingleSelectValue { name optionId } }
 `;
 
-const ITEMS_OF_ISSUE = `
+const itemsOfIssue = (fieldName: string) => `
   query($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
       issueOrPullRequest(number: $number) {
         __typename
-        ... on Issue { projectItems(first: 100) { nodes { ${ITEM_FIELDS} } } }
-        ... on PullRequest { projectItems(first: 100) { nodes { ${ITEM_FIELDS} } } }
+        ... on Issue { projectItems(first: 100) { nodes { ${itemFields(fieldName)} } } }
+        ... on PullRequest { projectItems(first: 100) { nodes { ${itemFields(fieldName)} } } }
       }
     }
   }
@@ -240,7 +242,7 @@ const ITEM_BY_ID = `
   query($item: ID!) {
     node(id: $item) {
       __typename
-      ... on ProjectV2Item { ${ITEM_FIELDS} }
+      ... on ProjectV2Item { ${itemFields('Status')} }
     }
   }
 `;
@@ -253,7 +255,7 @@ const SET_STATUS = `
   }
 `;
 
-interface StatusItem {
+export interface StatusItem {
   id?: string;
   project?: {
     id: string;
@@ -263,6 +265,75 @@ interface StatusItem {
     field?: { id?: string; name?: string; options?: Array<{ id: string; name: string }> } | null;
   } | null;
   fieldValueByName?: { name?: string; optionId?: string } | null;
+}
+
+/**
+ * Every project item an issue or pull request is on, each read with the named
+ * single-select field and the value it holds. An issue GitHub can't find is
+ * NOT_FOUND; one on no project is an empty list.
+ */
+export async function issueProjectItems(ctx: GitHubContext, o: { owner: string; repo: string; number: number; fieldName: string }): Promise<StatusItem[]> {
+  const what = `#${o.number} in ${o.owner}/${o.repo}`;
+  const answer = await projectsCall(
+    o.owner,
+    what,
+    () => githubGraphql<{ repository?: { issueOrPullRequest?: { projectItems?: { nodes?: StatusItem[] } } | null } | null }>(ctx, itemsOfIssue(o.fieldName), { owner: o.owner, repo: o.repo, number: o.number }),
+    'change',
+  );
+  const issue = answer.repository?.issueOrPullRequest;
+  if (!issue) throw new ToilError('NOT_FOUND', `GitHub found no issue or pull request ${what}.`, { fix: 'Check --owner, --repo and the number.' });
+  return issue.projectItems?.nodes ?? [];
+}
+
+/** The item on one project, by its number and its owner's login (the owner it was asked under when GitHub names none). */
+export function itemOnProject(items: StatusItem[], project: number, owner: string): StatusItem | undefined {
+  return items.find((i) => i.project?.number === project && (i.project.owner?.login ?? owner).toLowerCase() === owner.toLowerCase());
+}
+
+/**
+ * Set one item's single-select field to the option named `to` (case-insensitive,
+ * from the field the item's own read returned), sending nothing when the item
+ * already holds it. The field and the option are checked first, so a name the
+ * project doesn't have is refused before anything is sent.
+ */
+export async function setProjectField(ctx: GitHubContext, found: StatusItem, fieldName: string, to: string, fallbackOwner: string) {
+  const wanted = to.trim();
+  const project = found.project!;
+  const projectOwner = project.owner?.login ?? fallbackOwner;
+  const field = project.field;
+  if (!field?.id || !field.options) {
+    throw new ToilError('NOT_FOUND', `Project ${project.number} has no single-select field named ${fieldName}.`, { fix: `toil github project fields shows its fields; this command changes a single-select field called ${fieldName}.` });
+  }
+  const option = field.options.find((o) => o.name.toLowerCase() === wanted.toLowerCase());
+  if (!option) {
+    const names = field.options.map((o) => o.name);
+    throw new ToilError('INVALID_INPUT', `Project ${project.number} has no ${fieldName} option "${to}". Its options are: ${names.join(', ')}.`, { fix: `Pass --to with one of: ${names.join(', ')}.` });
+  }
+  const result = {
+    item: found.id,
+    project: { number: project.number, title: project.title ?? null, owner: projectOwner },
+    field: field.name ?? fieldName,
+    from: found.fieldValueByName?.name ?? null,
+    to: option.name,
+    changed: found.fieldValueByName?.optionId !== option.id,
+  };
+  // Already there: nothing to change, so nothing is sent.
+  if (!result.changed) return result;
+  await projectsCall(projectOwner, `the ${fieldName} of item ${found.id} on project ${project.number}`, () => githubGraphql(ctx, SET_STATUS, { project: project.id, item: found.id, field: field.id, option: option.id }), 'change');
+  return result;
+}
+
+/** A project's fields, each with its id, name, data type and (single-select) options: what `project fields` reads. */
+export interface ProjectFieldNode {
+  id?: string;
+  name?: string;
+  dataType?: string;
+  options?: Array<{ id: string; name: string }>;
+}
+
+export async function projectFieldList(ctx: GitHubContext, owner: string, project: number): Promise<ProjectFieldNode[]> {
+  const what = `fields of project ${project} owned by ${owner}`;
+  return projectsCall(owner, what, () => githubGraphqlList<ProjectFieldNode>(ctx, FIELDS, { owner, project }, (d) => (d as Owner).repositoryOwner?.projectV2?.fields as GraphqlConnection<ProjectFieldNode> | undefined, what));
 }
 
 export const projectStatusCommand = githubArea.command({
@@ -298,7 +369,6 @@ export const projectStatusCommand = githubArea.command({
     if (!byItem && (input.project === undefined || input.number === undefined)) {
       throw new ToilError('INVALID_INPUT', 'Say which item to move: the project and issue numbers, or --item.', { fix: 'Pass <project> <number> (toil github project status 3 9 --to Done), or --item <project item id> from project items.' });
     }
-    const wanted = input.to.trim();
     // Read only where a path needs it: core refuses a write whose owner came from an unadopted toil project, and --item never uses it.
     let owner = '';
     let found: StatusItem;
@@ -317,16 +387,8 @@ export const projectStatusCommand = githubArea.command({
       const project = parseIntText(input.project!);
       const number = parseIntText(input.number!);
       const what = `#${number} in ${repository.owner}/${repository.repo}`;
-      const answer = await projectsCall(
-        owner,
-        what,
-        () => githubGraphql<{ repository?: { issueOrPullRequest?: { projectItems?: { nodes?: StatusItem[] } } | null } | null }>(ctx, ITEMS_OF_ISSUE, { owner, repo: repository.repo, number }),
-        'change',
-      );
-      const issue = answer.repository?.issueOrPullRequest;
-      if (!issue) throw new ToilError('NOT_FOUND', `GitHub found no issue or pull request ${what}.`, { fix: 'Check --owner, --repo and the number.' });
-      const items = issue.projectItems?.nodes ?? [];
-      const here = items.find((i) => i.project?.number === project && (i.project.owner?.login ?? owner).toLowerCase() === owner.toLowerCase());
+      const items = await issueProjectItems(ctx, { owner, repo: repository.repo, number, fieldName: 'Status' });
+      const here = itemOnProject(items, project, owner);
       if (!here) {
         const on = items.map((i) => `${i.project?.owner?.login ?? '?'}/${i.project?.number}`);
         throw new ToilError('NOT_FOUND', `${what} is not on project ${project} owned by ${owner}${on.length ? ` (it is on ${on.join(', ')})` : ' (it is on no project)'}.`, {
@@ -335,29 +397,7 @@ export const projectStatusCommand = githubArea.command({
       }
       found = here;
     }
-    const project = found.project!;
-    const projectOwner = project.owner?.login ?? owner;
-    const field = project.field;
-    if (!field?.id || !field.options) {
-      throw new ToilError('NOT_FOUND', `Project ${project.number} has no single-select field named Status.`, { fix: 'toil github project fields shows its fields; this command changes a single-select field called Status.' });
-    }
-    const option = field.options.find((o) => o.name.toLowerCase() === wanted.toLowerCase());
-    if (!option) {
-      const names = field.options.map((o) => o.name);
-      throw new ToilError('INVALID_INPUT', `Project ${project.number} has no Status option "${input.to}". Its options are: ${names.join(', ')}.`, { fix: `Pass --to with one of: ${names.join(', ')}.` });
-    }
-    const result = {
-      item: found.id,
-      project: { number: project.number, title: project.title ?? null, owner: projectOwner },
-      field: field.name ?? 'Status',
-      from: found.fieldValueByName?.name ?? null,
-      to: option.name,
-      changed: found.fieldValueByName?.optionId !== option.id,
-    };
-    // Already there: nothing to change, so nothing is sent.
-    if (!result.changed) return result;
-    await projectsCall(projectOwner, `the Status of item ${found.id} on project ${project.number}`, () => githubGraphql(ctx, SET_STATUS, { project: project.id, item: found.id, field: field.id, option: option.id }), 'change');
-    return result;
+    return setProjectField(ctx, found, 'Status', input.to, owner);
   },
 });
 

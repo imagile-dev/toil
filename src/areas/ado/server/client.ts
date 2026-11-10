@@ -229,21 +229,31 @@ function missing(ctx: AdoContext, key: 'collection' | 'project', flag: string): 
 }
 
 /**
+ * The collection a command acts on: `--collection` beats `--organization`,
+ * which beats the git remote and the connection. A work item is addressed by
+ * id inside a collection, so a command that reads or changes one by id needs
+ * nothing else.
+ */
+export function collectionOf(ctx: AdoContext): string {
+  const passed = ctx.resolved.inputs?.collection?.source === 'input';
+  const collection = (passed ? ctx.context.collection : (ctx.context.organization ?? ctx.context.collection)) ?? '';
+  if (!collection) throw missing(ctx, 'collection', '--collection');
+  return collection;
+}
+
+/**
  * The collection, project and repo a command acts on, checked in the
- * order the contract specifies. `--collection` beats `--organization`, which beats
- * the git remote and the connection. Every command needs a collection and a
+ * order the contract specifies. Every command needs a collection and a
  * project, even those whose request uses neither (#69 item 2); repo commands
  * pass `needRepo`.
  */
 export function where(ctx: AdoContext, needRepo = false): Where {
-  const passed = ctx.resolved.inputs?.collection?.source === 'input';
-  const collection = (passed ? ctx.context.collection : (ctx.context.organization ?? ctx.context.collection)) ?? '';
+  const collection = collectionOf(ctx);
   // Presence is read from the report, and the values only when a path uses
   // them, so a write that never names the project or repo (a work item
   // update) doesn't read a toil project's, which core refuses for a toil project you
   // haven't adopted (src/core/run.ts, guardTargets).
   const has = (key: 'project' | 'repo') => Boolean(ctx.resolved.inputs?.[key]?.value);
-  if (!collection) throw missing(ctx, 'collection', '--collection');
   if (!has('project')) throw missing(ctx, 'project', '--project');
   if (needRepo && !has('repo')) {
     throw new ToilError('INVALID_INPUT', 'Could not determine Azure DevOps repo. Pass --repo, or run from inside a checked-out ADO repo.', {

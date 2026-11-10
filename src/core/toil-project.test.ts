@@ -151,3 +151,99 @@ describe('validateToilProject', () => {
     expect(JSON.stringify(shaped)).not.toContain('ghp_');
   });
 });
+
+describe("a toil project's classify key (#566)", () => {
+  const read = (classify: unknown) => validateToilProject({ name: 'payments', classify }, areas);
+  const errors = (classify: unknown) => read(classify).problems.filter((p) => p.level === 'error');
+  const warnings = (classify: unknown) => read(classify).problems.filter((p) => p.level === 'warning');
+  const full = {
+    scheme: 'ktlo-feature',
+    targets: {
+      jira: { field: 'workCategory' },
+      ado: { field: 'workCategory', values: { ktlo: 'KTLO (keep the lights on)' } },
+      github: { project: 'imagile/7', field: 'Category', values: { ktlo: 'Keep the lights on', feature: 'Feature' } },
+    },
+  };
+
+  it('reads a scheme and a target for each tracker', () => {
+    const out = read(full);
+    expect(out.problems).toEqual([]);
+    expect(out.toilProject?.classify).toEqual(full);
+  });
+
+  it('reads a scheme named by a path relative to the toil project, and a toil project with no classify key', () => {
+    expect(read({ scheme: './ktlo-feature.json' }).toilProject?.classify).toEqual({ scheme: './ktlo-feature.json', targets: {} });
+    expect(read({ scheme: '../shared/team.json' }).problems).toEqual([]);
+    expect(validateToilProject({ name: 'payments' }, areas).toilProject).not.toHaveProperty('classify');
+  });
+
+  it('writes the key back as it was read, so reading it again changes nothing', () => {
+    const first = read(full).toilProject!;
+    const content = toilProjectContent(first);
+    expect(content.classify).toEqual(full);
+    expect(validateToilProject(content, areas).toilProject).toEqual(first);
+    // An empty targets object is left out, not written as {}.
+    expect(toilProjectContent(read({ scheme: 'balance' }).toilProject!).classify).toEqual({ scheme: 'balance' });
+    expect(toilProjectContent(read({}).toilProject!).classify).toEqual({});
+  });
+
+  it('ignores an unknown key with TOIL_PROJECT_UNKNOWN_KEY, at classify, a target and a tracker', () => {
+    const out = read({ scheme: 'balance', colour: 'blue', targets: { jira: { field: 'f', shade: 1 }, gitlab: { field: 'f' } } });
+    expect(out.toilProject?.classify).toEqual({ scheme: 'balance', targets: { jira: { field: 'f' } } });
+    expect(warnings({ scheme: 'balance', colour: 'blue', targets: { jira: { field: 'f', shade: 1 }, gitlab: { field: 'f' } } }).map((p) => [p.code, p.path])).toEqual([
+      ['TOIL_PROJECT_UNKNOWN_KEY', 'classify.colour'],
+      ['TOIL_PROJECT_UNKNOWN_KEY', 'classify.targets.jira.shade'],
+      ['TOIL_PROJECT_UNKNOWN_KEY', 'classify.targets.gitlab'],
+    ]);
+    expect(warnings({ scheme: 'balance', colour: 'blue' })[0]!.message).toContain('It was ignored.');
+  });
+
+  it('refuses what a tracker section holds, saying a classify key never holds it', () => {
+    for (const key of ['connection', 'host', 'fields', 'transitions', 'writes']) {
+      const found = errors({ scheme: 'balance', [key]: key === 'writes' ? true : 'x' });
+      expect(found.map((p) => p.path)).toEqual([`classify.${key}`]);
+      expect(found[0]!.message).toContain(`"classify" never holds "${key}"`);
+    }
+  });
+
+  it('refuses a classify that is not an object, and targets that are not', () => {
+    expect(errors('balance')[0]).toMatchObject({ path: 'classify', code: 'TOIL_PROJECT_INVALID' });
+    expect(errors([])[0]!.path).toBe('classify');
+    expect(errors({ targets: [] })[0]!.path).toBe('classify.targets');
+    expect(errors({ targets: { jira: 'workCategory' } })[0]!.path).toBe('classify.targets.jira');
+  });
+
+  it('holds scheme to a name or a relative .json path', () => {
+    for (const scheme of ['Not A Name', 'a/b', 'x.txt', '/etc/team.json', String.raw`C:\x\team.json`, String.raw`\\host\share\team.json`, 7, '']) {
+      expect(errors({ scheme }).map((p) => p.path), String(scheme)).toEqual(['classify.scheme']);
+    }
+    expect(errors({ scheme: '/etc/team.json' })[0]!.message).toContain('never an absolute one');
+  });
+
+  it('takes project only under github, as <owner>/<number>', () => {
+    expect(errors({ targets: { jira: { project: 'imagile/7' } } })[0]).toMatchObject({ path: 'classify.targets.jira.project' });
+    expect(errors({ targets: { jira: { project: 'imagile/7' } } })[0]!.message).toContain('Only the github target takes "project"');
+    for (const project of ['imagile', 'imagile/seven', 'imagile/0', '/7', 'a b/7', 'imagile/7/8']) {
+      expect(errors({ targets: { github: { project } } }).map((p) => p.path), project).toEqual(['classify.targets.github.project']);
+    }
+  });
+
+  it('holds values to category ids mapped to one-line texts', () => {
+    expect(errors({ targets: { ado: { values: { 'Bad Id': 'x' } } } })[0]!.path).toBe('classify.targets.ado.values.Bad Id');
+    expect(errors({ targets: { ado: { values: { ktlo: '' } } } })[0]!.path).toBe('classify.targets.ado.values.ktlo');
+    expect(errors({ targets: { ado: { values: ['x'] } } })[0]!.path).toBe('classify.targets.ado.values');
+  });
+
+  it('checks every text for length, line breaks and a credential shape', () => {
+    const token = 'ghp_' + 'a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8';
+    expect(errors({ targets: { jira: { field: 'x'.repeat(201) } } })[0]!.message).toContain('the most is 200');
+    expect(errors({ targets: { jira: { field: 'a\nb' } } })[0]!.message).toContain('one line');
+    expect(errors({ targets: { jira: { field: token } } })[0]!.message).toContain('shaped like a credential');
+    expect(errors({ targets: { github: { values: { ktlo: token } } } })[0]!.path).toBe('classify.targets.github.values.ktlo');
+    expect(errors({ scheme: token })[0]!.path).toBe('classify.scheme');
+  });
+
+  it('keeps a toil project that has an error in classify from loading', () => {
+    expect(read({ writes: true }).toilProject).toBeUndefined();
+  });
+});

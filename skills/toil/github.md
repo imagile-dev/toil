@@ -38,6 +38,7 @@ What each group of commands needs from the token:
 | `repo file` | Contents: read, on the repository | `repo` (`public_repo` for public repositories only) |
 | `project list`, `project fields`, `project items` | Projects: read, under the organization's permissions. A fine-grained token can't read a user's own projects | `read:project` (plus `repo` to see items from private repositories) |
 | `project status` | Projects: read and write, under the organization's permissions (organization projects only) | `project` (plus `repo` to reach an item in a private repository) |
+| `issue categorize` | Issues: read and write, on the repositories in the plan; Projects: read and write, under the organization's permissions, only when the plan names a field | `repo`, plus `project` only when the plan names a field |
 | Pull request, review, comment and check commands | Pull requests, contents and checks, read or write as needed | `repo` |
 
 A token without the Projects permission gets `AUTH` from the `project` commands,
@@ -169,6 +170,7 @@ Owner, repo, labels and refs go into request paths as typed; a value that would 
     <number>` (repeatable `--label`), `issue unlabel <number> --label`, `issue assign
     <number>` and `issue unassign <number>` (repeatable `--assignee`). `pr label`,
     `pr unlabel`, `pr assign` and `pr unassign` are the same commands.
+  - `issue categorize --from <file>` (a write): applies the classification plan that `toil classify run` wrote to the issues and pull requests it names. See **Categorize issues** below.
 - **Projects (v2):** GitHub's boards, over GraphQL (read, except `project status`). They belong to an owner, so
   only `--owner` is read; `<project>` is the number in the project's URL.
   - `project list`: the owner's projects (`id`, `number`, `title`, `url`, `closed`, …).
@@ -253,6 +255,25 @@ toil github repo file .github/CODEOWNERS
 toil github --owner imagile --repo toil-probe pr status 7
 toil github pr create --title "Add the probe" --head feature --body-file pr.md --allow-write
 ```
+
+## Categorize issues
+
+`issue categorize` writes the categories that `toil classify run` decided back to GitHub. Pass it the plan with `--from <file>` (over MCP, `from`; on the CLI, omit it to read the plan from stdin):
+
+```bash
+toil github issue list --state open --limit 200 | toil util owi map | toil classify run --toil-project payments --summary-file plan.json
+toil github issue categorize --from plan.json --allow-write
+```
+
+- **What it sets.** Each item's category becomes a label, and, when the toil project names a Projects (v2) single-select field (`toil projects classify set <toil-project> --target github.field=<field> --target github.project=<owner>/<number>`), that field's option on the project. It works on pull requests too.
+- **Where the items are.** Each item's key in the plan is `owner/repo#number`, so the command needs no `--owner` or `--repo`. A key in any other form is `INVALID_INPUT`, before any request is sent. One call applies one connection's entries of the plan; entries for other connections are named in `skipped` with a `CATEGORIZE_SKIPPED` warning.
+- **Labels.** It reads each issue first and works from the labels the issue has now, not from the plan's guess. A missing label is created in that repository, with no colour set and a description made from the category's name and the start of its definition (at most 100 characters); `labelsCreated` lists each one. Label names compare without regard to case.
+- **Reclassifying.** Adding a first label is one `POST`. When one of the scheme's other labels has to come off, the issue's labels are replaced with one `PUT` that carries the labels it had just now, minus the scheme's other labels, plus the category's. toil never sends a `DELETE` here, which is why the command is available over MCP. GitHub has no conditional write for labels, so a label someone else adds in the moment between the read and the `PUT` is lost.
+- **The field.** Before anything is written, it reads the project's fields. A field the project doesn't have is `NOT_FOUND`, a field that isn't a single-select is `INVALID_INPUT`, and an option the field lacks for one of the plan's values is `INVALID_INPUT` listing the options it has; toil never creates a field or an option. A plan that names a field but no project is `INVALID_INPUT` too. An issue that isn't on the project gets its label, is listed in `notOnProject`, and brings a `CATEGORIZE_NOT_ON_PROJECT` warning: toil never adds an issue to a project. Add it on the project's page, then run the same plan again to set the field.
+- **Running it again changes nothing.** An issue that already has the label, and holds the field value, is left alone and listed in `unchanged`; nothing is sent for it. After a `TIMEOUT` or a failure, run the same plan again.
+- **Failures.** An issue that can't be read or written (a 404 or a 403 on that issue) goes into `failed` with the reason, the rest of the plan is applied, and the call succeeds with a `CATEGORIZE_FAILED` warning. A rejected token (401), a network failure or a cancel stops the call.
+- **Gate and token.** It needs `writes` on the connection and `--allow-write`. The token needs the Issues permission at write (classic: `repo`), and Projects at write (classic: `project`) only when the plan names a field. It takes up to 15 minutes, one or two requests per issue.
+- **Result.** `data` is `{ connection, scheme, field, changed, unchanged, failed, skipped, counts, labelsCreated, notOnProject }`: `changed` holds, per issue, `{ id, key, category, labels: { added, removed }, field }`, `field` being `{ value }` when it was set and `null` otherwise, and `field` at the top carries the project field's node id.
 
 ## Ticket the work
 

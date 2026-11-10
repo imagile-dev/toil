@@ -205,6 +205,12 @@ export interface ClassifyPlan {
 
 /** `classify run`'s data. */
 export interface ClassifyResult extends ClassifyPlan {
+  /**
+   * The scheme, and where `classify run` found it (principle 4). The engine is
+   * handed a scheme and never looks for one, so it leaves `source` and `file`
+   * out; the command that resolved the scheme adds them.
+   */
+  scheme: ClassifyPlan['scheme'] & { source?: SchemeSource; file?: string };
   toilProject: string | null;
   verdicts: Verdict[];
   summary: ClassifySummary;

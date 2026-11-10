@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { ResolvedConfig } from '../../src/core/config.js';
+import { createSchemeCatalog, type SchemeCatalog } from '../../src/core/classify/catalog.js';
 import { createToilProjectCatalog, stripUserinfo, type ToilProjectArea, type ToilProjectCatalog } from '../../src/core/toil-project.js';
 import { findGitRepo, readGitContext, readGitRemotes } from '../../src/core/git-repo.js';
 
@@ -22,6 +23,8 @@ export interface ToilProjectDisk {
   reset: () => void;
   /** A catalog over this disk, for `testContext({ toilProjects })` or a direct call. */
   catalog: (config: ResolvedConfig, options?: { env?: NodeJS.ProcessEnv; mcp?: boolean; workspace?: string | null; areas?: readonly ToilProjectArea[] }) => ToilProjectCatalog;
+  /** A scheme catalog over the same disk, for `testContext({ schemes })` or a direct call. */
+  schemes: (config: ResolvedConfig, options?: { env?: NodeJS.ProcessEnv; mcp?: boolean; workspace?: string | null }) => SchemeCatalog;
   cleanup: () => void;
 }
 
@@ -82,6 +85,21 @@ export function toilProjectDisk(files: Record<string, unknown> = {}): ToilProjec
             const found = readGitContext(folder, { home });
             return found && { ...found, remotes: found.remotes.map(stripUserinfo) };
           },
+        }),
+      });
+    },
+    schemes: (config, options = {}) => {
+      const dir = options.workspace === null ? undefined : (options.workspace ?? workspace);
+      return createSchemeCatalog({
+        home,
+        env: options.env ?? {},
+        config,
+        workspace: dir ? { dir, source: options.mcp ? 'mcp-root' : 'cwd' } : { source: 'none' },
+        base: dir,
+        protect: [join(home, '.toil')],
+        git: (folder) => ({
+          gitRemote: async () => [],
+          repo: () => readGitContext(folder, { home }),
         }),
       });
     },

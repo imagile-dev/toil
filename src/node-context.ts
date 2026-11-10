@@ -4,6 +4,7 @@ import { fileAuditLog } from './core/audit.js';
 import { commandName, needsConfig, type AnyCommand } from './core/command.js';
 import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
+import { createSchemeCatalog } from './core/classify/catalog.js';
 import { createToilProjectCatalog } from './core/toil-project.js';
 import { alreadyExists, nodeFiles, resolveWorkspace } from './core/files.js';
 import { createGitRunner } from './core/git.js';
@@ -154,6 +155,15 @@ export function createNodeContext(o: NodeContextOptions): Context {
             env: o.env,
             config,
             areas: o.areas.map((a) => ({ name: a.name, context: a.contextInputs ?? [], ...(a.siteApis ? { siteApis: a.siteApis } : {}) })),
+            workspace,
+            base: mcp ? workspace.dir : o.cwd,
+            protect: ownFiles(o.home, o.cwd, o.globals.config),
+            git: gitAt,
+          }),
+          schemes: createSchemeCatalog({
+            home: o.home,
+            env: o.env,
+            config,
             workspace,
             base: mcp ? workspace.dir : o.cwd,
             protect: ownFiles(o.home, o.cwd, o.globals.config),

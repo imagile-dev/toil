@@ -73,6 +73,54 @@ export const ANALYZE_PROMPT = {
   arguments: [{ name: 'toilProject', description: 'The toil project to analyze (default: the one the folder matches)', required: false }],
 };
 
+/** The tool the Classify prompt is built by, and the prompt as clients list it. */
+const CLASSIFY_TOOL = 'classify_prompt';
+export const CLASSIFY_PROMPT = {
+  name: 'classify',
+  title: 'Classify work items',
+  description: "Ask the AI agent to classify the work items classify_run left unsure, into the categories of a scheme. The items are untrusted data; the answer is a JSON array of { id, category, reason }, which goes to classify_run as verdicts.",
+  arguments: [
+    { name: 'file', description: 'A file in the workspace holding the work items as OWI records (what util owi map printed)', required: true },
+    { name: 'toilProject', description: 'The toil project whose scheme to use (default: the one the folder matches, if any)', required: false },
+    { name: 'scheme', description: "A scheme name or file (default: the toil project's, else ktlo-feature)", required: false },
+  ],
+};
+
+/**
+ * The prompts, each built by one tool: listed and served exactly when that tool is.
+ * `input` maps the request's arguments to the tool's input (or says what is missing), `describe` words the result.
+ */
+interface PromptEntry {
+  listing: { name: string; title: string; description: string; arguments: Array<{ name: string; description: string; required: boolean }> };
+  tool: string;
+  input: (args: Record<string, string>) => Record<string, unknown>;
+  describe: (data: Record<string, any>) => string; // eslint-disable-line @typescript-eslint/no-explicit-any -- each tool's data is read where its prompt is defined
+}
+const trimmed = (args: Record<string, string>, name: string): string | undefined => args[name]?.trim() || undefined;
+const PROMPTS: PromptEntry[] = [
+  {
+    listing: ANALYZE_PROMPT,
+    tool: ANALYZE_TOOL,
+    input: (args) => {
+      const toilProject = trimmed(args, 'toilProject');
+      return toilProject ? { toilProject } : {};
+    },
+    describe: (data) => `Analyze the toil project ${data.toilProject.toilProject}`,
+  },
+  {
+    listing: CLASSIFY_PROMPT,
+    tool: CLASSIFY_TOOL,
+    input: (args) => {
+      const file = trimmed(args, 'file');
+      if (!file) throw new McpError(ErrorCode.InvalidParams, 'The classify prompt needs a file argument: a file in the workspace holding the work items as OWI records (what util owi map printed).');
+      const toilProject = trimmed(args, 'toilProject');
+      const scheme = trimmed(args, 'scheme');
+      return { file, ...(toilProject ? { toilProject } : {}), ...(scheme ? { scheme } : {}) };
+    },
+    describe: (data) => `Classify ${data.items.unsure} unsure work item${data.items.unsure === 1 ? '' : 's'} into the scheme ${data.scheme.name}`,
+  },
+];
+
 /**
  * Builds the MCP server. Each tool runs exactly the code its CLI command runs.
  *
@@ -182,17 +230,21 @@ export function createMcpServer(options: {
     if (err instanceof ToilError) throw new McpError(ErrorCode.InternalError, `${err.message}${err.fix ? ` ${err.fix}` : ''}`);
     throw err;
   };
-  // The one prompt, Analyze (#494), is the projects_analyze_prompt tool's answer, so it's served exactly when that tool is.
-  const analyze = byName.get(ANALYZE_TOOL);
-  server.setRequestHandler(ListPromptsRequestSchema, () => ({ prompts: analyze ? [ANALYZE_PROMPT] : [] }));
+  // Each prompt (Analyze, #494, and Classify) is its tool's answer, so it's served exactly when that tool is.
+  const served = PROMPTS.flatMap((entry) => {
+    const tool = byName.get(entry.tool);
+    return tool ? [{ entry, tool }] : [];
+  });
+  server.setRequestHandler(ListPromptsRequestSchema, () => ({ prompts: served.map((p) => p.entry.listing) }));
   server.setRequestHandler(GetPromptRequestSchema, async (request) => {
-    if (request.params.name !== ANALYZE_PROMPT.name || !analyze) throw new McpError(ErrorCode.InvalidParams, `Unknown prompt: ${request.params.name}`);
-    const toilProject = request.params.arguments?.toilProject?.trim();
+    const found = served.find((p) => p.entry.listing.name === request.params.name);
+    if (!found) throw new McpError(ErrorCode.InvalidParams, `Unknown prompt: ${request.params.name}`);
+    const input = found.entry.input(request.params.arguments ?? {});
     const shared = await clientRoots();
-    const envelope = await runCommand(analyze, toilProject ? { toilProject } : {}, (d) => options.context(d, undefined, shared), startup.version, 'mcp', { targets: selected });
+    const envelope = await runCommand(found.tool, input, (d) => options.context(d, undefined, shared), startup.version, 'mcp', { targets: selected });
     if (!envelope.ok) throw new McpError(ErrorCode.InvalidParams, `${envelope.error!.message}${envelope.error!.fix ? ` ${envelope.error!.fix}` : ''}`);
-    const data = envelope.data as { prompt: string; toilProject: { toilProject: string } };
-    return { description: `Analyze the toil project ${data.toilProject.toilProject}`, messages: [{ role: 'user' as const, content: { type: 'text' as const, text: data.prompt } }] };
+    const data = envelope.data as { prompt: string };
+    return { description: found.entry.describe(data as Record<string, unknown>), messages: [{ role: 'user' as const, content: { type: 'text' as const, text: data.prompt } }] };
   });
   server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: await listResources(await host()).catch(asMcpError) }));
   server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({ resourceTemplates: listTemplates(await host()) }));

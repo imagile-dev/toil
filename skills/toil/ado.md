@@ -272,6 +272,8 @@ Work items (`<id>` is the work item id):
   continuation tokens, or with `--limit` at most that many and `meta.page.nextCursor`.
 - `work-item tag <id>`, `work-item untag <id>` (Server): `--tags a;b` or `a,b`, matched
   ignoring case. The tag list is read and written back, with no revision check.
+- `work-item categorize` (`--from <file>`): Apply a classification plan: tag work items with
+  their category, and set a field when the plan names one. See **Categorizing work items**.
 - `work-item attachments <id>` (Server): The attached files (id, name, url, size, dates).
 - `work-item attach <id>` (Server): Upload `--file` (a path in the workspace), then link
   it (`--comment` optional). Returns the uploaded attachment's `{ id, url }`. If the link
@@ -512,6 +514,50 @@ toil ado api PATCH _apis/wit/workitems/42 --query api-version=7.1 --body-file pa
 
 Prefer a wrapped command when one exists: it knows the endpoint's paging and quirks,
 and `ado api` doesn't. On a Server connection it fails with `UNSUPPORTED`.
+
+## Categorizing work items
+
+`work-item categorize` applies a classification plan, the result of `toil classify run`, to
+Azure DevOps work items, on Server and on Services. It never classifies: the plan says which
+category each work item belongs to, and this command writes that down.
+
+```bash
+toil ado work-item get-many 42 43 47 --fields System.Title,System.Description,System.WorkItemType,System.Tags,System.Parent | toil util owi map | toil classify run --toil-project payments --summary-file plan.json
+toil ado work-item categorize --from plan.json --allow-write
+```
+
+The plan's keys are work item ids, which are unique in a collection (Server) or organization
+(Services), so the command needs no `--project`. On Server it still needs the collection.
+
+- **Tags.** Each work item gets its category's tag, and loses the scheme's other tags. Tags are
+  compared without regard to case, so `KTLO` already there counts as `ktlo`; a tag to remove is
+  spelled as the work item spells it. The other tags on the item are kept, and no tag outside
+  the scheme is touched.
+- **A field, when the plan names one.** The toil project's `classify` target names it by
+  alias, by reference name (`Custom.WorkCategory`, anything with a dot) or by display name,
+  looked up in the collection's or organization's field list. The field must already exist:
+  toil never creates it. Each work item type's own definition of the field is read, and a
+  value the field lists is sent in the spelling the field lists; a field with no listed values
+  takes the text as it is.
+- **Read first, write once.** Every work item is read before any is changed, 200 to a request.
+  One JSON Patch carries a work item's tag and field changes together, and starts with a
+  `test` of the revision that was read, so Azure DevOps refuses it if someone else changed the
+  item in between. toil then reads that item again and tries once more; a second refusal puts
+  the item in `failed`. Notifications are suppressed. A work item that already matches is left
+  alone and listed in `unchanged`, so running a plan twice changes nothing.
+- **Refused before anything is written:** a key that isn't a work item id, a field with no such
+  name (`NOT_FOUND`), two fields with the display name (`INVALID_INPUT`, which names the
+  reference names), and a value the field doesn't list (`INVALID_INPUT`, which lists them).
+- **A work item type without the field** gets the tag only, and `CATEGORIZE_FIELD_NOT_ON_TYPE`
+  names the types; an admin adds the field to them, and the same plan applied again fills it in.
+- **A work item that fails** (not found, no permission to edit) is in `failed` with Azure
+  DevOps's reason and a `CATEGORIZE_FAILED` warning; the rest are applied, and the command
+  still succeeds. A refused token stops the whole call.
+- **One connection per call.** Entries in the plan for other connections are left alone
+  (`skipped`, `CATEGORIZE_SKIPPED`); a plan with entries but none for this connection is refused.
+
+It is a write: the connection needs `writes: true` and the call `--allow-write`. Over MCP it is
+`ado_work_item_categorize`, and `from` must name a file in the workspace, since there is no stdin.
 
 ## Ticket the work
 

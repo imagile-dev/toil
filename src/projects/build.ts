@@ -891,14 +891,14 @@ export function toilProjectBuildCommands(areas: readonly AnyArea[]): AnyCommand[
   }
 }
 
-interface Access {
+export interface Access {
   catalog: ToilProjectCatalog;
   config: ResolvedConfig;
   via: ConfigAccess['via'];
   prompt: ConfigAccess['prompt'];
 }
 
-function access(ctx: CommandContext<unknown>): Access {
+export function access(ctx: CommandContext<unknown>): Access {
   if (!ctx.manage) throw new Error('A toil projects command ran without ctx.manage; define it with defineConfigCommand.');
   if (!ctx.manage.toilProjects) throw new ToilError('NOT_CONFIGURED', 'Toil projects are not available here.', { fix: 'Run toil projects from the CLI or toil mcp.' });
   return { catalog: ctx.manage.toilProjects, config: ctx.manage.config, via: ctx.manage.via, prompt: ctx.manage.prompt };
@@ -945,7 +945,7 @@ async function sharedBinding<T extends { connection?: string | undefined; host?:
  * of the file, and an edit that reaches here always does: that's said, in a
  * warning and in `credentialsRemoved`, and counts as a change.
  */
-function saved(ctx: CommandContext<unknown>, catalog: ToilProjectCatalog, file: ToilProjectFile & { toilProject: ToilProject }, toilProject: ToilProject, changed: boolean, extra: Record<string, unknown>) {
+export function saved(ctx: CommandContext<unknown>, catalog: ToilProjectCatalog, file: ToilProjectFile & { toilProject: ToilProject }, toilProject: ToilProject, changed: boolean, extra: Record<string, unknown>) {
   const removed = credentialPaths(file);
   const write = changed || removed.length > 0;
   const written = write ? catalog.save(file.file, toilProject, 'edit') : forwardSlashes(file.file);
@@ -963,7 +963,7 @@ function credentialPaths(file: ToilProjectFile): string[] {
  * flag whose value may be something that shouldn't be repeated (`--id`, where a
  * pasted token is the mistake being refused).
  */
-function keyValue(pair: string, flag: string, { example = 'project=PAY', quiet = false }: { example?: string; quiet?: boolean } = {}): [string, string] {
+export function keyValue(pair: string, flag: string, { example = 'project=PAY', quiet = false }: { example?: string; quiet?: boolean } = {}): [string, string] {
   const at = pair.indexOf('=');
   if (at <= 0 || at === pair.length - 1) throw new ToilError('INVALID_INPUT', quiet ? `${flag} takes key=value, and one value given isn't.` : `${flag} takes key=value, and "${pair}" isn't.`, { fix: `For example ${flag} ${example}.` });
   return [pair.slice(0, at), pair.slice(at + 1)];

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { ResolvedConfig, Settings } from '../../src/core/config.js';
 import type { Context } from '../../src/core/context.js';
+import type { SchemeCatalog } from '../../src/core/classify/catalog.js';
 import type { ToilProjectCatalog } from '../../src/core/toil-project.js';
 import type { GitRunner } from '../../src/core/git.js';
 import type { GitContext } from '../../src/core/git-repo.js';
@@ -50,6 +51,8 @@ export interface TestContextOptions {
   prompt?: Prompter;
   /** Toil projects on a temp disk (`toilProjectDisk().catalog`), built over this context's config. Absent, there are none. */
   toilProjects?: (config: ResolvedConfig) => ToilProjectCatalog;
+  /** Schemes on a temp disk (`toilProjectDisk().schemes`), built over this context's config. Absent, there are none. */
+  schemes?: (config: ResolvedConfig) => SchemeCatalog;
   /** The audit log execute() appends to; a fresh `memoryAudit()` by default, so no test writes to a home folder. */
   audit?: MemoryAudit;
   /**
@@ -106,6 +109,7 @@ export function testContext(options: TestContextOptions = {}): { context: Contex
     ...(options.git ? { git: options.git } : {}),
     ...(options.home === undefined ? {} : { home: typeof options.home === 'string' ? options.home : seedHome(options.home) }),
     ...(options.toilProjects ? { toilProjects: options.toilProjects(config) } : {}),
+    ...(options.schemes ? { schemes: options.schemes(config) } : {}),
   };
   return { context, http, files, audit };
 }

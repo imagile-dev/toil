@@ -54,7 +54,7 @@ type Files = Record<string, string | Uint8Array>;
 // Config, files and routes are read from the fixture when each test runs, after setup.
 // Two connections the toil project build examples bind to, both with writes off, and the
 // OWI records `toil projects brief` reads from a file.
-const outside: LoadedFixture = { area: '', routes: [], config: { jira: { baseUrl: 'https://jira.imagile.dev' }, openshift: { baseUrl: 'https://api.ocp.imagile.dev:6443' } }, files: { 'owi/brief.owi.json': EXAMPLE_BRIEF_RECORDS, 'owi/people.owi.json': EXAMPLE_PEOPLE_RECORDS }, commands: [], trace: [] };
+const outside: LoadedFixture = { area: '', routes: [], config: { jira: { baseUrl: 'https://jira.imagile.dev' }, openshift: { baseUrl: 'https://api.ocp.imagile.dev:6443' } }, files: { 'owi/brief.owi.json': EXAMPLE_BRIEF_RECORDS, 'owi/people.owi.json': EXAMPLE_PEOPLE_RECORDS, 'owi/verdicts.json': JSON.stringify([{ id: 'corp-jira:PAY-101', category: 'feature', reason: 'New capability at the edge.' }, { id: 'corp-jira:PAY-102', category: 'feature', reason: 'Part of the same feature.' }, { id: 'corp-jira:PAY-105', category: 'ktlo', reason: 'Keeps receipts compliant.' }]) }, commands: [], trace: [] };
 // A group of standalone commands that read files or run git (`util`) brings
 // its own fixture, named after the group, and runs in that suite instead.
 const grouped = new Set(fixtures.map((f) => f.area));
@@ -71,6 +71,20 @@ const toilProjectAreas = registeredAreas.map((a) => ({ name: a.name, context: Ob
 // The toil projects and repos commands sit outside any area and read and write
 // toil projects on disk: a temp home and workspace, put back as made before each
 // run, so the CLI and MCP runs of a writing example start from the same files.
+/** A checked-in scheme in the fixture workspace, in the shape `classify scheme set` and `import` read. */
+const TEAM_SCHEME = {
+  name: 'team',
+  revision: 1,
+  categories: [
+    { id: 'ktlo', short: 'KTLO', name: 'Keep the lights on', label: 'ktlo', definition: 'Fixes, patches and upgrades that keep the product supported.' },
+    { id: 'feature', short: 'Feature', name: 'Feature', label: 'feature', definition: 'New user-facing capability.' },
+  ],
+  guidance: [],
+  examples: [],
+  rules: [],
+  signals: true,
+  labels: {},
+};
 const outsideDisk = toilProjectDisk({
   'home/.toil/projects/payments.json': {
     name: 'payments',
@@ -83,13 +97,17 @@ const outsideDisk = toilProjectDisk({
     people: [{ name: 'Pat Example', email: 'you@example.com', ids: { jira: 'pat' } }],
   },
   'work/.git/HEAD': 'ref: refs/heads/main\n',
+  // The classify scheme commands: a checked-in scheme, and revised files for `set` to read (one with no name, which takes the scheme's).
+  'work/.toil/classify/team.json': TEAM_SCHEME,
+  'work/schemes/team-v2.json': { ...TEAM_SCHEME, guidance: ['A bug fix is KTLO.'], rules: [{ id: 'escalations', when: { label: ['customer-escalation'] }, then: 'ktlo' }] },
+  'work/schemes/ktlo-feature-v2.json': { ...TEAM_SCHEME, name: undefined, guidance: ['Say it once.'] },
   'work/.toil/projects/team.json': { name: 'team', description: 'Shared by the team', repos: [{ name: 'payments-api', remotes: ['https://bitbucket.imagile.dev/scm/pay/payments-api.git'] }] },
 });
 afterAll(() => outsideDisk.cleanup());
 // An area fixture's own toil project (`toil-project`), as your own and named by TOIL_PROJECT, for its check-toil-project.
 const fixtureDisks = new Map<LoadedFixture, ReturnType<typeof toilProjectDisk>>();
 afterAll(() => fixtureDisks.forEach((d) => d.cleanup()));
-type Local = { repo?: GitContext; git?: GitRunner; home?: Record<string, string>; toilProjects?: ReturnType<typeof toilProjectDisk>['catalog']; configFile?: string };
+type Local = { repo?: GitContext; git?: GitRunner; home?: Record<string, string>; toilProjects?: ReturnType<typeof toilProjectDisk>['catalog']; schemes?: ReturnType<typeof toilProjectDisk>['schemes']; configFile?: string };
 function localOf(f: LoadedFixture): Local {
   const local: Local = { ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}), ...(f.home ? { home: f.home } : {}) };
   if (f === outside) {
@@ -99,6 +117,7 @@ function localOf(f: LoadedFixture): Local {
       outsideDisk.reset();
       return outsideDisk.catalog(config, { areas: toilProjectAreas });
     };
+    local.schemes = (config) => outsideDisk.schemes(config);
   } else if (f.toilProject) {
     const name = String(f.toilProject.name);
     if (!fixtureDisks.has(f)) fixtureDisks.set(f, toilProjectDisk({ [`home/.toil/projects/${name}.json`]: f.toilProject }));

@@ -47,6 +47,7 @@ Read the job's page, and `workflows/README.md` once.
 - `workflows/review.md`: review someone else's PR
 - `workflows/ship.md`: take your branch to a PR, answer its review, fix CI
 - `workflows/map-codebase.md`: map a repository and draw its C4 diagram
+- `workflows/classify.md`: sort a backlog into categories and write them to the tracker
 
 ## Where to look
 
@@ -57,6 +58,7 @@ Open only the file the task needs; each is beside this one.
 | `core.md` | `--select`, big results, `toil wait`, paging, errors, writes and exceptions, global flags, files, configuration, the raw `api` passthrough, toil projects, audit log, calling toil from a program (`./api`), feedback, certificates and proxies |
 | `<area>.md` | One per area, named after it: `jira.md` for `toil jira …`. Its frontmatter says what it covers; the file has its oldest supported version, credential, configuration keys and every command |
 | `projects.md` | What a toil project is; building, sharing, briefing |
+| `classify.md` | Classifying work into categories: schemes, where they live, and the scheme commands |
 | `db.md` | Databases: `toil db …` on every engine |
 | `util.md` | Local utilities, no connection or network: `toil util …` |
 | `skills.md` | Skills marketplaces, and keeping this skill installed |

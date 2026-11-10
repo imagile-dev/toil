@@ -243,7 +243,7 @@ const byName = new Map(served.map((def) => [commandName(def), def]));
  * CLI-only commands (a shell alias, a toil project's or a marketplace's removal)
  * and every delete stay on the CLI.
  */
-const PERSON_COMMANDS = new Set(['connections add', 'connections login', 'connections remove', 'connections writes', 'connections default', 'projects onboard', 'feedback']);
+const PERSON_COMMANDS = new Set(['connections add', 'connections login', 'connections remove', 'connections writes', 'connections default', 'projects onboard', 'classify scheme set', 'classify scheme import', 'feedback']);
 const forPerson: AnyCommand[] = commands.filter((def) => PERSON_COMMANDS.has(commandName(def)));
 const personByName = new Map(forPerson.map((def) => [commandName(def), def]));
 const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, ...(a.fallbackWhen ? { fallbackWhen: a.fallbackWhen } : {}), contextInputs: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}) }));

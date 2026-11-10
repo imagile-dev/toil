@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { apiCommand } from '../../core/passthrough.js';
 import { jiraArea, jiraSupported, DEPLOYMENTS } from './area.js';
+import { cloudCategorize, serverCategorize } from './categorize.js';
 import { overrides } from './overrides.js';
 import { agileCommands as cloudAgile } from './cloud/agile.js';
 import { attachmentCommands as cloudAttachments } from './cloud/attachments.js';
@@ -66,8 +67,8 @@ export const supported = jiraSupported;
 export const commands = [
   ...jiraArea.byDeployment(
     {
-      server: [...serverIssues, ...serverSearch, ...serverAttachments, ...serverAgile, serverDiscover, jiraApi, serverCheckToilProject],
-      cloud: [...cloudIssues, ...cloudSearch, ...cloudAttachments, ...cloudProjects, ...cloudAgile, cloudDiscover, cloudCheckToilProject],
+      server: [...serverIssues, ...serverSearch, ...serverAttachments, ...serverAgile, serverDiscover, jiraApi, serverCheckToilProject, serverCategorize],
+      cloud: [...cloudIssues, ...cloudSearch, ...cloudAttachments, ...cloudProjects, ...cloudAgile, cloudDiscover, cloudCheckToilProject, cloudCategorize],
     },
     { overrides },
   ),

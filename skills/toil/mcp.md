@@ -45,6 +45,12 @@ port.
   through toil's tools, with every work item and pull request linked. It's what the
   `projects_analyze_prompt` tool returns, served when that tool is (`projects.md`,
   **Analyze**).
+  `classify` asks the AI agent to classify the work items `classify_run` left unsure: its
+  arguments are `file` (required: a workspace file holding the work items as OWI records,
+  since MCP has no stdin), `toilProject` and `scheme`. It's what the `classify_prompt` tool
+  returns, served when that tool is (`classify.md`). The items in it are untrusted data; the
+  answer is a JSON array of `{ id, category, reason }`, saved to a workspace file and passed
+  to `classify_run` as `verdicts`.
 - **Resources**: besides tools, the server serves read-only resources that describe
   toil's own context, so a client can read it without a tool call. None reads from a
   service, and none holds a secret. They follow `--areas` as the tools do.

@@ -66,6 +66,27 @@ export const timelineEvent = (event = 'labeled', id = 601) => ({ id, node_id: `L
 export const project = (number = 3) => ({ id: `PVT_kwDOabc12345${number}`, number, title: 'Roadmap', shortDescription: 'What ships when', url: `${GHE}/orgs/imagile/projects/${number}`, public: false, closed: false, createdAt: '2025-01-15T10:00:00Z', updatedAt: '2025-01-16T10:00:00Z' });
 
 export const projectField = () => ({ __typename: 'ProjectV2SingleSelectField', id: 'PVTSSF_abc12345', name: 'Status', dataType: 'SINGLE_SELECT', options: [{ id: 'f75ad846', name: 'Todo' }, { id: '47fc9ee4', name: 'In Progress' }, { id: '98236657', name: 'Done' }] });
+/**
+ * The single-select field `issue categorize` sets, and the project item an issue holds it on (an invented GraphQL
+ * answer shaped from the reference, not captured live). Its options are the short names of the sample scheme's categories.
+ */
+export const workCategoryField = () => ({ __typename: 'ProjectV2SingleSelectField', id: 'PVTSSF_cat12345', name: 'Work category', dataType: 'SINGLE_SELECT', options: [{ id: 'a1b2c3d4', name: 'KTLO' }, { id: 'e5f6a7b8', name: 'Feature' }] });
+export const categoryItem = (current: string | null = null) => ({
+  id: 'PVTI_abc12345',
+  project: { id: 'PVT_kwDOabc123453', number: 3, title: 'Roadmap', owner: { __typename: 'Organization', login: 'imagile' }, field: { id: 'PVTSSF_cat12345', name: 'Work category', options: workCategoryField().options } },
+  fieldValueByName: current === null ? null : { name: current, optionId: workCategoryField().options.find((o) => o.name === current)!.id },
+});
+
+/** A plan as `classify run` writes it, for the example and the tests: one GitHub entry, the Work category field, and the issues named. */
+export const categoryPlan = (items: unknown[] = [{ id: 'github:imagile/toil-probe#9', key: 'imagile/toil-probe#9', category: 'ktlo', labels: { add: ['ktlo'], remove: [] }, field: { value: 'KTLO' } }], group: Record<string, unknown> = {}) => ({
+  scheme: { name: 'ktlo-feature', revision: 1 },
+  categories: [
+    { id: 'ktlo', short: 'KTLO', name: 'Keep the lights on', label: 'ktlo', definition: 'Work that keeps what already exists running: fixes, upgrades, on-call follow-ups.' },
+    { id: 'feature', short: 'Feature', name: 'New capability', label: 'feature', definition: 'Work that gives users something they did not have before.' },
+  ],
+  plan: [{ area: 'github', connection: 'github', labels: { ktlo: 'ktlo', feature: 'feature' }, field: { name: 'Work category', project: 'imagile/3' }, items, ...group }],
+});
+
 export const iterationField = () => ({
   __typename: 'ProjectV2IterationField',
   id: 'PVTIF_abc12345',
@@ -146,10 +167,11 @@ function graphql(body: string | undefined) {
   if (query.includes('markPullRequestReadyForReview')) return { data: { markPullRequestReadyForReview: { pullRequest: { number: 7, isDraft: false } } } };
   if (query.includes('resolveReviewThread')) return { data: { resolveReviewThread: { thread: { ...thread(), isResolved: true } } } };
   if (query.includes('updateProjectV2ItemFieldValue')) return { data: { updateProjectV2ItemFieldValue: { projectV2Item: { id: 'PVTI_abc12345' } } } };
+  if (query.includes('issueOrPullRequest') && query.includes('Work category')) return { data: { repository: { issueOrPullRequest: { __typename: 'Issue', projectItems: { nodes: [categoryItem()] } } } } };
   if (query.includes('issueOrPullRequest')) return { data: { repository: { issueOrPullRequest: { __typename: 'Issue', projectItems: { nodes: [statusItem()] } } } } };
   if (query.includes('node(id')) return { data: { node: { __typename: 'ProjectV2Item', ...statusItem() } } };
   if (query.includes('projectsV2(')) return { data: { repositoryOwner: { projectsV2: { pageInfo: lastPage, nodes: [project()] } } } };
-  if (query.includes('fields(first')) return { data: { repositoryOwner: { projectV2: { fields: { pageInfo: lastPage, nodes: [{ __typename: 'ProjectV2Field', id: 'PVTF_abc12345', name: 'Estimate', dataType: 'NUMBER' }, projectField(), iterationField()] } } } } };
+  if (query.includes('fields(first')) return { data: { repositoryOwner: { projectV2: { fields: { pageInfo: lastPage, nodes: [{ __typename: 'ProjectV2Field', id: 'PVTF_abc12345', name: 'Estimate', dataType: 'NUMBER' }, projectField(), workCategoryField(), iterationField()] } } } } };
   if (query.includes('items(first')) return { data: { repositoryOwner: { projectV2: { items: { pageInfo: lastPage, nodes: [projectItem()] } } } } };
   if (query.includes('reviewThreads')) return { data: { repository: { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [thread()] } } } } };
   return { data: { repository: { pullRequest: prStatusNode() } } };
@@ -209,6 +231,9 @@ const routes: Route[] = [
   // GitHub answers with the issue's labels as a bare array.
   { method: 'POST', path: `${REPO}/issues/7/labels`, respond: { json: [label('bug'), label('needs-review', 2)] } },
   { method: 'DELETE', path: `${REPO}/issues/7/labels/needs%20review`, respond: { json: [label('bug')] } },
+  // issue categorize: the label is there, and GitHub answers an added label with the issue's labels as a bare array.
+  { path: `${REPO}/labels/ktlo`, respond: { json: label('ktlo', 3) } },
+  { method: 'POST', path: `${REPO}/issues/9/labels`, respond: { json: [label('bug'), label('ktlo', 3)] } },
   { method: 'POST', path: `${REPO}/issues/7/assignees`, respond: { status: 201, json: issue(7) } },
   { method: 'DELETE', path: `${REPO}/issues/7/assignees`, respond: { json: issue(7) } },
   { method: 'POST', path: '/api/graphql', respond: (request) => ({ json: graphql(request.body) }) },
@@ -221,7 +246,7 @@ export const fixture = defineFixture({
   area: 'github',
   routes,
   config: { github: { baseUrl: API, token: 'test-token', writes: true } },
-  files: { 'pr-body.md': 'Body from a file.\n', 'issue-body.md': 'Issue body from a file.\n' },
+  files: { 'pr-body.md': 'Body from a file.\n', 'issue-body.md': 'Issue body from a file.\n', 'classify-plan.json': JSON.stringify(categoryPlan()) },
   // For check-toil-project: per repo, and no example's folder is that repo, so no other example reads it.
   toilProject: { name: 'payments', github: { owner: { 'toil-probe': 'imagile' }, repo: { 'toil-probe': 'toil-probe' } } },
 });

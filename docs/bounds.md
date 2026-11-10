@@ -60,6 +60,8 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | `projects.read` | `files.workspace` | `src/core/toil-project.ts` | Reading toil project files (`docs/projects.md`) from your own folder (`~/.toil/projects/`), the folders you list in `projectPaths` or `TOIL_PROJECT_PATHS`, and `.toil/projects/` at the root of the repository the call's folder is in. A toil project file named on the call (`--toil-project <file>`) must be one of those, or inside the workspace. |
 | `projects.write` | `files.workspace` | `src/core/toil-project.ts` | The `toil projects` commands writing a toil project to your own folder, a listed folder, or `.toil/projects/` at the root of a git working tree (`export --repo`). Anywhere else, the file must be inside the workspace. |
 | `projects.replace` | `files.no-overwrite` | `src/core/toil-project.ts` | Rewriting a toil project: an edit (`link`, `field`, `add-repo`, `env`) rewrites the file it read, and `export`/`import` with `--replace` replace one. Only a file that is already a valid toil project is ever replaced. |
+| `classify.write` | `files.workspace` | `src/core/classify/catalog.ts` | The `toil classify scheme` commands writing a scheme to your own folder (`~/.toil/classify/`), to `.toil/classify/` at the root of a git working tree (`export --repo`), or, for `set` on a scheme that lives there, beside the toil project that names it. Anywhere else, the file must be inside the workspace. |
+| `classify.replace` | `files.no-overwrite` | `src/core/classify/catalog.ts` | Rewriting a scheme: `set` rewrites the file the scheme was read from, and `export` and `import` with `--replace` replace one. Only a file that is already a valid scheme is ever replaced. |
 | `connections.import` | `files.workspace` | `src/connections/import-command.ts` | `toil connections import` reading one other tool's connection list (DBeaver's `data-sources.json`, a `.regsrvr`, `servers.json`, `pg_service.conf`, ...) from that tool's default location on this OS, or from a path the person names, outside the workspace. Bounded below. |
 | `db.tls-ca-file` | `files.workspace` | `src/core/db/tls.ts` | A `db` connection's `tlsCaFile` (with `"ssl": true`) reading one PEM file of CA certificates, named by an absolute path in the connection's own settings (config or env), never by a command's input, so it may sit outside the workspace. The person sets it, or an agent proposes it through `connections add --set` and the person approves it (principle 2). Bounded below. |
 | `feedback.send` | `commands.read-only` | `src/feedback/command.ts`, `src/api.ts` | `toil feedback` sending one report to Imagile's feedback endpoint, which files it as a public GitHub issue, with no connection holding `writes: true` and no `--allow-write`. Its gate is the approval of that exact report instead, and it is the one request toil makes to a host the user didn't configure. Bounded below. |
@@ -205,6 +207,16 @@ that isn't already a valid toil project is never replaced, and an existing one n
 `--replace` (except the one an edit read). Files in your own folder are written as
 user-only (`0600`, in a `0700` folder). A toil project holds no secret, and writing one
 contacts nothing.
+
+`classify.write` and `classify.replace` write only schemes, in the JSON toil itself reads back, and mirror
+`projects.write` and `projects.replace`. Each scheme is validated before it's written, and written alongside the
+old file, then renamed into place. The file must end in `.json`, and it may never be under `~/.toil` outside
+`~/.toil/classify/` (or, for a scheme beside a toil project, that toil project's folder), the `--config` file,
+`/proc` or `/sys`. In a scheme folder the file is named for the scheme. A file that isn't already a valid scheme
+is never replaced, and an existing one needs `--replace` (except the one `set` read). Files in your own folder are
+written as user-only (`0600`, in a `0700` folder). A scheme holds no secret, and writing one contacts nothing.
+Reading follows the same rule: a scheme file a call names must end in `.json` and be inside the workspace or a
+scheme folder.
 
 `projects.read` is read only, and only of toil project files: JSON that toil validates as a
 toil project before using or showing any of it. A toil project holds no secret and can't add a

@@ -186,6 +186,12 @@ The request it sent was
   brief` flags anyone over it (**Brief**).
 - **`analyze`**: how Analyze briefs the toil project: its goal, reader, lenses and what to
   watch for or leave out (**Analyze**). Absent, the standard applies.
+- **`classify`**: the classification scheme that sorts the toil project's work, and where each
+  tracker keeps the category besides a label: `{ "scheme": "ktlo-feature", "targets": { "jira":
+  { "field": "workCategory" } } }`. It names a scheme (`classify.md`) and holds no connection,
+  host or `writes`. Set it with `toil projects classify set <toil-project> --scheme <name|./file.json>
+  --target jira.field=workCategory`; `--clear <scheme|jira|github|ado>` removes a part, on the CLI
+  only, and a value already set needs `--replace`.
 
 ## Where toil projects live
 

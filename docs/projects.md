@@ -18,6 +18,9 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
   caller passes, and `toil projects analyze set | show | prompt`, its Analyze settings
   and the prompt an agent runs, also served by `toil mcp` as the prompt `analyze`
   (#494, `src/projects/brief.ts`, `src/core/brief/`)
+- `toil projects classify set`, which sets its `classify` key: the scheme that sorts its work and
+  where each tracker keeps the category (#566, `src/classify/project-commands.ts`; the schemes
+  themselves are `toil classify scheme …`, `src/core/classify/`)
 - field aliases on Jira's `--field` (Data Center and Cloud)
 - `toil repos scan` (`src/repos/`)
 - `toil <area> check-toil-project` for every area a toil project describes: `jira`,
@@ -203,6 +206,19 @@ TOIL_CONN_OCP_PROD_TOKEN=...
   like a credential. Absent, the standard applies. A focus from a toil project the reader
   hasn't adopted still applies, labelled with where it came from (the maintainer's
   decision on #494).
+- **`classify`** names the scheme that sorts the work, and where each tracker keeps the
+  category besides a label (#566): `{ "scheme": "ktlo-feature", "targets": { "jira": { "field":
+  "workCategory" }, "github": { "project": "imagile/7", "field": "Category", "values": { "ktlo":
+  "Keep the lights on" } } } }`. `scheme` is a scheme name (yours, the repository's, or built in) or
+  a path relative to the toil project's own file ending in `.json`. A target is `field` (a field
+  alias from that tracker's section, a field id, or on GitHub the name of a Projects v2 field),
+  `project` (GitHub only, `<owner>/<number>`) and `values` (category id to the field's option,
+  where it isn't the category's short name). It never holds `connection`, `host`, `fields`,
+  `transitions` or `writes`, which are errors there, so it can't pick a connection or turn on
+  writes, and an older toil still loads the file. Each text is one line of at most 200
+  characters and never shaped like a credential; an unknown key is a
+  `TOIL_PROJECT_UNKNOWN_KEY` warning and is ignored. Absent, the built-in `ktlo-feature` scheme
+  applies and only labels are written. `toil projects classify set` sets it.
 - **Remotes are only for matching.** toil never contacts a remote URL. Before storing,
   comparing or printing one, toil strips any userinfo
   (`https://user:<token>@host/...` becomes `https://host/...`), so a token embedded in
@@ -532,6 +548,11 @@ files directly:
     <ids>] [--on <id>] [--off <id>] [--threshold <id=n>] [--watch-for <text>]
     [--leave-out <text>]` tunes how Analyze briefs it. A value already set needs
     `--replace`; `--clear <setting>` and `--reset` are deletes, on the CLI only.
+  - `toil projects classify set <toil-project> [--scheme <name|./file.json>] [--target
+    <area>.<key>=<value>] [--clear <scheme|jira|github|ado>] [--replace]` sets its `classify` key
+    (#566). `--target` takes `<area>.field=<alias or id>`, `github.project=<owner>/<number>` and
+    `<area>.value.<category id>=<option>`. A value already set needs `--replace`; `--clear` is a
+    delete, on the CLI only.
   - `toil projects describe <toil-project> [--name <new name>] [--description <text>]`
     renames one of your own toil projects or replaces its description, or both. A rename
     writes `~/.toil/projects/<new name>.json` with everything the toil project held, checked

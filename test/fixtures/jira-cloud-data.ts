@@ -15,6 +15,27 @@ import type { RecordedRequest, Route } from '../harness/fake-fetch.js';
  * Format, and people carry an accountId and no username, as the docs show.
  */
 
+/** A classification plan for two issues, for `jira issue categorize`'s example: the connection it names is the one the examples run on. */
+export const classifyPlan = (connection: string) => ({
+  scheme: { name: 'ktlo-feature', revision: 1 },
+  categories: [
+    { id: 'ktlo', short: 'KTLO', name: 'Keep the lights on', label: 'ktlo', definition: 'Work that keeps what exists running.' },
+    { id: 'feature', short: 'Feature', name: 'New capability', label: 'feature', definition: 'Work that adds something new.' },
+  ],
+  plan: [
+    {
+      area: 'jira',
+      connection,
+      labels: { ktlo: 'ktlo', feature: 'feature' },
+      field: { name: 'Work category' },
+      items: [
+        { id: `${connection}:PROJ-1`, key: 'PROJ-1', category: 'ktlo', labels: { add: ['ktlo'], remove: [] }, field: { value: 'KTLO' } },
+        { id: `${connection}:PROJ-2`, key: 'PROJ-2', category: 'feature', labels: { add: ['feature'], remove: ['ktlo'] }, field: { value: 'Feature' } },
+      ],
+    },
+  ],
+});
+
 export const SITE = 'https://jira-cloud.imagile.dev';
 const API = '/rest/api/3';
 const AGILE = '/rest/agile/1.0';
@@ -134,6 +155,7 @@ export const routes: Route[] = [
     respond: json([
       { id: 'summary', key: 'summary', name: 'Summary', custom: false, orderable: true, navigable: true, searchable: true, clauseNames: ['summary'], schema: { type: 'string', system: 'summary' } },
       { id: 'customfield_10016', key: 'customfield_10016', name: 'Story Points', custom: true, orderable: true, navigable: true, searchable: true, clauseNames: ['cf[10016]', 'Story Points'], schema: { type: 'number', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:float', customId: 10016 } },
+      { id: 'customfield_10042', key: 'customfield_10042', name: 'Work category', custom: true, orderable: true, navigable: true, searchable: true, clauseNames: ['cf[10042]', 'Work category'], schema: { type: 'option', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:select', customId: 10042 } },
       { id: 'customfield_10200', key: 'customfield_10200', name: 'Crew', custom: true, orderable: true, navigable: true, searchable: true, clauseNames: ['cf[10200]', 'Crew'], schema: { type: 'option', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:select', customId: 10200 } },
     ]),
   },
@@ -174,6 +196,9 @@ export const routes: Route[] = [
   // Invented from the docs: POST /rest/api/3/issue answers 201 with id, key and self.
   { method: 'POST', path: `${API}/issue`, respond: json({ id: '10124', key: 'PROJ-124', self: `${SITE}${API}/issue/10124` }, 201) },
   { method: 'PUT', path: `${API}/issue/PROJ-123`, respond: empty },
+  // Invented from the docs: GET /rest/api/3/issue/{issueIdOrKey}/editmeta, the fields this issue's type lets a person edit, with the options of a select.
+  { method: 'GET', path: `${API}/issue/PROJ-1/editmeta`, respond: json({ fields: { labels: { required: false, name: 'Labels', operations: ['add', 'set', 'remove'] }, customfield_10042: { required: false, name: 'Work category', operations: ['set'], allowedValues: [{ id: '10500', value: 'KTLO' }, { id: '10501', value: 'Feature' }] } } }) },
+  { method: 'PUT', path: /^\/rest\/api\/3\/issue\/PROJ-[12]$/, respond: empty },
   { method: 'PUT', path: `${API}/issue/PROJ-123/assignee`, respond: empty },
   {
     method: 'GET',
@@ -228,7 +253,9 @@ export const routes: Route[] = [
     path: `${API}/search/jql`,
     // Invented from the docs: with expand=changelog each issue carries the changelog object.
     respond: (req) => {
-      const expand = (JSON.parse(req.body!) as { expand?: string }).expand;
+      const { expand, jql } = JSON.parse(req.body!) as { expand?: string; jql: string };
+      // Invented from the docs: categorize reads the keys it was handed, `key in ("PROJ-1", ...)`, and gets those issues back.
+      if (jql.startsWith('key in')) return json({ issues: [...jql.matchAll(/"([^"]+)"/g)].map((m) => issue(m[1]!)), isLast: true });
       return json({ issues: expand === 'changelog' ? searchIssues.map((i) => ({ ...i, changelog: { startAt: 0, maxResults: 100, total: 1, histories: [{ id: '10100', author: { accountId: ACCOUNT, displayName: 'J. Smith' }, created: '2026-10-01T09:30:00.000+0000', items: [{ field: 'status', fieldtype: 'jira', fieldId: 'status', from: '1', fromString: 'To Do', to: '3', toString: 'In Progress' }] }] } })) : searchIssues, isLast: true });
     },
   },
@@ -315,6 +342,8 @@ export const files: Record<string, string> = {
   'desc.txt': 'A long description.\n\nIn two paragraphs.',
   'query.jql': 'project = PROJ ORDER BY created DESC\n',
   'screenshot.png': 'PNG!',
+  // What toil classify run writes, for `jira issue categorize`: shaped from the plan's own contract, not from a Jira API.
+  'classify-plan-cloud.json': JSON.stringify(classifyPlan('jira-cloud')),
 };
 
 /** The Cloud connection, named `jira-cloud`: an ordinary jira connection with deployment cloud. */

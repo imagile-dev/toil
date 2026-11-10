@@ -1,0 +1,74 @@
+[
+  {
+    "name": "scheme list",
+    "tool": "classify_scheme_list",
+    "description": "List every classification scheme toil can see, and where each lives",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "scheme show",
+    "tool": "classify_scheme_show",
+    "description": "Show one classification scheme in full",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "scheme init",
+    "tool": "classify_scheme_init",
+    "description": "Create a scheme in your own folder (~/.toil/classify) as a copy of another one",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>",
+      "--from <scheme>",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "scheme export",
+    "tool": "classify_scheme_export",
+    "description": "Write a scheme for sharing: into a repository's .toil/classify, or to one file",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>",
+      "--repo <dir>",
+      "--file <path>",
+      "--replace",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "scheme set",
+    "tool": null,
+    "description": "Change a scheme from a revised file, raising its revision (a person's command)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>",
+      "--from <file>",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "scheme import",
+    "tool": null,
+    "description": "Copy a scheme file into your own folder to adapt it (a person's command)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<file>",
+      "--name <name>",
+      "--replace",
+      "--cwd <dir>"
+    ]
+  }
+]

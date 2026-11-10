@@ -14,8 +14,10 @@ import { JsonSyntaxError, parseStrictJson } from './strict-json.js';
 import { INTENTS, type TransitionPins } from './transition-intent.js';
 import { isLensId, lensDef, LENSES, type LensId } from './brief/brief.js';
 import { AUDIENCES, MAX_FOCUS, type Audience, type ToilProjectAnalyze } from './brief/prompt.js';
+import { CATEGORY_ID, CLASSIFY_AREAS, SCHEME_NAME, type ClassifyArea, type ClassifySettings, type ClassifyTarget } from './classify/types.js';
 
 export type { ToilProjectAnalyze } from './brief/prompt.js';
+export type { ClassifySettings } from './classify/types.js';
 
 /**
  * Toil projects: what toil knows about one body of work (its repositories, the
@@ -88,6 +90,8 @@ export interface ToilProject {
   archived?: true;
   /** How Analyze briefs it (#494): its reader, its lenses, and its focus; absent for the standard. */
   analyze?: ToilProjectAnalyze;
+  /** Which scheme classifies its work and where each tracker keeps the category (#566); absent for the built-in `ktlo-feature` and labels only. */
+  classify?: ClassifySettings;
 }
 
 
@@ -120,7 +124,7 @@ export interface ToilProjectArea {
 
 /** Keys of a section that core reads itself; every other key is a context input or reference data. */
 const CORE_SECTION_KEYS = new Set(['connection', 'host', 'fields', 'transitions']);
-const TOP_LEVEL = new Set(['$schema', 'name', 'description', 'env', 'repos', 'environments', 'people', 'wipLimit', 'archived', 'analyze']);
+const TOP_LEVEL = new Set(['$schema', 'name', 'description', 'env', 'repos', 'environments', 'people', 'wipLimit', 'archived', 'analyze', 'classify']);
 const ALIAS = /^[a-z][a-zA-Z0-9]*$/;
 const HOST = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:\d{1,5})?$/i;
 
@@ -206,7 +210,7 @@ export function samePath(a: string, b: string, platform: NodeJS.Platform = proce
   return norm(a) === norm(b);
 }
 
-function inside(child: string, parent: string): boolean {
+export function inside(child: string, parent: string): boolean {
   const rel = relative(parent, child);
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
@@ -401,6 +405,7 @@ export function validateToilProject(input: unknown, areas: readonly ToilProjectA
   if (raw.archived !== undefined && typeof raw.archived !== 'boolean') error('archived', '"archived" must be true or false.');
 
   const analyze = readAnalyze(raw.analyze, error, warn);
+  const classify = readClassify(raw.classify, error, warn);
 
   if (problems.some((p) => p.level === 'error')) return { problems };
   return {
@@ -416,6 +421,7 @@ export function validateToilProject(input: unknown, areas: readonly ToilProjectA
       ...(typeof raw.wipLimit === 'number' ? { wipLimit: raw.wipLimit } : {}),
       ...(raw.archived === true ? { archived: true as const } : {}),
       ...(analyze ? { analyze } : {}),
+      ...(classify ? { classify } : {}),
     },
     problems,
   };
@@ -479,6 +485,108 @@ function readAnalyze(value: unknown, error: (path: string, message: string) => v
     }
   }
   return out;
+}
+
+const CLASSIFY_KEYS = ['scheme', 'targets'];
+/** What a tracker section holds, never a `classify` key: it would make the key a second way to pick a connection or turn on writes. */
+const CLASSIFY_REFUSED = ['connection', 'host', 'fields', 'transitions', 'writes'];
+const TARGET_KEYS = ['field', 'project', 'values'];
+const MAX_CLASSIFY_TEXT = 200;
+/** GitHub's Projects v2 project as `<owner>/<number>`. */
+const GITHUB_PROJECT = /^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,98}[A-Za-z0-9])?\/[1-9]\d{0,8}$/;
+
+/** A scheme named by a toil project: a scheme's name, or a relative path to its file ending in `.json`. */
+function schemeRefProblem(v: string): string | undefined {
+  if (SCHEME_NAME.test(v)) return undefined;
+  if (!v.toLowerCase().endsWith('.json')) return 'must be a scheme name (lowercase letters, digits and single hyphens, e.g. "ktlo-feature") or a relative path to a scheme file ending in .json.';
+  if (isAbsolute(v) || /^[A-Za-z]:/.test(v) || v.startsWith('\\\\') || v.startsWith('/')) return 'a scheme file is named by a path relative to this toil project, never an absolute one.';
+  return undefined;
+}
+
+/**
+ * The `classify` object (#566): which scheme sorts the work, and in each tracker
+ * where the category is written besides labels. It names a scheme and never
+ * holds one, and never anything a tracker section checks, so an older toil can
+ * still load the file and the key can't pick a connection or turn on writes.
+ * Each text is one line, short, and never shaped like a credential.
+ */
+function readClassify(value: unknown, error: (path: string, message: string) => void, warn: (code: string, path: string, message: string) => void): ClassifySettings | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    error('classify', '"classify" must be an object: { scheme, targets }.');
+    return undefined;
+  }
+  for (const key of Object.keys(value)) {
+    if (CLASSIFY_REFUSED.includes(key)) error(`classify.${key}`, `"classify" never holds "${key}": it names a scheme and where the category goes, and a connection, host, fields, transitions or writes belong to the area's own section or to your connections.`);
+    else if (!CLASSIFY_KEYS.includes(key)) warn('TOIL_PROJECT_UNKNOWN_KEY', `classify.${key}`, `"${key}" isn't a classify key; classify takes ${CLASSIFY_KEYS.join(' and ')}. It was ignored.`);
+  }
+  /** A one-line text within the limit and free of credential shapes, or undefined after reporting why. */
+  const text = (v: unknown, path: string, key: string): string | undefined => {
+    if (typeof v !== 'string' || v.trim() === '') return void error(path, `"${key}" must be text.`);
+    if (v.length > MAX_CLASSIFY_TEXT) return void error(path, `"${key}" is ${v.length} characters; the most is ${MAX_CLASSIFY_TEXT}.`);
+    if (findSecrets(v).length > 0) return void error(path, `"${key}" holds something shaped like a credential, and a toil project never holds one.`);
+    if ([...v].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f)) return void error(path, `"${key}" must be one line of text, with no line breaks or control characters.`);
+    return v.trim();
+  };
+  const out: ClassifySettings = { targets: {} };
+  if (value.scheme !== undefined) {
+    const scheme = text(value.scheme, 'classify.scheme', 'scheme');
+    const why = scheme === undefined ? undefined : schemeRefProblem(scheme);
+    if (why) error('classify.scheme', `"scheme" ${why}`);
+    else if (scheme !== undefined) out.scheme = scheme;
+  }
+  if (value.targets !== undefined) {
+    if (!isRecord(value.targets)) error('classify.targets', '"targets" must be an object keyed by tracker: { "jira": { "field": "workCategory" } }.');
+    else {
+      for (const [area, raw] of Object.entries(value.targets)) {
+        const at = `classify.targets.${area}`;
+        if (!(CLASSIFY_AREAS as readonly string[]).includes(area)) {
+          warn('TOIL_PROJECT_UNKNOWN_KEY', at, `"${area}" isn't a tracker classify writes to; targets take ${CLASSIFY_AREAS.join(', ')}. It was ignored.`);
+          continue;
+        }
+        if (!isRecord(raw)) {
+          error(at, `"${area}" must be an object: { field, project, values }.`);
+          continue;
+        }
+        const target: ClassifyTarget = {};
+        for (const key of Object.keys(raw)) if (!TARGET_KEYS.includes(key)) warn('TOIL_PROJECT_UNKNOWN_KEY', `${at}.${key}`, `"${key}" isn't a target key; a target takes ${TARGET_KEYS.join(', ')}. It was ignored.`);
+        if (raw.field !== undefined) {
+          const field = text(raw.field, `${at}.field`, 'field');
+          if (field !== undefined) target.field = field;
+        }
+        if (raw.project !== undefined) {
+          if (area !== 'github') error(`${at}.project`, `Only the github target takes "project" (a Projects v2 project as <owner>/<number>); ${area} keeps the field on the item itself.`);
+          else {
+            const project = text(raw.project, `${at}.project`, 'project');
+            if (project !== undefined && !GITHUB_PROJECT.test(project)) error(`${at}.project`, '"project" must be <owner>/<number>, e.g. imagile/7.');
+            else if (project !== undefined) target.project = project;
+          }
+        }
+        if (raw.values !== undefined) {
+          if (!isRecord(raw.values)) error(`${at}.values`, '"values" must map a category id to the field\'s option: { "ktlo": "Keep the lights on" }.');
+          else {
+            const values: Record<string, string> = {};
+            for (const [id, option] of Object.entries(raw.values)) {
+              if (!CATEGORY_ID.test(id)) {
+                error(`${at}.values.${id}`, `"${id}" isn't a category id: lowercase letters, digits and single hyphens, starting with a letter.`);
+                continue;
+              }
+              const v = text(option, `${at}.values.${id}`, id);
+              if (v !== undefined) values[id] = v;
+            }
+            target.values = values;
+          }
+        }
+        out.targets[area as ClassifyArea] = target;
+      }
+    }
+  }
+  return out;
+}
+
+/** The `classify` key as it's written: an empty `targets` is left out, so what's read is what's written back. */
+function classifyContent(c: ClassifySettings): Record<string, unknown> {
+  return { ...(c.scheme !== undefined ? { scheme: c.scheme } : {}), ...(Object.keys(c.targets).length > 0 ? { targets: c.targets } : {}) };
 }
 
 /** Why a value can't be an identity: it's shaped like a credential, which a toil project never holds. Undefined when it can. */
@@ -615,6 +723,7 @@ export function toilProjectContent(toilProject: ToilProject): Record<string, unk
     ...(toilProject.wipLimit !== undefined ? { wipLimit: toilProject.wipLimit } : {}),
     ...(toilProject.archived ? { archived: true } : {}),
     ...(toilProject.analyze !== undefined ? { analyze: toilProject.analyze } : {}),
+    ...(toilProject.classify !== undefined ? { classify: classifyContent(toilProject.classify) } : {}),
   };
 }
 
@@ -652,7 +761,7 @@ export function readToilProjectFile(file: string, source: ToilProjectSource, are
  * is taken from the open file and the read stops one byte past the cap, so a
  * file that grows between the two still can't be read whole.
  */
-function readCapped(file: string, max: number): string | undefined {
+export function readCapped(file: string, max: number): string | undefined {
   const fd = openSync(file, 'r');
   try {
     if (fstatSync(fd).size > max) return undefined;

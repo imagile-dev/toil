@@ -57,6 +57,8 @@ export const BOUND_EXCEPTIONS: readonly BoundException[] = [
   { id: 'projects.read', bound: 'files.workspace', enforcedIn: ['src/core/toil-project.ts'] },
   { id: 'projects.write', bound: 'files.workspace', enforcedIn: ['src/core/toil-project.ts'] },
   { id: 'projects.replace', bound: 'files.no-overwrite', enforcedIn: ['src/core/toil-project.ts'] },
+  { id: 'classify.write', bound: 'files.workspace', enforcedIn: ['src/core/classify/catalog.ts'] },
+  { id: 'classify.replace', bound: 'files.no-overwrite', enforcedIn: ['src/core/classify/catalog.ts'] },
   { id: 'connections.import', bound: 'files.workspace', enforcedIn: ['src/connections/import-command.ts'] },
   { id: 'db.tls-ca-file', bound: 'files.workspace', enforcedIn: ['src/core/db/tls.ts'] },
   { id: 'feedback.send', bound: 'commands.read-only', enforcedIn: ['src/feedback/command.ts', 'src/api.ts'] },
