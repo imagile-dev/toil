@@ -319,9 +319,9 @@ describe('projects classify set', () => {
     expect(read(join(d.home, '.toil', 'projects', 'payments.json')).classify.scheme).toBe('balance');
   });
 
-  it('has no dossiers path, as it never existed under that name, while the older projects commands keep theirs', () => {
+  it('gets the retired dossiers path like every projects command but migrate, so no list of exceptions is kept', () => {
     const find = (name: string) => allCommands.find((c) => c.path.join(' ') === name)!;
-    expect(find('projects classify set').deprecatedPaths).toBeUndefined();
+    expect(find('projects classify set').deprecatedPaths).toEqual([['dossiers', 'classify', 'set']]);
     expect(find('projects init').deprecatedPaths).toEqual([['dossiers', 'init']]);
     expect(find('projects migrate').deprecatedPaths).toBeUndefined();
   });

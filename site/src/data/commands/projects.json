@@ -337,5 +337,19 @@
       "--plan",
       "--pin <area=connection>"
     ]
+  },
+  {
+    "name": "classify set",
+    "tool": "projects_classify_set",
+    "description": "Set a toil project's classification: its scheme, and where each tracker keeps the category",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<toil-project>",
+      "--scheme <scheme>",
+      "--target <area.key=value>",
+      "--clear <part>",
+      "--replace"
+    ]
   }
 ]

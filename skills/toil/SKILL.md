@@ -15,7 +15,7 @@ If `toil version` doesn't print an envelope, toil isn't installed: `install.md` 
 
 - **Output.** Every command prints one JSON envelope on stdout: `{ ok, data, error,
   meta }`. Check `ok`; on failure, `error.code` says what failed and `error.fix` what
-  to do about it. `meta.warnings` lists what's worth knowing that isn't a failure, and
+  to do. `meta.warnings` lists what's worth knowing that isn't a failure, and
   `meta.page.nextCursor` the next page.
 - **Two front doors, one command.** `toil <area> <command>`, or the MCP tool named
   for its path (`db_query`) from `toil mcp --areas <area>`: same inputs and output.
@@ -37,8 +37,8 @@ If `toil version` doesn't print an envelope, toil isn't installed: `install.md` 
   `core.md`, **Feedback**.
 - **Less output.** `--select <expression>` keeps only the fields you name;
   `toil wait --until <expression> -- <read>` repeats a read until it's true. For a
-  listing that may pass a page, add `--summary-file <file>` (`summaryFile`): the full
-  result goes to the file and you get a sample; `--output-format toon` shrinks tables.
+  long listing, `--summary-file <file>` (`summaryFile`) puts the full result in the
+  file and returns a sample; `--output-format toon` shrinks tables.
 
 ## By job
 
@@ -47,7 +47,7 @@ Read the job's page, and `workflows/README.md` once.
 - `workflows/review.md`: review someone else's PR
 - `workflows/ship.md`: take your branch to a PR, answer its review, fix CI
 - `workflows/map-codebase.md`: map a repository and draw its C4 diagram
-- `workflows/classify.md`: sort a backlog into categories and write them to the tracker
+- `workflows/classify.md`: categorize a backlog in its tracker
 
 ## Where to look
 
@@ -55,10 +55,10 @@ Open only the file the task needs; each is beside this one.
 
 | File | When |
 |------|------|
-| `core.md` | `--select`, big results, `toil wait`, paging, errors, writes and exceptions, global flags, files, configuration, the raw `api` passthrough, toil projects, audit log, calling toil from a program (`./api`), feedback, certificates and proxies |
-| `<area>.md` | One per area, named after it: `jira.md` for `toil jira …`. Its frontmatter says what it covers; the file has its oldest supported version, credential, configuration keys and every command |
+| `core.md` | `--select`, big results, `toil wait`, paging, errors, writes and exceptions, global flags, files, configuration, the `api` passthrough, audit log, use from a program (`./api`), feedback, certificates and proxies |
+| `<area>.md` | One per area, named after it (`jira.md` for `toil jira …`): oldest supported version, credential, configuration keys, every command |
 | `projects.md` | What a toil project is; building, sharing, briefing |
-| `classify.md` | Classifying work into categories: schemes, where they live, and the scheme commands |
+| `classify.md` | Work categories and their schemes |
 | `db.md` | Databases: `toil db …` on every engine |
 | `util.md` | Local utilities, no connection or network: `toil util …` |
 | `skills.md` | Skills marketplaces, and keeping this skill installed |

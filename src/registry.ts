@@ -40,15 +40,10 @@ export const areas: AnyArea[] = modules.flatMap((m) => (m.area ? [m.area] : []))
  * projects. The old paths keep answering, with a TOIL_PROJECT_DEPRECATED_NAME warning, for at
  * least one beta (principle 7); MCP never had them as aliases and drops the old tool names.
  */
-/**
- * Second words of `projects` that never had a `dossiers` path: `migrate` is what moved
- * them, and `classify` (and the pivots and views to come) arrived after the rename.
- */
-const NEVER_DOSSIERS = new Set(['migrate', 'classify', 'pivot', 'view']);
 const withRetiredToilProjectPaths = (list: AnyCommand[]): AnyCommand[] =>
   list.map((def) => {
     const [first, ...rest] = def.path;
-    if (first === 'projects' && !NEVER_DOSSIERS.has(rest[0]!)) return { ...def, deprecatedPaths: [['dossiers', ...rest]] };
+    if (first === 'projects' && rest[0] !== 'migrate') return { ...def, deprecatedPaths: [['dossiers', ...rest]] };
     const last = def.path[def.path.length - 1];
     if (last === 'check-toil-project') return { ...def, deprecatedPaths: [[first!, ...def.path.slice(1, -1), 'check-dossier']] };
     return def;

@@ -15,6 +15,7 @@ const OWN_PAGES = {
   'SKILL.md': '/docs/',
   'core.md': '/docs/core/',
   'projects.md': '/docs/projects/',
+  'classify.md': '/docs/classify/',
   'install.md': '/docs/install/',
   'mcp.md': '/docs/mcp/',
   'setup.md': '/docs/setup/',

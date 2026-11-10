@@ -70,5 +70,37 @@
       "--replace",
       "--cwd <dir>"
     ]
+  },
+  {
+    "name": "run",
+    "tool": "classify_run",
+    "description": "Classify work items into a scheme's categories by label, field, rules and signals, and plan what to write back (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--file <path>",
+      "--text <text>",
+      "--toil-project <name|file>",
+      "--cwd <dir>",
+      "--scheme <name|file>",
+      "--recheck",
+      "--verdicts <file>"
+    ]
+  },
+  {
+    "name": "prompt",
+    "tool": "classify_prompt",
+    "description": "Write the prompt that asks an AI agent to classify the work items classify run left unsure (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--file <path>",
+      "--text <text>",
+      "--toil-project <name|file>",
+      "--cwd <dir>",
+      "--scheme <name|file>",
+      "--recheck",
+      "--limit <n>"
+    ]
   }
 ]

@@ -105,6 +105,8 @@ export const SAFETY_ELSEWHERE_CORE = new Set([
 ]);
 export const SAFETY_CORE_FOLDERS = [
   'src/os/', 'src/shims/', 'src/mcp/', 'src/core/query/', 'src/connections/', 'src/skills/', 'src/setup/', 'src/feedback/', 'src/projects/',
+  // Work classification: the scheme catalog's writes, and the plan reader that holds a categorize call to the scheme's own labels.
+  'src/core/classify/', 'src/classify/',
   // The shipped skill: every page ships to users' agents as instructions, and most say how a write gate works.
   'skills/toil/',
 ];

@@ -101,6 +101,19 @@
     ]
   },
   {
+    "name": "issue categorize",
+    "tool": "github_issue_categorize",
+    "description": "Apply a classification plan: label issues and pull requests with their category, and set a project field",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--from <file>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
     "name": "repo file",
     "tool": "github_repo_file",
     "description": "Read one file from a repository",

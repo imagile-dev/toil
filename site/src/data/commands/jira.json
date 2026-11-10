@@ -310,6 +310,17 @@
     "flags": []
   },
   {
+    "name": "issue categorize",
+    "tool": "jira_issue_categorize",
+    "description": "Apply a classification plan to Jira issues: add each issue's category label, remove the scheme's other labels, and set the category field when the plan names one.",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--from <file>",
+      "--allow-write"
+    ]
+  },
+  {
     "name": "project list",
     "tool": "jira_project_list",
     "description": "List Jira Cloud projects visible to you",
