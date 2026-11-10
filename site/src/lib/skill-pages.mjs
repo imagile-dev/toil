@@ -16,6 +16,7 @@ const OWN_PAGES = {
   'core.md': '/docs/core/',
   'projects.md': '/docs/projects/',
   'classify.md': '/docs/classify/',
+  'sample.md': '/docs/sample/',
   'install.md': '/docs/install/',
   'mcp.md': '/docs/mcp/',
   'setup.md': '/docs/setup/',

@@ -51,19 +51,20 @@ Read the job's page, and `workflows/README.md` once.
 
 ## Where to look
 
-Open only the file the task needs; each is beside this one.
+Open only the file the task needs.
 
 | File | When |
 |------|------|
 | `core.md` | `--select`, big results, `toil wait`, paging, errors, writes and exceptions, global flags, files, configuration, the `api` passthrough, audit log, use from a program (`./api`), feedback, certificates and proxies |
 | `<area>.md` | One per area, named after it (`jira.md` for `toil jira …`): oldest supported version, credential, configuration keys, every command |
-| `projects.md` | What a toil project is; building, sharing, briefing |
+| `projects.md` | Toil projects: building, sharing, briefing, pivots |
 | `classify.md` | Work categories and their schemes |
 | `db.md` | Databases: `toil db …` on every engine |
 | `util.md` | Local utilities, no connection or network: `toil util …` |
+| `sample.md` | Sample data to try toil on |
 | `skills.md` | Skills marketplaces, and keeping this skill installed |
-| `mcp.md` | Running toil as an MCP server, and registering it |
-| `upgrading.md` | A new toil version, or a warning naming a retired or renamed thing |
+| `mcp.md` | Running and registering `toil mcp` |
+| `upgrading.md` | A new version, or a warning naming a retired or renamed thing |
 | `setup.md` | "Set up toil for me": Toil UI or not, connections, secrets, a toil project |
 | `install.md` | Installing toil, and this skill |
 

@@ -1,11 +1,13 @@
-# Work insights: dimensions in the data (#567)
+# Work insights: dimensions, the pivot model, and the dashboards (#567)
 
-Decisions an agent took by default while building the first slice of
-`docs/work-insights-proposal.md`, Layer 1: the fields a split needs, in Open Work
-Items and in the toil project. The maintainer may overturn any of them.
+Decisions an agent took by default while building the whole of #567 on this branch
+(`docs/work-insights-proposal.md`): the fields a split needs in Open Work Items and in
+the toil project, the pivot model and its commands, and the dashboards in Toil UI. The
+maintainer may overturn any of them.
 
-**Not verified:** this slice passes typecheck, lint and the unit suite, and has had
-no independent review yet. Nothing here has met a real Jira, GitHub or Azure DevOps.
+**Not verified:** an independent review of the first slice ran and its nine findings
+were fixed. Toil's gate (typecheck, lint, tests, build, `check:pure`, smoke) passed on
+Windows 11 with Node 24.22.1. Nothing here has met a real Jira, GitHub or Azure DevOps.
 
 - **The new Open Work Items fields are optional properties of version 0.2, with no
   version bump.** They are `releases`, `affects`, `components`, `area`, `sprints`,
@@ -105,11 +107,50 @@ no independent review yet. Nothing here has met a real Jira, GitHub or Azure Dev
   --dimension <name>=<area>:<field>` is the CLI's way to the dimension map. None has
   met a real server.
 
+- **Toil UI classifies in the page with the pure engine and counts with the pure
+  pivot, imported from source.** The agent tool `insights_pivot` uses the same input
+  builder, so a screen and the agent cannot disagree. Where: `ui/src/insights-input.ts`,
+  `ui/src/model/work-insights.ts`.
+- **A filter and a drill live in the address as how to find the items, not the
+  items.** Any query key naming a dimension is an "is one of" filter
+  (`?release=2.4&category=ktlo`), and a drill is `items=cell|<row>|<column>|<spec>`.
+  The item drawer keeps both. Why: an address that holds ids goes stale and grows;
+  one that holds the question can be shared and reopened. Where: `ui/src/address.ts`,
+  `ui/src/filters.ts`, `ui/src/model/drill.ts`.
+- **A dashboard is one file exporting `{ id, title, headline, View }`.** It is
+  registered in `ui/src/views/charts/index.ts`. A headline that can't be worked out is
+  a dash with its reason, never a zero.
+- **Export the figures is a browser download, not a server write.** The worklog
+  export's route writes worklog Markdown only, and a new server write surface wasn't
+  worth one CSV.
+- **Save to Charts runs `projects view set` through the same gated path Settings
+  uses (`CONFIG_CHANGES`).** Removing a saved view stays on the command line, since
+  `view remove` is CLI only.
+- **`jira issue search --more-fields` exists because `--fields` replaces the default
+  set.** That dropped a connection's registered custom fields (story points, sprint)
+  once Toil UI asked for the split fields. Toil UI now sends `moreFields`, and the
+  daily reconcile still asks for keys only.
+- **The sample team is a fourth sample toil project, first in the list, and a fresh
+  install can open it from the first-run screen with `?sample=1`.** It is a separate
+  lazy chunk on the fixture `execute()`, with no server call and no handle to the
+  cache, config or sync. Known gap: it shares the browser's local storage with the real
+  app.
+- **Frame art: each decorative theme ships one sprite of corner and edge symbols
+  painted in the mark's two colours, injected inline.** The CSP is `img-src 'self'`,
+  so an inline sprite is what it allows. Three frames read weakly at chart size, and are
+  noted for the maintainer: Harvest's wheat, Realm's map neatline and Sprawl's barcode.
+- **The "Ask about this chart" context is built in the page and validated on the
+  server against a whitelist.** A cell citation is checked against the attached chart
+  or a pivot the agent ran. Where: `ui/src/view-context.ts`. Known gap: ids inside a
+  context are checked by shape only, since the context comes from the person's own
+  page. Charts whose figures are stitched together (cumulative flow, the sprint
+  history, the heatmap) attach a stand-in spec, so an agent re-running it would not
+  reproduce them exactly.
+- **Not built from the proposal:** pinning a value from a legend, highlighting a cited
+  cell, sortable-by-any-column beyond the drill drawer's table, the sync fetching
+  missing ancestors, and the read-further-back setting.
 
 **Still the maintainer's to take**
 
-The proposal's own list, **Decisions for the maintainer**: a Charts tab or richer
-existing tabs, people splits a step in, saved views in the toil project or per
-person, how a multi-valued field is counted, release forecasts, the thresholds for a
-notable change, and how many series marks with the Simple chart marks setting. Each
-default taken while building goes in this file.
+The proposal's decisions 1 to 7 were each taken as a default above or in the
+proposal's own list, and the maintainer may overturn any.

@@ -8,7 +8,8 @@ The screen review at the end of the work walks every question on the sample team
 (`docs/sample-team.md`).
 
 "Today" means `main` on 10 November 2026, read from the code. The tabs then are Summary,
-Board, What blocks what, Code reviews, People, What happened and Past briefings.
+Board, What blocks what, Code reviews, People, What happened and Past briefings. Charts is
+added after People by this work.
 
 Two rules hold for every answer:
 
@@ -60,7 +61,7 @@ trade between new work and upkeep.
 
 | # | Question | Today | Gap | Built as |
 |---|---|---|---|---|
-| P1 | Will the release make its date? | Nothing | Fix versions and milestones weren't mapped | Charts › Releases: scope, done, remaining, burn-up toward the date |
+| P1 | Will the release make its date? | Nothing | Fix versions and milestones weren't mapped | Charts › Releases: scope, done, remaining, burn-up toward the date (no forecast) |
 | P2 | What was added to the release after it started? | Nothing | No release scope history | Releases: scope added since the start, as a notable change with its items |
 | P3 | What is still open in the release, and who has it? | Nothing | No release dimension | Releases' drill to items; the Board filtered by release |
 | P4 | How far along is each epic or feature? | Children on the item page only | No rollup by parent | Any chart split by parent; the Board grouped by parent |
@@ -68,7 +69,7 @@ trade between new work and upkeep.
 | P6 | Which components take the most upkeep? | Nothing | Components weren't mapped | Work mix split by component |
 | P7 | What has no epic above it? | Nothing | No structure check | Where we're working: the share with no epic, with its items |
 | P8 | What shipped last month? | What happened, day by day | No monthly rollup by release or epic | Flow's throughput split by release or parent; Explore |
-| P9 | What is carried from one release to the next? | Nothing | No release history | Releases: carried in from the previous release |
+| P9 | What is carried from one release to the next? | Nothing | No release history | Not built: an item holds only its current fix versions, so what moved from one release to the next isn't known |
 | P10 | Can I keep this view and send it to someone? | The address holds the tab only | Filters aren't in the address; no saved view | The filter bar in the address; Save to Charts (`toil projects view set`) |
 
 ## What the lists add to the proposals

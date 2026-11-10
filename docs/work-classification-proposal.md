@@ -4,8 +4,14 @@ A proposal for classifying a team's work items from GitHub, Jira and Azure DevOp
 **KTLO** (keep the lights on) or **Feature**, and writing the category back to the
 tracker as a label and, where the team has one, a field. It also lets people reclassify
 items, learns from their corrections, and analyses the mix in toil and Toil UI (#566).
-Nothing here is built yet. The maintainer settled its open decisions on 9 November 2026;
-they're listed at the end, with the defaults this proposal picked.
+Slices 1 to 3 are built: the scheme, `classify run | prompt | correct | stats | tune |
+mix`, `categorize` in all three trackers, the ledger, the MCP prompts `classify` and
+`classify-tune`, and in Toil UI the Work mix tile and page, the category chip, the
+Classify view and the Classification editor. Slices 4 and 5 are not built. Nothing has
+met a live tracker. Where the build departs from this text,
+`docs/decisions/566-work-classification.md` says so. The maintainer settled its open
+decisions on 9 November 2026; they're listed at the end, with the defaults this
+proposal picked.
 
 The two categories, as the request defines them:
 
@@ -273,7 +279,8 @@ toil jira issue search --jql "project = PAY AND statusCategory != Done" --fields
 - First match wins. An item that already carries one of the scheme's labels, or a value
   in its field, keeps it (unless `--recheck`). Then come the team's own rules, then the
   built-in signals, then the parent's verdict, which children inherit. Anything left is
-  `unsure`.
+  `unsure`. (As built: a person's say, from the
+  ledger, comes after labels and fields and before the rules.)
 - **Built-in KTLO signals**, on by default and ranked below the team's rules:
   - type `BUG` or `INCIDENT`;
   - a CVE or GHSA id in the title or body;
@@ -327,12 +334,13 @@ toil ado work-item categorize --from plan.json --allow-write
   the field or one of its values doesn't exist, naming what's missing and saying that an
   admin creates it. toil never creates a field. Where the option ids come from:
   - Jira: `jira issue fields --discover --project <key>`, whose `allowedValues` come from
-    createmeta. `jira field discover` gives field ids only.
+    createmeta (as built: `editmeta`). `jira field discover` gives field ids only.
   - GitHub: `github project fields`, whose single-select fields list `options { id name }`.
   - Azure DevOps: no command lists a picklist's values. `ado work-item fields` is Server
     only and returns a `picklistId`, not the values, and Services has no fields command.
     So `ado work-item categorize` reads the picklist itself (the process lists API)
-    before writing, on both Server and Services, to make this check.
+    before writing, on both Server and Services, to make this check. (As built: it reads
+    each work item type's own definition.)
 - **Running it twice changes nothing.** An item that already has the right labels and
   field value sends nothing.
 - **Jira** (Data Center and Cloud): one `PUT` per issue carries `update.labels` add and
@@ -348,7 +356,9 @@ toil ado work-item categorize --from plan.json --allow-write
   Server-only.
 - **GitHub:**
   - Labels are added with `POST` and removed with `DELETE`. A missing label is created
-    first, with its description.
+    first, with its description. (As built: `github issue categorize` adds with `POST`
+    and, to take one of the scheme's other labels off, replaces the issue's labels with
+    one `PUT`, never a `DELETE`, so it is served over MCP like the other two.)
   - The category goes into a single-select field on a GitHub Project (v2), named in
     `classify.targets.github` (`project` and `field`). `categorize` reuses `github
     project status`'s GraphQL write with the field's name as a parameter. That write is
@@ -366,7 +376,8 @@ toil ado work-item categorize --from plan.json --allow-write
 - **Over MCP**, the command is served behind the same gate (`writes` on the connection,
   plus `--allow-write`):
   - A plan that removes a GitHub label sends a `DELETE`, so it's refused over MCP
-    (`offMcpWhen`). The person applies it on the CLI or in Toil UI.
+    (`offMcpWhen`). The person applies it on the CLI or in Toil UI. (As built: no plan
+    sends a `DELETE`, so nothing is refused over MCP; see the label bullet above.)
   - Jira and ADO removals, label creation and field sets use `PUT`, `PATCH` or `POST`,
     and are served.
 - **Rate limits and audit.** Core's 429 retry and progress events cover the rate limits
@@ -447,7 +458,8 @@ subscription. Before anyone accepts the revision, toil checks it:
 2. The agent classifies those held-back items with the revised scheme (`classify prompt
    --scheme revised.json`), and toil reruns the rules by code.
 3. `classify stats --backtest <verdicts>` scores the old and the revised scheme against
-   what people said, side by side.
+   what people said, side by side. (As built, as proposed, with `--revised <file>`
+   naming the revised scheme.)
 
 The person then applies the revision, or doesn't, with `classify scheme set --from
 revised.json`, which bumps `revision`. That command is a person's command: run on the
@@ -593,8 +605,9 @@ KTLO work that repeats is the work worth automating.
      `classify`;
    - `categorize` in all three trackers, with labels, fields and GitHub label
      descriptions;
-   - the workflow page, skill docs, contract entries, fixtures and the parity suite;
-   - a live run on one sandbox per tracker, each with a field set up.
+   - the workflow page, skill docs, contract entries (as built: new commands take no
+     contract entries), fixtures and the parity suite;
+   - a live run on one sandbox per tracker, each with a field set up (not done yet).
 2. **Reclassify and learn (CLI and MCP):** the ledger, `classify correct | stats | tune`
    with `--backtest`, corrections read from the tracker, the MCP prompt
    `classify-tune`, and the workflow page's tuning steps.
@@ -643,7 +656,8 @@ The maintainer's, on 9 November 2026:
 5. **Labels and fields:** both in slice 1.
 6. **Ledger:** local to each person; the team shares the scheme.
 7. **Over MCP:** `categorize` is served behind the write gate, except a plan that
-   removes a GitHub label.
+   removes a GitHub label. (As built: no plan sends a `DELETE`, so it is served in every
+   case.)
 8. **Toil UI:** one Apply writes a whole plan on one connection, after showing every
    change.
 9. **Corrections from an agent:** recorded, marked `via: mcp`, and shown apart in

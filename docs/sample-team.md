@@ -108,6 +108,14 @@ write to a new folder, or delete the files first, to generate again.
 
 `toil sample team` is also the MCP tool `sample_team`, with the fields `asOf`, `part` and `out`.
 
+## In Toil UI
+
+The sample team is the first sample project in `toil-ui --sample`, and it is behind "Look
+around with a sample team" on a fresh install, before any connection or Toil project
+exists. It is generated for the day the sample is pinned to, so its dates stay in step
+with each other. It exercises the Summary's Work mix, the six dashboards on Charts, the
+Board's lanes, and People by team.
+
 ## The thirty questions
 
 Each answer is the data to find, not a screen; the screens are in `docs/work-insights-seats.md`.

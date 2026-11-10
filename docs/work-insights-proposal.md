@@ -1,7 +1,7 @@
 # Work insights proposal
 
-Issue #567. It is blocked by #566, the work classification, and starts once that is on
-`main`.
+Issue #567. Built on one branch together with #566, the work classification, which it
+depends on.
 
 A proposal for Toil UI and toil to show where a team's work goes. The person chooses how
 to split it. Every chart, list and summary can be split by any dimension the data holds:
@@ -15,8 +15,14 @@ Every number drills down to its items, and every chart can be handed to the pers
 agent for analysis with the figures behind it. Charts tell series apart with four marks
 per theme, each a colour and a border drawn from the theme's own character: simple lines
 in Plain and Crate, picture borders in the others, and each mark names its value on
-hover. Nothing
-here is built yet; the decisions it needs are at the end.
+hover.
+
+Slices 1 to 5 are built. Not built: the sync fetching an ancestor it doesn't hold, a
+setting to read further back than the default window, release forecasts (decision 5 was
+taken as none), "carried in from the previous release", pinning a value from a legend,
+highlighting a cited cell, and live runs against real trackers.
+`docs/decisions/567-work-insights.md` lists the defaults taken where this text left a
+choice.
 
 ## What's there today
 
@@ -280,9 +286,9 @@ toil jira issue search --jql "project = PAY" --fields fixVersions,components,lab
 ### A Charts tab
 
 One new tab, working name **Charts** ("Insights" is already Toil UI's word for per-item
-flags, shown on screen as "Worth a look"). Today's tabs, in order, are Summary, Board,
-What blocks what, Code reviews, People, What happened and Past briefings. Adding one
-means:
+flags, shown on screen as "Worth a look"). Before this work the tabs, in order, were
+Summary, Board, What blocks what, Code reviews, People, What happened and Past
+briefings; Charts now sits after People. Adding one meant:
 - an entry in `TOIL_PROJECT_TABS` (`ui/src/views/ToilProjectShell.tsx:43-51`);
 - `parsePath` and `tabOf` (`ui/src/App.tsx:158-205`);
 - a link in the Summary's "Go to" row.
@@ -536,7 +542,7 @@ components and categories.
      `ado work-item areas` on Services;
    - Toil UI's syncs asking for the fields, keeping the daily reconcile's `fields: 'key'`
      override;
-   - contract entries, fixtures, the parity suite, and a live run per tracker.
+   - fixtures, the parity suite, and a live run per tracker.
 2. **The model, and pivots on the CLI and MCP:** `src/core/insights/`,
    `projects pivot`, `projects view`, and the agent tool `insights_pivot` with the wider
    `owi_query`.
@@ -570,7 +576,8 @@ components and categories.
 5. **AI analysis:** Ask about this with the view context, cell citations, suggested
    questions, notable changes in "Get a briefing", the MCP prompt `insights`, and Copy for AI.
 
-Every slice starts after #566 is on `main` (the maintainer's call, 9 November 2026). The
+The maintainer's call of 9 November 2026 was that this work depends on #566; both were
+then built on one branch, #566's parts first. The
 work category is the first dimension, and slice 4 builds on #566's Work mix page.
 
 **Compatibility.** Everything is additive: new OWI fields, new commands, and new toil
@@ -598,6 +605,12 @@ breaking change, but one thing needs care with older toils:
 7. **Around the marks.** Is four, plus Other and None, enough, with small multiples and
    pinning for longer splits? And should **Simple chart marks** be a setting, or should
    forced colours and small segments be the only fallbacks?
+
+Defaults taken while building, each recorded in the decisions file: 1 a Charts tab; 2
+people a step in, in name order, never ranked; 3 saved views in the toil project; 4 an
+item counts in each of its values, with the note; 5 no forecast; 6 ten share points and
+ten percent of scope, raised inside Charts only; 7 four marks plus Other and None, with
+Simple chart marks as a setting.
 
 Already settled by the maintainer on 9 November 2026: work insights is an issue of its
 own, #567, blocked by #566 and started after it; the person chooses every split

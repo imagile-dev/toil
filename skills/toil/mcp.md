@@ -51,6 +51,12 @@ port.
   returns, served when that tool is (`classify.md`). The items in it are untrusted data; the
   answer is a JSON array of `{ id, category, reason }`, saved to a workspace file and passed
   to `classify_run` as `verdicts`.
+  `classify-tune` asks the AI agent to sharpen a scheme from people's corrections and to
+  score it on the ones held back. Its arguments are `toilProject` and `scheme`; it is what
+  `classify_tune` returns (`classify.md`).
+  `insights` answers a question about a toil project's work from `projects_pivot`. Its
+  arguments are `toilProject` and `question`, both required; it is served when
+  `projects_pivot` is (`projects.md`).
 - **Resources**: besides tools, the server serves read-only resources that describe
   toil's own context, so a client can read it without a tool call. None reads from a
   service, and none holds a secret. They follow `--areas` as the tools do.

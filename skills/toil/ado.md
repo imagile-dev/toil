@@ -45,7 +45,7 @@ default) or `cloud` for Azure DevOps Services. The two keep separate API code, a
 | `pr update` | `--reviewers` | `--target` |
 | `pr merge` | | `--message`; reads the pull request first |
 | `pr resolve` | marks it fixed | `--status` |
-| Only here | `connection-data`, `collection list`, `work-item assign link tag untag attachments attach download areas types fields schema`, `repo create`, `repo default-reviewers`, `commit status`, `pr files diff builds delete-comment`, `pipeline` and `run` commands, `check-toil-project` | `pr threads`, `sprint`, `backlog` and `board` commands, `api` |
+| Only here | `connection-data`, `collection list`, `work-item assign link tag untag attachments attach download types fields schema`, `repo create`, `repo default-reviewers`, `commit status`, `pr files diff builds delete-comment`, `pipeline` and `run` commands, `check-toil-project` | `pr threads`, `sprint`, `backlog` and `board` commands, `api` |
 
 A call the connection's deployment can't serve fails **before any request** with
 `UNSUPPORTED`, saying which deployment and what to do: `ado pipeline list` or

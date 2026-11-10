@@ -21,6 +21,9 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
 - `toil projects classify set`, which sets its `classify` key: the scheme that sorts its work and
   where each tracker keeps the category (#566, `src/classify/project-commands.ts`; the schemes
   themselves are `toil classify scheme …`, `src/core/classify/`)
+- `toil projects pivot` and `toil projects view list | show | set | remove`, which split Open Work
+  Items by any dimension and keep named views (#567, `src/projects/pivot.ts`,
+  `src/projects/views.ts`, `src/core/insights/`)
 - field aliases on Jira's `--field` (Data Center and Cloud)
 - `toil repos scan` (`src/repos/`)
 - `toil <area> check-toil-project` for every area a toil project describes: `jira`,
