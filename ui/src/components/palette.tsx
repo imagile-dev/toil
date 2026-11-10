@@ -125,6 +125,7 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
     out.push({ id: 'cmd:job:review', group: 'commands', label: pw('Review a pull request', 'Check a code change'), detail: FACE.review.gist, text: 'review pull request code review job', go: { href: jobHref(here, 'review') } });
     out.push({ id: 'cmd:job:ship', group: 'commands', label: pw('Ship: answer a review', 'Answer the review of my code change'), detail: FACE.ship.gist, text: 'ship answer review pull request job author', go: { href: jobHref(here, 'ship') } });
     out.push({ id: 'cmd:job:diagram', group: 'commands', label: pw(`Diagram ${here}`, `Draw the architecture of ${here}`), detail: FACE['map-codebase'].gist, text: 'diagram draw architecture c4 map codebase job', go: { href: jobHref(here, 'map-codebase') } });
+    out.push({ id: 'cmd:job:classify', group: 'commands', label: pw(`Sort the work in ${here} into categories`, `Sort the work in ${here} into categories`), detail: FACE.classify.gist, text: 'classify sort categories ktlo keep the lights on feature label work job', go: { href: jobHref(here, 'classify') } });
     const item = x.focused ? current.value.items.find((i) => i.id === x.focused) : undefined;
     if (item && x.canAssign) out.push({ id: 'cmd:assign', group: 'commands', label: pw(`Assign ${shortKey(item)} to an agent`, `Give ${shortKey(item)} to an AI agent`), detail: item.title, go: { command: { kind: 'assign', id: item.id } } });
     for (const o of x.adapters?.options ?? []) {

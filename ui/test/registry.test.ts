@@ -83,7 +83,7 @@ describe('the dashboards', () => {
 describe("the browser's mapOwi", () => {
   it.each(NAMES)("maps %s's work exactly as the API's mapOwi does", async (name) => {
     const browser = await loadToilProject(fixtureExecute().execute, name, { mapOwi });
-    const api = await loadToilProject(fixtureExecute().execute, name, { mapOwi: (input) => apiMapOwi(input) });
+    const api = await loadToilProject(fixtureExecute().execute, name, { mapOwi: (input, options) => apiMapOwi(input, options) });
     expect(browser.items.length).toBeGreaterThan(0);
     expect(browser.items).toEqual(api.items);
   });
@@ -184,5 +184,16 @@ describe("the worklog's two calls to toil beyond the reads (#308)", () => {
     expect(def.writesLocal).toBe(false);
     expect(def.writesDependOnInput).toBe(true);
     expect(new Validator(def.inputSchema as object, '2020-12', false).validate({ scheme: 'base64', decode: true, text: 'IyBXb3JrbG9n', out: 'worklog-card-payments-2026-10-12.md' }).errors).toEqual([]);
+  });
+});
+
+describe("the Jira search's fields", () => {
+  // --fields replaces toil's default set, so the loader must name all of the default's standard fields itself.
+  it("start from toil's own standard ones, on Data Center and on Cloud", async () => {
+    const { JIRA_STANDARD_FIELDS } = await import('../src/load.ts');
+    const server = await import('../../src/areas/jira/server/client.ts');
+    const cloud = await import('../../src/areas/jira/cloud/client.ts');
+    expect(JIRA_STANDARD_FIELDS).toEqual(server.STANDARD_SEARCH_FIELDS);
+    expect(JIRA_STANDARD_FIELDS).toEqual(cloud.STANDARD_SEARCH_FIELDS);
   });
 });

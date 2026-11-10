@@ -54,7 +54,8 @@ describe('the answer first', () => {
     window.location.hash = '#/';
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview />);
     const card = (await screen.findByRole('link', { name: 'settlement' })).closest('li')!;
-    expect(card.textContent).toContain('2 working days left of 9');
+    // The cards read their Toil projects one after another, so the figure arrives after the link does.
+    await waitFor(() => expect(card.textContent).toContain('2 working days left of 9'));
     cleanup();
     const region = await open('settlement', false);
     expect(region.querySelector('[data-answer]')!.textContent).toContain('15 of 16 points are left, and 2 working days remain.');

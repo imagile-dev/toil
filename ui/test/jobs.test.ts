@@ -16,7 +16,7 @@ const real = new Map(registry.commands.map((c) => [c.name, c]));
 
 describe('the jobs are the skill workflow pages', () => {
   it('offers exactly the pages that have a face, in the issue order, with frontmatter read as the page wrote it', () => {
-    expect(JOBS.map((j) => j.id)).toEqual(['review', 'ship', 'map-codebase']);
+    expect(JOBS.map((j) => j.id)).toEqual(['review', 'ship', 'map-codebase', 'classify']);
     const pageFiles = readdirSync(pages).filter((f) => f.endsWith('.md') && f !== 'README.md');
     expect(pageFiles.map((f) => f.replace('.md', '')).sort()).toEqual([...JOBS.map((j) => j.id)].sort());
     const review = jobOf('review')!;
@@ -87,7 +87,7 @@ describe('a job prompt and address', () => {
     expect(jobForSegment('diagram')).toBe('map-codebase');
     expect(jobForSegment('review')).toBe('review');
     expect(jobForSegment('nope')).toBeNull();
-    expect(Object.values(FACE).map((f) => f.segment)).toEqual(['review', 'ship', 'diagram']);
+    expect(Object.values(FACE).map((f) => f.segment)).toEqual(['review', 'ship', 'diagram', 'classify']);
   });
 });
 

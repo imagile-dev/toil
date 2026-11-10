@@ -171,6 +171,40 @@ Each theme says which particles it has in its `theme.json`, as `"ambient": { "pa
 
 A theme's splash, loading screens and moments follow the same **Motion** setting (Theme moments, below), which reads off whenever either of the two asks for less.
 
+## Chart marks
+
+Every chart tells its series apart by a **mark**, not by colour alone, so a chart reads in greyscale, printed, or to someone who can't tell the hues apart. Each theme ships four marks per colour scheme in `theme.json`, beside `schemes`:
+
+```json
+"series": {
+  "light": [ { "name": "Riveted iron plate", "fill": "#d9d6cf", "stroke": "#3e3a35", "detail": "#a8a49b", "frame": "ironplate", "style": "heavy" }, ... ],
+  "dark":  [ ... ]
+}
+```
+
+- **`name`** belongs to theme authors. It is never shown on a screen.
+- **`fill`** is the pale colour inside a segment, **`stroke`** the colour of its border, **`detail`** a frame's second tone (the stroke again where a frame has one tone).
+- **`style`** is the simple border the mark falls back to: `solid`, `heavy` (4px), `dashed`, `dotted`, `double` (a second outline inset 3px), `dashdot` or `pixel` (square 3px blocks, drawn crisp, like a sprite's border). On a line chart the style is the line's dash pattern.
+- **`frame`** names the picture border in the theme's sprite. Plain and Crate leave it out. Within a theme the four marks have four different styles, and four different frames where there are any.
+- **Contrast.** A mark's `stroke` must reach 3:1 against the theme's surface and against its own fill, in its scheme (WCAG 1.4.11), in the decorative themes too, because the border is what carries the data. `ui/test/chartkit-marks.test.ts` holds every theme to it, and to the colours the maintainer accepted. Status colours (`ok`, `warn`, `danger`) are never a mark.
+
+A mark follows the value, never its rank: a classification's categories take their marks by their order in the scheme, other values take the lowest free mark in a stable order unless pinned, and filtering a chart never restyles a series. **Other** and **None** are not marks: Other is a muted fill with no border, None has no fill and a thin muted dashed border, both drawn from the theme's own tokens.
+
+### Frames are art
+
+A decorative theme's frames are one sprite, `ui/themes/<name>/assets/series.svg`, holding for each of its four frames two `<symbol>`s:
+
+- `<frame>-corner`, drawn for the top-left corner, on a 7 by 7 grid;
+- `<frame>-edge`, drawn for the top edge as a tile 7 px square, which tiles along the side.
+
+Paint in `currentColor` (the mark's `stroke`) and `var(--mark-detail)` (its `detail`), so one asset serves light and dark. Keep the art within 7px of the edge, so the segment's middle stays clear. The chart kit places the four corners (turned 90 degrees each) and tiles the edge along each side, the nine slices of CSS `border-image`, drawn in SVG so it works inside a chart. The budget is the theme art budget: 64 KB a file and 320 KB a theme.
+
+The simple border is drawn instead of the frame when a segment is under 26 by 22 px, in forced-colours mode (every mark is then a system colour and only the border style tells them apart), on lines, and when **Simple chart marks** is on.
+
+### Simple chart marks
+
+Under Settings, Appearance, **Simple chart marks** makes every chart use the simple border instead of the frame, for anyone who finds the frames busy. It is kept in this browser only, never in toil's config, and it changes nothing in Plain and Crate, which have no frames.
+
 ## Theme moments
 
 A theme can also have **moments**: a launch splash, its own loading screens, an entrance when a Toil project opens, a transition between a Toil project's tabs, and a short moment when something worth marking happens. Crate, Harvest, Starship, Realm, Sprawl, Frontier and Overworld have all of them. Plain has none.

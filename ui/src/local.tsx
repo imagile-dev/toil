@@ -5,7 +5,8 @@
  * the App shows the preview banner when it does. When it keeps a cache (#250),
  * the sync panel sits under the App, the App's clock is the last sync (so
  * every view says when its data was synced), and the App reads again after
- * each sync or wipe. Same building, different badge reader.
+ * each sync or wipe. Same building, different badge reader. Opened with
+ * `?sample=1` it is the sample instead, with no call to the server at all.
  */
 
 import { StrictMode, useCallback, useMemo, useState } from 'react';
@@ -21,6 +22,7 @@ import { httpAgent, httpAgentSettings, httpConfig, httpExecute, httpFeedback, ht
 import { SyncPanel, lastSynced } from './sync-panel.tsx';
 import { httpAssignments } from './assign/client.ts';
 import { CALL_OPTIONS, type Execute } from './toil.ts';
+import { OfferSampleContext, leaveSample, sampleAsked } from './sample-mode.tsx';
 
 /** The sync status as the cards read it: each toil project's last sync and how it went. */
 const syncedBy = (s: SyncStatus | null) => Object.fromEntries((s?.toilProjects ?? []).map((d) => [d.name, { at: d.lastSyncAt, status: d.status }]));
@@ -95,14 +97,24 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
     [sync, onChange, wipedAt],
   );
   return (
-    <>
+    <OfferSampleContext.Provider value={!session.sample}>
       <App key={generation} setupKeep={setupKeep} newProjectKeep={newProjectKeep}syncing={syncing} news={news} syncedAt={finished} serverStatus={serverStatus} execute={execute} agent={agent} config={config} {...(session.sample ? {} : { themeSetting: config })} feedback={feedback} modelUsage={modelUsage} {...(cache ? { cache } : {})} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byToilProject, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByToilProject(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} versions={{ ui: session.version, toil: session.toil.version }} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { toilProject: names[0] } : {}) } } : {})} />
       {sync && <SyncPanel key={panelKey} client={sync} onChange={onChange} onStatus={onStatus} request={syncAsked} />}
-    </>
+    </OfferSampleContext.Provider>
   );
 }
 
 async function start() {
+  // Looking around on the sample (src/sample-mode.tsx): before anything asks the server for anything, so nothing of the person's is read, cached or written. The sample's own chunk is fetched only now.
+  if (sampleAsked(window.location.search)) {
+    const { default: SampleApp } = await import('./sample-app.tsx');
+    root.render(
+      <StrictMode>
+        <SampleApp onLeave={leaveSample} />
+      </StrictMode>,
+    );
+    return;
+  }
   const session = await readServerInfo();
   const execute = httpExecute();
   const list = await execute('projects list', {}, CALL_OPTIONS);

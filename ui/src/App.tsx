@@ -61,6 +61,7 @@ import type { WordKey } from './wording.ts';
 import { useFontApplied } from './fonts.ts';
 import { usePlain, wordsFor } from './plain-words.ts';
 import { viewHelpHref } from './help.ts';
+import { LeaveSample } from './sample-mode.tsx';
 import { Setup, type SetupProps } from './views/Setup.tsx';
 import { NewProject, type NewProjectProps } from './views/NewProject.tsx';
 import { Loader, MomentsProvider, Splash, useMomentPlayer } from './moments/Moments.tsx';
@@ -76,6 +77,8 @@ import { Bell } from './components/bell.tsx';
 import { ProjectLinks, ProjectSwitcher } from './components/project-switcher.tsx';
 import { NewDot, WhatsNewModal, useWhatsNew } from './components/whats-new.tsx';
 import type { Release, Versions } from './whats-new.ts';
+
+const ChartkitGallery = lazy(() => import('./components/chartkit/gallery.tsx'));
 
 const PowershellMan = lazy(() => import('./game/PowershellMan.tsx').then((module) => ({ default: module.PowershellMan })));
 const POWERSHELL_MAN_HASH = '#/powershell-man';
@@ -315,12 +318,14 @@ export interface AppProps {
   onSync?: () => void;
   /** The toil and Toil UI this page runs on, for What's new (#417): the server's, or, absent, the ones this build pins. */
   versions?: Versions;
+  /** Where the app was opened on sample data from a real install (src/sample-mode.ts): the banner then offers a way back. Absent in the site preview and in `toil-ui --sample`, which have nowhere to go back to. */
+  onLeaveSample?: () => void;
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, themeSetting, now, preview, agentSettings, setupKeep, newProjectKeep, feedback, modelUsage, cache, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, syncedAt, news, versions }: AppProps) {
+export function App({ execute, agent, config, themeSetting, now, preview, agentSettings, setupKeep, newProjectKeep, feedback, modelUsage, cache, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, syncedAt, news, versions, onLeaveSample }: AppProps) {
   const [ownAnalyses] = useState(() => memoryAnalyses());
   const analyses = givenAnalyses ?? ownAnalyses;
   const route = useRoute();
@@ -597,7 +602,14 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   );
 
   let body;
-  if (route.view === 'setup') {
+  if (/^#\/chartkit(\?|$)/.test(window.location.hash)) {
+    // The chart kit's gallery (#567): no screen links to it; it is for review and for the layout check.
+    body = (
+      <Suspense fallback={null}>
+        <ChartkitGallery />
+      </Suspense>
+    );
+  } else if (route.view === 'setup') {
     body = <Setup config={config ?? null} agent={agentSettings} keep={setupKeep} guide={agent.guide ? (request, history, signal, style) => agent.guide!(request, history, signal, style) : undefined} onSync={onSync} />;
   } else if (route.view === 'newProject') {
     body = <NewProject config={config ?? null} keep={newProjectKeep} />;
@@ -640,12 +652,12 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
         <header className="app-header" inert={game.open} aria-hidden={game.open || undefined}>
           {preview && phoneBanner && (
             <p className="banner" role="note" data-banner-merged="">
-              <strong>{plain.pw('Toil UI beta, on sample data.', 'Toil UI beta, showing sample data.')}</strong> Read {dateTime(now)}.
+              <strong>{plain.pw('Toil UI beta, on sample data.', 'Toil UI beta, showing sample data.')}</strong> Read {dateTime(now)}.{onLeaveSample && <LeaveSample onLeave={onLeaveSample} />}
             </p>
           )}
           {preview && !phoneBanner && (
             <p className="banner" role="note">
-              <strong>{plain.pw('Toil UI beta, on sample data.', 'Toil UI beta, showing sample data.')}</strong> {plain.pw('Nothing here connects to a tracker.', 'Nothing here connects to your real tools.')}
+              <strong>{plain.pw('Toil UI beta, on sample data.', 'Toil UI beta, showing sample data.')}</strong> {plain.pw('Nothing here connects to a tracker.', 'Nothing here connects to your real tools.')}{onLeaveSample && <LeaveSample onLeave={onLeaveSample} />}
             </p>
           )}
           <div className="top" data-one-row="" ref={top}>

@@ -1,9 +1,9 @@
 import { Validator } from '@cfworker/json-schema';
 import { describe, expect, it } from 'vitest';
 import schema from '../../docs/owi/schema.json';
-import { CANNED, CARD_JIRA_FIELDS, fixtureExecute } from '../src/fixtures/execute.ts';
-import { JQL } from '../src/load.ts';
-import { NAMES, loaded } from './harness.ts';
+import { CANNED, fixtureExecute } from '../src/fixtures/execute.ts';
+import { TOIL_PROJECTS } from '../src/fixtures/toil-projects.ts';
+import { NAMES, cardSearch, loaded } from './harness.ts';
 
 /**
  * The fixture `execute()` behaves as the real one does from the outside: an
@@ -17,7 +17,7 @@ const read = { readOnly: true, caller: 'toil-ui' };
 describe('the fixture execute()', () => {
   it('answers a canned call with its envelope, Toil project context included', async () => {
     const { execute } = fixtureExecute();
-    const env = await execute('jira issue search', { jql: JQL('PAY'), changelog: true, fields: CARD_JIRA_FIELDS, toilProject: 'card-payments' }, read);
+    const env = await execute('jira issue search', cardSearch(), read);
     expect(env.ok).toBe(true);
     expect(env.meta.command).toBe('jira issue search');
     expect(env.meta.contractVersion).toBe(1);
@@ -46,7 +46,7 @@ describe('the fixture execute()', () => {
     const a = await execute('projects list', {}, read);
     (a.data as { toilProjects: unknown[] }).toilProjects.length = 0;
     const b = await execute('projects list', {}, read);
-    expect((b.data as { toilProjects: unknown[] }).toilProjects).toHaveLength(3);
+    expect((b.data as { toilProjects: unknown[] }).toilProjects).toHaveLength(TOIL_PROJECTS.length);
   });
 });
 
@@ -82,9 +82,9 @@ describe.each(NAMES)('the %s Toil project', (name) => {
 });
 
 describe('the Toil projects together', () => {
-  it('hold the OWI sprint fixture, split three ways', async () => {
+  it('hold the OWI sprint fixture, split three ways (the sample team, its own generated data, is no part of it)', async () => {
     const sprint = (await import('../../test/fixtures/owi/sprint-42.owi.json')).default as { items: Array<{ id: string; title: string }> };
-    const ids = (await Promise.all(NAMES.map(loaded))).flatMap(({ data }) => data.items.map((i) => i.id));
+    const ids = (await Promise.all(NAMES.filter((n) => n !== 'sample-team').map(loaded))).flatMap(({ data }) => data.items.map((i) => i.id));
     expect(ids.sort()).toEqual(sprint.items.map((i) => i.id).sort());
   });
 });

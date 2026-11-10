@@ -38,6 +38,20 @@
       "bannerInk": "#ecd9ad"
     }
   },
+  "series": {
+    "light": [
+        {"name":"Riveted iron plate","fill":"#d9d6cf","stroke":"#3e3a35","detail":"#a8a49b","style":"heavy","frame":"ironplate"},
+        {"name":"Brass steam pipe","fill":"#f0dfa8","stroke":"#7a5a12","detail":"#fbf1cf","style":"double","frame":"pipe"},
+        {"name":"Railroad track","fill":"#f3d2bd","stroke":"#8a3812","detail":"#5c3a1e","style":"dashed","frame":"track"},
+        {"name":"Lasso rope","fill":"#ece3d0","stroke":"#5c3d14","detail":"#c9a46a","style":"dashdot","frame":"rope"}
+      ],
+    "dark": [
+        {"name":"Riveted iron plate","fill":"#2b2925","stroke":"#c8c2b6","detail":"#f1ece2","style":"heavy","frame":"ironplate"},
+        {"name":"Brass steam pipe","fill":"#3d3215","stroke":"#e2b84f","detail":"#fff0b8","style":"double","frame":"pipe"},
+        {"name":"Railroad track","fill":"#44261a","stroke":"#e88a5c","detail":"#a87850","style":"dashed","frame":"track"},
+        {"name":"Lasso rope","fill":"#2e2820","stroke":"#e0c08a","detail":"#7a5c34","style":"dashdot","frame":"rope"}
+      ]
+  },
   "fonts": {
     "body": "'Bitter', Georgia, 'Times New Roman', serif",
     "display": "'Rye', 'Bitter', Georgia, serif",

@@ -35,8 +35,8 @@ import { LoginForm, NewConnectionForm } from './settings/Connections.tsx';
 import { FieldsStep } from './settings/FindFields.tsx';
 import { testSentence, type ConnectionTestData } from '../connection-test.ts';
 import { ChangeForm, ChoiceRadios, OutcomeLine, SelectField, TextField, failedOutcome, outcomeOf, type Outcome } from './settings/parts.tsx';
-import { addRepos, linkTools, withJiraKey, type RepoResult } from './project-create.ts';
-import { JiraKeyField, NamedJiraLine, useNamedJira } from './jira-key.tsx';
+import { addRepos, linkTools, type RepoResult } from './project-create.ts';
+import { LookAround } from '../sample-mode.tsx';
 import './setup.css';
 
 /** Where the wizard lives, and what opens it from the first run, the palette and Settings. */
@@ -244,6 +244,9 @@ function Welcome() {
         <strong>toil</strong> reads the tools your team already uses, such as Jira, GitHub and Azure DevOps, and gives you one picture of the work. <strong>Toil UI</strong> is this page: it shows that picture and lets an AI agent answer questions about it.
       </p>
       <p>This takes a few minutes. If you like, you can start by setting up an AI agent, which then explains each step beside it. Then you will link the tools you use and group them into a Toil project.</p>
+      <p className="note" data-setup-sample="">
+        Rather see it first? <LookAround className="" />.
+      </p>
       <p className="note" data-setup-promise="">
         Nothing is changed in your tools without you. Every link starts read-only, the optional steps have a Not now choice, and you can come back to this page from the command palette or from Settings.
       </p>

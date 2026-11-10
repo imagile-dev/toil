@@ -38,6 +38,20 @@
       "bannerInk": "#fbe7b5"
     }
   },
+  "series": {
+    "light": [
+        {"name":"Picket fence","fill":"#e1eec4","stroke":"#4a3a2a","detail":"#fdf6e3","style":"solid","frame":"picket"},
+        {"name":"Wheat sheaves","fill":"#f6e3a6","stroke":"#7a5a00","detail":"#d9a92a","style":"dashed","frame":"wheat"},
+        {"name":"Cobblestone path","fill":"#d3e4f2","stroke":"#1f55a8","detail":"#b7cbe0","style":"double","frame":"cobble"},
+        {"name":"Pumpkin vine","fill":"#f9dcc2","stroke":"#2f6b1f","detail":"#d9620f","style":"pixel","frame":"vine"}
+      ],
+    "dark": [
+        {"name":"Picket fence","fill":"#26331a","stroke":"#f3e4bf","detail":"#a8916a","style":"solid","frame":"picket"},
+        {"name":"Wheat sheaves","fill":"#3d3312","stroke":"#f2c94c","detail":"#b8902a","style":"dashed","frame":"wheat"},
+        {"name":"Cobblestone path","fill":"#18283f","stroke":"#7db4f2","detail":"#2f4a6e","style":"double","frame":"cobble"},
+        {"name":"Pumpkin vine","fill":"#45281a","stroke":"#8fd46a","detail":"#f5a05a","style":"pixel","frame":"vine"}
+      ]
+  },
   "fonts": {
     "body": "'Pixelify Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
     "display": "'Pixelify Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",

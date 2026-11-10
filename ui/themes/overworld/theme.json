@@ -38,6 +38,20 @@
       "bannerInk": "#f7f4e2"
     }
   },
+  "series": {
+    "light": [
+        {"name":"Dungeon stone","fill":"#e3e3dc","stroke":"#46564a","detail":"#c9c9bd","style":"double","frame":"stone"},
+        {"name":"Hedge","fill":"#cfeedd","stroke":"#1a7a4a","detail":"#5fbf86","style":"solid","frame":"hedge"},
+        {"name":"River","fill":"#d4e2f7","stroke":"#2a56a8","detail":"#8fb4ea","style":"dashed","frame":"river"},
+        {"name":"Treasure trim","fill":"#f7e7b3","stroke":"#7a5000","detail":"#6b3fa0","style":"pixel","frame":"goldtrim"}
+      ],
+    "dark": [
+        {"name":"Dungeon stone","fill":"#2a302b","stroke":"#bcc7b4","detail":"#4d5a50","style":"double","frame":"stone"},
+        {"name":"Hedge","fill":"#163a28","stroke":"#5cc46e","detail":"#2f7a48","style":"solid","frame":"hedge"},
+        {"name":"River","fill":"#1a2a45","stroke":"#8db8ff","detail":"#3f6fb8","style":"dashed","frame":"river"},
+        {"name":"Treasure trim","fill":"#3a3012","stroke":"#f2c94c","detail":"#c7a6ff","style":"pixel","frame":"goldtrim"}
+      ]
+  },
   "fonts": {
     "body": "'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
     "display": "'Press Start 2P', 'IBM Plex Sans', system-ui, sans-serif",

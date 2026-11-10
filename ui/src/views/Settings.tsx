@@ -22,6 +22,7 @@ import './settings.css';
 import { Connections } from './settings/Connections.tsx';
 import { ToilProjectSetup } from './settings/ToilProjectSetup.tsx';
 import { Advanced, type CacheControl } from './settings/General.tsx';
+import { ChartMarksSetting } from './settings/ChartMarks.tsx';
 import { MotionSetting } from './settings/Motion.tsx';
 import { LearningSetting } from './settings/Learning.tsx';
 import { NotifySetting } from '../components/notify.tsx';
@@ -84,6 +85,7 @@ export function Settings({ page, at = [], config, agent, modelUsage = null, cach
         <>
           <ThemeSetting />
           <MotionSetting />
+          <ChartMarksSetting />
           <p className="note" data-saved-here="">Saved in this browser only.</p>
         </>
       ) : page === 'agent' ? (

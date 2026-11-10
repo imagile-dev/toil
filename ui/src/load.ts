@@ -326,6 +326,53 @@ export function keyPatternsFor(items: WorkItem[]): string[] {
   return [...out];
 }
 
+/**
+ * Jira's `issue search --fields` REPLACES the default set (the standard fields
+ * plus the connection's registered custom fields), so a search that names any
+ * must name them all. These are toil's own standard ones
+ * (`STANDARD_SEARCH_FIELDS`; test/registry.test.ts holds the two lists
+ * together), then what a split by version, component, parent, link or date
+ * reads. The rest of the request is the toil project's: JIRA_OWI_NOT_FIELDS names
+ * the `fields` entries that point at no Jira field.
+ */
+export const JIRA_STANDARD_FIELDS = ['summary', 'status', 'priority', 'assignee', 'issuetype', 'project', 'created', 'updated', 'labels', 'reporter'];
+export const JIRA_SPLIT_FIELDS = ['fixVersions', 'versions', 'components', 'parent', 'issuelinks', 'resolutiondate', 'duedate', 'description'];
+const JIRA_OWI_NOT_FIELDS = new Set(['estimateUnit', 'estimateLabel', 'iterationDays']);
+/** A Jira field id: `customfield_10016`, or a system field's one word. A name with spaces needs the connection to register it, so it isn't asked for here, where an unknown one would refuse the whole search. */
+const JIRA_FIELD_ID = /^(customfield_\d+|[a-z][a-z0-9]*)$/i;
+
+/**
+ * Every field a Jira search for this toil project asks for: the standard ones,
+ * the ones a split reads, the section's own `fields` pointers (sprint, story
+ * points, epic link, customer, acceptance criteria), every field a `dimensions`
+ * entry names for Jira, and the field `classify` writes a category to
+ * (through the section's `fields` when it names an alias). Each once, in the
+ * order they were found.
+ */
+export function jiraSearchFields(toilProject: Rec, section: Rec): string[] {
+  const fields = isRec(section.fields) ? section.fields : {};
+  const asked: string[] = [...JIRA_STANDARD_FIELDS, ...JIRA_SPLIT_FIELDS];
+  for (const [name, value] of Object.entries(fields)) if (!JIRA_OWI_NOT_FIELDS.has(name) && typeof value === 'string') asked.push(value);
+  const dimensions = isRec(toilProject.dimensions) ? toilProject.dimensions : {};
+  for (const dimension of Object.values(dimensions)) if (isRec(dimension) && typeof dimension.jira === 'string') asked.push(dimension.jira);
+  const classify = isRec(toilProject.classify) ? toilProject.classify : {};
+  const target = isRec(classify.targets) && isRec(classify.targets.jira) ? classify.targets.jira : {};
+  if (typeof target.field === 'string') asked.push(typeof fields[target.field] === 'string' ? (fields[target.field] as string) : target.field);
+  return [...new Set(asked.filter((f) => JIRA_FIELD_ID.test(f)))];
+}
+
+/** The toil project's `dimensions` as the mapper takes them: a name to the field that holds it per area. */
+export function dimensionsOf(toilProject: Rec): Record<string, Record<string, string>> | undefined {
+  if (!isRec(toilProject.dimensions)) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [name, per] of Object.entries(toilProject.dimensions)) {
+    if (!isRec(per)) continue;
+    const areas = Object.fromEntries(Object.entries(per).filter((e): e is [string, string] => typeof e[1] === 'string'));
+    if (Object.keys(areas).length) out[name] = areas;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** A toil project section's `authorKinds`, keeping the entries OWI can use and saying which it left out. */
 export function authorKindsOf(section: Rec, area: string, notes: string[]): Record<string, string> {
   if (section.authorKinds === undefined) return {};
@@ -367,7 +414,7 @@ const connectionOf = (env: Envelope, fallback: string) => (env.ok ? (env.meta.co
  * version's: OWI only adds. One that returns no `changes` maps no pull
  * requests (OWI 0.1), and the view says so.
  */
-export type LoaderMapOwi = (input: unknown, options?: { fields?: Record<string, string>; keyPatterns?: string[]; authorKinds?: Record<string, string> }) => { items: unknown[]; changes?: unknown[] };
+export type LoaderMapOwi = (input: unknown, options?: { fields?: Record<string, string>; keyPatterns?: string[]; authorKinds?: Record<string, string>; dimensions?: Record<string, Record<string, string>> }) => { items: unknown[]; changes?: unknown[] };
 
 /** The most ids one `get-many` call takes. */
 const GET_MANY_MAX = 1000;
@@ -455,7 +502,7 @@ export async function loadToilProject(execute: Execute, name: string, options: L
       tasks.push((async () => {
         const state = track(jira, projects.length > 1 ? project : '');
         // The search brings each issue's history with it (toil's --changelog); only an issue whose changelog came back short is read with a call of its own.
-        const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(project, options.windowDays), changelog: true, ...(fields === undefined ? {} : { fields }) });
+        const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(project, options.windowDays), changelog: true, fields: jiraSearchFields(toilProject, section(jira)).join(',') });
         if (!asked) return markUnread(state, 'work');
         const { search, histories: inline, incomplete } = splitChangelogs(asked, `${jira} issue history`);
         work[jira].push(withFieldIds(search, registered[jira] ?? []));
@@ -564,7 +611,9 @@ export async function loadToilProject(execute: Execute, name: string, options: L
   }
   await Promise.all(tasks);
   const mapper = options.mapOwi ?? mapOwi;
-  const items = Object.entries(work).flatMap(([area, docs]) => (docs.length ? (mapper(docs, { fields: owiFields(section(area).fields) }).items as WorkItem[]) : []));
+  // The toil project's `dimensions`, handed to the mapper for every tracker, which copies each onto the item's `dims`.
+  const dimensions = dimensionsOf(toilProject);
+  const items = Object.entries(work).flatMap(([area, docs]) => (docs.length ? (mapper(docs, { fields: owiFields(section(area).fields), ...(dimensions ? { dimensions } : {}) }).items as WorkItem[]) : []));
 
   // An issue on a board remembers which one, so a move on the Board can say which project's Status to set.
   for (const item of items) {

@@ -44,6 +44,8 @@ export interface PersonEntry {
   name: string;
   kind: 'human' | 'agent';
   email: string | null;
+  /** The squad they belong to, as the toil project names it; absent when it names none. */
+  team?: string;
   /** Area to the identity that area knows them by. */
   ids: Record<string, string>;
 }
@@ -60,7 +62,7 @@ export function readPeople(toilProject: unknown): { people: PersonEntry[]; wipLi
       continue;
     }
     const ids = Object.fromEntries(Object.entries(isRec(raw.ids) ? raw.ids : {}).filter((e): e is [string, string] => typeof e[1] === 'string' && e[1].trim() !== '').map(([a, v]) => [a, v.trim()]));
-    people.push({ name: raw.name.trim(), kind: raw.kind === 'agent' ? 'agent' : 'human', email: typeof raw.email === 'string' ? raw.email : null, ids });
+    people.push({ name: raw.name.trim(), kind: raw.kind === 'agent' ? 'agent' : 'human', email: typeof raw.email === 'string' ? raw.email : null, ...(typeof raw.team === 'string' && raw.team.trim() ? { team: raw.team.trim() } : {}), ids });
   }
   const limit = d.wipLimit;
   const wipLimit = typeof limit === 'number' && Number.isInteger(limit) && limit > 0 ? limit : null;

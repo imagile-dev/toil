@@ -8,7 +8,7 @@
  * form, kept identical by test rather than by memo.
  */
 
-import { authorKinds, documentsFrom, fieldOverrides, inputValues, keyPatterns, mapOwi as mapDocuments, parseOwiInput, type KeyPattern, type OwiResult } from '../../src/core/owi/index.ts';
+import { authorKinds, dimensionMap, documentsFrom, fieldOverrides, inputValues, keyPatterns, mapOwi as mapDocuments, parseOwiInput, type KeyPattern, type OwiResult } from '../../src/core/owi/index.ts';
 
 export { AUTHOR_KINDS, OVERRIDABLE } from '../../src/core/owi/index.ts';
 
@@ -20,10 +20,12 @@ export interface OwiMapOptions {
   key?: string;
   keyPatterns?: Array<string | KeyPattern>;
   authorKinds?: Record<string, string> | string[];
+  /** The toil project's `dimensions`: each name to the field that holds it per area. */
+  dimensions?: Record<string, Record<string, string>>;
 }
 
 export function mapOwi(input: unknown, options: OwiMapOptions = {}): OwiResult {
   const values = typeof input === 'string' ? parseOwiInput(input) : inputValues(input);
   const { documents, skipped } = documentsFrom(values, { command: options.command, key: options.key });
-  return mapDocuments(documents, { fields: fieldOverrides(options.fields), skipped, keys: keyPatterns(options.keyPatterns), authors: authorKinds(options.authorKinds) });
+  return mapDocuments(documents, { fields: fieldOverrides(options.fields), skipped, keys: keyPatterns(options.keyPatterns), authors: authorKinds(options.authorKinds), dimensions: dimensionMap(options.dimensions) });
 }

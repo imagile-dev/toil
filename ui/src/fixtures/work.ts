@@ -186,7 +186,8 @@ const MOVES: Record<string, Array<{ id: string; name: string; to: unknown }>> = 
 const statusName = (i: unknown) => String(((i as { fields?: { status?: { name?: string } } }).fields?.status?.name) ?? '');
 
 /** `jira issue transitions <key>`'s data for each issue that isn't done: Jira's own transitions list. */
-export const JIRA_TRANSITIONS: Record<string, unknown> = Object.fromEntries(jiraIssues.filter((i) => statusName(i) !== 'Done').map((i) => [i.key, MOVES[statusName(i)] ?? []]));
+export const jiraTransitionsFor = (issues: Array<{ key?: unknown }>): Record<string, unknown> => Object.fromEntries(issues.filter((i) => statusName(i) !== 'Done').map((i) => [String(i.key), MOVES[statusName(i)] ?? []]));
+export const JIRA_TRANSITIONS: Record<string, unknown> = jiraTransitionsFor(jiraIssues);
 
 /** `ado work-item states --type <type>`'s data for each type with an open item on the settlement board: the Agile process's states. */
 const AGILE = [

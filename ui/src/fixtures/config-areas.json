@@ -420,9 +420,11 @@
                 "github issue search",
                 "github issue get",
                 "github issue history",
+                "github milestone list",
                 "github issue create",
                 "github issue label",
                 "github issue unlabel",
+                "github issue categorize",
                 "github issue assign",
                 "github issue unassign",
                 "github repo file",
@@ -447,9 +449,10 @@
               "name": "project",
               "required": "write",
               "commands": [
-                "github project status"
+                "github project status",
+                "github issue categorize"
               ],
-              "note": "Changing a project item's Status. It includes read:project."
+              "note": "Changing a project item's Status, or the field issue categorize sets (needed only when the plan names a field). It includes read:project."
             }
           ]
         },
@@ -565,7 +568,8 @@
                 "github issue list",
                 "github issue search",
                 "github issue get",
-                "github issue history"
+                "github issue history",
+                "github milestone list"
               ]
             },
             {
@@ -576,6 +580,7 @@
                 "github issue create",
                 "github issue label",
                 "github issue unlabel",
+                "github issue categorize",
                 "github issue assign",
                 "github issue unassign"
               ]
@@ -605,9 +610,10 @@
               "access": "write",
               "required": "write",
               "commands": [
-                "github project status"
+                "github project status",
+                "github issue categorize"
               ],
-              "note": "Changing a project item's Status. Only an organization's projects."
+              "note": "Changing a project item's Status, or the field issue categorize sets (needed only when the plan names a field). Only an organization's projects."
             },
             {
               "name": "Projects (organization permission)",

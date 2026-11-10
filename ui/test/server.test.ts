@@ -22,9 +22,9 @@ import { Cache, CacheError, RUNNING_MESSAGE, cachePaths, liveLock, pidAlive, wip
 import { spawn, spawnSync } from 'node:child_process';
 import { CALLER, READ_COMMANDS, fixtureStore, sqliteStore, toilStore, type Access, type Store } from '../server/store.ts';
 import { SyncService } from '../server/sync.ts';
+import { cardSearch } from './harness.ts';
 import { stubToil } from './toil-stub.ts';
-import { CANNED, CARD_JIRA_FIELDS } from '../src/fixtures/execute.ts';
-import { JQL } from '../src/load.ts';
+import { CANNED } from '../src/fixtures/execute.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
 
 /**
@@ -713,7 +713,7 @@ describe('the sync API', () => {
     let release!: () => void;
     const { origin, get } = await withSync(new Promise((r) => (release = r)));
     expect((await info(origin)).info).toMatchObject({ store: 'sqlite', sync: true, sample: false });
-    const before = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { toilProject: 'card-payments', jql: JQL('PAY'), changelog: true, fields: CARD_JIRA_FIELDS } })).body) as Envelope;
+    const before = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: cardSearch() })).body) as Envelope;
     expect(before.ok).toBe(false);
 
     const started = await post(origin, '/api/sync', {});
@@ -728,11 +728,11 @@ describe('the sync API', () => {
       await new Promise((r) => setTimeout(r, 10));
       status = JSON.parse((await get('/api/sync')).body);
     }
-    expect(status.job).toMatchObject({ running: false, error: null, toilProjectsDone: 3, by: 'local' });
+    expect(status.job).toMatchObject({ running: false, error: null, toilProjectsDone: 4, by: 'local' });
     expect(status.retentionDays).toBe(30);
-    expect(status.toilProjects.map((d: { name: string; status: string }) => `${d.name}:${d.status}`)).toEqual(['card-payments:ok', 'checkout-web:ok', 'settlement:ok']);
+    expect(status.toilProjects.map((d: { name: string; status: string }) => `${d.name}:${d.status}`)).toEqual(['card-payments:ok', 'checkout-web:ok', 'sample-team:ok', 'settlement:ok']);
 
-    const after = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { toilProject: 'card-payments', jql: JQL('PAY'), changelog: true, fields: CARD_JIRA_FIELDS } })).body) as Envelope;
+    const after = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: cardSearch() })).body) as Envelope;
     expect(after.ok).toBe(true);
     const one = await post(origin, '/api/sync', { toilProject: 7 });
     expect(one.status).toBe(400);
@@ -836,7 +836,7 @@ describe('toil-ui wipe and a running server', () => {
       const job = await sync.run(ctx);
       expect(job.error).toBeNull();
       expect(cache.states().map((d) => d.status)).toEqual(['ok', 'ok', 'ok']);
-      const search = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { toilProject: 'card-payments', jql: JQL('PAY'), changelog: true, fields: CARD_JIRA_FIELDS } })).body) as Envelope;
+      const search = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: cardSearch() })).body) as Envelope;
       expect(search.ok).toBe(true);
       cache.close();
     } finally {

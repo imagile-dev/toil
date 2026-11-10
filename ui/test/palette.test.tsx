@@ -163,7 +163,7 @@ describe('the palette entries', () => {
         adapters: { chosen: 'codex', options: [{ name: 'codex', label: 'Codex', model: null, ready: true, problem: null, fix: null, action: null }, { name: 'claude', label: 'Claude', model: 'haiku', ready: false, problem: 'Not installed', fix: null, action: 'install' }] },
       }),
     ).filter((e) => e.group === 'commands');
-    expect(on.map((e) => e.label)).toEqual(['Sync now', 'Ask about card-payments', 'Get a briefing on card-payments', 'Open the AI agents panel', 'Check a code change', 'Answer the review of my code change', 'Draw the architecture of card-payments', `Give ${shortKey(item)} to an AI agent`, 'Answer with Codex', 'Choose the default AI agent', 'Set up toil, step by step', 'Create a Toil project', 'Find your Jira fields', 'Keyboard shortcuts']);
+    expect(on.map((e) => e.label)).toEqual(['Sync now', 'Ask about card-payments', 'Get a briefing on card-payments', 'Open the AI agents panel', 'Check a code change', 'Answer the review of my code change', 'Draw the architecture of card-payments', 'Sort the work in card-payments into categories', `Give ${shortKey(item)} to an AI agent`, 'Answer with Codex', 'Choose the default AI agent', 'Set up toil, step by step', 'Create a Toil project', 'Find your Jira fields', 'Keyboard shortcuts']);
     expect(on.find((e) => e.id === 'cmd:job:diagram')!.go).toEqual({ href: '#/project/card-payments/job/diagram' });
     expect(on.find((e) => e.id === 'cmd:agent:codex')!.go).toEqual({ command: { kind: 'agent', name: 'codex', label: 'Codex' } });
   });

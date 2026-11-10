@@ -35,6 +35,7 @@ const HERE = [
 ];
 
 function target(job: Job, id: JobId, subject: string, toilProject: string): string {
+  if (FACE[id].on === 'toil project') return `The backlog is the Toil project "${toilProject}"'s work items. Read them with projects_show and the tracker read tools you have; the page says which scheme sorts them and which writes it may propose.`;
   if (FACE[id].on === 'pull request') return `The pull request is ${subject}: cite it as [[${subject}]]. pr_get gives it from the cache; its code host's own read tools take the repository and number inside that id.`;
   return `The repository is ${subject || `the Toil project "${toilProject}"'s repositories`}. Read the Toil project's repositories with projects_show. Build the model from what your tools return (the pull requests and their files, the items, the deployments), mark every element observed or inferred as the page says, and draw it with util_c4_mermaid, putting the Mermaid text in your answer.`;
 }

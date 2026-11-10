@@ -38,6 +38,20 @@
       "bannerInk": "#00424f"
     }
   },
+  "series": {
+    "light": [
+        {"name":"Neon tube","fill":"#f6d3e5","stroke":"#b80f62","detail":"#8a879e","style":"solid","frame":"neon"},
+        {"name":"Circuit trace","fill":"#cdeef3","stroke":"#00667a","detail":"#00667a","style":"dashed","frame":"circuit"},
+        {"name":"Hazard stripes","fill":"#e9f2c6","stroke":"#14102a","detail":"#c6e000","style":"pixel","frame":"hazard"},
+        {"name":"Barcode","fill":"#e2d9f7","stroke":"#6d3fd9","detail":"#6d3fd9","style":"double","frame":"barcode"}
+      ],
+    "dark": [
+        {"name":"Neon tube","fill":"#3a0a24","stroke":"#ff2e88","detail":"#8a879e","style":"solid","frame":"neon"},
+        {"name":"Circuit trace","fill":"#062a33","stroke":"#3ff0ff","detail":"#3ff0ff","style":"dashed","frame":"circuit"},
+        {"name":"Hazard stripes","fill":"#24300a","stroke":"#c6ff3d","detail":"#07060f","style":"pixel","frame":"hazard"},
+        {"name":"Barcode","fill":"#1e1240","stroke":"#b49cff","detail":"#b49cff","style":"double","frame":"barcode"}
+      ]
+  },
   "fonts": {
     "body": "'Fira Code', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace",
     "display": "'Chakra Petch', 'Fira Code', ui-monospace, monospace",

@@ -466,6 +466,10 @@ export function scriptedJob(prompt: string): Answer | null {
       `Round 1 of 3 on ${P(target)}, as the scripted preview would answer it: read the review threads and the failing check, draft a reply to each thread, and list what only your terminal can do (edit, run the gate, push).`,
       'Nothing was read here, so nothing below is checked. After round 3 the loop stops and the pull request is marked needs-human.',
     ],
+    classify: [
+      `Sorting ${target || 'the Toil project'}'s work into categories, as the scripted preview would: the scheme's rules settle what they can (a label, a type, the parent), and the AI agent is asked only about the items left unsure.`,
+      'Nothing was read here, so no category below is checked. Each label is drafted as a change you approve, one at a time; Toil UI applies none of them.',
+    ],
     'map-codebase': [
       `Architecture of ${target || 'the Toil project'}, as the scripted preview would draw it: containers from the Toil project's repositories, components from the folders the pull requests touch, each element marked observed (read from a command) or inferred (with the reason).`,
       ['```mermaid', 'C4Container', '  title Preview only, nothing read', '  Person(user, "User")', '  Container(app, "App", "TypeScript", "inferred")', '  Rel(user, app, "uses")', '```'].join(String.fromCharCode(10)),

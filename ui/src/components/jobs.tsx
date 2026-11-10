@@ -167,7 +167,7 @@ export function JobPage({ id, target }: { id: JobId; target: string | null }) {
   const targets = face.on === 'pull request' ? prs.filter((c) => c.state === 'OPEN' || c.state === 'DRAFT') : repositoriesOf(prs);
   const subject = target ?? '';
   // A pull request job runs only on an open pull request of this Toil project, and Ship only on a person's.
-  const runnable = face.on === 'repository' || (change !== undefined && (change.state === 'OPEN' || change.state === 'DRAFT') && (id !== 'ship' || change.authorKind === 'HUMAN'));
+  const runnable = face.on !== 'pull request' || (change !== undefined && (change.state === 'OPEN' || change.state === 'DRAFT') && (id !== 'ship' || change.authorKind === 'HUMAN'));
   const canRun = ready.ready && runnable && !busy;
   return (
     <div className="job-page" data-job={id}>
@@ -208,7 +208,13 @@ export function JobPage({ id, target }: { id: JobId; target: string | null }) {
         </p>
       )}
 
-      {face.on === 'repository' ? (
+      {face.on === 'toil project' ? (
+        <p>
+          <Button className="btn btn--accent" isDisabled={!canRun} onPress={() => runJob(id, '')} data-job-run="">
+            {face.label} in {toilProject.name}
+          </Button>
+        </p>
+      ) : face.on === 'repository' ? (
         <>
           <p>
             <Button className="btn btn--accent" isDisabled={!canRun} onPress={() => runJob(id, subject)} data-job-run="">

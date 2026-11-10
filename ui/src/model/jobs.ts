@@ -14,7 +14,7 @@
 
 const PAGES = import.meta.glob('../../../skills/toil/workflows/*.md', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
 
-export type JobId = 'review' | 'ship' | 'map-codebase';
+export type JobId = 'review' | 'ship' | 'map-codebase' | 'classify';
 
 export interface JobInput {
   name: string;
@@ -45,7 +45,7 @@ export interface Face {
   /** The same in plain words (src/plain-words.ts). */
   plain: string;
   /** What it works on, for the palette and the page. */
-  on: 'pull request' | 'repository';
+  on: 'pull request' | 'repository' | 'toil project';
   /** The address segment: `#/project/<name>/job/<segment>`. */
   segment: string;
   /** One line saying what pressing it does. */
@@ -56,6 +56,7 @@ export const FACE: Record<JobId, Face> = {
   review: { label: 'Review', plain: 'Check this code change', on: 'pull request', segment: 'review', gist: "Reads the pull request and its checks, then drafts findings as comments you can post." },
   ship: { label: 'Ship', plain: 'Answer the review', on: 'pull request', segment: 'ship', gist: "Reads the review and the build on your own pull request, then drafts the replies. Editing and pushing stay in your terminal." },
   'map-codebase': { label: 'Diagram', plain: 'Draw the architecture', on: 'repository', segment: 'diagram', gist: "Models the repository's containers and draws them as a system diagram, saying how each part is known." },
+  classify: { label: 'Sort work into categories', plain: 'Sort work into categories', on: 'toil project', segment: 'classify', gist: "Settles each item's category with the rules, asks the AI agent only about the rest, and drafts the labels as changes you can approve." },
 };
 
 export const isJobId = (id: string): id is JobId => id in FACE;

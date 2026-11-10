@@ -38,6 +38,20 @@
       "bannerInk": "#3d2c00"
     }
   },
+  "series": {
+    "light": [
+        {"name":"Blueprint line","fill":"#d9e6f7","stroke":"#1b66c4","detail":"#1b66c4","style":"solid"},
+        {"name":"Packing tape","fill":"#ecdcc0","stroke":"#8a5a2b","detail":"#8a5a2b","style":"dashed"},
+        {"name":"Chalk line","fill":"#e3e6ea","stroke":"#4a5563","detail":"#4a5563","style":"dotted"},
+        {"name":"Pallet straps","fill":"#d4eef0","stroke":"#0f6e76","detail":"#0f6e76","style":"double"}
+      ],
+    "dark": [
+        {"name":"Blueprint line","fill":"#16304f","stroke":"#8cc4ff","detail":"#8cc4ff","style":"solid"},
+        {"name":"Packing tape","fill":"#3a2c1d","stroke":"#d9a86c","detail":"#d9a86c","style":"dashed"},
+        {"name":"Chalk line","fill":"#262c35","stroke":"#c9d1db","detail":"#c9d1db","style":"dotted"},
+        {"name":"Pallet straps","fill":"#133638","stroke":"#6fd3dc","detail":"#6fd3dc","style":"double"}
+      ]
+  },
   "fonts": {
     "body": "'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
     "display": "'Source Serif 4', Georgia, 'Times New Roman', serif",
