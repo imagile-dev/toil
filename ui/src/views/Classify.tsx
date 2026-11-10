@@ -35,6 +35,7 @@ import { choiceForKey, choicesOf, sourcePhrase, type NeedsRow } from '../model/c
 import { usePlain } from '../plain-words.ts';
 import { matches, matchesAny, typingIn } from '../shortcuts.ts';
 import { useWords } from '../skins.tsx';
+import { plainDates } from './charts/format.ts';
 import '../components/classify.css';
 
 /** The most items one question to the agent holds from this view: more than a person would sort in a sitting. */
@@ -236,7 +237,7 @@ export function Classify() {
           {words('classify.title')}
         </h1>
         <p className="lede">
-          Items nobody has put in a category yet, and items whose label and rules disagree, read {now.slice(0, 10)}. Pick one for each: your answers are saved in your own record, and the tracker changes only when you apply them. <Help topic="classify" />
+          Items nobody has put in a category yet, and items whose label and rules disagree, read {plainDates(now.slice(0, 10))}. Pick one for each: your answers are saved in your own record, and the tracker changes only when you apply them. <Help topic="classify" />
         </p>
         {ins.schemeNote && (
           <p role="note" className="failure">
