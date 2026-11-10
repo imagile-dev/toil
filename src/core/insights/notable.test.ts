@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkItem } from '../owi/types.js';
 import { pivot } from './pivot.js';
+import { releaseScope } from './release-scope.js';
 import { AS_OF, history, item, move } from './testkit.js';
 import type { PivotSpec } from './types.js';
 
@@ -57,37 +58,60 @@ describe('grew-fastest', () => {
 });
 
 describe('scope-added', () => {
-  const rel = (released: boolean | null) => [{ id: null, name: '1.4', released, date: null }];
-  const inRelease = (key: string, created: string, released: boolean | null = false, started: string | null = '2026-10-01T09:00:00Z') =>
-    item(key, { created, releases: rel(released), history: started ? history(move(started, 'IN_PROGRESS', 'TODO')) : history() });
+  const rel = (released: boolean | null, start: string | null | 'absent') => [{ id: null, name: '1.4', released, date: null, ...(start === 'absent' ? {} : { start }) }];
+  const inRelease = (key: string, created: string, released: boolean | null = false, start: string | null | 'absent' = '2026-10-01') =>
+    item(key, { created, releases: rel(released, start) });
   const bySplit: PivotSpec = { measure: 'items', split: 'release' };
   const pv = (items: WorkItem[], s: PivotSpec = bySplit) => pivot({ items, spec: s, asOf: AS_OF }).notable;
 
-  it('counts items created after the earliest start among the release, as a share of the release', () => {
-    const items = [inRelease('A', '2026-09-20T00:00:00Z'), inRelease('B', '2026-09-21T00:00:00Z'), inRelease('C', '2026-10-15T00:00:00Z'), inRelease('D', '2026-10-20T00:00:00Z', false, null)];
+  it('counts items created after the release start day, as a share of what it started with', () => {
+    const items = [inRelease('A', '2026-09-20T00:00:00Z'), inRelease('B', '2026-09-21T00:00:00Z'), inRelease('C', '2026-10-15T00:00:00Z'), inRelease('D', '2026-10-20T00:00:00Z')];
     const [s] = pv(items);
-    expect(s).toMatchObject({ kind: 'scope-added', row: 'v:1.4', column: '(all)', delta: 0.5, items: ['corp-jira:C', 'corp-jira:D'] });
-    expect(s!.message).toBe('1.4: 2 of its 4 items (50%) were created after work on it started on 2026-10-01.');
+    expect(s).toMatchObject({ kind: 'scope-added', row: 'v:1.4', column: '(all)', delta: 1, items: ['corp-jira:C', 'corp-jira:D'] });
+    expect(s!.message).toBe('1.4: 2 items were added after it started on 2026-10-01, 100% more than the 2 it started with.');
   });
   it('works with the release across, pointing at its column', () => {
-    const items = [inRelease('A', '2026-09-20T00:00:00Z'), inRelease('C', '2026-10-15T00:00:00Z')];
+    const items = [inRelease('A', '2026-09-20T00:00:00Z'), inRelease('C', '2026-10-15T00:00:00Z'), inRelease('D', '2026-10-16T00:00:00Z')];
     expect(pv(items, { measure: 'items', across: 'release' })[0]).toMatchObject({ row: '(all)', column: 'v:1.4' });
   });
-  it('does not fire for a released release, a small share, or a release nobody has started', () => {
-    expect(pv([inRelease('A', '2026-09-20T00:00:00Z', true), inRelease('C', '2026-10-15T00:00:00Z', true)])).toEqual([]);
-    const small = Array.from({ length: 20 }, (_, i) => inRelease(`S${i}`, '2026-09-20T00:00:00Z'));
-    expect(pv([...small, inRelease('Late', '2026-10-15T00:00:00Z')])).toEqual([]);
-    expect(pv([inRelease('A', '2026-09-20T00:00:00Z', false, null), inRelease('B', '2026-10-15T00:00:00Z', false, null)])).toEqual([]);
-    expect(pv([inRelease('A', '2026-09-20T00:00:00Z'), inRelease('B', '2026-09-22T00:00:00Z')])).toEqual([]);
+  it('does not fire for a released release, a small share, or fewer than two added', () => {
+    expect(pv([inRelease('A', '2026-09-20T00:00:00Z', true), inRelease('C', '2026-10-15T00:00:00Z', true), inRelease('D', '2026-10-16T00:00:00Z', true)])).toEqual([]);
+    const small = Array.from({ length: 30 }, (_, i) => inRelease(`S${i}`, '2026-09-20T00:00:00Z'));
+    expect(pv([...small, inRelease('Late', '2026-10-15T00:00:00Z'), inRelease('Late2', '2026-10-16T00:00:00Z')])).toEqual([]);
+    expect(pv([inRelease('A', '2026-09-20T00:00:00Z'), inRelease('B', '2026-10-22T00:00:00Z')])).toEqual([]);
+  });
+  it('says nothing about a release with no start day: unknown is not zero, and not a guess', () => {
+    const late = [inRelease('A', '2026-09-20T00:00:00Z', false, 'absent'), inRelease('B', '2026-10-15T00:00:00Z', false, 'absent'), inRelease('C', '2026-10-16T00:00:00Z', false, 'absent')];
+    expect(pv(late)).toEqual([]);
+    expect(pv(late.map((i) => ({ ...i, releases: rel(false, null) })))).toEqual([]);
   });
   it('treats a release that does not say it was released as unreleased', () => {
-    expect(pv([inRelease('A', '2026-09-20T00:00:00Z', null), inRelease('C', '2026-10-15T00:00:00Z', null)])).toHaveLength(1);
+    expect(pv([inRelease('A', '2026-09-20T00:00:00Z', null), inRelease('C', '2026-10-15T00:00:00Z', null), inRelease('D', '2026-10-16T00:00:00Z', null)])).toHaveLength(1);
+  });
+});
+
+describe('releaseScope', () => {
+  const r = (start: string | null | undefined, date: string | null = null) => [{ id: null, name: '1.4', released: false, date, ...(start === undefined ? {} : { start }) }];
+  const done = { statusCategory: 'DONE' as const };
+  it('counts what was added after the start, what is done, open and past due', () => {
+    const items = [
+      item('A', { created: '2026-09-20T09:00:00Z', releases: r('2026-10-01', '2026-11-05'), ...done }),
+      item('B', { created: '2026-10-01T09:00:00Z', releases: r('2026-10-01', '2026-11-05') }),
+      item('C', { created: '2026-10-02T09:00:00Z', releases: r('2026-10-01', '2026-11-05') }),
+      item('X', { releases: [{ id: null, name: '1.5', released: false, date: null }] }),
+    ];
+    expect(releaseScope(items, '1.4', AS_OF)).toEqual({ start: '2026-10-01', total: 3, added: 1, addedItems: ['corp-jira:C'], done: 1, open: 2, pastDue: ['corp-jira:B', 'corp-jira:C'], carriedIn: null });
+  });
+  it('has no added figure without a start, and none past due before the date', () => {
+    const s = releaseScope([item('A', { releases: r(undefined, '2026-12-01') })], '1.4', AS_OF);
+    expect(s).toMatchObject({ start: null, added: null, addedItems: [], pastDue: [] });
+    expect(releaseScope([], '1.4', AS_OF)).toMatchObject({ total: 0, added: null });
   });
 });
 
 describe('order', () => {
   it('is share moved, scope added, then fastest growth, each in a fixed order', () => {
-    const rel = [{ id: null, name: '1.4', released: false, date: null }];
+    const rel = [{ id: null, name: '1.4', released: false, date: null, start: '2026-10-30' }];
     const started = history(move('2026-10-01T09:00:00Z', 'IN_PROGRESS', 'TODO'));
     const items = [
       ...[...many(1, 'BUG', W44), ...many(3, 'STORY', W44), ...many(5, 'BUG', W45), ...many(3, 'STORY', W45)].map((i) => ({ ...i, releases: rel, history: started })),

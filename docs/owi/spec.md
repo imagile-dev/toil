@@ -61,7 +61,7 @@ work item alone can't show it.
 | `history` | object or null | `{ transitions, iterations }`, from the history commands. Null when no history was mapped, which is not the same as an empty one |
 | `unmapped` | object[] | `{ field, reason }` for each field the record couldn't fill |
 | `native` | object | The source records, keyed by the command that returned each |
-| `releases` | Release[], optional | `{ id, name, released, date }`: Jira's `fixVersions`, a GitHub milestone, or the field `fields release` names (Azure DevOps). `released` is `true`, `false` or null where the source can't say; `date` is a `YYYY-MM-DD` day or null |
+| `releases` | Release[], optional | `{ id, name, released, date }`: Jira's `fixVersions`, a GitHub milestone, or the field `fields release` names (Azure DevOps). `released` is `true`, `false` or null where the source can't say; `date` is a `YYYY-MM-DD` day or null; optional `start` is the `YYYY-MM-DD` day work began (Jira's version `startDate`), null when Jira's field is empty, absent for GitHub and Azure DevOps |
 | `affects` | Release[], optional | The same shape: Jira's `versions`, or the field `fields affects` names (Azure DevOps). GitHub has none |
 | `components` | string[], optional | Jira's components, by name. Azure DevOps has `area` and GitHub has labels instead |
 | `area` | `{ path }` or null, optional | Azure DevOps' `System.AreaPath`, whole, so a split can cut it at any depth. Jira and GitHub have none |

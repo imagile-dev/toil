@@ -293,7 +293,12 @@ function timeline(p: Placed, all: Placed[], ref: (name: string) => number, next:
   else if (first === undefined) createdIdx = -between(next, 3, 25);
   else createdIdx = sprintStart(first) - between(next, 2, 12);
   // Scope the release had on the day it started was created before that day; only late and added rows arrive after it.
-  if (row.fv === '2.4' && first !== undefined && row.late !== true && createdIdx > RELEASE_23 - 1) createdIdx = RELEASE_23 - between(next, 1, 8);
+  if (row.fv === '2.4' && first !== undefined && row.late !== true && createdIdx > RELEASE_23 - 1) {
+    const before = RELEASE_23 - between(next, 1, 8);
+    createdIdx = row.added === true ? createdIdx : before;
+  }
+  // Scope given the 2.4 fix version after it started is also created after it started, so the items alone show what facts count: the Fix Version entry is the sprint's second day, never earlier than the item.
+  if (row.fv === '2.4' && row.added === true && row.late !== true && first !== undefined) createdIdx = Math.min(Math.max(createdIdx, RELEASE_23 + 1), sprintStart(first));
   if (row.late && first !== undefined) {
     const addedAt = sprintStart(first) + (row.type === 'Incident' ? between(next, 1, 3) : between(next, 2, 5));
     idx.addedAt = Math.min(addedAt, first >= 26 ? -1 : sprintEnd(first));

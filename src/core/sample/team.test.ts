@@ -4,6 +4,7 @@ import { checkAgainstSchema } from '../../areas/util/owi/run.js';
 import { areas } from '../../registry.js';
 import { builtinScheme } from '../classify/builtin.js';
 import { classify } from '../classify/engine.js';
+import { pivot, releaseScope } from '../insights/index.js';
 import { findSecrets } from '../secret-shapes.js';
 import { validateToilProject } from '../toil-project.js';
 import { sampleTeam } from './team.js';
@@ -176,6 +177,21 @@ describe('its figures', () => {
     expect(facts.withNoFixVersion).toBeGreaterThan(5);
     expect(items.filter((i) => (i.affects?.length ?? 0) > 0).length).toBeGreaterThanOrEqual(3);
     for (const v of ['2.3', '2.4', '2.5']) expect(items.some((i) => i.releases?.some((r) => r.name === v && r.date !== null)), v).toBe(true);
+  });
+
+  it('P2: the items alone say 2.4 grew by what the facts count, from the Jira version start date, and 2.5 (not yet started) says nothing', () => {
+    const r24 = facts.releases.find((r) => r.name === '2.4')!;
+    const scope = releaseScope(items, '2.4', AS_OF);
+    expect(scope).toMatchObject({ start: '2026-10-06', total: r24.items, added: r24.scopeAdded, done: r24.done, open: r24.open, pastDue: [], carriedIn: null });
+    expect(scope.addedItems).toHaveLength(8);
+    // 2.5 starts on a day after the sample's now, so nothing was created after it started: honest, and below the threshold.
+    expect(releaseScope(items, '2.5', AS_OF)).toMatchObject({ start: '2026-11-22', added: 0 });
+    const categories = Object.fromEntries(classified().verdicts.map((v) => [v.id, v.category]));
+    const view = pivot({ items, spec: { measure: 'items', split: 'category', across: 'release' }, asOf: AS_OF, categories });
+    const scopes = view.notable.filter((n) => n.kind === 'scope-added');
+    expect(scopes).toHaveLength(1);
+    expect(scopes[0]).toMatchObject({ column: 'v:' + (items.flatMap((i) => i.releases ?? []).find((x) => x.name === '2.4')!.id ?? '2.4') });
+    expect(scopes[0]!.message).toBe('2.4: 8 items were added after it started on 2026-10-06, 19% more than the 43 it started with.');
   });
 
   it('P6, P4, P7: has five components, items with none and with two, five epics under an initiative, and items with no epic', () => {

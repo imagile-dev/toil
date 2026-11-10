@@ -229,7 +229,10 @@ export function releaseOf(value: unknown): Release | undefined {
   if (name === null) return undefined;
   const id = typeof value.id === 'number' ? String(value.id) : str(value.id);
   const date = day(value.releaseDate ?? value.date);
-  return { id, name, released: typeof value.released === 'boolean' ? value.released : null, date: typeof date === 'string' ? date : null };
+  const release: Release = { id, name, released: typeof value.released === 'boolean' ? value.released : null, date: typeof date === 'string' ? date : null };
+  // Jira's version `startDate`: present and a day is that day, present and empty is "none", a key the version never carried leaves `start` off (nobody read it).
+  if ('startDate' in value) release.start = typeof day(value.startDate) === 'string' ? day(value.startDate)! : null;
+  return release;
 }
 
 /** The releases a list of versions holds, in order. A value that isn't a list holds none. */

@@ -78,7 +78,8 @@
         "id": { "type": ["string", "null"] },
         "name": { "type": "string", "minLength": 1 },
         "released": { "description": "Whether it has shipped; null where the source can't say.", "type": ["boolean", "null"] },
-        "date": { "description": "The day it is due or went out; null when it has none.", "anyOf": [{ "$ref": "#/$defs/Day" }, { "type": "null" }] }
+        "date": { "description": "The day it is due or went out; null when it has none.", "anyOf": [{ "$ref": "#/$defs/Day" }, { "type": "null" }] },
+        "start": { "description": "Optional. The day work on the release started (Jira's version startDate); null when the source has the field but it is empty. Absent: the source has none (GitHub, Azure DevOps), or it was not read.", "anyOf": [{ "$ref": "#/$defs/Day" }, { "type": "null" }] }
       }
     },
     "Ancestor": {

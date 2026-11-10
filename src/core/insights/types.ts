@@ -224,7 +224,7 @@ export interface Notable {
   items: string[];
 }
 
-/** A share that moves this many points against the previous period is notable; so is scope that grows by this ratio. */
+/** A share that moves this many points against the previous period is notable; so is a release whose scope added after its start day (the source's) is this ratio of what it started with. */
 export const NOTABLE_SHARE_POINTS = 0.1;
 export const NOTABLE_SCOPE_RATIO = 0.1;
 

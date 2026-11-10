@@ -113,6 +113,12 @@ export interface Release {
   name: string;
   released: boolean | null;
   date: string | null;
+  /**
+   * Optional. The day (`YYYY-MM-DD`) work on the release started, where the source says
+   * (Jira's version `startDate`); null when the source carries the field but it is empty.
+   * Absent: the source has no such field, or the read never fetched it.
+   */
+  start?: string | null;
 }
 
 /** One level of an item's parent chain, as `ancestors` holds it, nearest parent first. */

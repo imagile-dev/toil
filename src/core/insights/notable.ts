@@ -8,7 +8,8 @@
  */
 
 import type { WorkItem } from '../owi/types.js';
-import { dayOf, nextBucket, parseDimension, startedAt } from './dimensions.js';
+import { dayOf, nextBucket, parseDimension } from './dimensions.js';
+import { releaseScope } from './release-scope.js';
 import { ALL_KEY, NOTABLE_SCOPE_RATIO, NOTABLE_SHARE_POINTS, type Notable, type PivotCell, type PivotInput, type PivotResult, type TimeGrain } from './types.js';
 
 const num = (x: number) => String(Math.round(x * 10) / 10);
@@ -71,9 +72,10 @@ function grewFastest(result: PivotResult, [p, c]: [number, number]): Notable[] {
 
 /**
  * Scope added to a release after work on it began. What is counted: of the items
- * in an unreleased release, those created after the earliest `started` among them,
- * over the release's item count. Row `(all)` or column `(all)` stands for the
- * whole of the other axis, which is the release's own total.
+ * in an unreleased release, those created after the release's own start day (the
+ * source's, Jira's version start date), over the items it started with. A release
+ * with no start day gets no notable: that figure is unknown, not zero. Row `(all)`
+ * or column `(all)` stands for the whole of the other axis, which is the release's own total.
  */
 function scopeAdded(result: PivotResult, input: PivotInput): Notable[] {
   const bySplit = result.split && parseDimension(result.split.spec).base === 'release';
@@ -88,15 +90,14 @@ function scopeAdded(result: PivotResult, input: PivotInput): Notable[] {
     const items = ((totals[i] as PivotCell).items.map((id) => byId.get(id)).filter(Boolean)) as WorkItem[];
     const named = items.flatMap((it) => (it.releases ?? []).filter((r) => `v:${r.id ?? r.name}` === value.key));
     if (named.length === 0 || named.some((r) => r.released === true)) return;
-    const starts = items.flatMap((it) => { const s = startedAt(it); return s === null ? [] : [Date.parse(s)]; });
-    if (starts.length === 0) return;
-    const first = Math.min(...starts);
-    const added = items.filter((it) => it.created !== null && Date.parse(it.created) > first);
-    const ratio = added.length / items.length;
+    const scope = releaseScope(items, named[0]!.name, input.asOf);
+    const atStart = scope.total - (scope.added ?? 0);
+    if (scope.start === null || scope.added === null || scope.added < 2 || atStart <= 0) return;
+    const ratio = scope.added / atStart;
     if (ratio < NOTABLE_SCOPE_RATIO - EPS) return;
     out.push({
-      kind: 'scope-added', row: bySplit ? value.key : ALL_KEY, column: bySplit ? ALL_KEY : value.key, delta: ratio, items: added.map((it) => it.id).sort(),
-      message: `${value.label}: ${added.length} of its ${items.length} items (${pct(ratio)}) were created after work on it started on ${new Date(first).toISOString().slice(0, 10)}.`,
+      kind: 'scope-added', row: bySplit ? value.key : ALL_KEY, column: bySplit ? ALL_KEY : value.key, delta: ratio, items: scope.addedItems,
+      message: `${value.label}: ${scope.added} items were added after it started on ${scope.start}, ${pct(ratio)} more than the ${atStart} it started with.`,
     });
   });
   return out.sort((x, y) => y.delta - x.delta);
