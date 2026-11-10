@@ -16,11 +16,14 @@ Caps were the one optional stop on spend. With them gone, a run is bounded by: a
 assignment's time limit (default 20 minutes) and at most three at once; Claude's 30
 turns; Copilot's 10 minutes a turn; and Stop. Codex in the Ask chat has only Stop,
 where someone is watching. No principle says how far a run on a person's own
-subscription must be bounded; the principle review raised it, and it is left for the
-maintainer to decide.
+subscription must be bounded. The principle review raised it and it was put to the
+maintainer, whose instruction (2026-11-09) stands: show the usage, add no caps. No
+principle was added.
 
 ## Review fixes
 
+- A problem reading the saved rates shows in the totals card, always on screen, not
+  inside More detail (principles 4 and 11); its message keeps the OS's error code.
 - The Codex rates card moved inside **More detail** on Settings, Usage; the rates
   address opens it.
 - A bell entry saved with kind `cap` reads as a failure, so old history stays.

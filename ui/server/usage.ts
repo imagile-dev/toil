@@ -55,7 +55,7 @@ export function loadUsageSettings(dataDir: string): UsageSettings {
     text = readFileSync(file, 'utf8');
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') return { ...DEFAULT_USAGE_SETTINGS };
-    throw new UsageSettingsError(`Toil UI couldn't open its saved Codex rates.`, 'Check that this computer lets Toil UI read its own data folder, or save the rates again under Settings, Usage.');
+    throw new UsageSettingsError(`Toil UI couldn't open its saved Codex rates (${(e as NodeJS.ErrnoException).code ?? 'unknown error'}).`, 'Check that this computer lets Toil UI read its own data folder, or save the rates again under Settings, Usage.');
   }
   let parsed: unknown;
   try {

@@ -185,6 +185,15 @@ async function violations(container: HTMLElement) {
 describe('the Codex rates, inside More detail', () => {
   const view = (rates: UsageView['settings']['codexRates']): UsageView => ({ since: '2026-09-14T00:00:00.000Z', now: FIXTURE_NOW, records: [], retentionDays: 30, settings: { codexRates: rates }, problem: null, sample: false });
 
+  it('shows a problem reading the saved rates without opening More detail', async () => {
+    const broken: UsageView = { ...view(null), problem: "Toil UI's saved Codex rates can't be read: the file is damaged." };
+    await open('#/settings/usage', { modelUsage: { view: async () => broken, save: async () => broken } });
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('the file is damaged');
+    expect(alert.closest('details')).toBeNull();
+    expect((document.querySelector('[data-usage-more]') as HTMLDetailsElement).open).toBe(false);
+  });
+
   it.each(['#/settings/usage/rates', '#/settings/usage/caps'])('%s opens More detail and puts focus on the rates heading', async (hash) => {
     const api: ModelUsageApi = { view: async () => view(null), save: async () => view(null) };
     await open(hash, { modelUsage: api });

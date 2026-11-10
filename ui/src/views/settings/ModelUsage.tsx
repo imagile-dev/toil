@@ -143,6 +143,11 @@ function Loaded({ view, api, onSaved, detail, landOn }: { view: UsageView; api: 
         <p className="lede">
           What your AI agents reported each chat used, since {day(view.since)}, UTC. <Help topic="model-usage" />
         </p>
+        {view.problem && (
+          <p role="alert" className="failure">
+            {view.problem} Until the rates can be read, Codex answers carry no dollar figure.
+          </p>
+        )}
         {view.sample && <p className="note">These are sample figures, made up for the preview. No model reported them.</p>}
         {view.retentionDays !== null && view.retentionDays < 30 && <p className="note">The cache keeps a record {view.retentionDays} days, so this window holds only the last {view.retentionDays}.</p>}
         <dl className="fields usage-totals">
@@ -167,81 +172,81 @@ function Loaded({ view, api, onSaved, detail, landOn }: { view: UsageView; api: 
           <button type="button" className="btn" onClick={download} disabled={all.reports === 0} data-usage-export="">
             Export as CSV
           </button>
-                  </div>
+        </div>
       </Card>
 
       <MoreDetail detailsRef={more}>
-      <RatesForm view={view} api={api} onSaved={onSaved} />
+        <RatesForm view={view} api={api} onSaved={onSaved} />
 
-      <Card as="section" className="panel" aria-labelledby="model-usage-adapters">
-        <h3 id="model-usage-adapters">By AI agent</h3>
-        <DataTable
-          label="Usage by AI agent"
-          caption="Usage by AI agent"
-          rows={byAdapter}
-          rowKey={(g) => g.key}
-          columns={[
-            { header: 'AI agent', label: 'AI agent', rowHeader: true, cell: (g) => ADAPTER_LABEL[g.sample.adapter] },
-            { header: 'Tokens', label: 'Tokens', cell: (g) => tokens(g.totals) },
-            { header: 'In / out', label: 'In / out', cell: (g) => `${figure(g.totals.inputTokens)} / ${figure(g.totals.outputTokens)}` },
-            { header: 'Cost', label: 'Cost', cell: (g) => costCell(g.totals, g.sample.adapter) },
-          ]}
-        />
-      </Card>
-
-      <Card as="section" className="panel" aria-labelledby="model-usage-models">
-        <h3 id="model-usage-models">By model</h3>
-        <DataTable
-          label="Usage by model"
-          caption="Usage by model and the AI agent it ran on"
-          rows={byModel}
-          rowKey={(g) => g.key}
-          columns={[
-            { header: 'Model', label: 'Model', rowHeader: true, cell: (g) => <code>{modelLabel(g.sample)}</code> },
-            { header: 'AI agent', label: 'AI agent', cell: (g) => ADAPTER_LABEL[g.sample.adapter] },
-            { header: 'Tokens', label: 'Tokens', cell: (g) => tokens(g.totals) },
-            { header: 'Cost', label: 'Cost', cell: (g) => costCell(g.totals, g.sample.adapter) },
-          ]}
-        />
-      </Card>
-
-      <Card as="section" className="panel" aria-labelledby="model-usage-toil-projects">
-        <h3 id="model-usage-toil-projects">By Toil project</h3>
-        <DataTable
-          label="Usage by Toil project"
-          caption="Usage by Toil project"
-          rows={byToilProject}
-          rowKey={(g) => g.key}
-          columns={[
-            { header: 'Toil project', label: 'Toil project', rowHeader: true, cell: (g) => g.key },
-            { header: 'Tokens', label: 'Tokens', cell: (g) => tokens(g.totals) },
-            { header: 'Cost', label: 'Cost', cell: (g) => costCell(g.totals, null) },
-          ]}
-        />
-      </Card>
-
-      <Card as="section" className="panel" aria-labelledby="model-usage-chats">
-        <h3 id="model-usage-chats">Chats that used the most</h3>
-        {byChat.length === 0 ? (
-          <p>No chat in this window.</p>
-        ) : (
+        <Card as="section" className="panel" aria-labelledby="model-usage-adapters">
+          <h3 id="model-usage-adapters">By AI agent</h3>
           <DataTable
-            label="The chats that used the most"
-            caption="The ten chats that used the most tokens"
-            rows={byChat}
+            label="Usage by AI agent"
+            caption="Usage by AI agent"
+            rows={byAdapter}
             rowKey={(g) => g.key}
             columns={[
-              { header: 'Started', label: 'Started', rowHeader: true, cell: (g) => dateTime(g.sample.at) },
-              { header: 'Toil project', label: 'Toil project', cell: (g) => g.sample.toilProject },
-              { header: 'Model', label: 'Model', cell: (g) => `${ADAPTER_LABEL[g.sample.adapter]}, ${modelLabel(g.sample)}` },
-              { header: 'Questions', label: 'Questions', cell: (g) => turns.get(g.key) ?? 1 },
+              { header: 'AI agent', label: 'AI agent', rowHeader: true, cell: (g) => ADAPTER_LABEL[g.sample.adapter] },
+              { header: 'Tokens', label: 'Tokens', cell: (g) => tokens(g.totals) },
+              { header: 'In / out', label: 'In / out', cell: (g) => `${figure(g.totals.inputTokens)} / ${figure(g.totals.outputTokens)}` },
+              { header: 'Cost', label: 'Cost', cell: (g) => costCell(g.totals, g.sample.adapter) },
+            ]}
+          />
+        </Card>
+
+        <Card as="section" className="panel" aria-labelledby="model-usage-models">
+          <h3 id="model-usage-models">By model</h3>
+          <DataTable
+            label="Usage by model"
+            caption="Usage by model and the AI agent it ran on"
+            rows={byModel}
+            rowKey={(g) => g.key}
+            columns={[
+              { header: 'Model', label: 'Model', rowHeader: true, cell: (g) => <code>{modelLabel(g.sample)}</code> },
+              { header: 'AI agent', label: 'AI agent', cell: (g) => ADAPTER_LABEL[g.sample.adapter] },
               { header: 'Tokens', label: 'Tokens', cell: (g) => tokens(g.totals) },
               { header: 'Cost', label: 'Cost', cell: (g) => costCell(g.totals, g.sample.adapter) },
             ]}
           />
-        )}
-      </Card>
-      {detail}
+        </Card>
+
+        <Card as="section" className="panel" aria-labelledby="model-usage-toil-projects">
+          <h3 id="model-usage-toil-projects">By Toil project</h3>
+          <DataTable
+            label="Usage by Toil project"
+            caption="Usage by Toil project"
+            rows={byToilProject}
+            rowKey={(g) => g.key}
+            columns={[
+              { header: 'Toil project', label: 'Toil project', rowHeader: true, cell: (g) => g.key },
+              { header: 'Tokens', label: 'Tokens', cell: (g) => tokens(g.totals) },
+              { header: 'Cost', label: 'Cost', cell: (g) => costCell(g.totals, null) },
+            ]}
+          />
+        </Card>
+
+        <Card as="section" className="panel" aria-labelledby="model-usage-chats">
+          <h3 id="model-usage-chats">Chats that used the most</h3>
+          {byChat.length === 0 ? (
+            <p>No chat in this window.</p>
+          ) : (
+            <DataTable
+              label="The chats that used the most"
+              caption="The ten chats that used the most tokens"
+              rows={byChat}
+              rowKey={(g) => g.key}
+              columns={[
+                { header: 'Started', label: 'Started', rowHeader: true, cell: (g) => dateTime(g.sample.at) },
+                { header: 'Toil project', label: 'Toil project', cell: (g) => g.sample.toilProject },
+                { header: 'Model', label: 'Model', cell: (g) => `${ADAPTER_LABEL[g.sample.adapter]}, ${modelLabel(g.sample)}` },
+                { header: 'Questions', label: 'Questions', cell: (g) => turns.get(g.key) ?? 1 },
+                { header: 'Tokens', label: 'Tokens', cell: (g) => tokens(g.totals) },
+                { header: 'Cost', label: 'Cost', cell: (g) => costCell(g.totals, g.sample.adapter) },
+              ]}
+            />
+          )}
+        </Card>
+        {detail}
       </MoreDetail>
     </>
   );
@@ -293,11 +298,6 @@ function RatesForm({ view, api, onSaved }: { view: UsageView; api: ModelUsageApi
       <p className="lede">
         Codex reports tokens, not dollars. Enter your rates to see a cost.
       </p>
-      {view.problem && (
-        <p role="alert" className="failure">
-          {view.problem} Until the rates can be read, Codex answers carry no dollar figure.
-        </p>
-      )}
       {off && <p className="note">{off}</p>}
       <form className="rates-form" onSubmit={(e) => void submit(e)}>
         <fieldset className="rates-grid" disabled={!!off || busy}>
