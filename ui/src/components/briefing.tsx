@@ -12,6 +12,8 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { analyzeSettings } from '../../../src/core/brief/settings.ts';
 import { useData } from '../data.ts';
+import { useWorkInsights } from '../insights-data.ts';
+import { CategoryChip } from './category-chip.tsx';
 import { currentQuery } from '../address.ts';
 import { dateTime, toilProjectEditHref, itemHref, peekHref, personText, shortKey, sourceLabel, STATUS_CATEGORY_LABEL, estimateText, unpeekHref } from '../format.ts';
 import { usePlain } from '../plain-words.ts';
@@ -58,6 +60,7 @@ export function PeekLinks({ children }: { children: ReactNode }) {
 export function ItemDrawer({ id }: { id: string }) {
   const { toilProject, byId } = useData();
   const view = useBriefing();
+  const work = useWorkInsights();
   const plain = usePlain();
   const heading = useRef<HTMLHeadingElement>(null);
   const here = typeof window === 'undefined' ? '#/' : window.location.hash;
@@ -119,7 +122,7 @@ export function ItemDrawer({ id }: { id: string }) {
         {item.title}
       </h2>
       <p className="drawer__facts note">
-        {item.status ?? STATUS_CATEGORY_LABEL[item.statusCategory]} · {personText(item.assignee)} · {estimateText(item)}
+        {item.status ?? STATUS_CATEGORY_LABEL[item.statusCategory]} · <CategoryChip ins={work} itemId={item.id} /> · {personText(item.assignee)} · {estimateText(item)}
         {item.url && (
           <>
             {' · '}

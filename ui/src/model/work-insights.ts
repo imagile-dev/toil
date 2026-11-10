@@ -11,15 +11,14 @@
  * The reconciliation of two tabs called Insights is scheduled for a future quarter.
  */
 
-import { builtinScheme, defaultScheme } from '../../../src/core/classify/builtin.ts';
-import { classify } from '../../../src/core/classify/engine.ts';
-import type { Scheme, Verdict } from '../../../src/core/classify/types.ts';
+import type { Verdict } from '../../../src/core/classify/types.ts';
 import {
   addDays, applyFilters, dayOf, DIMENSION_MENU, NONE_KEY, parseDimension, pivot, releaseScope, valuesOf,
   type Filter, type InsightsCategory, type InsightsPerson, type PivotAxisValue, type PivotCell, type PivotResult, type PivotSpec, type ReleaseScope, type ValuesContext,
 } from '../../../src/core/insights/index.ts';
 import { bucketLabel, bucketsBetween, bucketStart } from '../../../src/core/insights/dimensions.ts';
 import { day, sourceLabel } from '../format.ts';
+import { categoriesOf, classifyItems, insightsPeople, schemeFor, schemeSummary, withHistory } from '../insights-input.ts';
 import type { ToilProjectData } from '../load.ts';
 import type { WorkItem } from '../toil.ts';
 
@@ -80,6 +79,8 @@ export interface WorkInsights {
   releasesRead: boolean;
   releases: Release[];
   run: (spec: PivotSpec) => PivotResult;
+  /** The same pivot over only these items (a sprint's done items, an epic's children), with the same people, categories and scheme. Memoized. */
+  runOver: (ids: Iterable<string>, spec: PivotSpec) => PivotResult;
   /** The values a dimension holds in this data, for the filter bar's menu; `null` when it was never read. */
   valuesIn: (dimension: string) => Array<{ key: string; label: string; short?: string; count: number }> | null;
   /** The same view over only the items that pass the filters, so every figure on a page agrees with the filters on it. Memoized. */
@@ -95,18 +96,13 @@ const sentence = (names: string[]) => (names.length < 2 ? names.join('') : `${na
 
 /**
  * The scheme a toil project's page uses: the built-in one it names, else the standard Keep the lights on / Feature
- * scheme, with a note saying so when it named one the page can't resolve (a scheme in a file lives where only toil reads it).
+ * scheme, with a note saying so when it named one the page can't resolve. One function, insights-input.ts's, so the
+ * screen and the agent's tools read the same scheme.
  */
-export function resolveScheme(name: string | null | undefined): { scheme: Scheme; note: string | null } {
-  const named = name ? builtinScheme(name) : undefined;
-  if (named) return { scheme: named, note: null };
-  const fallback = defaultScheme();
-  return { scheme: fallback, note: name ? `This Toil project names a classification, ${name}, that this page can't read, so the standard Keep the lights on or Feature split is used.` : null };
-}
+export const resolveScheme = schemeFor;
 
 export function buildInsights(data: Pick<ToilProjectData, 'items' | 'people'>, now: string, schemeName?: string | null): WorkInsights {
-  const people: InsightsPerson[] = data.people.map((p) => ({ name: p.name, ...(p.team ? { team: p.team } : {}), ...(p.email ? { email: p.email } : {}), ids: p.ids }));
-  return makeInsights(data.items, people, now, schemeName);
+  return makeInsights(data.items, insightsPeople(data.people), now, schemeName);
 }
 
 /**
@@ -114,17 +110,18 @@ export function buildInsights(data: Pick<ToilProjectData, 'items' | 'people'>, n
  * have taken out of the input, so the narrowed view keeps the verdicts of the whole and never classifies a fragment afresh.
  */
 function makeInsights(items: WorkItem[], people: InsightsPerson[], now: string, schemeName?: string | null, whole?: ReadonlyMap<string, Verdict>): WorkInsights {
-  const { scheme, note } = resolveScheme(schemeName);
-  const verdicts = whole ?? new Map(classify({ scheme, items }).result.verdicts.map((v) => [v.id, v]));
-  const categories: Record<string, string | null> = {};
-  for (const i of items) categories[i.id] = verdicts.get(i.id)?.category ?? null;
-  const cats: InsightsCategory[] = scheme.categories.map((c) => ({ id: c.id, name: c.name, short: c.short }));
+  const classified = classifyItems(whole ? [] : items, schemeName);
+  const { scheme, note } = classified;
+  const verdicts = whole ?? classified.verdicts;
+  const categories = categoriesOf(items, verdicts);
+  const summary = schemeSummary(scheme);
   const today = dayOf(now) ?? now.slice(0, 10);
+  const readable = withHistory(items);
   const memo = new Map<string, PivotResult>();
   const run = (spec: PivotSpec): PivotResult => {
     const key = JSON.stringify(spec);
     let r = memo.get(key);
-    if (!r) memo.set(key, (r = pivot({ items, spec, asOf: now, people, categories, scheme: { name: scheme.name, revision: scheme.revision, categories: cats } })));
+    if (!r) memo.set(key, (r = pivot({ items: readable, spec, asOf: now, people, categories, scheme: summary })));
     return r;
   };
   const areas = [...new Set(items.map((i) => i.source.area))].sort();
@@ -138,7 +135,15 @@ function makeInsights(items: WorkItem[], people: InsightsPerson[], now: string, 
   }
   const releases = [...seen.values()];
   const index = new Map(items.map((i) => [i.id, i]));
-  const vctx: ValuesContext = { asOf: now, period: { from: addDays(today, 1 - DEFAULT_PERIOD_DAYS), to: today }, people, categories, scheme: { name: scheme.name, revision: scheme.revision, categories: cats }, index };
+  const vctx: ValuesContext = { asOf: now, period: { from: addDays(today, 1 - DEFAULT_PERIOD_DAYS), to: today }, people, categories, scheme: summary, index };
+  const overMemo = new Map<string, PivotResult>();
+  const runOver: WorkInsights['runOver'] = (ids, spec) => {
+    const keep = new Set(ids);
+    const key = `${[...keep].sort().join('|')}#${JSON.stringify(spec)}`;
+    let r = overMemo.get(key);
+    if (!r) overMemo.set(key, (r = pivot({ items: readable.filter((i) => keep.has(i.id)), spec, asOf: now, people, categories, scheme: summary })));
+    return r;
+  };
   const valueMemo = new Map<string, ReturnType<WorkInsights['valuesIn']>>();
   const valuesIn: WorkInsights['valuesIn'] = (dimension) => {
     if (valueMemo.has(dimension)) return valueMemo.get(dimension)!;
@@ -168,10 +173,10 @@ function makeInsights(items: WorkItem[], people: InsightsPerson[], now: string, 
   };
   const narrowed = new Map<string, WorkInsights>();
   const self: WorkInsights = {
-    asOf: now, today, items, people, scheme: { name: scheme.name, revision: scheme.revision, categories: cats },
+    asOf: now, today, items, people, scheme: summary,
     definitions: Object.fromEntries(scheme.categories.map((c) => [c.id, { name: c.name, short: c.short, definition: c.definition }])),
     schemeNote: note, categories, verdicts, trackers: areas.map(sourceLabel), earliest: created[0] ?? null,
-    releasesRead: items.some((i) => i.releases !== undefined), releases, run, valuesIn, valueText,
+    releasesRead: items.some((i) => i.releases !== undefined), releases, run, runOver, valuesIn, valueText,
     scope: (release) => releaseScope(items, release, now),
     narrow: (where) => {
       if (where.length === 0) return self;
@@ -241,6 +246,12 @@ export const percentText = (share: number) => `${Math.round(share * 100)}%`;
 export function inNameOrder(result: PivotResult): PivotResult {
   const order = result.columns.map((c, i) => ({ c, i })).sort((a, b) => Number(a.c.kind === 'none') - Number(b.c.kind === 'none') || Number(a.c.kind === 'other') - Number(b.c.kind === 'other') || a.c.label.localeCompare(b.c.label));
   return { ...result, columns: order.map((o) => o.c), cells: result.cells.map((row) => order.map((o) => row[o.i]!)), columnTotals: order.map((o) => result.columnTotals[o.i]!) };
+}
+
+/** The same for a result whose rows are the people or squads: rows in name order, "none" last, never by size. */
+export function rowsInNameOrder(result: PivotResult): PivotResult {
+  const order = result.rows.map((r, i) => ({ r, i })).sort((a, b) => Number(a.r.kind === 'none') - Number(b.r.kind === 'none') || Number(a.r.kind === 'other') - Number(b.r.kind === 'other') || a.r.label.localeCompare(b.r.label));
+  return { ...result, rows: order.map((o) => o.r), cells: order.map((o) => result.cells[o.i]!), rowTotals: order.map((o) => result.rowTotals[o.i]!) };
 }
 
 /** The dimensions whose values are people or squads, which a chart shows in name order and never sorted by size. */

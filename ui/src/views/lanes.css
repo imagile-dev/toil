@@ -1,0 +1,40 @@
+/* Swimlanes, the group and split menus, the People mix bar and the split modals (#567). Theme tokens only. */
+.dimension-picker .choice-button { min-width: 0; }
+.dimension-picker__unread { margin-inline-start: auto; padding-inline-start: 1rem; }
+.dimension-picker .menu-item[data-disabled] { cursor: default; color: var(--muted); }
+
+
+.lanes { display: grid; gap: 1.25rem; }
+.lane { display: grid; gap: 0.5rem; min-width: 0; }
+.lane__head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1rem; border-bottom: 1px solid var(--line); }
+.lane__head h3 { margin: 0; }
+
+.lane__toggle { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0 0.25rem; border: 0; background: transparent; color: var(--ink); font: inherit; font-weight: 700; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.lane__toggle:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.lane__chevron { color: var(--muted); }
+.lane__toggle .count { font-weight: 400; }
+.lane__body { min-width: 0; }
+.lanes__all { justify-self: start; }
+
+.cat-chip--compact { padding: 0 0.4rem; font-size: 0.6875rem; max-width: 100%; white-space: normal; text-align: left; }
+.cat-chip--button { cursor: pointer; font-family: inherit; color: var(--ink); }
+.cat-tip { display: grid; gap: 0.2rem; }
+.cat-tip__title { display: block; }
+.cat-tip__line { display: block; }
+.cat-tip__more { justify-self: start; margin-top: 0.15rem; }
+
+.people-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin: 0.25rem 0 0.75rem; }
+.people-team__head { margin: 1.25rem 0 0.5rem; }
+.person-mix { display: grid; gap: 0.25rem; }
+.person-mix__label { margin: 0; font-size: 0.8125rem; color: var(--muted); }
+.person-mix .ck-mix { display: block; max-width: 18rem; }
+
+.split__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin-bottom: 0.75rem; }
+.split .ck-p85 { stroke: var(--ink); stroke-width: 2; }
+.board-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1.5rem; margin-bottom: 0.5rem; }
+.board-controls .filter-bar { margin: 0; }
+.lane .column { min-height: 4.5rem; }
+.lane__mixlabel { font-size: 0.8125rem; color: var(--muted); }
+.lane__mix { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.15rem 0.5rem; flex: 0 1 22rem; min-width: 0; }
+.lane__mix .ck-mix { flex: 1 1 8rem; }
+.person-mix__list { margin: 0; font-size: 0.8125rem; color: var(--muted); overflow-wrap: anywhere; }

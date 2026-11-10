@@ -65,8 +65,15 @@ export const FUNCTIONAL = {
   'charts.changes': 'What changed',
   'filter.add': 'Add filter',
   'filter.dates': 'Pick dates',
+  'charts.measure': 'Measure',
+  'charts.across': 'Across',
+  'charts.saved': 'Saved by your team',
   'mix.title': 'Work mix',
   'releases.title': 'Releases',
+  'sprints.title': 'Sprints',
+  'where.title': "Where we're working",
+  'flow.title': 'Flow',
+  'explore.title': 'Explore',
 } as const;
 
 /** Words nothing depends on: a theme may say these its own way. */

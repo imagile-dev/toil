@@ -11,7 +11,7 @@
 export { assignMarks, type Assignment, type AssignOptions, type MarkSlot } from './assign.ts';
 export { ChartFrame, figureRows, unreadDimension, type ChartFrameProps } from './ChartFrame.tsx';
 export { axisName, cellText, columnText, seriesText, type ChartMode } from './describe.ts';
-export { Heatmap, Lines, MixBar, RampKey, SmallMultiples, StackedArea, StackedBars, StackedColumns, type LinesProps, type MixBarProps } from './forms.tsx';
+export { niceTicks, Heatmap, Lines, MixBar, RampKey, SmallMultiples, StackedArea, StackedBars, StackedColumns, type LinesProps, type MixBarProps } from './forms.tsx';
 export { MarkLine, MarkRect, Swatch, gapped, nineSlice, styleProps, type MarkKind } from './marks.tsx';
 export { marksFor, useDrawSimple, useSeriesMarks } from './series.ts';
 export { useChartView, type CellRef, type ChartView } from './view.tsx';

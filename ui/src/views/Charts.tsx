@@ -8,6 +8,8 @@
  * the lobby's one virtue of not having opinions about the offices.
  */
 
+import { useEffect } from 'react';
+import { takeSaved } from './charts/saved.ts';
 import { Card, CardGrid } from '../components/layout.tsx';
 import { Help } from '../components/help.tsx';
 import { Unread } from '../components/unread.tsx';
@@ -15,13 +17,35 @@ import { useData } from '../data.ts';
 import { chartsHref } from '../format.ts';
 import { useWorkInsights } from '../insights-data.ts';
 import { useWords } from '../theme-context.ts';
+import { exploreHref, viewSentence, viewSpec } from '../model/explore.ts';
+import type { SavedView } from '../../../src/core/insights/index.ts';
 import { DASHBOARDS, dashboardNamed } from './charts/index.ts';
 import './charts/charts.css';
 
-export function Charts({ dashboard }: { dashboard?: string | null }) {
+/** A view the team saved: a card that opens Explore on it. Removing one is a delete, which a person does in a terminal. */
+function SavedCard({ name, view }: { name: string; view: SavedView }) {
   const { toilProject } = useData();
+  const title = view.title ?? name;
+  return (
+    <li>
+      <Card as="article" className="chart-card" aria-labelledby={`chart-saved-${name}`} data-saved-view={name}>
+        <h2 id={`chart-saved-${name}`}>
+          <a href={exploreHref(chartsHref(toilProject.name, 'explore'), viewSpec(view), view.chart)}>{title}</a>
+        </h2>
+        <p className="chart-card__headline">{viewSentence(viewSpec(view))}</p>
+      </Card>
+    </li>
+  );
+}
+
+export function Charts({ dashboard }: { dashboard?: string | null }) {
+  const { toilProject, refresh } = useData();
   const ins = useWorkInsights();
   const words = useWords();
+  // A view saved in Explore is in the file, not yet in this page's copy: read the toil project again when the list opens.
+  useEffect(() => {
+    if (!dashboard && takeSaved()) refresh?.();
+  }, [dashboard, refresh]);
   const found = dashboard ? dashboardNamed(dashboard) : undefined;
   if (found) return <found.View />;
   return (
@@ -50,6 +74,16 @@ export function Charts({ dashboard }: { dashboard?: string | null }) {
           );
         })}
       </CardGrid>
+      {Object.keys(toilProject.views ?? {}).length > 0 && (
+        <section aria-labelledby="charts-saved" className="charts-saved">
+          <h2 id="charts-saved">{words('charts.saved')}</h2>
+          <CardGrid min="md" className="charts-cards">
+            {Object.entries(toilProject.views ?? {}).map(([name, view]) => (
+              <SavedCard key={name} name={name} view={view} />
+            ))}
+          </CardGrid>
+        </section>
+      )}
     </section>
   );
 }

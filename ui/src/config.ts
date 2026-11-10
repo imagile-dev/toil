@@ -50,6 +50,8 @@ export const CONFIG_CHANGES = [
   // Archiving puts a toil project away without deleting it (#561); unarchive is the undo.
   'projects archive',
   'projects unarchive',
+  // A view saved in a toil project, so the team opens the same chart from Charts (#567). Removing one is a delete, a CLI-only command this path doesn't serve, so a person does that in a terminal.
+  'projects view set',
   // The theme a person picks, as toil's own setting, which the welcome menu follows too (#427).
   'theme set',
 ] as const;

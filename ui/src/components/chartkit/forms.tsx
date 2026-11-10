@@ -31,7 +31,7 @@ import { useId, type ReactNode } from 'react';
 import type { PivotResult } from '../../../../src/core/insights/types.ts';
 import { assignMarks } from './assign.ts';
 import { axisName, columnText, num, percent, quantity, unreadRows, NOT_READ_YET, type ChartMode } from './describe.ts';
-import { MarkLine, MarkRect, gapped } from './marks.tsx';
+import { MarkLine, MarkRect, Swatch, gapped } from './marks.tsx';
 import { useMarkHost } from './tip.tsx';
 import type { CellRef, ChartView } from './view.tsx';
 import { useSeriesMarks, useFrames } from './series.ts';
@@ -107,7 +107,8 @@ function Stacked({ view, horizontal }: { view: ChartView; horizontal: boolean })
   const first = firstOnce();
   const label = (n: number) => (mode === 'share' ? percent(n) : num(n));
   if (horizontal) {
-    const left = 132;
+    const longest = Math.max(0, ...result.columns.map((c) => colLabel(c).length));
+    const left = Math.min(220, Math.max(132, Math.ceil(longest * 6.4) + 12));
     const right = 16;
     const step = 38;
     const bar = 28;
@@ -132,7 +133,7 @@ function Stacked({ view, horizontal }: { view: ChartView; horizontal: boolean })
           return (
             <g key={c.key}>
               <text className="ck-axis ck-axis--row" x={left - 8} y={y + bar / 2 + 4} textAnchor="end">
-                {cut(colLabel(c), 18)}
+                {cut(colLabel(c), Math.floor((left - 12) / 6.2))}
               </text>
               {view.rows.map((ri) => {
                 const v = view.figure(ri, ci);
@@ -163,7 +164,7 @@ function Stacked({ view, horizontal }: { view: ChartView; horizontal: boolean })
   const bw = Math.min(64, slot * 0.72);
   const base = H - B;
   const y = (v: number) => base - ((base - T) * v) / max;
-  const every = Math.max(1, Math.ceil(36 / slot));
+  const every = Math.max(1, Math.ceil(56 / slot));
   return (
     <Plot title="Stacked columns" height={H}>
       {modeTicks(mode, max).map((t) => (
@@ -195,7 +196,7 @@ function Stacked({ view, horizontal }: { view: ChartView; horizontal: boolean })
             {unread && <UnreadMark view={view} column={ci} x={cx} y={y(cum) - 6} first={first()} />}
             {ci % every === 0 && (
               <text className="ck-axis" x={cx} y={H - 12} textAnchor="middle">
-                {cut(colLabel(c), Math.max(4, Math.floor((slot * every) / 6.5)))}
+                {cut(colLabel(c), Math.max(4, Math.floor((slot * every) / 6)))}
               </text>
             )}
           </g>
@@ -331,9 +332,11 @@ export interface LinesProps {
   scopeLabel?: string;
   /** A range band, one value per column, null where there is no forecast. */
   forecast?: { low: Array<number | null>; high: Array<number | null>; label?: string };
+  /** A thin vertical rule at one column, named in words ("Due 21 Nov"): a date the line is heading for. */
+  marker?: { column: string; label: string };
 }
 
-export function Lines({ view, scope, scopeLabel = 'Scope', forecast }: LinesProps) {
+export function Lines({ view, scope, scopeLabel = 'Scope', forecast, marker }: LinesProps) {
   const { result, mode } = view;
   const n = result.columns.length;
   const uses = [...view.rows.flatMap((r) => result.columns.map((_, c) => view.figure(r, c))), ...(mode === 'count' ? [...(scope ?? []), ...(forecast?.high ?? [])] : [])].filter((v): v is number => v !== null);
@@ -343,9 +346,18 @@ export function Lines({ view, scope, scopeLabel = 'Scope', forecast }: LinesProp
   const band = forecast ? runs(n, (c) => (forecast.low[c] !== null && forecast.high[c] !== null ? 1 : null)).filter((r) => r.length > 1) : [];
   const forecastName = forecast?.label ?? 'Forecast';
   const lastBand = band.at(-1)?.at(-1);
+  const markerAt = marker ? result.columns.findIndex((c) => c.key === marker.column) : -1;
   return (
     <Plot title="Lines" height={TH}>
       <TimeAxes view={view} max={max} x={x} y={y} />
+      {markerAt >= 0 && (
+        <g className="ck-marker" aria-hidden="true" pointerEvents="none">
+          <line x1={x(markerAt)} x2={x(markerAt)} y1={TT - 4} y2={base} />
+          <text className="ck-axis ck-marker__label" x={x(markerAt) + (markerAt > n * 0.6 ? -6 : 6)} y={base - 8} textAnchor={markerAt > n * 0.6 ? 'end' : 'start'}>
+            {marker!.label}
+          </text>
+        </g>
+      )}
       {mode === 'count' &&
         band.map((run) => (
           <polygon key={run[0]} className="ck-band" aria-hidden="true" points={[...run.map((c) => `${x(c)},${y(forecast!.high[c]!)}`), ...[...run].reverse().map((c) => `${x(c)},${y(forecast!.low[c]!)}`)].join(' ')} />
@@ -386,11 +398,6 @@ export function Lines({ view, scope, scopeLabel = 'Scope', forecast }: LinesProp
         }),
       )}
       {result.columns.map((_, c) => (unreadRows(result, c).some((r) => view.rows.includes(result.rows.indexOf(r))) ? <UnreadMark key={`u${c}`} view={view} column={c} x={x(c)} y={base - 6} first={first()} /> : null))}
-      {scopeLabel && scope && !scope.every((v) => v === null) && (
-        <text className="ck-axis" x={TL + 4} y={TT - 6} textAnchor="start">
-          {scopeLabel}: dashed
-        </text>
-      )}
     </Plot>
   );
 }
@@ -403,7 +410,9 @@ export const rampColour = (t: number) => `color-mix(in srgb, var(--accent) ${Mat
 export function Heatmap({ view }: { view: ChartView }) {
   const { result } = view;
   const hatch = `ck-hatch-${useId().replace(/[^\w-]/g, '')}`;
-  const left = 132;
+  const longest = Math.max(0, ...view.rows.map((r) => result.rows[r]!.label.length));
+  const left = Math.min(220, Math.max(132, Math.ceil(longest * 6.4) + 12));
+  const labelMax = Math.floor((left - 12) / 6.2);
   const top = 26;
   const cw = (W - left - 8) / Math.max(1, result.columns.length);
   const ch = 32;
@@ -430,7 +439,7 @@ export function Heatmap({ view }: { view: ChartView }) {
       {view.rows.map((ri, k) => (
         <g key={ri}>
           <text className="ck-axis ck-axis--row" x={left - 8} y={top + k * ch + ch / 2 + 4} textAnchor="end">
-            {cut(result.rows[ri]!.label, 18)}
+            {cut(result.rows[ri]!.label, labelMax)}
           </text>
           {result.columns.map((_, ci) => {
             const v = view.figure(ri, ci);
@@ -536,6 +545,8 @@ export interface MixBarProps {
   onDrill?: (cell: CellRef) => void;
   /** Said to a screen reader before the figures: "Work mix". */
   label?: string;
+  /** Names each segment under the bar (a swatch, its name, its share), for a bar that stands alone on a page. */
+  legend?: boolean;
 }
 
 /**
@@ -544,7 +555,7 @@ export interface MixBarProps {
  * person's card or a Summary tile, and each segment is a named mark like any
  * other. Nothing read at all is a dash, not an empty bar.
  */
-export function MixBar({ result, scheme, pins, onDrill, label = 'Mix' }: MixBarProps) {
+export function MixBar({ result, scheme, pins, onDrill, label = 'Mix', legend: named = false }: MixBarProps) {
   const marks = useSeriesMarks();
   const frames = useFrames();
   const host = useMarkHost();
@@ -572,6 +583,22 @@ export function MixBar({ result, scheme, pins, onDrill, label = 'Mix' }: MixBarP
           return <MarkRect key={r.key} {...seg} mark={mark} kind={kind} frames={frames} {...host.mark(`m${ri}`, text, { first: first(), onDrill: drill })} />;
         })}
       </svg>
+      {named && (
+        <ul className="ck-mix__key" aria-hidden="true">
+          {result.rows.map((r, ri) => {
+            const v = totals[ri];
+            if (v === null || v === undefined || v <= 0) return null;
+            const slot = assignment[r.key];
+            const mark = typeof slot === 'number' ? marks[slot] : undefined;
+            return (
+              <li key={r.key}>
+                <Swatch mark={mark} kind={typeof slot === 'number' ? 'value' : (slot ?? 'other')} frames={frames} />
+                <span>{r.label} {percent(v / sum)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
       {host.tip}
     </span>
   );

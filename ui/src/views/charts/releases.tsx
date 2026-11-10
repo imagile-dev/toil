@@ -11,7 +11,7 @@
  * as ever, an optimistic document.
  */
 
-import { ChartFrame, Lines, MixBar, StackedBars } from '../../components/chartkit/index.ts';
+import { Lines, MixBar, StackedBars } from '../../components/chartkit/index.ts';
 import { Choice } from '../../components/choice.tsx';
 import { FilterBar } from '../../components/filter-bar.tsx';
 import { Unread } from '../../components/unread.tsx';
@@ -22,7 +22,7 @@ import { useWords } from '../../theme-context.ts';
 import type { ReleaseSet } from '../../model/drill.ts';
 import type { Filter } from '../../../../src/core/insights/index.ts';
 import type { Dashboard, Headline } from './dashboard.ts';
-import { DashboardHead, Door, NotRead, useDrill, useFilterFromCell, useSourceLine } from './shared.tsx';
+import { ChartPanel, DashboardHead, Door, NotRead, useDrill, useFilterFromCell, useSourceLine } from './shared.tsx';
 
 /** The Charts list's line: the release due next, or why none can be named. */
 export function releasesHeadline(ins: WorkInsights): Headline {
@@ -106,31 +106,34 @@ function Section({ ins, release, initiallyOpen, where, split, onSplit }: { ins: 
           </li>
         </ul>
         {burn ? (
-          <ChartFrame
+          <ChartPanel
+            main={initiallyOpen}
+            questions={initiallyOpen ? [`What's putting ${release.name} at risk?`, `What was added to ${release.name} after it started?`] : []}
             title={`Burn-up: ${release.name}`}
             result={burn.result}
-            source={`${source} Done is counted by the day each item was resolved; the dashed line is everything in the release.${release.date ? ` The release is due ${dayWords(release.date)}.` : ''}`}
+            source={`${source} Done is counted by the day each item was resolved; scope is everything in the release.`}
             modes={false}
             legend="line"
+            scopeLabel="Scope"
             onDrill={(c) => {
               const day = burn.upTo[c.columnIndex];
               if (day) drill.open(open('doneBy', day));
             }}
           >
-            {(v) => <Lines view={v} scope={burn.scope} scopeLabel="Everything in it" />}
-          </ChartFrame>
+            {(v) => <Lines view={v} scope={burn.scope} scopeLabel="Scope" {...(release.date && burn.dueColumn !== null ? { marker: { column: burn.result.columns[burn.dueColumn]!.key, label: `Due ${dayWords(release.date)}` } } : {})} />}
+          </ChartPanel>
         ) : (
           <p className="note" data-no-burnup="">
             {release.start && release.start > ins.today ? `Work on ${release.name} starts ${dayWords(release.start)}, so there is nothing to burn up yet.` : `Nothing in ${release.name} to draw.`}
           </p>
         )}
         <div className="release__mix">
-          <span className="release__mix-label">Mix</span>
-          <MixBar result={mixResult} scheme={{ categories: ins.scheme.categories }} label={`${release.name} mix by category`} onDrill={(c) => drill.open({ kind: 'cell', spec: mixSpec, row: c.row.key, column: c.column.key })} />
+          <h4 className="release__mix-label">Mix</h4>
+          <MixBar legend result={mixResult} scheme={{ categories: ins.scheme.categories }} label={`${release.name} mix by category`} onDrill={(c) => drill.open({ kind: 'cell', spec: mixSpec, row: c.row.key, column: c.column.key })} />
         </div>
         <details className="release__breakdown">
           <summary>What is in it</summary>
-          <ChartFrame
+          <ChartPanel
             title={`${release.name}: what is in it, by ${labelOfDimension(split).toLowerCase()}`}
             result={breakdown}
             source={source}
@@ -142,7 +145,7 @@ function Section({ ins, release, initiallyOpen, where, split, onSplit }: { ins: 
             onFilter={onFilter}
           >
             {(v) => <StackedBars view={v} />}
-          </ChartFrame>
+          </ChartPanel>
         </details>
       </div>
     </details>

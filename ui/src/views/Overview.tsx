@@ -38,6 +38,7 @@ import { useSkins, useWords } from '../skins.tsx';
 import { usePlain } from '../plain-words.ts';
 import { StandupCard } from '../components/standup-card.tsx';
 import { Aging, CycleTime, SprintDetail, Throughput } from './Flow.tsx';
+import { Splittable } from './split-modal.tsx';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -375,7 +376,7 @@ function MixTile() {
 }
 
 /** One metric: its name, its figure in words, a sparkline, and, pressed, its full chart in a dialog. */
-function Metric({ id, label, value, unit, spark, title, children }: { id: string; label: string; value: string; unit: string; spark: ReactNode; title: string; children: ReactNode }) {
+function Metric({ id, label, value, unit, spark, title, children }: { id: string; label: string; value: string; unit: string; spark: ReactNode; title: string; children: ReactNode | ((close: () => void) => ReactNode) }) {
   return (
     <li className="metric">
       <DialogTrigger>
@@ -399,7 +400,7 @@ function Metric({ id, label, value, unit, spark, title, children }: { id: string
                       Close
                     </Button>
                   </div>
-                  {children}
+                  {typeof children === 'function' ? children(close) : children}
                 </div>
               )}
             </Dialog>
@@ -459,7 +460,11 @@ function MetricStrip() {
           )}
         </Metric>
         <Metric id="throughput" label={pw('Throughput', 'Finished')} value={String(round1(mean))} unit="a week" spark={<Sparkline kind="bars" values={t.weeks.map((w) => w.items.length)} />} title={pw('Throughput', 'Finished a week')}>
-          <Throughput />
+          {(close) => (
+            <Splittable measure="throughput" onNavigate={close}>
+              <Throughput />
+            </Splittable>
+          )}
         </Metric>
         <Metric
           id="cycle"
@@ -469,11 +474,19 @@ function MetricStrip() {
           spark={<Sparkline values={cycles.map((c) => c.days)} mark={p.p85?.days ?? null} />}
           title={pw('Cycle time', 'Time to finish')}
         >
-          <CycleTime />
+          {(close) => (
+            <Splittable measure="cycleTime" onNavigate={close}>
+              <CycleTime />
+            </Splittable>
+          )}
         </Metric>
         <Metric id="aging" label={pw('Aging WIP', 'Work getting old')} value={String(ages.length)} unit={ages.length ? `in progress, oldest ${round1(ages[0]!.days)} d` : 'in progress'} spark={<Sparkline kind="bars" values={ages.map((a) => a.days)} mark={p.p85?.days ?? null} />} title={pw('Aging work in progress', 'Work getting old')}>
-          <p className="note">{words('aging.note')}</p>
-          <Aging />
+          {(close) => (
+            <Splittable measure="aging" onNavigate={close}>
+              <p className="note">{words('aging.note')}</p>
+              <Aging />
+            </Splittable>
+          )}
         </Metric>
         <Metric id="pr-wait" label={pw('PR wait', 'Review wait')} value={queue.length ? String(round1(longest)) : '0'} unit={queue.length ? `working days, ${queue.length} open` : 'open'} spark={<Sparkline kind="bars" values={waits} />} title={pw('Pull requests waiting', 'Code reviews waiting')}>
           {queue.length ? (

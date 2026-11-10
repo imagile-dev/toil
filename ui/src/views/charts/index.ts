@@ -6,9 +6,13 @@
  */
 
 import type { Dashboard } from './dashboard.ts';
+import { explore } from './explore.tsx';
+import { flow } from './flow.tsx';
 import { mix } from './mix.tsx';
 import { releases } from './releases.tsx';
+import { sprints } from './sprints.tsx';
+import { where } from './where.tsx';
 
-export const DASHBOARDS: readonly Dashboard[] = [mix, releases];
+export const DASHBOARDS: readonly Dashboard[] = [mix, releases, sprints, where, flow, explore];
 
 export const dashboardNamed = (id: string): Dashboard | undefined => DASHBOARDS.find((d) => d.id === id);

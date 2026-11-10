@@ -24,7 +24,7 @@ export function useWorkInsights(): WorkInsights {
   let byNow = built.get(toilProject);
   if (!byNow) built.set(toilProject, (byNow = new Map()));
   let ins = byNow.get(now);
-  if (!ins) byNow.set(now, (ins = buildInsights(toilProject, now)));
+  if (!ins) byNow.set(now, (ins = buildInsights(toilProject, now, toilProject.classifyScheme)));
   return ins;
 }
 

@@ -15,6 +15,11 @@ import { ItemLink } from '../components/items.tsx';
 import { DataTable, type Column } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
 import { Help } from '../components/help.tsx';
+import { DimensionPicker } from '../components/dimension-picker.tsx';
+import { FilterBar } from '../components/filter-bar.tsx';
+import { toWhere } from '../filters.ts';
+import { useAddress, useWorkInsights } from '../insights-data.ts';
+import { GROUP_MENU, isGroupSpec } from '../model/lanes.ts';
 import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, boardHref, dateTime, toilProjectEditHref, estimateText, peopleHref } from '../format.ts';
 import { Empty, EmptyLink } from '../components/empty.tsx';
@@ -168,14 +173,23 @@ function BoardTab({ person }: { person?: string }) {
   const [gapsOnly, setGapsOnly] = useState(false);
   const [attentionOnly, setAttentionOnly] = useState(false);
   const { health: h, insights: prepared } = useDerived();
-  const onBoard = h?.items ?? toilProject.items;
+  // The shared filter bar (#567) narrows everything on this tab: the cards, each column's count, the lanes and the tables beneath.
+  const ins = useWorkInsights();
+  const { filters, query, go } = useAddress();
+  const allowed = useMemo(() => {
+    const where = toWhere(filters);
+    return where.length === 0 ? null : new Set(ins.narrow(where).items.map((i) => i.id));
+  }, [ins, filters]);
+  const group = isGroupSpec(query.get('group')) ? query.get('group') : null;
+  const all = h?.items ?? toilProject.items;
+  const onBoard = allowed ? all.filter((i) => allowed.has(i.id)) : all;
   const flagged = needingAttention(onBoard, prepared);
   const mine = filter ? onBoard.filter((i) => filter.items.includes(i)) : onBoard;
   const cards = attentionOnly ? mine.filter((i) => flagged.includes(i)) : mine;
   const rows = trace(onBoard, toilProject.changes, toilProject.deployments);
   const shown = gapsOnly ? rows.filter((r) => r.flags.length) : rows;
   const builds = toilProject.changes.filter((c) => c.kind === 'build');
-  const all = [...toilProject.calls.work, ...toilProject.calls.prs, ...toilProject.calls.builds, ...toilProject.calls.deployments];
+  const everyCall = [...toilProject.calls.work, ...toilProject.calls.prs, ...toilProject.calls.builds, ...toilProject.calls.deployments];
 
   return (
     <div className="tab-panels">
@@ -186,6 +200,8 @@ function BoardTab({ person }: { person?: string }) {
           </p>
         ))}
         {filter && <BoardFilter name={filter.name} shown={mine.length} all={filter.items.length} />}
+        <div className="board-controls">
+          <FilterBar period={false} />
         <div className="board-tools">
           <Checkbox className="check" isSelected={attentionOnly} onChange={setAttentionOnly} data-attention-only="">
             <span className="box" aria-hidden="true">
@@ -193,14 +209,21 @@ function BoardTab({ person }: { person?: string }) {
             </span>
             Needs attention only ({flagged.length})
           </Checkbox>
+          <DimensionPicker label="Group by" value={group} options={GROUP_MENU} none="No grouping" ins={ins} onChange={(spec) => go((q) => (spec === null ? q.delete('group') : q.set('group', spec)))} />
           <span className="board-tools__help">
-            <Help topic="board" note="A card with a flag needs action now or a look: it is blocked, its build fails, or it has gone quiet." />
+            <Help topic="board" note="A card with a flag needs action now or a look: it is blocked, its build fails, or it has gone quiet. Group by turns the board into lanes, one per value; a lane is for looking, so dragging a card to another lane changes nothing." />
           </span>
         </div>
-        <Board items={cards} />
+        </div>
+        {allowed && (
+          <p className="note" data-board-narrowed="">
+            Showing {onBoard.length} of {all.length} items on the board.
+          </p>
+        )}
+        <Board items={cards} group={group} />
       </Panel>
 
-      <Panel id="trace" title={plain.text('Stories, pull requests, builds and deployments')} calls={all} alerts={false}>
+      <Panel id="trace" title={plain.text('Stories, pull requests, builds and deployments')} calls={everyCall} alerts={false}>
         <p className="note">{words('trace.note')}</p>
         <Checkbox className="check" isSelected={gapsOnly} onChange={setGapsOnly}>
           <span className="box" aria-hidden="true">

@@ -13,6 +13,7 @@
 
 import { builtinScheme, defaultScheme } from '../../src/core/classify/builtin.ts';
 import { classify } from '../../src/core/classify/engine.ts';
+import type { Scheme, Verdict } from '../../src/core/classify/types.ts';
 import { addDays, dayOf, type InsightsCategory, type InsightsPerson, type PivotInput, type ValuesContext } from '../../src/core/insights/index.ts';
 import { DEFAULT_PERIOD_DAYS } from '../../src/core/insights/pivot.ts';
 import type { WorkItem } from './toil.ts';
@@ -32,7 +33,7 @@ export interface InsightsBase extends Pick<PivotInput, 'items' | 'categories' | 
 }
 
 /** The scheme a toil project's page uses: the built-in one it names, else the standard one. */
-export function schemeFor(name: string | null | undefined): { scheme: ReturnType<typeof defaultScheme>; note: string | null } {
+export function schemeFor(name: string | null | undefined): { scheme: Scheme; note: string | null } {
   const named = name ? builtinScheme(name) : undefined;
   if (named) return { scheme: named, note: null };
   return { scheme: defaultScheme(), note: name ? `This Toil project names a classification, ${name}, that Toil UI can't read, so the standard Keep the lights on or Feature split is used.` : null };
@@ -41,16 +42,33 @@ export function schemeFor(name: string | null | undefined): { scheme: ReturnType
 /** The people as the model reads them. */
 export const insightsPeople = (people: readonly PersonLike[]): InsightsPerson[] => people.map((p) => ({ name: p.name, ...(p.team ? { team: p.team } : {}), ...(p.email ? { email: p.email } : {}), ids: p.ids }));
 
+/** The scheme's categories as the pivot reads them, in the scheme's order. */
+export const schemeSummary = (scheme: Scheme): NonNullable<PivotInput['scheme']> => ({
+  name: scheme.name,
+  revision: scheme.revision,
+  categories: scheme.categories.map((c): InsightsCategory => ({ id: c.id, name: c.name, short: c.short })),
+});
+
+/** What the engine decided for each item, under the scheme the toil project names. The one place items are classified for a page or an agent. */
+export function classifyItems(items: WorkItem[], schemeName?: string | null): { scheme: Scheme; note: string | null; verdicts: Map<string, Verdict> } {
+  const { scheme, note } = schemeFor(schemeName);
+  return { scheme, note, verdicts: new Map(classify({ scheme, items }).result.verdicts.map((v) => [v.id, v])) };
+}
+
+/** Each item's category id, null where the engine stayed unsure, from verdicts that may cover more items than these. */
+export function categoriesOf(items: readonly WorkItem[], verdicts: ReadonlyMap<string, Pick<Verdict, 'category'>>): Record<string, string | null> {
+  const out: Record<string, string | null> = {};
+  for (const i of items) out[i.id] = verdicts.get(i.id)?.category ?? null;
+  return out;
+}
+
+/** A record written by hand may leave `history` out; the model reads null as "never read" and fails on a missing one. */
+export const withHistory = (items: WorkItem[]): WorkItem[] => (items.some((i) => i.history === undefined) ? items.map((i) => (i.history === undefined ? { ...i, history: null } : i)) : items);
+
 /** Items, people, each item's category (null where the engine stayed unsure) and the scheme's categories. */
 export function insightsBase(items: WorkItem[], people: readonly PersonLike[], schemeName?: string | null): InsightsBase {
-  const { scheme, note } = schemeFor(schemeName);
-  const verdicts = new Map(classify({ scheme, items }).result.verdicts.map((v) => [v.id, v.category]));
-  const categories: Record<string, string | null> = {};
-  for (const i of items) categories[i.id] = verdicts.get(i.id) ?? null;
-  const cats: InsightsCategory[] = scheme.categories.map((c) => ({ id: c.id, name: c.name, short: c.short }));
-  // A record written by hand may leave `history` out; the model reads null as "never read" and fails on a missing one.
-  const read = items.map((i) => (i.history === undefined ? { ...i, history: null } : i));
-  return { items: read, people: insightsPeople(people), categories, scheme: { name: scheme.name, revision: scheme.revision, categories: cats }, schemeNote: note };
+  const { scheme, note, verdicts } = classifyItems(items, schemeName);
+  return { items: withHistory(items), people: insightsPeople(people), categories: categoriesOf(items, verdicts), scheme: schemeSummary(scheme), schemeNote: note };
 }
 
 /** The context a dimension's values are read with, over the default period up to `asOf`: what a filter on a dimension is judged by. */

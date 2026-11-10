@@ -6,6 +6,8 @@
 
 import { Avatar, Outcome, PLAIN_INSIGHT_LABEL, StatusChip } from '../components/bits.tsx';
 import { Cited, ItemLink, typeText } from '../components/items.tsx';
+import { CategoryChip } from '../components/category-chip.tsx';
+import { useWorkInsights } from '../insights-data.ts';
 import { ReadinessPanel } from '../components/readiness.tsx';
 import { Card, DataTable } from '../components/layout.tsx';
 import { EditLink } from '../components/help.tsx';
@@ -35,6 +37,7 @@ export function ItemView({ id }: { id: string }) {
   const term = useTerm();
   const plain = usePlain();
   const { insights: prepared } = useDerived();
+  const work = useWorkInsights();
   const item = byId.get(id);
   if (!item) {
     return (
@@ -62,7 +65,7 @@ export function ItemView({ id }: { id: string }) {
         </p>
         <h1 tabIndex={-1}>{item.title}</h1>
         <p className="item-meta">
-          <StatusChip category={item.statusCategory} status={item.status} /> <Avatar person={item.assignee} /> {personText(item.assignee)}
+          <StatusChip category={item.statusCategory} status={item.status} /> <CategoryChip ins={work} itemId={item.id} /> <Avatar person={item.assignee} /> {personText(item.assignee)}
           {item.url && (
             <>
               {' · '}

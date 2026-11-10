@@ -30,6 +30,8 @@ import { AgentsSidebar, useAgentsSummary } from '../assign/sidebar.tsx';
 import { AssignModal } from '../assign/views.tsx';
 import { useUiCommand } from '../commands.ts';
 import { useData, useDerived } from '../data.ts';
+import { writeFilters } from '../filters.ts';
+import { useAddress } from '../insights-data.ts';
 import { ItemsDrawer } from '../components/items-drawer.tsx';
 import { analysesHref, boardHref, chartsHref, commandCenterHref, dependenciesHref, toilProjectEditHref, toilProjectHref, peopleHref, prsHref, worklogHref } from '../format.ts';
 import { needingAttention } from '../model/insights.ts';
@@ -86,6 +88,14 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, items =
   );
   const plain = usePlain();
   const { pw } = plain;
+  // The Board and Ready to start? share one filter bar, so a filter chosen on one is still there on the other.
+  const { filters } = useAddress();
+  const carry = (href: string) => {
+    const q = new URLSearchParams();
+    writeFilters(q, { where: filters.where });
+    const text = q.toString();
+    return text ? `${href}?${text}` : href;
+  };
   const tabs: Array<{ id: ToilProjectTab; href: string; label: string; title?: string; count?: { n: number; label: string } }> = TOIL_PROJECT_TABS.map((t) => ({
     id: t.id,
     href: t.href(toilProject.name),
@@ -164,10 +174,10 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, items =
       </div>
       {tab === 'board' && boardView && (
         <nav className="board-views" aria-label="Board views">
-          <a href={boardHref(toilProject.name)} aria-current={boardView === 'board' ? 'page' : undefined}>
+          <a href={carry(boardHref(toilProject.name))} aria-current={boardView === 'board' ? 'page' : undefined}>
             Board
           </a>
-          <a href={commandCenterHref(toilProject.name)} aria-current={boardView === 'readiness' ? 'page' : undefined} title={plain.title('Readiness (Command Center)')}>
+          <a href={carry(commandCenterHref(toilProject.name))} aria-current={boardView === 'readiness' ? 'page' : undefined} title={plain.title('Readiness (Command Center)')}>
             {pw('Readiness (Command Center)', 'Ready to start?')}
           </a>
         </nav>

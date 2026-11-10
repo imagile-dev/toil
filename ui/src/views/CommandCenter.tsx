@@ -20,8 +20,11 @@ import { ItemLink } from '../components/items.tsx';
 import { Card, CardGrid, Cluster, DataTable, Stack, type Column } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
 import { Help } from '../components/help.tsx';
+import { FilterBar } from '../components/filter-bar.tsx';
 import { VerdictChip, WhyNot } from '../components/readiness.tsx';
 import { useData } from '../data.ts';
+import { toWhere } from '../filters.ts';
+import { useAddress, useWorkInsights } from '../insights-data.ts';
 import { dateTime, toilProjectHref, personText, sourceLabel, STATUS_CATEGORY_LABEL } from '../format.ts';
 import { usePlain } from '../plain-words.ts';
 import { readinessAll, tally, VERDICT_LABEL, VERDICT_PLAIN, VERDICTS, type Readiness, type Verdict } from '../model/readiness.ts';
@@ -65,10 +68,15 @@ export function CommandCenter() {
   const [started, setStarted] = useState<{ ok: boolean; text: string } | null>(null);
   const [starting, setStarting] = useState(false);
   const settings = toilProject.readiness;
+  // The shared filter bar (#567), the Board's own: "Fix version: 2.4" narrows this list, its tally and its plan alike.
+  const ins = useWorkInsights();
+  const { filters } = useAddress();
   const lines = useMemo<Line[]>(() => {
     const all = readinessAll(toilProject.items, settings);
-    return toilProject.items.map((item, i) => ({ item, readiness: all[i]! }));
-  }, [toilProject, settings]);
+    const where = toWhere(filters);
+    const allowed = where.length === 0 ? null : new Set(ins.narrow(where).items.map((i) => i.id));
+    return toilProject.items.flatMap((item, i) => (allowed && !allowed.has(item.id) ? [] : [{ item, readiness: all[i]! }]));
+  }, [toilProject, settings, ins, filters]);
   const [verdict, setVerdict] = useState<'all' | Verdict>('all');
   const [status, setStatus] = useState('open');
   const [type, setType] = useState('all');
@@ -112,6 +120,8 @@ export function CommandCenter() {
           </p>
         ))}
       </div>
+
+      <FilterBar period={false} />
 
       <CardGrid as="ul" min="sm" className="team-strip readiness-tally" aria-label="Open items by verdict">
         {VERDICTS.map((v) => (

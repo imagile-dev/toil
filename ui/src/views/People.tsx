@@ -29,6 +29,10 @@ import './people.css';
 import { AgentAssignments } from '../assign/views.tsx';
 import { failedOutcome, OutcomeLine, outcomeOf, type Outcome } from './settings/parts.tsx';
 import { MapIdentity, SaveToRepo } from './people-map.tsx';
+import { DimensionPicker } from '../components/dimension-picker.tsx';import { useAddress, useWorkInsights } from '../insights-data.ts';
+import { PERSON_MIX_DIMENSIONS } from '../model/lanes.ts';
+import { PersonMix } from './person-mix.tsx';
+import './lanes.css';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const calendarDays = (n: number) => `${round1(n)} ${round1(n) === 1 ? 'day' : 'days'}`;
@@ -44,6 +48,12 @@ export function People() {
     [toilProject, now],
   );
   const calls = [...toilProject.calls.toilProject, ...toilProject.calls.work, ...toilProject.calls.prs];
+  const ins = useWorkInsights();
+  const { query, go } = useAddress();
+  // One menu for every card: what kind of work each person's open work is sorted by. It lives in the address, so a link shows the same bars.
+  const asked = query.get('mix');
+  const mixBy = PERSON_MIX_DIMENSIONS.find((d) => d === asked) ?? 'category';
+  const teams = useMemo(() => peopleByTeam(view.people, toilProject.people ?? []), [view.people, toilProject.people]);
   const humans = view.people.filter((c) => c.who.kind === 'human').length;
   const agents = view.people.length - humans;
 
@@ -85,13 +95,37 @@ export function People() {
             {alignments && <Help topic="alignments" />}
           </div>
           <SaveToRepo />
-          <CardGrid min="md" className="people-cards">
-            {view.people.map((c) => (
-              <li key={c.who.key}>
-                <PersonCardView card={c} limit={view.wipLimit} />
-              </li>
-            ))}
-          </CardGrid>
+          <div className="people-tools">
+            <DimensionPicker label="Show each person's work by" value={mixBy} options={PERSON_MIX_DIMENSIONS} ins={ins} onChange={(spec) => go((q) => (spec === null || spec === 'category' ? q.delete('mix') : q.set('mix', spec)))} />
+            <Help topic="people-mix" />
+          </div>
+          {teams ? (
+            teams.map((t) => (
+              <section key={t.name} className="people-team" aria-labelledby={`team-${t.id}`} data-team={t.name}>
+                <h3 id={`team-${t.id}`} className="people-team__head">
+                  {t.name}{' '}
+                  <span className="field">
+                    {count(t.cards.length, 'person', 'people')}, {t.wip} in progress
+                  </span>
+                </h3>
+                <CardGrid min="md" className="people-cards">
+                  {t.cards.map((c) => (
+                    <li key={c.who.key}>
+                      <PersonCardView card={c} limit={view.wipLimit} mixBy={mixBy} />
+                    </li>
+                  ))}
+                </CardGrid>
+              </section>
+            ))
+          ) : (
+            <CardGrid min="md" className="people-cards">
+              {view.people.map((c) => (
+                <li key={c.who.key}>
+                  <PersonCardView card={c} limit={view.wipLimit} mixBy={mixBy} />
+                </li>
+              ))}
+            </CardGrid>
+          )}
         </section>
       )}
 
@@ -132,7 +166,7 @@ export function People() {
           <CardGrid min="md" className="people-cards">
             {view.unmapped.map((c) => (
               <li key={c.who.key}>
-                <PersonCardView card={c} limit={view.wipLimit} />
+                <PersonCardView card={c} limit={view.wipLimit} mixBy={mixBy} />
               </li>
             ))}
           </CardGrid>
@@ -222,7 +256,23 @@ function useAlignments() {
   return wordingOn(theme, choice) ? theme.alignments : undefined;
 }
 
-function PersonCardView({ card, limit }: { card: PersonCard; limit: number | null }) {
+/**
+ * The cards under their team's heading, teams in name order and people in name order inside each, or null when nobody has a
+ * team (today's flat layout). Someone with no team goes last, under "No team". A team's line is its headcount and its work
+ * in progress, the team strip's own figure, and never a comparison between teams or between people.
+ */
+export function peopleByTeam(cards: PersonCard[], entries: Array<{ name: string; team?: string }>): Array<{ id: string; name: string; cards: PersonCard[]; wip: number }> | null {
+  const teamOf = new Map(entries.map((e) => [e.name, e.team ?? null]));
+  const teamed = cards.map((c) => ({ c, team: teamOf.get(c.who.name) ?? null }));
+  if (!teamed.some((t) => t.team !== null)) return null;
+  const names = [...new Set(teamed.map((t) => t.team))].sort((a, b) => (a === null ? 1 : b === null ? -1 : a.localeCompare(b)));
+  return names.map((team, i) => {
+    const mine = teamed.filter((t) => t.team === team).map((t) => t.c).sort((a, b) => a.who.name.localeCompare(b.who.name));
+    return { id: String(i), name: team ?? 'No team', cards: mine, wip: mine.reduce((n, c) => n + c.wipCount, 0) };
+  });
+}
+
+function PersonCardView({ card, limit, mixBy = 'category' }: { card: PersonCard; limit: number | null; mixBy?: string }) {
   const { toilProject } = useData();
   const alignments = useAlignments();
   const { who } = card;
@@ -250,6 +300,7 @@ function PersonCardView({ card, limit }: { card: PersonCard; limit: number | nul
         <p>
           <a href={boardHref(toilProject.name, who.key)}>{who.name}'s items on the board</a>
         </p>
+        <PersonMix name={who.name} dimension={mixBy} />
 
         <h4>
           In progress <span className="field">({card.wipCount}{limit !== null ? ` of ${limit}` : ''})</span>

@@ -13,7 +13,7 @@
  */
 
 import { Fragment } from 'react';
-import { StackedBars, StackedColumns, ChartFrame } from '../../components/chartkit/index.ts';
+import { StackedBars, StackedColumns } from '../../components/chartkit/index.ts';
 import { CategoryName } from '../../components/category-chip.tsx';
 import { Choice } from '../../components/choice.tsx';
 import { FilterBar } from '../../components/filter-bar.tsx';
@@ -26,7 +26,8 @@ import { useAddress, useWorkInsights } from '../../insights-data.ts';
 import { mixSources, mixOverview, mixSentence, inNameOrder, isPeopleDimension, labelOfDimension, MIX_UNITS, periodWords, SPLIT_MENU, type MixUnit } from '../../model/work-insights.ts';
 import { useWords } from '../../theme-context.ts';
 import type { Dashboard, Headline } from './dashboard.ts';
-import { DashboardHead, Door, useDrill, useFilterFromCell, useSourceLine } from './shared.tsx';
+import { ChartPanel, DashboardHead, Door, useDrill, useFilterFromCell, useSourceLine } from './shared.tsx';
+import { plainDates } from './format.ts';
 
 const TIME = 'time';
 
@@ -91,7 +92,9 @@ export function MixView() {
       <FilterBar />
       <div className="chart-page__grid">
         <div className="chart-page__main">
-          <ChartFrame
+          <ChartPanel
+            main
+            questions={["Why did 'Keep the lights on' work rise?", 'What changed most this period?']}
             title={title}
             result={result}
             source={source}
@@ -102,14 +105,14 @@ export function MixView() {
             onFilter={onFilter}
           >
             {(view) => (split === TIME ? <StackedColumns view={view} /> : <StackedBars view={view} />)}
-          </ChartFrame>
+          </ChartPanel>
           {split === TIME && raw.notable.length > 0 && (
             <section className="chart-changes" aria-label={words('charts.changes')}>
               <h3>{words('charts.changes')}</h3>
               <ul>
                 {raw.notable.map((n) => (
                   <li key={`${n.kind}-${n.row}-${n.column}`}>
-                    <Door drill={{ kind: 'cell', spec, row: n.row, column: n.column }}>{n.message}</Door>
+                    <Door drill={{ kind: 'cell', spec, row: n.row, column: n.column }}>{plainDates(n.message)}</Door>
                   </li>
                 ))}
               </ul>

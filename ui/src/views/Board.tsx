@@ -40,11 +40,18 @@ import { useId, useRef, useState, type KeyboardEvent, type MouseEvent } from 're
 import { createPortal } from 'react-dom';
 import { Button, Header, Menu, MenuItem, MenuSection, Popover } from 'react-aria-components';
 import { Avatar, InsightChips, StatusChip } from '../components/bits.tsx';
+import { CategoryChip, hasCategory } from '../components/category-chip.tsx';
+import { MixBar } from '../components/chartkit/index.ts';
 import { ProposalCard } from '../components/proposal.tsx';
 import { AssignModal } from '../assign/views.tsx';
 import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, estimateText, itemHref, peekHref, personText, shortKey, sourceLabel } from '../format.ts';
 import { canMove, columns, proposeMove } from '../model/board.ts';
+import { flows } from '../model/flow.ts';
+import { boardLanes, mixOfItems, type Lane } from '../model/lanes.ts';
+import { useWorkInsights } from '../insights-data.ts';
+import { labelOfDimension } from '../model/work-insights.ts';
+import './lanes.css';
 import { flagsAttention, insights, type Prepared } from '../model/insights.ts';
 import type { Proposal } from '../proposal.ts';
 import { ariaKeys, matches } from '../shortcuts.ts';
@@ -71,6 +78,19 @@ class MouseSensor extends PointerSensor {
 /** How many cards a column shows before "Show N more": finished work piles up fastest, so it shows the fewest. */
 const COLUMN_LIMIT: Record<string, number> = { DONE: 10 };
 
+/**
+ * Ids under swimlanes. A card that holds several values (two components) sits in several lanes, so a draggable's id says
+ * which lane it was picked up in, and a column's says which lane it is in; ungrouped, both are the plain ids they always were.
+ */
+const SEP = '';
+export const dragId = (lane: string, item: string) => (lane ? `${lane}${SEP}${item}` : item);
+export const dropId = (lane: string, category: string) => (lane ? `${lane}${SEP}${category}` : category);
+const parseId = (id: UniqueIdentifier): { lane: string; rest: string } => {
+  const s = String(id);
+  const at = s.indexOf(SEP);
+  return at < 0 ? { lane: '', rest: s } : { lane: s.slice(0, at), rest: s.slice(at + 1) };
+};
+
 /** A hold this long picks a card up by touch; moving further than the tolerance first is a scroll. */
 const TOUCH_HOLD = { delay: 250, tolerance: 8 };
 /** A touch drag that ends nearer than this to where it began was a long press, which opens the menu. */
@@ -81,8 +101,9 @@ const PRESS_SLOP = 10;
  * and why. The same rule as proposeMove: its own column, or Unknown, which
  * no tracker has a status for, proposes nothing.
  */
-export function dropVerdict(item: WorkItem, to: StatusCategory | null): { ok: boolean; text: string } {
+export function dropVerdict(item: WorkItem, to: StatusCategory | null, sameLane = true): { ok: boolean; text: string } {
   if (!to) return { ok: false, text: 'Not over a column' };
+  if (!sameLane) return { ok: false, text: 'Another lane: a lane is a grouping, nothing to change' };
   if (to === item.statusCategory) return { ok: false, text: `Already in ${label(to)}: nothing to propose` };
   if (to === 'UNKNOWN') return { ok: false, text: 'Unknown is no status to move to' };
   return { ok: true, text: `Drop to propose: ${label(to)}` };
@@ -107,6 +128,7 @@ function CardFace({ item, ids }: { item: WorkItem; ids?: string }) {
   const { Card: Skin } = useSkins();
   const key = shortKey(item);
   const found = insights(item, prepared);
+  const ins = useWorkInsights();
   return (
     <Skin item={item}>
       <div className="card-top">
@@ -129,6 +151,8 @@ function CardFace({ item, ids }: { item: WorkItem; ids?: string }) {
           </span>
         )}
         <StatusChip category={item.statusCategory} status={item.status} inColumn />
+        {/* The category, display-only and small; an Unsure item shows none, to keep cards quiet. */}
+        {hasCategory(ins, item.id) && <CategoryChip ins={ins} itemId={item.id} compact skipTab />}
       </div>
       <p id={ids && `${ids}-title`} className="card-title">
         {item.title}
@@ -150,9 +174,10 @@ function CardFace({ item, ids }: { item: WorkItem; ids?: string }) {
 
 /** The copy of the card that follows the pointer, saying what a drop where it is would do. */
 function DragCard({ item }: { item: WorkItem }) {
-  const { over } = useDndContext();
+  const { over, active } = useDndContext();
   const { insights: prepared } = useDerived();
-  const verdict = dropVerdict(item, (over?.id as StatusCategory | undefined) ?? null);
+  const target = over ? parseId(over.id) : null;
+  const verdict = dropVerdict(item, (target?.rest as StatusCategory | undefined) ?? null, !target || !active || target.lane === parseId(active.id).lane);
   return (
     <div className={`card card--${item.statusCategory.toLowerCase()}${attentionClass(item, prepared)} card--overlay`} data-drag-overlay aria-hidden="true">
       <div className="card-grip">
@@ -201,24 +226,26 @@ function Ghost({ item, move, onUndo, onShow }: { item: WorkItem; move: Move; onU
  * lands just under the column's heading, where nothing but that column is.
  */
 export const columnSteps =
-  (order: StatusCategory[], home: (id: UniqueIdentifier) => StatusCategory | undefined): KeyboardCoordinateGetter =>
+  (order: StatusCategory[], home: (id: UniqueIdentifier) => StatusCategory | undefined, laneOf: (id: UniqueIdentifier) => string = () => ''): KeyboardCoordinateGetter =>
   (event, { active, context: { collisionRect, droppableRects, over } }) => {
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.code];
     if (!step || !collisionRect) return undefined;
     event.preventDefault();
-    const at = order.indexOf((over?.id as StatusCategory | undefined) ?? home(active)!);
+    // A picked-up card steps through its own lane's columns; the lanes are for looking, not for moving between.
+    const lane = laneOf(active);
+    const at = order.indexOf(((over ? parseId(over.id).rest : undefined) as StatusCategory | undefined) ?? home(active)!);
     const next = order[Math.min(order.length - 1, Math.max(0, at + step))];
-    const rect = next ? droppableRects.get(next) : undefined;
+    const rect = next ? droppableRects.get(dropId(lane, next)) : undefined;
     if (!rect) return undefined;
     return { x: rect.left + Math.max(0, (rect.width - collisionRect.width) / 2), y: rect.top + 48 };
   };
 
-function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem; others: StatusCategory[]; onMove: (to: StatusCategory) => void; menuOpen: boolean; setMenuOpen: (open: boolean) => void }) {
+function Card({ item, lane, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem; lane: string; others: StatusCategory[]; onMove: (to: StatusCategory) => void; menuOpen: boolean; setMenuOpen: (open: boolean) => void }) {
   const { toilProject, assignments } = useData();
   const { insights: prepared } = useDerived();
   // Decided up front, by the rule the proposal uses: a card that can't be moved isn't draggable, and says why.
   const can = canMove(item);
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: item.id, disabled: !can.ok, attributes: { role: 'group', ...(can.ok ? { roleDescription: 'draggable card' } : {}) } });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: dragId(lane, item.id), disabled: !can.ok, attributes: { role: 'group', ...(can.ok ? { roleDescription: 'draggable card' } : {}) } });
   const [assigning, setAssigning] = useState(false);
   const grip = useRef<HTMLDivElement | null>(null);
   const ids = useId();
@@ -313,14 +340,15 @@ function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem;
   );
 }
 
-function Column({ category, items, all, onMove, menuFor, setMenuFor, ghosts, onUndo, onShow }: { category: StatusCategory; items: WorkItem[]; all: StatusCategory[]; onMove: (item: WorkItem, to: StatusCategory) => void; menuFor: string | null; setMenuFor: (id: string | null) => void; ghosts: { item: WorkItem; move: Move }[]; onUndo: (move: Move) => void; onShow: (move: Move) => void }) {
-  const { setNodeRef, isOver, active } = useDroppable({ id: category });
+function Column({ category, lane, items, all, onMove, menuFor, setMenuFor, ghosts, onUndo, onShow }: { category: StatusCategory; lane: string; items: WorkItem[]; all: StatusCategory[]; onMove: (item: WorkItem, to: StatusCategory) => void; menuFor: string | null; setMenuFor: (id: string | null) => void; ghosts: { item: WorkItem; move: Move }[]; onUndo: (move: Move) => void; onShow: (move: Move) => void }) {
+  const { setNodeRef, isOver, active } = useDroppable({ id: dropId(lane, category) });
   const { byId } = useData();
   const words = useWords();
-  const id = `col-${category}`;
-  const dragged = active ? byId.get(String(active.id)) : undefined;
-  // Under the pointer: a target, or refused (its own column), whose reason the copy under the pointer gives.
-  const drop = isOver && dragged ? (dropVerdict(dragged, category).ok ? ' column--over' : ' column--refused') : '';
+  const ids = useId();
+  const id = `col-${ids}`;
+  const dragged = active ? byId.get(parseId(active.id).rest) : undefined;
+  // Under the pointer: a target, or refused (its own column, or another lane), whose reason the copy under the pointer gives.
+  const drop = isOver && dragged ? (dropVerdict(dragged, category, !active || parseId(active.id).lane === lane).ok ? ' column--over' : ' column--refused') : '';
   // A long column is a wall: the first cards show, the rest are one press away, and the count in the heading stays the whole.
   const [more, setMore] = useState(false);
   const limit = COLUMN_LIMIT[category] ?? 25;
@@ -340,6 +368,7 @@ function Column({ category, items, all, onMove, menuFor, setMenuFor, ghosts, onU
             <Card
               key={item.id}
               item={item}
+              lane={lane}
               others={all.filter((c) => c !== category && c !== 'UNKNOWN')}
               onMove={(to) => onMove(item, to)}
               menuOpen={menuFor === item.id}
@@ -358,23 +387,60 @@ function Column({ category, items, all, onMove, menuFor, setMenuFor, ghosts, onU
   );
 }
 
-export function Board({ items }: { items: WorkItem[] }) {
+/** The lane's header: its name and count as the button that folds it, and, when the grouping isn't by category, the mix of what is in it. */
+function LaneHead({ lane, open, onToggle, mix, id }: { lane: Lane; open: boolean; onToggle: () => void; mix: ReturnType<typeof mixOfItems>; id: string }) {
+  const ins = useWorkInsights();
+  return (
+    <div className="lane__head">
+      <h3 id={id}>
+        <button type="button" className="lane__toggle" aria-expanded={open} aria-controls={`${id}-body`} onClick={onToggle} data-lane-toggle={lane.key}>
+          <span className="lane__chevron" aria-hidden="true">
+            {open ? '▾' : '▸'}
+          </span>
+          <span className="lane__name">{lane.label}</span>{' '}
+          <span className="count" data-lane-count="">
+            {lane.items.length}
+          </span>
+        </button>
+      </h3>
+      {mix && (
+        <span className="lane__mix">
+          <span className="lane__mixlabel" aria-hidden="true">
+            Mix by category
+          </span>
+          <MixBar result={mix} scheme={{ categories: ins.scheme.categories }} label={`${lane.label}: mix by category`} />
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The Board. Grouped (`group` names a dimension), it is one lane per value over the same status columns: each lane keeps
+ * its own "Show N more" limits, folds away, and takes a drag only within itself, because a lane is a grouping and not a
+ * status. Ungrouped it is the single board it has always been, with no lane around it.
+ */
+export function Board({ items, group = null }: { items: WorkItem[]; group?: string | null }) {
   const { toilProject, byId } = useData();
+  const ins = useWorkInsights();
   const [moves, setMoves] = useState<Move[]>([]);
   const [said, setSaid] = useState('');
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [dragging, setDragging] = useState<WorkItem | null>(null);
+  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
+  const [allLanes, setAllLanes] = useState(false);
   const boardRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
+  const laneSet = group ? boardLanes(ins, items, group, allLanes) : null;
   const cols = columns(items);
   const cats = cols.map((c) => c.category);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: TOUCH_HOLD }),
-    useSensor(KeyboardSensor, { coordinateGetter: columnSteps(cats, (id) => byId.get(String(id))?.statusCategory) }),
+    useSensor(KeyboardSensor, { coordinateGetter: columnSteps(cats, (id) => byId.get(parseId(id).rest)?.statusCategory, (id) => parseId(id).lane) }),
   );
   const keyOf = (id: unknown) => {
-    const item = byId.get(String(id));
+    const item = byId.get(parseId(id as UniqueIdentifier).rest);
     return item ? shortKey(item) : String(id);
   };
 
@@ -403,32 +469,67 @@ export function Board({ items }: { items: WorkItem[] }) {
 
   const onDragEnd = (e: DragEndEvent) => {
     setDragging(null);
-    const item = byId.get(String(e.active.id));
+    const picked = parseId(e.active.id);
+    const item = byId.get(picked.rest);
     if (!item) return;
     // A finger held still and lifted was a long press: iOS sends no contextmenu, so this is its menu.
     if ('touches' in e.activatorEvent && Math.hypot(e.delta.x, e.delta.y) < PRESS_SLOP) {
       setMenuFor(item.id);
       return;
     }
-    if (e.over) propose(item, e.over.id as StatusCategory);
+    if (!e.over) return;
+    const target = parseId(e.over.id);
+    if (target.lane !== picked.lane) {
+      setSaid(`${shortKey(item)} was dropped in another lane. A lane is a grouping, not a status: nothing was changed and nothing proposed.`);
+      return;
+    }
+    propose(item, target.rest as StatusCategory);
   };
 
   const announcements: Announcements = {
     onDragStart: ({ active }) => `Picked up ${keyOf(active.id)}. Moving it proposes a change; nothing is changed.`,
-    onDragOver: ({ active, over }) => (over ? `${keyOf(active.id)} is over ${label(over.id as StatusCategory)}.` : `${keyOf(active.id)} is not over a column.`),
+    onDragOver: ({ active, over }) =>
+      over ? `${keyOf(active.id)} is over ${label(parseId(over.id).rest as StatusCategory)}${parseId(over.id).lane === parseId(active.id).lane ? '' : ' in another lane, where a drop changes nothing'}.` : `${keyOf(active.id)} is not over a column.`,
     onDragEnd: ({ active, over }) => {
       if (!over) return `Dropped ${keyOf(active.id)} outside the columns. Nothing proposed.`;
-      const home = byId.get(String(active.id))?.statusCategory === over.id;
-      return `Dropped ${keyOf(active.id)} on ${label(over.id as StatusCategory)}${home ? ', where it already is. Nothing proposed.' : '.'}`;
+      if (parseId(over.id).lane !== parseId(active.id).lane) return `Dropped ${keyOf(active.id)} in another lane. Nothing was changed.`;
+      const home = byId.get(parseId(active.id).rest)?.statusCategory === parseId(over.id).rest;
+      return `Dropped ${keyOf(active.id)} on ${label(parseId(over.id).rest as StatusCategory)}${home ? ', where it already is. Nothing proposed.' : '.'}`;
     },
     onDragCancel: ({ active }) => `Stopped dragging ${keyOf(active.id)}. Nothing proposed.`,
+  };
+
+  const columnsOf = (lane: string, laneItems: WorkItem[]) => {
+    const here = new Set(laneItems.map((i) => i.id));
+    return (
+      <div ref={lane ? undefined : boardRef} className="board" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(15rem, 1fr))` }}>
+        {cats.map((category) => (
+          <Column
+            key={category}
+            category={category}
+            lane={lane}
+            items={laneItems.filter((i) => flows(i) && i.statusCategory === category)}
+            all={cats}
+            onMove={propose}
+            menuFor={menuFor}
+            setMenuFor={setMenuFor}
+            ghosts={moves.flatMap((move) => {
+              const item = move.to === category && here.has(move.proposal.item) ? byId.get(move.proposal.item) : undefined;
+              return item ? [{ item, move }] : [];
+            })}
+            onUndo={undo}
+            onShow={show}
+          />
+        ))}
+      </div>
+    );
   };
 
   return (
     <>
       <DndContext
         sensors={sensors}
-        onDragStart={(e) => setDragging(byId.get(String(e.active.id)) ?? null)}
+        onDragStart={(e) => setDragging(byId.get(parseId(e.active.id).rest) ?? null)}
         onDragCancel={() => setDragging(null)}
         onDragEnd={onDragEnd}
         accessibility={{
@@ -438,25 +539,50 @@ export function Board({ items }: { items: WorkItem[] }) {
           },
         }}
       >
-        <div ref={boardRef} className="board" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(15rem, 1fr))` }}>
-          {cols.map((c) => (
-            <Column
-              key={c.category}
-              category={c.category}
-              items={c.items}
-              all={cats}
-              onMove={propose}
-              menuFor={menuFor}
-              setMenuFor={setMenuFor}
-              ghosts={moves.flatMap((move) => {
-                const item = move.to === c.category ? byId.get(move.proposal.item) : undefined;
-                return item ? [{ item, move }] : [];
-              })}
-              onUndo={undo}
-              onShow={show}
-            />
-          ))}
-        </div>
+        {group && !laneSet && (
+          <p className="note" data-lanes-unread="">
+            {labelOfDimension(group)} wasn't read for this Toil project, so the board can't be grouped by it yet. It is shown ungrouped.
+          </p>
+        )}
+        {laneSet ? (
+          <div ref={boardRef} className="lanes" data-lanes={laneSet.spec}>
+            {laneSet.lanes.map((lane) => {
+              const open = !folded.has(lane.key);
+              const id = `lane-${lane.key.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+              const mix = laneSet.spec === 'category' ? null : mixOfItems(ins, lane.items.map((i) => i.id), 'category');
+              return (
+                <section key={lane.key} className="lane" aria-labelledby={id} data-lane={lane.key}>
+                  <LaneHead
+                    lane={lane}
+                    open={open}
+                    id={id}
+                    mix={mix}
+                    onToggle={() =>
+                      setFolded((cur) => {
+                        const next = new Set(cur);
+                        if (next.has(lane.key)) next.delete(lane.key);
+                        else next.add(lane.key);
+                        return next;
+                      })
+                    }
+                  />
+                  {open && (
+                    <div id={`${id}-body`} className="lane__body">
+                      {columnsOf(lane.key, lane.items)}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+            {laneSet.foldable > 0 && (
+              <Button className="btn btn--small lanes__all" onPress={() => setAllLanes((v) => !v)} data-show-all-lanes="">
+                {allLanes ? 'Fold the small lanes into Other' : `Show all lanes (${laneSet.foldable} more)`}
+              </Button>
+            )}
+          </div>
+        ) : (
+          columnsOf('', items)
+        )}
         {/* In a portal, so no scrolling or transformed box around the board can clip or offset it. No drop animation: the
             card doesn't move on a drop, so flying the copy back to it would read as refused; the ghost says where it went. */}
         {createPortal(<DragOverlay dropAnimation={null}>{dragging ? <DragCard item={dragging} /> : null}</DragOverlay>, document.body)}

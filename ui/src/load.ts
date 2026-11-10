@@ -32,6 +32,7 @@ import { AUTHOR_KINDS, mapOwi, OVERRIDABLE } from './owi.ts';
 import { githubRepos, type GithubRepo } from './github-repos.ts';
 import { resolveTargets, targetsOf, valuesOf } from './targets.ts';
 import type { ToilProjectAnalyze } from '../../src/core/brief/prompt.ts';
+import { readSavedView, type SavedView } from '../../src/core/insights/index.ts';
 import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, type Envelope, type Execute, type WorkItem } from './toil.ts';
 
 /**
@@ -151,6 +152,12 @@ export interface ToilProjectData extends ToilProjectSummary {
   wipLimit: number | null;
   /** How Analyze briefs it (#494): the toil project's analyze key as written, null for the standard. */
   analyze: ToilProjectAnalyze | null;
+  /** The classification the toil project names (`classify.scheme`), for the charts' categories; null when it names none. */
+  classifyScheme?: string | null;
+  /** The extra dimensions the toil project names (`dimensions`), by name: what a chart may split by beyond the built-in ones. */
+  dimensionNames?: string[];
+  /** The views the team saved in the toil project (`views`), each as it passed toil's own check; a view that didn't is left out. */
+  views?: Record<string, SavedView>;
   /** Where the toil project came from, for labelling its focus: its file, whose it is, and whether the reader adopted it. */
   origin: { source: string; file: string; adopted: boolean } | null;
   /** What couldn't be read from the toil project's people, in words the People view shows. */
@@ -358,6 +365,17 @@ export function jiraMoreFields(toilProject: Rec, section: Rec): string[] {
   const target = isRec(classify.targets) && isRec(classify.targets.jira) ? classify.targets.jira : {};
   if (typeof target.field === 'string') asked.push(typeof fields[target.field] === 'string' ? (fields[target.field] as string) : target.field);
   return [...new Set(asked.filter((f) => JIRA_FIELD_ID.test(f)))];
+}
+
+/** The toil project's `views`, each checked by toil's own reader; one that fails it is left out, never half used. */
+export function savedViewsOf(toilProject: Rec): Record<string, SavedView> {
+  const out: Record<string, SavedView> = {};
+  if (!isRec(toilProject.views)) return out;
+  for (const [name, raw] of Object.entries(toilProject.views)) {
+    const read = readSavedView(raw, `views.${name}`);
+    if (read.view) out[name] = read.view;
+  }
+  return out;
 }
 
 /** The toil project's `dimensions` as the mapper takes them: a name to the field that holds it per area. */
@@ -760,9 +778,11 @@ export async function loadToilProject(execute: Execute, name: string, options: L
 
   const team = readPeople(toilProject);
   const analyze = isRec(toilProject.analyze) ? (toilProject.analyze as ToilProjectAnalyze) : null;
+  const classifyScheme = isRec(toilProject.classify) && typeof toilProject.classify.scheme === 'string' ? toilProject.classify.scheme : null;
+  const views = savedViewsOf(toilProject);
   const shown = show!.data as Rec;
   const origin = typeof shown.source === 'string' && typeof shown.file === 'string' ? { source: shown.source, file: shown.file, adopted: shown.adopted === true } : null;
-  return { ...summary, items, pullRequests, codeowners, prNotes: [...new Set(prNotes)], readTargets: [...readState.values()], changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, analyze, origin, peopleNotes: team.notes, readiness: readReadiness(toilProject), calls };
+  return { ...summary, items, pullRequests, codeowners, prNotes: [...new Set(prNotes)], readTargets: [...readState.values()], changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, analyze, classifyScheme, dimensionNames: Object.keys(dimensionsOf(toilProject) ?? {}), ...(Object.keys(views).length > 0 ? { views } : {}), origin, peopleNotes: team.notes, readiness: readReadiness(toilProject), calls };
 }
 
 /** A Toil project put away with `toil projects archive` (#561): all the list needs of it. */

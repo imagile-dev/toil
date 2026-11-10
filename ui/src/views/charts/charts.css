@@ -34,3 +34,52 @@
 .release__mix { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
 .release__mix-label { color: var(--muted); font-size: 0.875rem; }
 .release__breakdown > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+
+/* A heading takes focus when a page opens, so a screen reader starts at it; that focus draws no box, as it isn't a control. */
+.chart-page__title, .charts > h1 { width: fit-content; max-width: 100%; }
+.chart-page__title:focus, .charts > h1:focus { outline: none; }
+
+.release__mix h4 { margin: 0; font-size: 0.875rem; font-weight: 600; color: var(--muted); }
+.release__mix { align-items: flex-start; }
+
+.chart-panel { display: grid; gap: 0.4rem; min-width: 0; }
+.chart-panel__said { margin: 0; }
+.chart-asks { display: flex; flex-wrap: wrap; gap: 0.4rem; list-style: none; margin: 0; padding: 0; }
+.chart-asks__chip { border-radius: 999px; font-weight: 400; color: var(--muted); background: none; }
+.chart-asks__chip:hover { color: var(--ink); }
+
+.menu-item[data-disabled] { color: var(--muted); cursor: default; }
+
+.sprint-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; font-size: 0.9375rem; }
+.sprint-lines li { overflow-wrap: anywhere; }
+
+.where-side { display: grid; gap: 1rem; align-content: start; }
+.where-figure h3, .where-mixes h3 { margin: 0 0 0.3rem; font-size: 0.9375rem; }
+.where-figure p { margin: 0; }
+.where-figure b { font-family: var(--font-display); font-size: 1.25em; }
+.where-spark { display: block; width: 100%; max-width: 9rem; height: 1.75rem; margin-top: 0.3rem; overflow: visible; }
+.where-spark polyline { stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.where-mixes ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.where-mixes li { display: grid; gap: 0.15rem; min-width: 0; }
+.where-mixes__name { font-size: 0.875rem; overflow-wrap: anywhere; }
+
+.flow-fold { border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); min-width: 0; }
+.flow-fold > summary { cursor: pointer; padding: 0.6rem 0.9rem; min-height: 44px; box-sizing: border-box; display: flex; align-items: center; font-family: var(--font-display); font-weight: 700; font-size: 1.0625rem; }
+.flow-fold__body { padding: 0 0.9rem 0.9rem; min-width: 0; display: grid; gap: 0.5rem; }
+.flow-key { margin: 0; }
+
+
+.charts-saved { margin-top: 1.5rem; }
+.charts-saved > h2 { margin: 0; font-size: 1.125rem; }
+.explore-save { display: grid; gap: 0.5rem; justify-items: start; }
+.explore-save__form { display: grid; gap: 0.5rem; max-width: 28rem; width: 100%; }
+.explore-save__form label { display: grid; gap: 0.25rem; }
+.explore-save__buttons { display: flex; gap: 0.5rem; }
+
+/* The chart menu sits in the chart's heading row with its other controls, not at a card's corner. */
+.ck-chart__head .card-menu__trigger { position: static; flex: none; }
+.chart-panel { max-width: 62rem; }
+.ck-p85 line { stroke: var(--ink); stroke-width: 2; }
+.ck-p85 .ck-p85__whisker { stroke-width: 1; stroke-dasharray: 3 3; }
+.ck-mix__key li { flex-wrap: nowrap; white-space: nowrap; }
+.ck-mix__key li > span { display: inline; }

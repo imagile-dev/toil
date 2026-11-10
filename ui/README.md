@@ -370,6 +370,29 @@ the command the proposal shows, and the card stays where its tracker says. Under
 stories with their pull requests, builds and deployments, then the builds and
 deployments themselves.
 
+The board and **Ready to start?** share the Charts tab's filter bar (without its period), so "Fix version: 2.4, Category: Keep
+the lights on" narrows the cards, each column's count, the lanes and the tables under the board; the Unsure share on Work mix
+opens the board filtered to the items nobody has categorised (`?category=none`). The filters live in the address and carry from one
+board view to the other. **Group by** turns the board into swimlanes (`?group=parent:Epic`): one lane per value of the chosen
+dimension over the same status columns, the epic first in the menu, then fix version, team, category, component, assignee and
+sprint. The four biggest lanes show, the rest fold into **Other** until **Show all lanes** opens them, and the lane with no
+value (No epic) comes last; people and squads are never folded and run in name order. Each lane has its count, the mix of its
+categories as one bar, and a button that folds it; each keeps the column limits ("Show N more"). A card that holds several
+values (two components) is in each lane. A lane is for looking, not for moving: dragging a card to another lane changes
+nothing, and says so. A dimension the read never fetched is listed in the menu as "not read yet".
+
+Each card shows its category as a small chip beside the status when it has one (an Unsure item shows none, to keep cards
+quiet); hovering it gives the short form ("KTLO"), the definition and how it was decided. The same chip is in the item's header
+and in the item drawer, display-only for now.
+
+### Splitting the numbers
+
+Three of the Summary's numbers can be split. In the full briefing's numbers, **Finished**, **Time to finish** and **Work getting
+old** open a chart, and **Split by** cuts it by category, component, team, fix version or the epic: Finished as stacked columns
+by week, Time to finish as a median with its 85th percentile for each value, Work getting old as the median and the 85th percentile
+side by side. Unsplit, each chart is what it always was. Each segment opens the items behind it, and **Open in Charts** carries the
+same split to Explore. A split by team is in name order, never sorted by speed.
+
 ## Insights
 
 The board's cards and its **Needs attention** flag and the flow charts mark
@@ -474,11 +497,20 @@ It shows what is on each plate and never scores anyone: no ranking, no productiv
 figure, no person-to-person comparison and no line or commit counts. Flow metrics
 stay team-level, in the pull requests view.
 
+### The mix of open work
+
+Each card carries one bar: the mix of that person's open work, by category to start. It is one bar with no score, no percentage
+beside the person and no ordering of people by it; cards stay in name order. One menu above the cards, "Show each person's work
+by", changes the dimension for all of them (category, fix version, the epic or component); it is in the address
+(`?mix=release`). Hovering a segment names the value and its count, and pressing it opens those items. A person with no open
+work has no bar, and a dimension the read never fetched is a dash. When people have a team in the Toil project's `people`, the
+cards sit under their team's heading, teams and people both in name order, with the team's headcount and work in progress.
+
 ## Charts
 
 The **Charts** tab (`/charts`) is a list of dashboards, each one card with its one headline in a sentence, worked out from the
-same data as the dashboard it opens. A headline that can't be known is a dash with its reason, never 0. Two dashboards so far:
-**Work mix** (`/charts/mix`) and **Releases** (`/charts/releases`). Every dashboard is a module in `ui/src/views/charts/`
+same data as the dashboard it opens. A headline that can't be known is a dash with its reason, never 0. Six dashboards:
+**Work mix** (`/charts/mix`), **Releases**, **Sprints**, **Where we're working**, **Flow** and **Explore**, then the views your team saved. Every dashboard is a module in `ui/src/views/charts/`
 that exports an `id`, a `title`, a `headline` and a `View`, and is added to one list, so a new one changes no other file.
 
 Every figure comes from toil's pure pivot model (`src/core/insights/`), the same one `toil projects pivot` and the agent
@@ -493,6 +525,7 @@ lists what it left out; "Show the figures" shows it as a table.
   lists the items behind it as a table you can sort, each row opening the item. The address says how to find the list
   (`?items=`), not which items, so it stays short. Shift-click adds the segment as a filter.
 - **The team is measured, never the person.** A split by assignee or team is in name order and never sorted by size.
+- **Every chart has a menu** (the ☰ beside its title): **Ask about this chart** opens Ask with the chart's figures attached, **Copy for AI** puts the same figures on the clipboard as Markdown for any assistant, and **Export the figures** downloads them as a CSV file. The download is made by the browser, so it works in the preview too and writes nothing through Toil UI's server. Under each chart sit one or two suggested questions that open Ask with the question filled in. Dates in a chart's notes read as "16 Jul", never as ISO days.
 
 ### Work mix
 
@@ -506,7 +539,23 @@ mix** tile, in the numbers, shows the same mix for the last 90 days and opens th
 
 One section per release that is not out yet, and the latest one that is: how much is in it, how much is done, what was added
 since it started, what is open past its date, and a burn-up toward its date with the scope line. "Added since it started" needs
-the release's start date from the tracker; without one it is a dash that says so, never 0.
+the release's start date from the tracker; without one it is a dash that says so, never 0. The burn-up has "Done" and "Scope" in its legend and a thin rule at the due date.
+
+### Sprints
+
+Velocity first: "Done per sprint: 18 to 25 items over the last five sprints (median 20)", with points when estimates were read. The chart stacks each sprint's done work as committed (in the sprint when it started) and added (joined after it started), with what was carried over to a later sprint and what was not done. **Split by** switches the columns to category (work mix per sprint), planned or unplanned, or team. One line per sprint beneath says what happened to it, each figure a door. Committed and added need each item's sprint history; without it they are dashes.
+
+### Where we're working
+
+A heatmap of days in progress for each epic (or component, fix version, team, label family) by week, each row's category mix beside it, and two figures that open their items: how many epics had work this week against last, and the share of items with no epic above them. Without status history there are no days to count, so it says that and offers the sync, never a table of zeros.
+
+### Flow
+
+How many finish a week and how long they took, then throughput by any split; folded beneath are a cumulative flow diagram, cycle time with its 85th percentile, and the age of work in progress (each bar opens its items). A cumulative flow diagram and cycle time need status history.
+
+### Explore
+
+Pick a measure, a split, an across and filters; the chart's form follows the data (columns over time, stacked bars, a heatmap for two wide dimensions, one bar per value with no across), with small multiples when a split has more than four values. The whole view is in the address, so a link shows the same chart. The Split and Across menus offer every dimension the data holds, including the parent levels it has, label families (a prefix three labels share) and the fields your Toil project names, greyed "not read yet" when unread. **Save to Charts** keeps the view in the Toil project (`projects view set`, the same local write the Settings pages make, with the name and title you type); saved views appear on the Charts list under "Saved by your team". In the preview, which changes nothing, the button says so. Removing a saved view is a delete and stays on the command line.
 
 ## Readiness and the Command Center
 

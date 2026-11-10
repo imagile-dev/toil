@@ -47,6 +47,8 @@ export interface ChartFrameProps extends AssignOptions {
   modes?: boolean;
   defaultMode?: ChartMode;
   legend?: 'swatch' | 'line' | 'none';
+  /** A legend entry for the neutral dashed line a burn-up draws ("Scope"), beside the series. */
+  scopeLabel?: string;
   onDrill?: (cell: CellRef) => void;
   onFilter?: (cell: CellRef) => void;
   actions?: ReactNode;
@@ -71,7 +73,7 @@ export function figureRows(result: PivotResult): { head: string[]; rows: ReactNo
   return { head, rows: [...body, totals] };
 }
 
-export function ChartFrame({ title, result, source, coverage, modes = true, defaultMode = 'count', legend = 'swatch', onDrill, onFilter, actions, unreadAction, scheme, pins, children }: ChartFrameProps) {
+export function ChartFrame({ title, result, source, coverage, modes = true, defaultMode = 'count', legend = 'swatch', scopeLabel, onDrill, onFilter, actions, unreadAction, scheme, pins, children }: ChartFrameProps) {
   const words = useWords();
   const [mode, setMode] = useState<ChartMode>(defaultMode);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
@@ -164,6 +166,16 @@ export function ChartFrame({ title, result, source, coverage, modes = true, defa
                   </li>
                 );
               })}
+              {scopeLabel && (
+                <li className="ck-legend__item">
+                  <span className="ck-legend__static">
+                    <svg className="ck-swatch" width="28" height="22" viewBox="0 0 28 22" aria-hidden="true">
+                      <line className="ck-scope" x1="2" y1="11" x2="26" y2="11" />
+                    </svg>
+                    <span className="ck-legend__name">{scopeLabel}</span>
+                  </span>
+                </li>
+              )}
               {narrowed && (
                 <li>
                   <button type="button" className="btn ck-legend__all" onClick={showAll}>

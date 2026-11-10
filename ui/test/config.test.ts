@@ -160,7 +160,7 @@ describe('the allowlist', () => {
   it('is exactly the config commands the pages need, each one toil has, the changes local writes only', () => {
     const served = new Map([...registry.commands, ...registry.personCommands].map((c) => [c.name, c]));
     expect([...CONFIG_COMMANDS].sort()).toEqual(
-      ['audit list', 'audit stats', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'jira field discover', 'projects add-repo', 'projects analyze set', 'projects archive', 'projects check', 'projects describe', 'projects field', 'projects init', 'projects link', 'projects list', 'projects onboard', 'projects people save', 'projects person', 'projects show', 'projects unarchive', 'projects wip-limit', 'theme list', 'theme set'],
+      ['audit list', 'audit stats', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'jira field discover', 'projects add-repo', 'projects analyze set', 'projects archive', 'projects check', 'projects describe', 'projects field', 'projects init', 'projects link', 'projects list', 'projects onboard', 'projects people save', 'projects person', 'projects show', 'projects unarchive', 'projects view set', 'projects wip-limit', 'theme list', 'theme set'],
     );
     for (const name of CONFIG_READS) expect(served.get(name), name).toMatchObject({ writes: false, writesLocal: false, writesDependOnInput: false });
     // A change writes only toil's own config on this machine, never a service.
