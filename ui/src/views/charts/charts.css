@@ -1,0 +1,36 @@
+/* The Charts tab (#567): the list of dashboards and the two dashboards' pages. Colours and sizes come from the theme's tokens. */
+.charts-cards { margin-top: 1rem; }
+.chart-card { display: grid; gap: 0.4rem; align-content: start; height: 100%; box-sizing: border-box; overflow-wrap: anywhere; }
+.chart-card h2 { margin: 0; font-size: 1.0625rem; }
+.chart-card__headline { margin: 0; font-size: 1.0625rem; font-weight: 600; line-height: 1.35; }
+.chart-card__note { margin: 0; }
+
+.chart-page { display: grid; gap: 0.75rem; min-width: 0; }
+.chart-page__head { display: grid; gap: 0.15rem; }
+.chart-page__crumb { margin: 0.5rem 0 0; font-size: 0.875rem; }
+.chart-page__title { margin: 0; font-size: 1.5rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.chart-lead { margin: 0; font-size: 1.25rem; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.chart-lead__period { font-weight: 400; color: var(--muted); font-size: 1rem; }
+.chart-page__grid { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; }
+.chart-page__main { flex: 3 1 24rem; min-width: 0; display: grid; gap: 0.75rem; }
+.chart-page__side { flex: 1 1 13rem; min-width: 0; padding: 0.75rem 0.9rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
+.chart-page__side h3 { margin: 0 0 0.4rem; font-size: 0.9375rem; display: flex; align-items: center; gap: 0.3rem; }
+.decided { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; }
+.decided li { display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.9375rem; }
+.chart-menus { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: end; }
+.chart-changes { padding: 0.5rem 0.25rem; }
+.chart-changes h3 { margin: 0 0 0.3rem; font-size: 0.9375rem; }
+.chart-changes ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }
+.door { text-decoration-thickness: 1px; }
+.door b { font-family: var(--font-display); font-size: 1.125em; }
+
+.release { border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); min-width: 0; }
+.release > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.9rem; padding: 0.6rem 0.9rem; cursor: pointer; min-height: 44px; box-sizing: border-box; }
+.release__name { font-family: var(--font-display); font-size: 1.125rem; font-weight: 700; }
+.release__when, .release__done { color: var(--muted); font-size: 0.9375rem; }
+.release__body { display: grid; gap: 0.75rem; padding: 0 0.9rem 0.9rem; min-width: 0; }
+.release__figures { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.35rem 1.25rem; }
+.release__figures li { font-size: 0.9375rem; }
+.release__mix { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
+.release__mix-label { color: var(--muted); font-size: 0.875rem; }
+.release__breakdown > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }

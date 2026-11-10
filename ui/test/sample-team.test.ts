@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JIRA_SPLIT_FIELDS, JIRA_STANDARD_FIELDS, jiraSearchFields } from '../src/load.ts';
+import { JIRA_SPLIT_FIELDS, jiraMoreFields } from '../src/load.ts';
 import { TOIL_PROJECTS } from '../src/fixtures/toil-projects.ts';
 import { loaded } from './harness.ts';
 
@@ -39,11 +39,10 @@ describe('sample-team', () => {
   });
 });
 
-describe("the fields a Jira search asks for", () => {
-  it('are, for sample-team, the standard ones, the split ones, then its own pointers and dimension, once each', () => {
+describe("the fields a Jira search asks for beyond toil's default", () => {
+  it('are, for sample-team, the split ones, then its own pointers and dimension, once each', () => {
     const file = TOIL_PROJECTS.find((d) => d.name === 'sample-team')!;
-    expect(jiraSearchFields(file, file.jira as Record<string, unknown>)).toEqual([
-      ...JIRA_STANDARD_FIELDS,
+    expect(jiraMoreFields(file, file.jira as Record<string, unknown>)).toEqual([
       ...JIRA_SPLIT_FIELDS,
       'customfield_10016', // estimate
       'customfield_10020', // iteration
@@ -54,13 +53,13 @@ describe("the fields a Jira search asks for", () => {
 
   it('are, for a toil project with only an alias, the alias too, and never a name with spaces or a label pattern', () => {
     const base = { jira: { fields: { estimate: 'Story Points', estimateLabel: 'points: {n}', estimateUnit: 'points', acceptanceCriteria: 'customfield_10500' } } };
-    expect(jiraSearchFields(base, base.jira)).toEqual([...JIRA_STANDARD_FIELDS, ...JIRA_SPLIT_FIELDS, 'customfield_10500']);
+    expect(jiraMoreFields(base, base.jira)).toEqual([...JIRA_SPLIT_FIELDS, 'customfield_10500']);
   });
 
   it("add the classify target's field, through the section's alias when it is one", () => {
     const file = { jira: { fields: { category: 'customfield_10900' } }, classify: { targets: { jira: { field: 'category' } } } };
-    expect(jiraSearchFields(file, file.jira)).toContain('customfield_10900');
+    expect(jiraMoreFields(file, file.jira)).toContain('customfield_10900');
     const direct = { jira: {}, classify: { targets: { jira: { field: 'customfield_10901' } } } };
-    expect(jiraSearchFields(direct, direct.jira)).toContain('customfield_10901');
+    expect(jiraMoreFields(direct, direct.jira)).toContain('customfield_10901');
   });
 });

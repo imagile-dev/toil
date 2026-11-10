@@ -44,6 +44,7 @@ import type { AnalysisSummary } from '../model/analysis.ts';
 import { AnalysisBody } from './analysis.tsx';
 import { Loader } from '../moments/Moments.tsx';
 import { useUiCommand } from '../commands.ts';
+import type { ViewContext } from '../view-context.ts';
 import { usePlain } from '../plain-words.ts';
 import { STANDARD_THINKING, thinkingPhrase } from '../thinking.ts';
 import { ThinkingIcon, useNow, useThinkingPhrases } from './thinking.tsx';
@@ -69,6 +70,8 @@ export interface Turn {
   ms?: number;
   /** What a run that failed or was stopped used (#295): counted in the chat as the server counts it. */
   usage?: AnswerUsage;
+  /** The chart the question was about (#567), which its cell citations are read against. */
+  context?: ViewContext;
 }
 /** The chat switched agent (#344): said in the log, where it happened. */
 interface Switch {
@@ -157,6 +160,8 @@ function useChat() {
   const [adapters, setAdapters] = useState<AdapterList | null>(null);
   const [session, setSession] = useState<ChatSession | null>(null);
   const [renewProblem, setRenewProblem] = useState<string | null>(null);
+  // The chart the next question is about (#567): attached by a Charts view or the palette, shown as a chip, sent with each question until removed.
+  const [attached, setAttached] = useState<ViewContext | null>(null);
   const next = useRef(0);
   const chatId = useRef(newChatId());
   const abort = useRef<AbortController | null>(null);
@@ -207,11 +212,11 @@ function useChat() {
     // A picked agent goes as it is; an unpicked chat sends the toil project's remembered one (#494) or the first ready one when the default can't run, and the Settings default as before: by sending nothing.
     const from = defaultAgent(list);
     const sent = adapter ?? (from && from.source !== 'settings' ? from.name : null);
-    const extra = { ...(sent ? { adapter: sent } : {}), ...(!adapter && from?.source === 'ready' ? { fallback: true } : {}), ...(history.length ? { history } : {}) };
+    const extra = { ...(sent ? { adapter: sent } : {}), ...(!adapter && from?.source === 'ready' ? { fallback: true } : {}), ...(history.length ? { history } : {}), ...(attached ? { context: attached } : {}) };
     const controller = new AbortController();
     abort.current = controller;
     const started = Date.now();
-    setEntries((es) => [...es, { kind: 'turn', id, prompt: shown, answer: null, error: null, done: false, started, ...(prompt === ANALYZE ? { analyze: true } : {}) }]);
+    setEntries((es) => [...es, { kind: 'turn', id, prompt: shown, answer: null, error: null, done: false, started, ...(prompt === ANALYZE ? { analyze: true } : {}), ...(attached ? { context: attached } : {}) }]);
     try {
       let last: Answer | null = null;
       if (agent.stream) {
@@ -306,7 +311,7 @@ function useChat() {
     }
   };
 
-  return { entries, turns, busy, ask, stop, adapter, adapters, refreshAdapters, switchTo, session, checkSession, renew, renewProblem, history: past };
+  return { entries, turns, busy, ask, stop, adapter, adapters, refreshAdapters, switchTo, session, checkSession, renew, renewProblem, history: past, attached, attach: setAttached, detach: () => setAttached(null) };
 }
 
 export type Chat = ReturnType<typeof useChat>;
@@ -372,6 +377,11 @@ export function AskBar() {
     else if (c.kind === 'job' && !chat.busy) {
       openView();
       void chat.ask(c.prompt, c.label);
+    } else if (c.kind === 'ask-about') {
+      // The chart attaches and the suggested question waits in the box: nothing is sent until the person presses Ask (#567).
+      chat.attach(c.context);
+      if (c.question !== undefined) setText(c.question);
+      openView();
     }
   });
 
@@ -385,6 +395,7 @@ export function AskBar() {
           Ask
         </Button>
       </form>
+      {chat.attached && !open && <AboutChip context={chat.attached} onRemove={chat.detach} />}
       {chat.session?.stale && !open && <StaleNote stale={chat.session.stale} className="ask-bar__stale" />}
       {last && !open && (
         <p className="ask-bar__resume note">
@@ -600,7 +611,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                         ) : (
                           e.answer.parts.map((p, i) => (
                             <p key={i}>
-                              <Cited text={p.text} chips />
+                              <Cited text={p.text} chips cells={e.context} />
                             </p>
                           ))
                         )}
@@ -680,6 +691,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
             </Popover>
           </MenuTrigger>
         )}
+        {chat.attached && <AboutChip context={chat.attached} onRemove={chat.detach} />}
         <form className="ask-form" onSubmit={submit}>
           <TextField className="field-text" value={text} onChange={setText} isDisabled={busy} autoFocus>
             <Label>Your question</Label>
@@ -691,6 +703,23 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
         </form>
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * The chart a question is about (#567), in sight before anything is sent, with
+ * the way to stop sending it. A quiet line, not a banner: it says what is
+ * attached and nothing else.
+ */
+export function AboutChip({ context, onRemove }: { context: ViewContext; onRemove: () => void }) {
+  const words = useWords();
+  return (
+    <p className="ask-about note" data-ask-about="">
+      <span>{words('ask.about', { title: context.title })}</span>
+      <Button className="btn btn--small" onPress={onRemove} aria-label={words('ask.about.remove')} data-ask-about-remove="">
+        <span aria-hidden="true">✕</span>
+      </Button>
+    </p>
   );
 }
 

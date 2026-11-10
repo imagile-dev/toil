@@ -15,6 +15,7 @@ import { themed } from '../theme-context.ts';
 import './analysis.css';
 import type { ThemeManifest } from '../themes.ts';
 import type { Change, WorkItem } from '../toil.ts';
+import { cellCite, type ViewContext } from '../view-context.ts';
 
 /**
  * Where an item link goes: its own page, unless a view says otherwise. The
@@ -66,11 +67,46 @@ export function PrLink({ change, withTitle = false }: { change: Change; withTitl
  * and status, and hovering or focusing it says more. Text the code wrote,
  * which already says what each id is, keeps the plain link.
  */
-export function Cited({ text, chips = false }: { text: string; chips?: boolean }) {
+export function Cited({ text, chips = false, cells, onCellCitation }: { text: string; chips?: boolean; cells?: Pick<ViewContext, 'cells'> | null | undefined; onCellCitation?: ((column: string, row: string) => void) | undefined }) {
   return (
     <>
-      {segments(text).map((s, i) => ('cite' in s ? chips ? <TicketChip key={i} id={s.cite} detail /> : <ItemLink key={i} id={s.cite} /> : <span key={i}>{s.text}</span>))}
+      {segments(text).map((s, i) =>
+        'cite' in s ? (
+          chips ? <TicketChip key={i} id={s.cite} detail /> : <ItemLink key={i} id={s.cite} />
+        ) : 'cell' in s ? (
+          <CellChip key={i} cite={s.cell} view={cells} onPress={onCellCitation} />
+        ) : (
+          <span key={i}>{s.text}</span>
+        ),
+      )}
     </>
+  );
+}
+
+/**
+ * A chart cell cited in an answer (#567): the row and column it names, in
+ * the words the chart uses. A cell the attached chart doesn't hold stays as
+ * the bare citation, marked missing, as an unknown item does. Pressing it
+ * calls `onPress` with the column and row keys, so a chart that is showing
+ * can highlight the cell; with no handler it is plain text in a chip.
+ */
+export function CellChip({ cite, view, onPress }: { cite: string; view: Pick<ViewContext, 'cells'> | null | undefined; onPress?: ((column: string, row: string) => void) | undefined }) {
+  const cell = view?.cells.find((c) => cellCite(c) === cite);
+  if (!cell) return <code className="missing">{`cell:${cite}`}</code>;
+  const label = `${cell.rowLabel}, ${cell.columnLabel}`;
+  const body = (
+    <>
+      <span className="ticket-chip__key">{cell.rowLabel}</span> <span className="ticket-chip__title">{cell.columnLabel}</span>
+    </>
+  );
+  return onPress ? (
+    <button type="button" className="ticket-chip" data-cell-cite={cite} title={`Chart cell: ${label}`} aria-label={`Chart cell: ${label}`} onClick={() => onPress(cell.column, cell.row)}>
+      {body}
+    </button>
+  ) : (
+    <span className="ticket-chip" data-cell-cite={cite} title={`Chart cell: ${label}`} aria-label={`Chart cell: ${label}`}>
+      {body}
+    </span>
   );
 }
 

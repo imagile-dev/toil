@@ -23,7 +23,12 @@ import { parseRoute } from '../App.tsx';
 import { Help } from '../components/help.tsx';
 import { Cited, PrLink } from '../components/items.tsx';
 import { useData, useDerived } from '../data.ts';
-import { analysesHref, analysisHref, boardHref, dependenciesHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, toilProjectEditHref, worklogHref } from '../format.ts';
+import { MixBar } from '../components/chartkit/index.ts';
+import { categoryHint } from '../components/category-chip.tsx';
+import { Unread } from '../components/unread.tsx';
+import { useWorkInsights } from '../insights-data.ts';
+import { mixOverview, mixSentence, nextRelease, periodWords, releaseSentence } from '../model/work-insights.ts';
+import { analysesHref, analysisHref, boardHref, chartsHref, dependenciesHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, worklogHref } from '../format.ts';
 import { Empty, TrackerAction } from '../components/empty.tsx';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput } from '../model/flow.ts';
@@ -197,6 +202,7 @@ export function Overview() {
             )}
           </div>
         </section>
+        <WorkLines />
         {view.changed.length > 0 && (
           <section aria-labelledby="changed-title">
             <h2 id="changed-title" className="briefing__label">
@@ -223,6 +229,7 @@ export function Overview() {
         <a href={dependenciesHref(toilProject.name)} title={plain.title('Dependencies')}>{plain.pw('Dependencies', 'What blocks what')}</a>
         <a href={prsHref(toilProject.name)} title={plain.title('Pull requests')}>{plain.pw('Pull requests', 'Code reviews')}</a>
         <a href={peopleHref(toilProject.name)}>People</a>
+        <a href={chartsHref(toilProject.name)}>Charts</a>
         {worklog && <a href={standupHref(toilProject.name)}>Stand-up</a>}
         <a href={worklogHref(toilProject.name)} title={plain.title('Worklog')}>{plain.pw('Worklog', 'What happened')}</a>
         <a href={analysesHref(toilProject.name)} title={plain.title('Analyses')}>{plain.pw('Analyses', 'Past briefings')}</a>
@@ -292,6 +299,78 @@ function Row({ id, here, note }: { id: string; here: string; note?: string }) {
         </p>
       )}
     </>
+  );
+}
+
+/**
+ * The two lines the full briefing carries about the work itself (#567): what the last 90 days were spent on, and the release due next.
+ * Each opens its dashboard. A figure nobody read is a dash with its reason, never 0 (principle 12).
+ */
+function WorkLines() {
+  const { toilProject } = useData();
+  const ins = useWorkInsights();
+  const { lines, period } = mixOverview(ins);
+  const next = nextRelease(ins);
+  return (
+    <section aria-labelledby="work-lines-title" data-work-lines="">
+      <h2 id="work-lines-title" className="briefing__label">
+        The work itself
+      </h2>
+      <ul className="rows">
+        <li>
+          <a href={chartsHref(toilProject.name, 'mix')} data-line="mix">
+            Work mix:
+          </a>{' '}
+          {lines ? `${mixSentence(lines)}, ${periodWords(ins.today, period)}` : <><Unread /> nothing finished in the last 90 days to count</>}
+        </li>
+        <li>
+          <a href={chartsHref(toilProject.name, 'releases')} data-line="releases">
+            Releases:
+          </a>{' '}
+          {next ? releaseSentence(next) : ins.releasesRead ? 'none waiting to go out' : <><Unread /> fix versions weren't read</>}
+        </li>
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * The sixth tile (#567): what the last 90 days of finished work were, by category, in plain names with the short form and the definition on hover.
+ * It opens the Work mix dashboard. A mix nobody could count is a dash that says it was not read, never 0%. The label is the link, and the mix bar
+ * is its own control beside it, because a link around a control is two answers to one click.
+ */
+function MixTile() {
+  const { toilProject } = useData();
+  const ins = useWorkInsights();
+  const { result, lines, period } = useMemo(() => mixOverview(ins), [ins]);
+  return (
+    <li className="metric">
+      <div className="metric__button metric__tile" data-metric="mix">
+        <a className="metric__label metric__link" href={chartsHref(toilProject.name, 'mix')}>
+          Work mix
+        </a>
+        {lines ? (
+          <>
+            <ul className="metric__mix" aria-label={`Work mix, ${periodWords(ins.today, period)}`}>
+              {lines.map((l) => (
+                <li key={l.key}>
+                  <span className="metric__cat" title={categoryHint(ins, l.id)}>
+                    {l.name}
+                  </span>{' '}
+                  <b>{Math.round(l.share * 100)}%</b>
+                </li>
+              ))}
+            </ul>
+            <MixBar result={result} scheme={{ categories: ins.scheme.categories }} label="Work mix" />
+            <span className="metric__unit">{periodWords(ins.today, period)}</span>
+          </>
+        ) : (
+          <span className="metric__figure">
+            <Unread className="metric__value" /> <span className="metric__unit">not read yet</span>
+          </span>
+        )}
+      </div>
+    </li>
   );
 }
 
@@ -416,6 +495,7 @@ function MetricStrip() {
             <a href={prsHref(toilProject.name)}>{pw('The Pull requests tab', 'The Code reviews tab')}</a> has the whole queue, its flags and its flow.
           </p>
         </Metric>
+        <MixTile />
       </ul>
     </section>
   );

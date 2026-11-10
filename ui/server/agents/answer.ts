@@ -19,7 +19,7 @@
  */
 
 import { readBriefing } from '../../../src/core/brief/answer.ts';
-import { citationsOf, type Answer, type AnswerPart } from '../../src/agent.ts';
+import { cellCitationsOf, citationsOf, type Answer, type AnswerPart } from '../../src/agent.ts';
 import { POSITIONAL_FIELDS, type Proposal } from '../../src/proposal.ts';
 import type { Ledger } from './tools.ts';
 
@@ -165,15 +165,21 @@ export function finish(raw: string, f: Finish): Answer {
   const all = [...parts.map((p) => p.text), ...proposals.map((p) => p.reason), ...briefed].join('\n\n');
   const { cited, bare, keys } = named(all, connections);
   for (const id of [...cited, ...bare, ...proposals.map((p) => p.item)]) if (!ledgerIds.has(id)) unverified.add(id);
+  // A chart cell cited as [[cell:<column>/<row>]] must be one the view the person attached, or a pivot this answer ran, holds (#567).
+  const cells = cellCitationsOf([{ text: all }]);
+  const unknownCells = cells.filter((c) => !f.ledger.cells.has(c));
+  for (const c of unknownCells) unverified.add(`cell:${c}`);
   // A bare tracker key (PAY-999) in a project the tools returned items from must be one of those items. UTF-8 is not a ticket.
   const projects = new Set([...keyOf].map((k) => /^([A-Z][A-Z0-9]{1,9})-\d+$/.exec(k)?.[1]).filter(Boolean));
   for (const key of keys) if (projects.has(key.split('-')[0]) && !keyOf.has(key) && ![...unverified].some((id) => id.endsWith(`:${key}`))) unverified.add(key);
 
   // A briefing's items and the [[ids]] in its sentences are citations too, so an answer that is only a briefing still cites what it rests on.
   const citations = [...new Set([...citationsOf(parts), ...(b ? [...b.reasons.flatMap((r) => r.items.map((i) => i.id)), ...citationsOf(briefed.map((text) => ({ text })))] : [])])];
-  if (unverified.size) warnings.unshift(`This answer names ${unverified.size === 1 ? 'an item' : `${unverified.size} items`} its tools never returned: ${[...unverified].join(', ')}. Treat ${unverified.size === 1 ? 'it' : 'them'} as unverified.`);
+  const unknownIds = [...unverified].filter((id) => !id.startsWith('cell:'));
+  if (unknownCells.length) warnings.unshift(`This answer cites ${unknownCells.length === 1 ? 'a chart cell' : `${unknownCells.length} chart cells`} that neither the chart it was asked about nor a pivot it ran holds: ${unknownCells.map((c) => `cell:${c}`).join(', ')}. Treat ${unknownCells.length === 1 ? 'it' : 'them'} as unverified.`);
+  if (unknownIds.length) warnings.unshift(`This answer names ${unknownIds.length === 1 ? 'an item' : `${unknownIds.length} items`} its tools never returned: ${unknownIds.join(', ')}. Treat ${unknownIds.length === 1 ? 'it' : 'them'} as unverified.`);
   if (read?.problems.length) warnings.push(...read.problems.map((p) => `The briefing: ${p}`));
-  if (parts.length && !citations.length && !read?.briefing && ledgerIds.size) warnings.push('This answer cites none of the items its tools read, so nothing in it is traced to a source.');
+  if (parts.length && !citations.length && !cells.length && !read?.briefing && ledgerIds.size) warnings.push('This answer cites none of the items its tools read, so nothing in it is traced to a source.');
   if (parts.length && !ledgerIds.size) warnings.push("The agent's tools returned no work items, so this answer rests on none.");
 
   return { prompt: f.prompt, by: f.by, parts, citations, proposals, unverified: [...unverified], warnings, ...(read ? { briefing: read.briefing, briefingProblems: read.problems } : {}) };

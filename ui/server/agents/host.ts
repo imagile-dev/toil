@@ -37,7 +37,8 @@ import { codexRuntime } from './codex.ts';
 import { copilotRuntime } from './copilot.ts';
 import { GuideRefusal, guideAnswer, guideContext, guideSystem, guideTools, pagesFor } from './guide.ts';
 import { jobQuestion, knownTargets } from './jobs.ts';
-import { analyzeQuestion, promptFor, STARTERS, systemPrompt, withHistory } from './prompts.ts';
+import { analyzeQuestion, promptFor, STARTERS, systemPrompt, withContext, withHistory } from './prompts.ts';
+import { cellCite } from '../../src/view-context.ts';
 import { staleness, type ChatSession, type Fingerprint } from '../../src/fingerprint.ts';
 import { sha256, type Fingerprints } from '../fingerprint.ts';
 import { installedVersion, installPlan, runInstall, testedVersion, type InstallPlan, type InstallRun } from './install.ts';
@@ -48,7 +49,7 @@ import { loadUsageSettings, memoryLedger, type UsageLedger } from '../usage.ts';
 import { checkAgentSettings, cliPathOf, loadAgentSettings, modelOf, saveAgentSettings, DEFAULT_AGENT_SETTINGS, ENDPOINTS, type AgentSettings } from './settings.ts';
 import { promptStyle, type StyleChoice } from './voices.ts';
 import { CALLER } from '../store.ts';
-import { cacheTools, toilProjectReader, Ledger, liveTools, peopleTools, proposalTool, prTools, readinessTools, recorded, standupTool, worklogTool, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
+import { cacheTools, insightsTools, toilProjectReader, Ledger, liveTools, peopleTools, proposalTool, prTools, readinessTools, recorded, standupTool, worklogTool, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
 
 /** A task Toil UI wrote for an agent (#293): an assignment's run. */
 export interface TaskRequest {
@@ -240,7 +241,7 @@ export class AgentHost implements Agent {
   /** The tools a question about this toil project gets, and the ledger they fill: what every adapter is handed. */
   tools(toilProject: string, data: AgentData, ledger: Ledger): ToolSpec[] {
     const now = this.o.now ?? (() => new Date().toISOString());
-    return recorded([...cacheTools(toilProject, data, ledger), ...prTools(toilProject, data, ledger), ...peopleTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject)), ...worklogTool(toilProject, data, ledger, now), ...standupTool(toilProject, data, ledger, now), ...readinessTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject)), proposalTool(this.o.registry), ...liveTools(toilProject, this.o.registry, this.o.execute, this.o.mapIds, ledger)], ledger);
+    return recorded([...cacheTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject), now), ...insightsTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject), now), ...prTools(toilProject, data, ledger), ...peopleTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject)), ...worklogTool(toilProject, data, ledger, now), ...standupTool(toilProject, data, ledger, now), ...readinessTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject)), proposalTool(this.o.registry), ...liveTools(toilProject, this.o.registry, this.o.execute, this.o.mapIds, ledger)], ledger);
   }
 
   /**
@@ -291,7 +292,14 @@ export class AgentHost implements Agent {
       const asking = prompt === 'analyze' ? await analyzeQuestion(this.o.execute, toilProject) : (jobQuestion(toilProject, prompt, (l) => this.o.rounds?.(toilProject, l, record) ?? 0, knownTargets(data.changes())) ?? { ...promptFor(toilProject, prompt), warning: null });
       const { label, text: question } = asking;
       // The chat so far goes before the question, so a follow-up or a switched adapter continues from it (#344).
-      const { text, carried } = withHistory(question, extra.history);
+      const history = withHistory(question, extra.history);
+      const { carried } = history;
+      // The chart the person is looking at (#567): in the prompt as data, and its cells and items are what the answer may cite beyond its tools' results.
+      const text = withContext(history.text, extra.context);
+      for (const c of extra.context?.cells ?? []) {
+        ledger.cells.add(cellCite(c));
+        for (const id of c.items) ledger.add(id);
+      }
       const by = this.byOf(runtime);
       const who = { adapter: runtime.name, model: modelOf(this.settings, runtime.name), ...(carried ? { carried } : {}) };
       const out = new Latest<Answer>();

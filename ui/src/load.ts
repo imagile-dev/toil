@@ -327,31 +327,30 @@ export function keyPatternsFor(items: WorkItem[]): string[] {
 }
 
 /**
- * Jira's `issue search --fields` REPLACES the default set (the standard fields
- * plus the connection's registered custom fields), so a search that names any
- * must name them all. These are toil's own standard ones
- * (`STANDARD_SEARCH_FIELDS`; test/registry.test.ts holds the two lists
- * together), then what a split by version, component, parent, link or date
- * reads. The rest of the request is the toil project's: JIRA_OWI_NOT_FIELDS names
- * the `fields` entries that point at no Jira field.
+ * Jira's `issue search` asks for the standard fields plus the connection's
+ * registered custom fields by default, and `--fields` would REPLACE that set, so
+ * the sync sends `--more-fields` instead: what a split by version, component,
+ * parent, link or date reads, then the toil project's own pointers. toil adds
+ * these to the default and de-duplicates. The rest of the request is the toil
+ * project's: JIRA_OWI_NOT_FIELDS names the `fields` entries that point at no Jira
+ * field.
  */
-export const JIRA_STANDARD_FIELDS = ['summary', 'status', 'priority', 'assignee', 'issuetype', 'project', 'created', 'updated', 'labels', 'reporter'];
 export const JIRA_SPLIT_FIELDS = ['fixVersions', 'versions', 'components', 'parent', 'issuelinks', 'resolutiondate', 'duedate', 'description'];
 const JIRA_OWI_NOT_FIELDS = new Set(['estimateUnit', 'estimateLabel', 'iterationDays']);
 /** A Jira field id: `customfield_10016`, or a system field's one word. A name with spaces needs the connection to register it, so it isn't asked for here, where an unknown one would refuse the whole search. */
 const JIRA_FIELD_ID = /^(customfield_\d+|[a-z][a-z0-9]*)$/i;
 
 /**
- * Every field a Jira search for this toil project asks for: the standard ones,
- * the ones a split reads, the section's own `fields` pointers (sprint, story
+ * Every field a Jira search for this toil project asks for beyond toil's default
+ * set: the ones a split reads, the section's own `fields` pointers (sprint, story
  * points, epic link, customer, acceptance criteria), every field a `dimensions`
  * entry names for Jira, and the field `classify` writes a category to
  * (through the section's `fields` when it names an alias). Each once, in the
  * order they were found.
  */
-export function jiraSearchFields(toilProject: Rec, section: Rec): string[] {
+export function jiraMoreFields(toilProject: Rec, section: Rec): string[] {
   const fields = isRec(section.fields) ? section.fields : {};
-  const asked: string[] = [...JIRA_STANDARD_FIELDS, ...JIRA_SPLIT_FIELDS];
+  const asked: string[] = [...JIRA_SPLIT_FIELDS];
   for (const [name, value] of Object.entries(fields)) if (!JIRA_OWI_NOT_FIELDS.has(name) && typeof value === 'string') asked.push(value);
   const dimensions = isRec(toilProject.dimensions) ? toilProject.dimensions : {};
   for (const dimension of Object.values(dimensions)) if (isRec(dimension) && typeof dimension.jira === 'string') asked.push(dimension.jira);
@@ -502,7 +501,7 @@ export async function loadToilProject(execute: Execute, name: string, options: L
       tasks.push((async () => {
         const state = track(jira, projects.length > 1 ? project : '');
         // The search brings each issue's history with it (toil's --changelog); only an issue whose changelog came back short is read with a call of its own.
-        const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(project, options.windowDays), changelog: true, fields: jiraSearchFields(toilProject, section(jira)).join(',') });
+        const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(project, options.windowDays), changelog: true, moreFields: jiraMoreFields(toilProject, section(jira)).join(',') });
         if (!asked) return markUnread(state, 'work');
         const { search, histories: inline, incomplete } = splitChangelogs(asked, `${jira} issue history`);
         work[jira].push(withFieldIds(search, registered[jira] ?? []));

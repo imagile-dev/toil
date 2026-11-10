@@ -11,7 +11,7 @@ import { SKEW_MS, SyncBusy, SyncService, joinPages } from '../server/sync.ts';
 import { TOIL_PROJECTS } from '../src/fixtures/toil-projects.ts';
 import { JIRA_CUT_SHORT } from '../src/fixtures/work.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import { JQL, jiraSearchFields, loadToilProject } from '../src/load.ts';
+import { JQL, jiraMoreFields, loadToilProject } from '../src/load.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
 import { cardSearch } from './harness.ts';
 import { JIRA_PAGE, stubToil, type StubToil } from './toil-stub.ts';
@@ -52,8 +52,8 @@ async function setup(start = FIXTURE_NOW) {
 
 // The sample team has its own test below: the rest of this file's counts are about the toil projects with one Jira, one GitHub and one Azure DevOps each.
 const named = (toil: StubToil, command: string) => toil.calls.filter((c) => c.command === command && c.input.toilProject !== 'sample-team');
-/** A search's `fields`, as the tests read it: the ids-only listing is `key`; a read names the fields a split needs, which test/sample-team.test.ts pins. */
-const fieldsOf = (c: { input: Record<string, unknown> }) => (c.input.fields === 'key' ? 'key' : c.input.fields === undefined ? undefined : 'asked');
+/** A search's `fields`, as the tests read it: the ids-only listing is `key`; a read asks for more fields beyond toil's default, which a split needs, which test/sample-team.test.ts pins. */
+const fieldsOf = (c: { input: Record<string, unknown> }) => (c.input.fields === 'key' ? 'key' : c.input.moreFields !== undefined ? 'asked' : undefined);
 
 describe('the cache folder', () => {
   it('is the data folder the settings name, under the OS temp folder here, never ~/.toil-ui', async () => {
@@ -81,7 +81,7 @@ describe('a full sync', () => {
     expect(named(toil, 'jira issue history').map((c) => c.input.key)).toEqual(JIRA_CUT_SHORT);
     // jira issue search came in pages of JIRA_PAGE, every one followed.
     const pages = named(toil, 'jira issue search').filter((c) => c.input.toilProject === 'card-payments');
-    const issues = (await fixtureExecute().execute('jira issue search', { toilProject: 'card-payments', jql: JQL('PAY'), changelog: true, fields: jiraSearchFields(CARD, CARD.jira as Record<string, unknown>).join(',') }, { readOnly: true })).data as { issues: unknown[] };
+    const issues = (await fixtureExecute().execute('jira issue search', { toilProject: 'card-payments', jql: JQL('PAY'), changelog: true, moreFields: jiraMoreFields(CARD, CARD.jira as Record<string, unknown>).join(',') }, { readOnly: true })).data as { issues: unknown[] };
     expect(pages.length).toBe(Math.ceil(issues.issues.length / JIRA_PAGE));
     expect(pages.slice(1).map((p) => p.input.cursor)).toEqual(pages.slice(1).map((_, i) => String((i + 1) * JIRA_PAGE)));
     // OWI items, transitions and change refs are stored.

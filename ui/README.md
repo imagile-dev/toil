@@ -222,7 +222,8 @@ A Toil project opens on its **Overview**, the briefing, in a frame all of its pa
   **AI agents** button beside it (The agent, below). Moving to another Toil project is the picker in the app's header, right after the brand, on every page (see below).
 - **The tabs**, one address each: **Overview** (`#/project/<name>`), **Board**
   (`/board`, with how many of its cards need attention), **Dependencies**
-  (`/dependencies`), **Pull requests** (`/prs`), **People** (`/people`), **Worklog**
+  (`/dependencies`), **Pull requests** (`/prs`), **People** (`/people`), **Charts**
+  (`/charts`), **Worklog**
   (`/worklog`) and **Analyses** (`/analyses`). The Command Center (`/command-center`)
   is the Board tab's **Readiness** view, the stand-up is the Worklog's, and an item's
   page sits under Board, so every address from before the tabs still opens. On a
@@ -472,6 +473,40 @@ system (`toil projects person`, or **Settings, Toil projects**):
 It shows what is on each plate and never scores anyone: no ranking, no productivity
 figure, no person-to-person comparison and no line or commit counts. Flow metrics
 stay team-level, in the pull requests view.
+
+## Charts
+
+The **Charts** tab (`/charts`) is a list of dashboards, each one card with its one headline in a sentence, worked out from the
+same data as the dashboard it opens. A headline that can't be known is a dash with its reason, never 0. Two dashboards so far:
+**Work mix** (`/charts/mix`) and **Releases** (`/charts/releases`). Every dashboard is a module in `ui/src/views/charts/`
+that exports an `id`, a `title`, a `headline` and a `View`, and is added to one list, so a new one changes no other file.
+
+Every figure comes from toil's pure pivot model (`src/core/insights/`), the same one `toil projects pivot` and the agent
+use, so a number on a chart is the number an agent reads. Every chart says where its items came from and how far back, and
+lists what it left out; "Show the figures" shows it as a table.
+
+- **The filter bar** holds the period (this sprint, the last 30 or 90 days, this quarter, or two dates you pick) and any
+  filters, as chips. Add filter offers every dimension the data holds and then its values; a dimension nobody read is listed
+  as "not read yet". It lives in the address (`?release=2.4&category=ktlo&from=2026-09-14`), so Back undoes a chip and a copied link
+  shows the same chart. Opening or closing an item's drawer keeps it.
+- **Every number is a door.** Clicking a segment, a figure on a release or a sentence about what changed opens a drawer that
+  lists the items behind it as a table you can sort, each row opening the item. The address says how to find the list
+  (`?items=`), not which items, so it stays short. Shift-click adds the segment as a filter.
+- **The team is measured, never the person.** A split by assignee or team is in name order and never sorted by size.
+
+### Work mix
+
+Of the work that was finished in the period, how much was each category, as a trend by month. Split it by any dimension (it
+becomes the category shares for each value), and count items, estimates or days in progress. Beside the chart it says how the
+categories were decided (rules, labels on the items, your AI agent, people) and how much is still Unsure, which links to the Board.
+A category reads as its plain name, "Keep the lights on"; its short form and definition are on hover. The Summary's **Work
+mix** tile, in the numbers, shows the same mix for the last 90 days and opens this page.
+
+### Releases
+
+One section per release that is not out yet, and the latest one that is: how much is in it, how much is done, what was added
+since it started, what is open past its date, and a burn-up toward its date with the scope line. "Added since it started" needs
+the release's start date from the tracker; without one it is a dash that says so, never 0.
 
 ## Readiness and the Command Center
 

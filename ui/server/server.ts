@@ -63,6 +63,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net';
 import { extname, isAbsolute, join, normalize, relative, sep } from 'node:path';
 import { ANALYZE, type Answer, type AskExtra, type HistoryTurn } from '../src/agent.ts';
+import { readViewContext } from '../src/view-context.ts';
 import { GUIDE_MAX, GUIDE_REFUSAL, GUIDE_REFUSAL_FIX, looksLikeSecret, readGuideState, type GuideRequest } from '../src/guide.ts';
 import { isWhole, type AnalysisKeeper } from './analyses.ts';
 import type { Envelope, ExecutePerson } from '../src/toil.ts';
@@ -301,6 +302,12 @@ function extraOf(body: Record<string, unknown>): AskExtra {
     if (typeof body.fallback !== 'boolean') throw new HttpError(400, 'fallback is true or false.', 'Send fallback: true when the adapter stands in for a default that cannot run, or leave it out.');
     if (body.fallback && extra.adapter === undefined) throw new HttpError(400, 'fallback names no adapter.', 'Send fallback: true with the adapter it stands in with, or leave it out.');
     if (body.fallback) extra.fallback = true;
+  }
+  // What the person is looking at (#567) is checked key by key and never passed on raw: a context that fails is refused with each problem.
+  if (body.context !== undefined) {
+    const read = readViewContext(body.context);
+    if (!read.context) throw new HttpError(400, `The chart context was refused: ${read.problems.slice(0, 5).join(' ')}${read.problems.length > 5 ? ` (and ${read.problems.length - 5} more)` : ''}`, 'Send the context the chart makes (buildViewContext), or leave it out.');
+    extra.context = read.context;
   }
   if (body.history !== undefined) {
     const shape = 'Send history as at most 20 turns, each { "prompt": "<question>", "answer": "<text>", "by": "<who>" }, or leave it out.';

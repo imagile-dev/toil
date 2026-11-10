@@ -40,6 +40,8 @@ import { startReadyWith } from './assign/start.ts';
 import type { AssignmentsApi } from './assign/model.ts';
 import { memoryAnalyses, type AnalysesApi } from './analyses.ts';
 import { People } from './views/People.tsx';
+import { Charts } from './views/Charts.tsx';
+import { parseFilters, type Filters } from './filters.ts';
 import { PullRequests } from './views/PullRequests.tsx';
 import { JobPage } from './components/jobs.tsx';
 import { jobForSegment, type JobId } from './model/jobs.ts';
@@ -100,6 +102,8 @@ type RouteOf =
   | { view: 'dashboard'; toilProject: string; tab?: 'board' | 'dependencies' | 'analyses'; person?: string; analysis?: string }
   | { view: 'prs'; toilProject: string }
   | { view: 'people'; toilProject: string }
+  /** The Charts tab (#567): its list of dashboards, or one by its id. */
+  | { view: 'charts'; toilProject: string; dashboard?: string }
   /** Every work item with its readiness verdict (#307). */
   | { view: 'command-center'; toilProject: string }
   | { view: 'worklog'; toilProject: string; day: string | null }
@@ -112,8 +116,12 @@ type RouteOf =
   /** One agent assignment (#293). */
   | { view: 'assignment'; toilProject: string; id: string };
 
-/** A route, and on any toil project page the item its drawer shows (#494): `?item=<owi id>` after the path, so the peek has an address of its own. */
-export type Route = RouteOf & { peek?: string };
+/**
+ * A route, and on any toil project page the item its drawer shows (#494): `?item=<owi id>` after the path, so the peek has an address of its own.
+ * `items` is the drawer that lists several items (#567: `?items=<how to find them>`, model/drill.ts) and `filters` the period and dimension
+ * filters the address carries (filters.ts); both ride along on any toil project page, so a drawer opening or closing never drops a filter.
+ */
+export type Route = RouteOf & { peek?: string; items?: string; filters?: Filters };
 
 /**
  * Addresses from before dossiers were renamed (#555), kept so a bookmark or a link in a chat still lands: `#/dossier/<name>/…` is
@@ -136,7 +144,10 @@ export function parseRoute(rawHash: string): Route {
   const query = at < 0 ? null : new URLSearchParams(hash.slice(at + 1));
   const peek = query?.get('item') ?? null;
   if (route.view === 'job') return { ...route, target: query?.get('target') || null };
-  return peek && 'toilProject' in route && route.view !== 'item' ? { ...route, peek } : route;
+  if (!('toilProject' in route) || route.view === 'item') return route;
+  const items = query?.get('items') || null;
+  const filters = query ? parseFilters(query) : null;
+  return { ...route, ...(peek ? { peek } : {}), ...(items ? { items } : {}), ...(filters && (filters.where.length > 0 || filters.from || filters.to) ? { filters } : {}) };
 }
 
 function parsePath(hash: string): RouteOf {
@@ -168,6 +179,7 @@ function parsePath(hash: string): RouteOf {
     if (parts[2] === 'job' && parts[3] && jobForSegment(parts[3])) return { view: 'job', toilProject, job: jobForSegment(parts[3])!, target: null };
     if (parts[2] === 'prs') return { view: 'prs', toilProject };
     if (parts[2] === 'people') return { view: 'people', toilProject };
+    if (parts[2] === 'charts') return parts[3] ? { view: 'charts', toilProject, dashboard: decodeURIComponent(parts[3]) } : { view: 'charts', toilProject };
     if (parts[2] === 'command-center') return { view: 'command-center', toilProject };
     if (parts[2] === 'board') return parts[3] ? { view: 'dashboard', toilProject, tab: 'board', person: decodeURIComponent(parts.slice(3).join('/')) } : { view: 'dashboard', toilProject, tab: 'board' };
     if (parts[2] === 'analyses' && parts[3]) return { view: 'dashboard', toilProject, tab: 'analyses', analysis: decodeURIComponent(parts.slice(3).join('/')) };
@@ -199,6 +211,8 @@ export function tabOf(route: Route): ToilProjectTab | null {
       return 'prs';
     case 'people':
       return 'people';
+    case 'charts':
+      return 'charts';
     case 'worklog':
     case 'standup':
       return 'worklog';
@@ -628,8 +642,8 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
         {/* The Ask bar (#343), on every toil project page; its chat is keyed by toil project, so a conversation lasts across that toil project's views. */}
         <ChatScope key={route.toilProject}>
           <AnalyzeAfterSync syncedAt={syncedAt ?? null} />
-          <ToilProjectShell tab={tabOf(route)} peek={route.peek ?? null} heading={route.view === 'dashboard'} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
-            {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'job' ? <JobPage id={route.job} target={route.target} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} {...(route.analysis ? { analysis: route.analysis } : {})} />}
+          <ToilProjectShell tab={tabOf(route)} peek={route.peek ?? null} items={route.items ?? null} heading={route.view === 'dashboard'} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
+            {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'job' ? <JobPage id={route.job} target={route.target} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'charts' ? <Charts dashboard={route.dashboard ?? null} /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} {...(route.analysis ? { analysis: route.analysis } : {})} />}
           </ToilProjectShell>
         </ChatScope>
       </DataContext>

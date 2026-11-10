@@ -12,6 +12,8 @@ import { FLAVOUR_KEYS, FUNCTIONAL_KEYS, isFunctional, STANDARD, wordFor, type Wo
  */
 
 const FUNCTIONAL_LIST = [
+  'ask.about',
+  'ask.about.remove',
   'ask.placeholder',
   'ask.placeholder.short',
   'chart.count',
@@ -21,6 +23,16 @@ const FUNCTIONAL_LIST = [
   'chart.showAll',
   'chart.showOnly',
   'chart.unread',
+  'charts.back',
+  'charts.changes',
+  'charts.decided',
+  'charts.eyebrow',
+  'charts.measuredIn',
+  'charts.splitBy',
+  'filter.add',
+  'filter.dates',
+  'mix.title',
+  'releases.title',
   'sample.leave',
   'sample.look',
   'settings.eyebrow',

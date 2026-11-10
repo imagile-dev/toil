@@ -141,9 +141,9 @@ describe('the palette entries', () => {
     const found = paletteResults(entries, shortKey(one), null);
     expect(found[0]!.group).toBe('items');
     expect(found[0]!.entries[0]!.id).toBe(hit.id);
-    // Tabs: every toil project's seven, the one on screen's alone with nothing typed.
-    expect(entries.filter((e) => e.group === 'tabs')).toHaveLength(14);
-    expect(paletteResults(entries, '', 'settlement').find((g) => g.group === 'tabs')!.entries.map((e) => e.label)).toEqual(['Summary', 'Board', 'What blocks what', 'Code reviews', 'People', 'What happened', 'Past briefings']);
+    // Tabs: every toil project's eight, the one on screen's alone with nothing typed.
+    expect(entries.filter((e) => e.group === 'tabs')).toHaveLength(16);
+    expect(paletteResults(entries, '', 'settlement').find((g) => g.group === 'tabs')!.entries.map((e) => e.label)).toEqual(['Summary', 'Board', 'What blocks what', 'Code reviews', 'People', 'Charts', 'What happened', 'Past briefings']);
   });
 
   it('offers Ask, Analyze, Assign and the agents only on a Toil project page, and Sync only where there is a cache', async () => {

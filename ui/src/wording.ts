@@ -40,6 +40,9 @@ export const FUNCTIONAL = {
   'ask.placeholder': 'Ask a question about {name}',
   // On a narrow screen the bar is too short for a toil project's name, so it says what to do and leaves the name to the page.
   'ask.placeholder.short': 'Ask a question',
+  // A chart attached to the question (#567): what is being sent, and the way to stop sending it.
+  'ask.about': 'About: {title}',
+  'ask.about.remove': 'Stop asking about this chart',
   'status.cache': 'Reading saved data',
   'status.live': 'Reading live from your tools',
   'status.registry': 'Reading what a tool can answer',
@@ -53,6 +56,17 @@ export const FUNCTIONAL = {
   'chart.showAll': 'Show all',
   'chart.showOnly': 'Show only this',
   'chart.hide': 'Hide this',
+  // The Charts tab and its filter bar (#567): names a person reads to pick a dashboard, a split or a unit, so the same in every theme.
+  'charts.eyebrow': 'Charts',
+  'charts.back': 'All charts',
+  'charts.splitBy': 'Split by',
+  'charts.measuredIn': 'Measured in',
+  'charts.decided': 'How it was decided',
+  'charts.changes': 'What changed',
+  'filter.add': 'Add filter',
+  'filter.dates': 'Pick dates',
+  'mix.title': 'Work mix',
+  'releases.title': 'Releases',
 } as const;
 
 /** Words nothing depends on: a theme may say these its own way. */

@@ -8,7 +8,7 @@
  * say.
  */
 
-import type { AdapterList, Agent, Answer, AnswerPart, AskStyle, Starter } from '../agent.ts';
+import type { AdapterList, Agent, Answer, AnswerPart, AskExtra, AskStyle, Starter } from '../agent.ts';
 import { ANALYZE, SCRIPTED_LABEL, citationsOf } from '../agent.ts';
 import { GUIDE_REFUSAL, looksLikeSecret, type GuideRequest } from '../guide.ts';
 import type { ChatTurn } from '../model-usage.ts';
@@ -16,6 +16,7 @@ import type { Proposal } from '../proposal.ts';
 import { plainify } from '../plainify.ts';
 import { sampleAnswerUsage } from './model-usage.ts';
 import { jobLabel, parseJobPrompt } from '../model/jobs.ts';
+import { chartContextParts, sampleTeamScripts, SAMPLE_TEAM_STARTERS } from './sample-team-script.ts';
 
 const J = (n: number) => `[[corp-jira:PAY-${n}]]`;
 const A = (n: number) => `[[corp-ado:${n}]]`;
@@ -502,10 +503,15 @@ function scriptedGuide(request: GuideRequest): Answer {
 }
 
 export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
-  const answer = (toilProject: string, prompt: string, style?: AskStyle, chat?: ChatTurn): Answer => {
+  const answer = (toilProject: string, prompt: string, style?: AskStyle, chat?: ChatTurn, extra?: AskExtra): Answer => {
     const job = scriptedJob(prompt);
     if (job) return job;
-    const script = SCRIPTS[toilProject] ?? {};
+    // A chart is attached (#567): the answer is built from its own figures, whatever was typed, so Ask about this chart works in the preview.
+    if (extra?.context && prompt !== ANALYZE) {
+      const parts: AnswerPart[] = chartContextParts(extra.context).map((text) => ({ text: samplePlain() ? plainify(text) : text }));
+      return { prompt, parts, citations: citationsOf(parts), by: 'scripted', adapter: 'scripted', model: null, proposals: [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, toilProject) } : {}) };
+    }
+    const script = SCRIPTS[toilProject] ?? (toilProject === 'sample-team' ? sampleTeamScripts() : {});
     if (prompt === ANALYZE && SCRIPTS[toilProject]) {
       const parts: AnswerPart[] = analyzeParts(toilProject).map((text) => ({ text }));
       return { prompt: 'Analyze', parts, citations: citationsOf(parts), by: 'scripted', adapter: 'scripted', model: null, proposals: script.risk?.proposals ?? [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, toilProject) } : {}) };
@@ -523,8 +529,8 @@ export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
   return {
     label: SCRIPTED_LABEL,
     adapters: async () => SAMPLE_ADAPTERS,
-    starters: (toilProject: string): Starter[] => Object.entries(SCRIPTS[toilProject] ?? {}).map(([id, s]) => ({ id, label: s.label })),
-    ask: async (toilProject, prompt, style, chat) => answer(toilProject, prompt, style, chat),
+    starters: (toilProject: string): Starter[] => (toilProject === 'sample-team' ? [...SAMPLE_TEAM_STARTERS] : Object.entries(SCRIPTS[toilProject] ?? {}).map(([id, s]) => ({ id, label: s.label }))),
+    ask: async (toilProject, prompt, style, chat, extra) => answer(toilProject, prompt, style, chat, extra),
     async *guide(request, _history, signal) {
       if (looksLikeSecret(request.message)) throw new Error(GUIDE_REFUSAL);
       const whole = scriptedGuide(request);
@@ -537,8 +543,8 @@ export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
       }
       yield whole;
     },
-    async *stream(toilProject, prompt, signal, style, chat) {
-      const { usage, ...whole } = answer(toilProject, prompt, style, chat);
+    async *stream(toilProject, prompt, signal, style, chat, extra) {
+      const { usage, ...whole } = answer(toilProject, prompt, style, chat, extra);
       const parts: AnswerPart[] = [];
       for (const part of whole.parts) {
         let text = '';

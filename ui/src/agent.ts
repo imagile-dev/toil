@@ -14,6 +14,7 @@ import type { AnswerUsage, ChatTurn } from './model-usage.ts';
 import type { Proposal } from './proposal.ts';
 import type { ChatSession } from './fingerprint.ts';
 import type { GuideRequest } from './guide.ts';
+import type { ViewContext } from './view-context.ts';
 
 /** One paragraph of an answer, and the work items it rests on. */
 export interface AnswerPart {
@@ -88,6 +89,8 @@ export const MAX_HISTORY_ANSWER = 1500;
 
 /** What a question may carry beyond its text (#344): the chat's own adapter, and the conversation so far. */
 export interface AskExtra {
+  /** What the person is looking at (#567): a chart's figures, checked by the server before it reaches the prompt. */
+  context?: ViewContext;
   /** The adapter this chat switched to; absent, the one chosen in Settings answers. */
   adapter?: string;
   /** The adapter was the chat's fallback (Settings' choice can't run), not anyone's choice, so the toil project doesn't remember it. */
@@ -176,14 +179,25 @@ export const ANALYZE = 'analyze';
 
 const CITE = /\[\[([^\]]+)\]\]/g;
 
-/** The OWI ids an answer's text cites, in order of first mention. */
+/** A chart cell is cited as `[[cell:<column>/<row>]]`, by the keys the pivot gives (#567). */
+export const CELL_CITE = 'cell:';
+export const isCellCite = (cite: string): boolean => cite.startsWith(CELL_CITE);
+
+/** The OWI ids an answer's text cites, in order of first mention. A chart cell's citation is not an id: `cellCitationsOf` has those. */
 export function citationsOf(parts: AnswerPart[]): string[] {
   const seen = new Set<string>();
-  for (const part of parts) for (const m of part.text.matchAll(CITE)) seen.add(m[1]!);
+  for (const part of parts) for (const m of part.text.matchAll(CITE)) if (!isCellCite(m[1]!)) seen.add(m[1]!);
   return [...seen];
 }
 
-export type Segment = { text: string } | { cite: string };
+/** The chart cells an answer's text cites, as `<column>/<row>`, in order of first mention. */
+export function cellCitationsOf(parts: AnswerPart[]): string[] {
+  const seen = new Set<string>();
+  for (const part of parts) for (const m of part.text.matchAll(CITE)) if (isCellCite(m[1]!)) seen.add(m[1]!.slice(CELL_CITE.length));
+  return [...seen];
+}
+
+export type Segment = { text: string } | { cite: string } | { cell: string };
 
 /** Splits a part into plain text and citations, for rendering. */
 export function segments(text: string): Segment[] {
@@ -191,7 +205,7 @@ export function segments(text: string): Segment[] {
   let last = 0;
   for (const m of text.matchAll(CITE)) {
     if (m.index > last) out.push({ text: text.slice(last, m.index) });
-    out.push({ cite: m[1]! });
+    out.push(isCellCite(m[1]!) ? { cell: m[1]!.slice(CELL_CITE.length) } : { cite: m[1]! });
     last = m.index + m[0].length;
   }
   if (last < text.length) out.push({ text: text.slice(last) });

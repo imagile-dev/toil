@@ -20,6 +20,8 @@ import type { AdapterList, Agent } from '../agent.ts';
 import type { AnalysesApi } from '../analyses.ts';
 import type { Route } from '../App.tsx';
 import { sendCommand, type UiCommand } from '../commands.ts';
+import { useCurrentChart } from '../current-chart.ts';
+import type { ViewContext } from '../view-context.ts';
 import { analysisHref, dateTime, toilProjectHref, itemHref, shortKey, standupHref, STATUS_CATEGORY_LABEL, toilProjectEditHref } from '../format.ts';
 import { fuzzyRank } from '../fuzzy.ts';
 import type { ToilProjectData } from '../load.ts';
@@ -107,6 +109,8 @@ export interface EntriesInput {
   openShortcuts: () => void;
   /** Whether a worklog is kept, which the stand-up is folded from. */
   hasWorklog?: boolean;
+  /** The chart a Charts view is showing, when one is (#567): "Ask about this chart" is offered only then. */
+  chart?: ViewContext | null;
 }
 
 /** Every entry the palette can show, before any query. */
@@ -118,6 +122,7 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
   if (x.onSync) out.push({ id: 'cmd:sync', group: 'commands', label: 'Sync now', detail: 'Read every Toil project through toil into the cache', go: { run: x.onSync } });
   if (here && current?.ok) {
     out.push({ id: 'cmd:ask', group: 'commands', label: `Ask about ${here}`, detail: 'Focus the Ask bar', go: { command: { kind: 'ask' } } });
+    if (x.chart) out.push({ id: 'cmd:ask-chart', group: 'commands', label: 'Ask about this chart', detail: x.chart.title, text: 'ask chart figures explain graph', go: { command: { kind: 'ask-about', context: x.chart } } });
     out.push({ id: 'cmd:analyze', group: 'commands', label: pw(`Analyze ${here}`, `Get a briefing on ${here}`), detail: pw("The agent's pulse check of the Toil project", "An AI agent writes a briefing of what needs attention"), go: { command: { kind: 'analyze' } } });
     out.push({ id: 'cmd:agents', group: 'commands', label: pw('Open the Agents panel', 'Open the AI agents panel'), detail: pw('Assignments, the inbox and limits', 'What the AI agents are doing, and what waits on you'), text: 'agents ai agents assignments inbox', go: { command: { kind: 'agents' } } });
     if (x.hasWorklog) out.push({ id: 'cmd:standup', group: 'commands', label: 'Open the stand-up', detail: `Since the last working day, in ${here}`, text: 'stand-up standup daily meeting since yesterday what happened', go: { href: standupHref(here) } });
@@ -232,7 +237,8 @@ export function CommandPalette({ isOpen, onOpenChange, agent, analysesApi, readi
   // Built on each render while it's open, which is cheap next to a keystroke (a few hundred entries), and not at all
   // while it's closed: the App re-renders often (a streaming answer), and every item of every toil project is a lot to list for nothing.
   const plain = usePlain();
-  const entries = isOpen ? paletteEntries({ ...input, analyses, adapters, at }) : [];
+  const chart = useCurrentChart();
+  const entries = isOpen ? paletteEntries({ ...input, analyses, adapters, at, chart }) : [];
   const results = paletteResults(entries, query, here);
   const byId = new Map(entries.map((e) => [e.id, e]));
 

@@ -83,6 +83,15 @@ export const ROUTES = [
   '#/project/sample-team/prs',
   '#/project/sample-team/people',
   '#/project/sample-team/job/classify',
+  // The Charts tab (#567): its list, Work mix by month and split by team, Releases, a drill list open over a chart (the 8 items added to 2.4 after it started), and a filtered view.
+  '#/project/sample-team/charts',
+  '#/project/sample-team/charts/mix',
+  '#/project/sample-team/charts/mix?split=team',
+  '#/project/sample-team/charts/releases',
+  '#/project/sample-team/charts/releases?items=release%7Cadded%7C2.4%7C-%7Cmeasure%3Ditems',
+  '#/project/sample-team/charts/mix?release=2.4&category=ktlo',
+  // A project that never read fix versions: the Releases dashboard says so rather than drawing zeros.
+  '#/project/card-payments/charts',
   // An item's drawer (#494): beside the briefing from 1200px, over it below that, and over the Board, whose card key opens it.
   '#/project/card-payments?item=corp-jira%3APAY-101',
   '#/project/card-payments/board?item=corp-jira%3APAY-104',

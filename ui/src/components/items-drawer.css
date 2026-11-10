@@ -1,0 +1,11 @@
+/* The drawer that lists several items (#567), on the item drawer's own frame (briefing.css). */
+.toil-project-shell[data-side][data-items] .toil-project-body { grid-template-columns: minmax(0, 1fr) minmax(0, min(38rem, 48%)); }
+.drill-drawer .l-table table { font-size: 0.8125rem; }
+.drill-drawer .l-table th, .drill-drawer .l-table td { text-align: left; vertical-align: top; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--line); }
+.drill-sort { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
+.drill-sort[aria-pressed="true"] { background: transparent; color: var(--ink); text-decoration: underline; }
+.drill-sortmenu { display: flex; }
+.cat-chip { display: inline-flex; align-items: baseline; gap: 0.15rem; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid var(--line); background: var(--raised); font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+.cat-chip--unsure { color: var(--muted); border-style: dashed; }
+.cat-chip__how { font-weight: 400; color: var(--muted); }
+.cat-name { text-decoration: underline dotted; text-underline-offset: 0.2em; cursor: help; }

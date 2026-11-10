@@ -257,7 +257,7 @@ export async function httpServerStatus(base = './'): Promise<ServerStatus | null
 }
 
 /** A question's extra fields (#344), only those set, so a question with none sends what it always did. */
-const extraBody = (extra: AskExtra | undefined) => ({ ...(extra?.adapter ? { adapter: extra.adapter } : {}), ...(extra?.fallback ? { fallback: true } : {}), ...(extra?.history?.length ? { history: extra.history } : {}) });
+const extraBody = (extra: AskExtra | undefined) => ({ ...(extra?.adapter ? { adapter: extra.adapter } : {}), ...(extra?.fallback ? { fallback: true } : {}), ...(extra?.history?.length ? { history: extra.history } : {}), ...(extra?.context ? { context: extra.context } : {}) });
 
 /** One streamed answer's NDJSON lines (server.ts, streamAnswer): each answer as it grows, then done or an error. */
 export async function* answerLines(res: Response): AsyncIterable<Answer> {

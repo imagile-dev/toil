@@ -168,10 +168,11 @@ describe.each(NAMES)('the %s attention answer agrees with the insights', (name) 
 });
 
 describe('the scripts', () => {
-  it('cover every Toil project the fixture serves but the generated sample team, which the agent says it has no starters for', async () => {
+  it('cover every Toil project the fixture serves but the generated sample team, whose five starters are computed from its own records (test/view-context.test.ts)', async () => {
     expect(Object.keys(SCRIPTS).sort()).toEqual([...NAMES].sort());
-    expect(agent.starters('sample-team')).toEqual([]);
-    expect(await text('sample-team', 'risk')).toContain('answers only its starter questions');
+    expect(agent.starters('sample-team').map((s) => s.id)).toEqual(['mix', 'release', 'risk', 'review', 'people']);
+    // A question that is not a starter still gets the preview's one honest line.
+    expect(await text('sample-team', 'something else entirely')).toContain('answers only its starter questions');
   });
 });
 

@@ -10,7 +10,9 @@
  * their MCP names, for live lookups through `@imagile-dev/toil/api`'s
  * `execute()` with `readOnly: true`. There is no write tool, and a live tool
  * is built only for a command the registry says never writes, so the list
- * can't grow one by accident (test/agents.test.ts asserts it).
+ * can't grow one by accident (test/agents.test.ts asserts it). `insights_pivot`
+ * (#567) is the pure pivot the Charts screens run, over the same cache, with
+ * the same categories (src/insights-input.ts).
  *
  * Every tool call adds the ids it returned to a ledger: the items, the
  * parents, children and link targets they name, and the pull requests,
@@ -30,6 +32,8 @@ import { flagsOf, KINDS, linked, PR_FLAG_LABEL, prMetrics, sizeOf, waitOf, worki
 import { people, readPeople, type Card } from '../../src/model/people.ts';
 import { CHECK_LABEL, readiness, readReadiness, tally, VERDICTS, type Readiness } from '../../src/model/readiness.ts';
 import { SimilarityIndex } from '../../../src/core/owi/similar.ts';
+import { applyFilters, DIMENSION_MENU, isDay as isPivotDay, MAX_TOP, MEASURES, parseDimension, parseWhere, pivot, type Filter, type PivotResult, type PivotSpec } from '../../../src/core/insights/index.ts';
+import { insightsBase, valuesContext, type PersonLike } from '../../src/insights-input.ts';
 import { CALLER } from '../store.ts';
 import { addDays, appliedText, dayOf, isDay, OUTCOME_TEXT, timeOf, type WorklogPage } from '../../src/model/worklog.ts';
 import { BUCKETS, BUCKET_TITLE, defaultRange, whenText, type StandupLine, type StandupReport } from '../../src/model/standup.ts';
@@ -160,6 +164,8 @@ export const MAX_LIVE_CHARS = 60_000;
 /** The ids a tool result vouches for, and the tool calls made: what answer.ts checks citations against. */
 export class Ledger {
   readonly ids = new Set<string>();
+  /** The chart cells a pivot or a view context holds, each `<column>/<row>` by the keys the pivot gives: what `[[cell:<column>/<row>]]` is checked against. */
+  readonly cells = new Set<string>();
   readonly calls: Array<{ tool: string; input: Record<string, unknown> }> = [];
   add(id: string | null | undefined) {
     if (id) this.ids.add(id);
@@ -187,6 +193,13 @@ function brief(item: WorkItem) {
     iteration: item.iteration?.name ?? null,
     parent: item.parent,
     children: item.children,
+    // The dimension fields, each only when the sync read it: an absent key means "never read", an empty list "read, and none".
+    ...(item.releases !== undefined ? { releases: item.releases.map((r) => r.name) } : {}),
+    ...(item.components !== undefined ? { components: item.components } : {}),
+    ...(item.sprints !== undefined ? { sprints: item.sprints.map((x) => x.name) } : {}),
+    ...(item.area !== undefined ? { area: item.area?.path ?? null } : {}),
+    ...(item.dims !== undefined ? { dims: item.dims } : {}),
+    ...(item.ancestors !== undefined ? { ancestors: item.ancestors.map((a) => ({ id: a.id, type: a.type, title: a.title })) } : {}),
     links: item.links.map((l) => ({ type: l.type, direction: l.direction, target: l.target, name: l.name })),
     created: item.created,
     updated: item.updated,
@@ -202,9 +215,10 @@ function bodyText(item: WorkItem): string | null {
 }
 
 /** Every id a returned item names (its own, its parent, children and link targets): each is in the tool's result, so an answer may cite it. */
-function vouch(ledger: Ledger, item: Pick<WorkItem, 'id' | 'parent' | 'children' | 'links'>) {
+function vouch(ledger: Ledger, item: Pick<WorkItem, 'id' | 'parent' | 'children' | 'links'> & { ancestors?: ReadonlyArray<{ id: string }> | undefined }) {
   ledger.add(item.id);
   ledger.add(item.parent);
+  for (const a of item.ancestors ?? []) ledger.add(a.id);
   for (const c of item.children) ledger.add(c);
   for (const l of item.links) ledger.add(l.target);
 }
@@ -565,12 +579,12 @@ export function readinessTools(toilProject: string, data: AgentData, ledger: Led
 }
 
 /** The four work item cache tools for one toil project. */
-export function cacheTools(toilProject: string, data: AgentData, ledger: Ledger): ToolSpec[] {
+export function cacheTools(toilProject: string, data: AgentData, ledger: Ledger, readToilProject?: ReadToilProject, now: () => string = () => new Date().toISOString()): ToolSpec[] {
   const note = () => ({ toilProject, syncedAt: data.syncedAt() });
   return [
     {
       name: 'owi_query',
-      description: `Lists the work items Toil UI's cache holds for the Toil project "${toilProject}", as OWI records (no native payload). Filter by any of the fields; all filters must match. Text matches the id or title, case-insensitively. Returns at most ${MAX_QUERY} items and says when there were more.`,
+      description: `Lists the work items Toil UI's cache holds for the Toil project "${toilProject}", as OWI records (no native payload). Filter by any of the fields; all filters must match. Text matches the id or title, case-insensitively. release, component, sprint, team, category, area and dim match a value's name exactly, case-insensitively (as insights_pivot's where does); parent is an item id and matches that item's descendants. An item whose dimension the sync never read can't match a filter on it: the result says how many items could not be judged, and that is not the same as none. A returned record carries releases, components, sprints, area, dims and ancestors only when they were read. Returns at most ${MAX_QUERY} items and says when there were more.`,
       inputSchema: {
         type: 'object',
         properties: {
@@ -581,6 +595,14 @@ export function cacheTools(toilProject: string, data: AgentData, ledger: Ledger)
           assignee: { type: 'string', description: 'Part of the assignee name; "none" for unassigned.' },
           iteration: { type: 'string', description: 'Part of the iteration (sprint) name.' },
           label: { type: 'string' },
+          release: { type: 'string', description: 'A fix version (Jira), milestone (GitHub) or release field value, by name.' },
+          component: { type: 'string', description: 'A Jira component, by name.' },
+          sprint: { type: 'string', description: 'Any sprint the item has been in, by name.' },
+          team: { type: 'string', description: "A team named in the Toil project's people; an item counts for its assignee's team." },
+          category: { type: 'string', description: "The category the Toil project's classification gives the item, by name or short form (such as KTLO), or \"none\" for one left unsure." },
+          parent: { type: 'string', description: 'An OWI id: matches the items under it, at any depth.' },
+          area: { type: 'string', description: 'An Azure DevOps area path, as insights_pivot shows it.' },
+          dim: { type: 'string', description: 'A dimension the Toil project names, as name=value, such as customer=Acme.' },
           limit: { type: 'integer', minimum: 1, maximum: MAX_QUERY, description: `Default ${DEFAULT_QUERY}.` },
         },
         additionalProperties: false,
@@ -590,7 +612,26 @@ export function cacheTools(toilProject: string, data: AgentData, ledger: Ledger)
         const assignee = str(input.assignee)?.toLowerCase();
         const iteration = str(input.iteration)?.toLowerCase();
         const limit = Math.min(MAX_QUERY, Math.max(1, Number.isInteger(input.limit) ? (input.limit as number) : DEFAULT_QUERY));
-        const matches = data.items().filter(
+        const filters: Array<{ name: string; filter: Filter }> = [];
+        for (const name of ['release', 'component', 'sprint', 'team', 'category', 'area'] as const) {
+          const v = str(input[name]);
+          if (v) filters.push({ name, filter: { dimension: name, op: '=', values: [v] } });
+        }
+        const dim = str(input.dim);
+        if (dim) {
+          const at = dim.indexOf('=');
+          if (at < 1 || at === dim.length - 1) return { ...note(), error: `dim is name=value, such as customer=Acme; got ${JSON.stringify(dim)}.` };
+          filters.push({ name: 'dim', filter: { dimension: `dim:${dim.slice(0, at).trim()}`, op: '=', values: [dim.slice(at + 1).trim()] } });
+        }
+        for (const { filter } of filters) {
+          try {
+            parseDimension(filter.dimension);
+          } catch (e) {
+            return { ...note(), error: e instanceof Error ? e.message : String(e) };
+          }
+        }
+        const parent = str(input.parent);
+        const first = data.items().filter(
           (i) =>
             (!text || i.id.toLowerCase().includes(text) || i.title.toLowerCase().includes(text)) &&
             (!str(input.type) || i.type === input.type) &&
@@ -600,9 +641,56 @@ export function cacheTools(toilProject: string, data: AgentData, ledger: Ledger)
             (!iteration || (i.iteration?.name ?? '').toLowerCase().includes(iteration)) &&
             (!str(input.label) || i.labels.includes(String(input.label))),
         );
+        // The dimension filters judge only what the first filters kept, so "could not be judged" counts items that would otherwise have matched.
+        const cannotJudge: Record<string, number> = {};
+        let kept = first;
+        if (filters.length) {
+          // The people and the classification are read only when a team or a category filter asks for them.
+          const wants = (name: string) => filters.some((f) => f.name === name);
+          let people: PersonLike[] = [];
+          let scheme: string | null = null;
+          if (readToilProject && (wants('team') || wants('category'))) {
+            const shown = (await readToilProject()).toilProject;
+            if (wants('team')) people = readPeople(shown).people;
+            const named = typeof shown === 'object' && shown !== null ? (shown as { classify?: { scheme?: unknown } }).classify?.scheme : undefined;
+            if (typeof named === 'string') scheme = named;
+          }
+          const base = insightsBase(data.items(), people, scheme);
+          const byId = new Map(base.items.map((i) => [i.id, i]));
+          const out = applyFilters(first.map((i) => byId.get(i.id) ?? i), filters.map((f) => f.filter), valuesContext(base, now()));
+          for (const u of out.unjudged) {
+            const name = u.filter.dimension.split(':')[0]!;
+            cannotJudge[name] = (cannotJudge[name] ?? 0) + u.count;
+          }
+          const keep = new Set(out.kept.map((i) => i.id));
+          kept = first.filter((i) => keep.has(i.id));
+        }
+        if (parent) {
+          let unread = 0;
+          kept = kept.filter((i) => {
+            if (i.parent === parent || (i.ancestors ?? []).some((a) => a.id === parent)) return true;
+            if (i.ancestors === undefined) unread++;
+            return false;
+          });
+          if (unread) cannotJudge.parent = unread;
+        }
+        const matches = kept;
         const items = matches.slice(0, limit).map(brief);
         for (const i of items) vouch(ledger, i);
-        return { ...note(), total: matches.length, returned: items.length, ...(matches.length > limit ? { more: `${matches.length - limit} more match; narrow the filters or raise limit (max ${MAX_QUERY}).` } : {}), items };
+        const unjudged = Object.entries(cannotJudge);
+        return {
+          ...note(),
+          total: matches.length,
+          returned: items.length,
+          ...(matches.length > limit ? { more: `${matches.length - limit} more match; narrow the filters or raise limit (max ${MAX_QUERY}).` } : {}),
+          ...(unjudged.length
+            ? {
+                couldNotJudge: Object.fromEntries(unjudged),
+                couldNotJudgeNote: `${unjudged.map(([k, n]) => `${n} ${n === 1 ? 'item' : 'items'} on ${k}`).join(', ')} could not be judged because that was never read for them; they are not in this list, and that is not the same as not matching.`,
+              }
+            : {}),
+          items,
+        };
       },
     },
     {
@@ -804,6 +892,149 @@ export function standupTool(toilProject: string, data: AgentData, ledger: Ledger
           team: report.team.map(line),
           people: report.people.map((p) => ({ name: p.name, kind: p.kind, inToilProjectPeople: p.mapped, ...Object.fromEntries(BUCKETS.map((b) => [BUCKET_TITLE[b], p.lines[b].map(line)])) })),
         };
+      },
+    },
+  ];
+}
+
+/** The most item ids a pivot cell, or a notable change, carries in a tool result. */
+export const MAX_CELL_ITEMS = 20;
+/** The most cells insights_pivot lists with their items: a wider table is cut, and says so. */
+export const MAX_PIVOT_CELLS = 400;
+
+/** The dimension grammar, as an error shows it: the menu, then the forms the menu can't list. */
+export const DIMENSION_HELP = `Dimensions: ${DIMENSION_MENU.map((d) => d.spec).join(', ')}, label:<prefix>, area:<depth>, parent:<TypeName>, created|started|resolved with :week, :month or :quarter, or dim:<name> for a dimension the Toil project names.`;
+/** The where grammar, as an error shows it. */
+export const WHERE_HELP = 'Each where is "<dimension> = value, value" or "<dimension> != value", such as "status != Done" or "release = 2.4".';
+
+/** A pivot as the agent reads it: the table of values, shares and totals, coverage and notable changes, and each cell's item ids (at most MAX_CELL_ITEMS) with its count. Never an item itself, and never `native`. */
+export function pivotBrief(result: PivotResult, ledger?: Ledger) {
+  const cut = (ids: string[]) => ids.slice(0, MAX_CELL_ITEMS);
+  const value = (c: { value: number | null }) => c.value;
+  const cells: Array<{ column: string; row: string; count: number; items: string[]; measured: number; of: number }> = [];
+  for (const [r, row] of result.rows.entries()) {
+    for (const [c, column] of result.columns.entries()) {
+      const cell = result.cells[r]![c]!;
+      if (cell.items.length === 0 || cells.length >= MAX_PIVOT_CELLS) continue;
+      cells.push({ column: column.key, row: row.key, count: cell.items.length, items: cut(cell.items), measured: cell.measured, of: cell.of });
+    }
+  }
+  // Every row and column pair can be cited, an empty or unread one included: a person may say "nothing in this cell" about a cell that is on the chart.
+  if (ledger) {
+    for (const row of result.rows) for (const column of result.columns) ledger.cells.add(`${column.key}/${row.key}`);
+    for (const c of cells) for (const id of c.items) ledger.add(id);
+  }
+  const notable = result.notable.map((n) => ({ kind: n.kind, row: n.row, column: n.column, message: n.message, delta: n.delta, items: cut(n.items) }));
+  if (ledger) for (const n of notable) for (const id of n.items) ledger.add(id);
+  const unit = result.measure.unit;
+  return {
+    spec: result.spec,
+    asOf: result.asOf,
+    period: result.period,
+    measure: { id: result.measure.id, unit, label: result.measure.label },
+    split: result.split ? { spec: result.split.spec, label: result.split.label, read: result.split.read } : null,
+    across: result.across ? { spec: result.across.spec, label: result.across.label, read: result.across.read } : null,
+    rows: result.rows.map((x) => ({ key: x.key, label: x.label, kind: x.kind })),
+    columns: result.columns.map((x) => ({ key: x.key, label: x.label, kind: x.kind })),
+    // null is "nobody could read it", never 0.
+    values: result.cells.map((row) => row.map(value)),
+    ...(result.measure.id === 'cycleTime' || result.measure.id === 'aging' ? { p85: result.cells.map((row) => row.map((c) => c.p85 ?? null)) } : {}),
+    ...(result.spec.share ? { shares: result.cells.map((row) => row.map((c) => c.share ?? null)) } : {}),
+    rowTotals: result.rowTotals.map(value),
+    columnTotals: result.columnTotals.map(value),
+    total: value(result.total),
+    coverage: { items: result.coverage.items, measured: result.coverage.measured, unreadSplit: result.coverage.unreadSplit, unreadAcross: result.coverage.unreadAcross, parentsLeftOut: result.coverage.parentsLeftOut, multi: result.coverage.multi, notes: result.coverage.notes },
+    notable,
+    cells,
+    ...(result.rows.length * result.columns.length > cells.length && cells.length >= MAX_PIVOT_CELLS ? { cellsCut: `Only the first ${MAX_PIVOT_CELLS} cells list their items; the table above is whole.` } : {}),
+  };
+}
+
+/** `insights_pivot` (#567): the pure pivot the Charts screens run, over this toil project's cached items. */
+export function insightsTools(toilProject: string, data: AgentData, ledger: Ledger, readToilProject: ReadToilProject, now: () => string = () => new Date().toISOString()): ToolSpec[] {
+  const note = () => ({ toilProject, syncedAt: data.syncedAt() });
+  const RULE = 'These figures are the ones the Charts screens show. Quote them as they are: a null or a dash is a figure nobody read, never 0. Say what coverage says was not read. Cite a cell as [[cell:<column>/<row>]], using the column and row keys, and an item as [[<owi id>]].';
+  return [
+    {
+      name: 'insights_pivot',
+      description: `Counts the work in the Toil project "${toilProject}": one measure, split into rows by one dimension, optionally across columns by a second (usually time), under filters, over the items Toil UI last synced. It runs the same pivot as the Charts screens and toil projects pivot, with each item's category from the Toil project's classification. Returns the rows and columns (key and label), values[row][column] with null where nothing could be read, shares when asked, row and column totals, coverage (what was left out and why), notable changes worked out by code, and per cell its count and at most ${MAX_CELL_ITEMS} item ids. ${RULE}`,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          measure: { type: 'string', enum: [...MEASURES], description: 'What to count: items, estimate (sum), days (person-days in progress), throughput (resolved in the period), cycleTime, wip (in progress now) or aging. Default items.' },
+          split: { type: 'string', description: `The rows: a dimension, such as category, release, team, parent:Epic. ${DIMENSION_HELP}` },
+          across: { type: 'string', description: 'The columns: a dimension, usually a time one such as resolved:week or created:month.' },
+          where: { type: 'array', items: { type: 'string' }, description: `Filters. ${WHERE_HELP}` },
+          from: { type: 'string', description: 'The first day of the period, YYYY-MM-DD. Default: 90 days before to.' },
+          to: { type: 'string', description: 'The last day of the period, YYYY-MM-DD. Default: today.' },
+          share: { type: 'boolean', description: "Add each cell's share (0 to 1) of its column's total." },
+          top: { type: 'integer', minimum: 0, maximum: MAX_TOP, description: 'How many rows keep their own line before the rest fold into Other. Default 4; 0 keeps all.' },
+        },
+        additionalProperties: false,
+      },
+      async run(input) {
+        const bad = (message: string, extra: Record<string, unknown> = {}) => ({ ...note(), error: message, measures: [...MEASURES], dimensionGrammar: DIMENSION_HELP, whereGrammar: WHERE_HELP, ...extra });
+        const measure = str(input.measure) ?? 'items';
+        if (!(MEASURES as readonly string[]).includes(measure)) return bad(`measure ${JSON.stringify(measure)} isn't a measure. Use one of: ${MEASURES.join(', ')}.`);
+        const spec: PivotSpec = { measure: measure as PivotSpec['measure'] };
+        for (const k of ['split', 'across'] as const) {
+          const v = str(input[k]);
+          if (v === undefined) continue;
+          try {
+            parseDimension(v);
+          } catch (e) {
+            return bad(`${k}: ${e instanceof Error ? e.message : String(e)}`);
+          }
+          spec[k] = v;
+        }
+        if (input.where !== undefined) {
+          if (!Array.isArray(input.where) || !input.where.every((w) => typeof w === 'string')) return bad('where is a list of strings.');
+          try {
+            spec.where = (input.where as string[]).map((w) => parseWhere(w));
+          } catch (e) {
+            return bad(`where: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }
+        for (const k of ['from', 'to'] as const) {
+          const v = str(input[k]);
+          if (v === undefined) continue;
+          if (!isPivotDay(v)) return bad(`${k} ${JSON.stringify(v)} isn't a day. Write it as YYYY-MM-DD.`);
+          spec[k] = v;
+        }
+        if (spec.from !== undefined && spec.to !== undefined && spec.from > spec.to) return bad(`The period starts after it ends (${spec.from} to ${spec.to}).`);
+        if (input.share === true) spec.share = true;
+        if (input.top !== undefined) {
+          if (!Number.isInteger(input.top) || (input.top as number) < 0 || (input.top as number) > MAX_TOP) return bad(`top is a whole number from 0 to ${MAX_TOP}.`);
+          spec.top = input.top as number;
+        }
+        const shown = await readToilProject();
+        const people = readPeople(shown.toilProject).people;
+        const named = typeof shown.toilProject === 'object' && shown.toilProject !== null ? (shown.toilProject as { classify?: { scheme?: unknown } }).classify?.scheme : undefined;
+        const base = insightsBase(data.items(), people, typeof named === 'string' ? named : null);
+        let result: PivotResult;
+        try {
+          result = pivot({ items: base.items, changes: pullRequestsOf(data.changes()), spec, asOf: now(), people: base.people, ...(base.categories ? { categories: base.categories } : {}), ...(base.scheme ? { scheme: base.scheme } : {}) });
+        } catch (e) {
+          return bad(e instanceof Error ? e.message : String(e));
+        }
+        const held = new Ledger();
+        let brief = pivotBrief(result, held);
+        // A result over the bound loses its item lists first, then the cells, and says so (Bounds).
+        let text = JSON.stringify(brief);
+        let cut: string | null = null;
+        if (text.length > MAX_LIVE_CHARS) {
+          brief = { ...brief, cells: brief.cells.map((c) => ({ ...c, items: c.items.slice(0, 3) })) };
+          text = JSON.stringify(brief);
+          cut = 'Each cell lists only 3 item ids, to keep the result small.';
+        }
+        if (text.length > MAX_LIVE_CHARS) {
+          brief = { ...brief, cells: [] };
+          cut = 'The cells were left out to keep the result small; narrow the pivot with where, top or a shorter period.';
+        }
+        for (const c of held.cells) ledger.cells.add(c);
+        const listed = new Set(brief.cells.flatMap((c) => c.items));
+        for (const id of held.ids) if (listed.has(id) || brief.notable.some((n) => n.items.includes(id))) ledger.add(id);
+        return { ...note(), rule: RULE, scheme: { name: base.scheme?.name ?? null, revision: base.scheme?.revision ?? null }, ...(base.schemeNote ? { schemeNote: base.schemeNote } : {}), ...(cut ? { cut } : {}), ...brief };
       },
     },
   ];

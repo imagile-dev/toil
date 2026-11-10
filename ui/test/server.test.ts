@@ -11,6 +11,7 @@ import { letIn } from './let-in.ts';
 import { COOKIE_MAX_AGE_SECONDS, issueCookie } from '../server/machine-secret.ts';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { fixtureAgent, noAgent, type Agent } from '../server/agent.ts';
+import { sampleContext } from './view-context-kit.ts';
 import { AgentError } from '../server/agents/cli.ts';
 import type { AnalysisKeeper } from '../server/analyses.ts';
 import type { RequestContext } from '../server/context.ts';
@@ -469,6 +470,33 @@ describe('the API', () => {
     expect(failed.status).toBe(502);
     expect(JSON.parse(failed.body).error.message).toContain('No agent is set up');
     expect(JSON.parse(failed.body).error.fix).toContain('Settings, AI agent');
+  });
+
+  it('checks the chart a question is about before the agent sees it, and refuses a bad one with its problems (#567)', async () => {
+    const seen: Array<{ title?: string } | undefined> = [];
+    const agent: Agent = { ...fixtureAgent(), ask: async (ctx, toilProject, prompt, style, chat, extra) => (seen.push(extra?.context), fixtureAgent().ask(ctx, toilProject, prompt, style, chat, extra)) };
+    const { origin } = await start({ agent });
+    const context = sampleContext();
+    const ok = await post(origin, '/api/agent/ask', { toilProject: 'sample-team', prompt: 'Why?', context });
+    expect(ok.status).toBe(200);
+    expect(seen).toEqual([context]);
+    // A key the model does not have, a spec the insights model refuses, an id that is not an id: each is a 400 naming the problem, and nothing is asked.
+    /* eslint-disable @typescript-eslint/no-explicit-any -- each case edits a context by key */
+    for (const [change, problem] of [
+      [(c: any) => (c.extra = 1), 'unknown key "extra"'],
+      [(c: any) => (c.spec.measure = 'velocity'), 'context.spec.measure'],
+      [(c: any) => (c.cells[0].items = ['not an id']), 'item ids'],
+      [(c: any) => (c.title = 'x'.repeat(121)), 'context.title'],
+    ] as const) {
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+      const bad = JSON.parse(JSON.stringify(context));
+      change(bad);
+      const res = await post(origin, '/api/agent/ask', { toilProject: 'sample-team', prompt: 'Why?', context: bad });
+      expect(res.status).toBe(400);
+      expect(JSON.parse(res.body).error.message).toContain(problem);
+    }
+    expect((await post(origin, '/api/agent/ask', { toilProject: 'sample-team', prompt: 'Why?', context: 'a chart' })).status).toBe(400);
+    expect(seen).toHaveLength(1);
   });
 
   it('streams an answer as NDJSON, each line the answer so far, ending done; a failure partway ends with the error', async () => {

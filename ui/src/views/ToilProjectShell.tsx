@@ -30,14 +30,15 @@ import { AgentsSidebar, useAgentsSummary } from '../assign/sidebar.tsx';
 import { AssignModal } from '../assign/views.tsx';
 import { useUiCommand } from '../commands.ts';
 import { useData, useDerived } from '../data.ts';
-import { analysesHref, boardHref, commandCenterHref, dependenciesHref, toilProjectEditHref, toilProjectHref, peopleHref, prsHref, worklogHref } from '../format.ts';
+import { ItemsDrawer } from '../components/items-drawer.tsx';
+import { analysesHref, boardHref, chartsHref, commandCenterHref, dependenciesHref, toilProjectEditHref, toilProjectHref, peopleHref, prsHref, worklogHref } from '../format.ts';
 import { needingAttention } from '../model/insights.ts';
 import { useTerm, useTheme } from '../skins.tsx';
 import { usePlain } from '../plain-words.ts';
 import { momentsOf, useEnter } from '../moments/Moments.tsx';
 import './toil-project-shell.css';
 
-export type ToilProjectTab = 'overview' | 'board' | 'dependencies' | 'prs' | 'people' | 'worklog' | 'analyses';
+export type ToilProjectTab = 'overview' | 'board' | 'dependencies' | 'prs' | 'people' | 'charts' | 'worklog' | 'analyses';
 
 /** A toil project's tabs, in order: the command palette (#416) jumps to each of them in every toil project. */
 export const TOIL_PROJECT_TABS: ReadonlyArray<{ id: ToilProjectTab; label: string; plain: string; href: (toilProject: string) => string }> = [
@@ -46,6 +47,7 @@ export const TOIL_PROJECT_TABS: ReadonlyArray<{ id: ToilProjectTab; label: strin
   { id: 'dependencies', label: 'Dependencies', plain: 'What blocks what', href: dependenciesHref },
   { id: 'prs', label: 'Pull requests', plain: 'Code reviews', href: prsHref },
   { id: 'people', label: 'People', plain: 'People', href: peopleHref },
+  { id: 'charts', label: 'Charts', plain: 'Charts', href: (d) => chartsHref(d) },
   { id: 'worklog', label: 'Worklog', plain: 'What happened', href: (d) => worklogHref(d) },
   { id: 'analyses', label: 'Analyses', plain: 'Past briefings', href: analysesHref },
 ];
@@ -62,7 +64,7 @@ export const PHONE_BAR = '(max-width: 599px)';
  * their own (Overview, Board, Dependencies, Analyses); the others keep theirs.
  * `boardView` says which of the Board tab's two views is showing.
  */
-export function ToilProjectShell({ tab, heading, boardView, peek = null, children }: { tab: ToilProjectTab | null; heading: boolean; boardView?: 'board' | 'readiness'; peek?: string | null; children: ReactNode }) {
+export function ToilProjectShell({ tab, heading, boardView, peek = null, items = null, children }: { tab: ToilProjectTab | null; heading: boolean; boardView?: 'board' | 'readiness'; peek?: string | null; items?: string | null; children: ReactNode }) {
   const { toilProject, config, described } = useData();
   const { health: h, insights } = useDerived();
   const term = useTerm();
@@ -92,7 +94,7 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, childre
     ...(t.id === 'board' ? { count: { n: attention, label: attention === 1 ? 'item needs attention' : 'items need attention' } } : {}),
   }));
   return (
-    <div className="toil-project-shell" data-wide-sidebar={wide || undefined} data-side={(wide && (sideOpen || Boolean(peek))) || undefined} ref={shell}>
+    <div className="toil-project-shell" data-wide-sidebar={wide || undefined} data-side={(wide && (sideOpen || Boolean(peek) || Boolean(items))) || undefined} data-items={(Boolean(items) && !peek) || undefined} ref={shell}>
       <div className="toil-project-bar">
         <div className="toil-project-bar__id">
           <div className="toil-project-bar__line">
@@ -177,6 +179,8 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, childre
         </div>
         {peek ? (
           <ItemDrawer id={peek} />
+        ) : items ? (
+          <ItemsDrawer spec={items} />
         ) : wide && sideOpen && (
           <aside className="agents-side" aria-labelledby="agents">
             <div className="agents-side__scroll">

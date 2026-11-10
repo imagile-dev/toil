@@ -91,6 +91,8 @@ export const HELP = {
   jobs: { title: 'jobs', text: 'A workflow page from toil, run by the agent: it reads through toil and turns every write into a proposal for you.', page: '/docs/ui/', anchor: 'pull-requests' },
   people: { title: 'the People view', text: "What is on each person's plate, from the Toil project's people section and the same items and pull requests as the dashboard. It never ranks or scores anyone.", page: '/docs/ui/', anchor: 'people' },
   readiness: { title: 'the Command Center', text: 'Each verdict is worked out from the cached records, with no model call and no live read. Only ready items are slated, in the Toil project\'s order.', page: '/docs/ui/', anchor: 'readiness-and-the-command-center' },
+  charts: { title: 'the Charts tab', text: 'Each dashboard answers one question about the work, counted by code from the items Toil UI read, and every number opens the items behind it. The period and filters are in the address, so a link shows the same chart.', page: '/docs/ui/', anchor: 'charts' },
+  'work-mix': { title: 'how the mix is worked out', text: "Each item takes the first category that fits: a label it already has, your rules, built-in signals, then its parent's. What none of them settles is Unsure, and the mix counts what was finished in the period.", page: '/docs/ui/', anchor: 'work-mix' },
   worklog: { title: 'the worklog', text: "One page a day, folded by code from the sync, the pull requests, the builds and the agent's runs: facts only, each line linked to where it came from. Days and times are UTC.", page: '/docs/ui/', anchor: 'worklog' },
   standup: { title: 'the stand-up', text: 'Built by code from the worklog\'s days, facts only, and shown on the Summary since the last working day. Days and times are UTC.', page: '/docs/ui/', anchor: 'stand-up' },
   proposal: { title: 'the write gate', text: "Nothing changes until you approve it. Even then, the connection has to allow writes, and each change is asked for by name.", page: '/docs/core/', anchor: 'writes' },
@@ -136,12 +138,13 @@ export type HelpTopicId = keyof typeof HELP;
 export const helpHref = (topic: HelpTopic): string => `${DOCS_SITE}${topic.page}#${topic.anchor}`;
 
 /** The header's Help entry: the docs section for the view in front of you. */
-export type HelpView = 'toilProjects' | 'dashboard' | 'prs' | 'people' | 'command-center' | 'worklog' | 'standup' | 'item' | 'assignment' | 'job' | 'settings' | 'setup' | 'newProject';
+export type HelpView = 'toilProjects' | 'dashboard' | 'prs' | 'people' | 'charts' | 'command-center' | 'worklog' | 'standup' | 'item' | 'assignment' | 'job' | 'settings' | 'setup' | 'newProject';
 const VIEW_TOPIC: Record<HelpView, HelpTopicId> = {
   toilProjects: 'toilProjects',
   dashboard: 'dashboard',
   prs: 'prs',
   people: 'people',
+  charts: 'charts',
   'command-center': 'readiness',
   worklog: 'worklog',
   standup: 'standup',

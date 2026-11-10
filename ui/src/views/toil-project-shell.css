@@ -183,3 +183,17 @@ a.ticket-chip:hover { border-color: var(--link); }
 }
 .agent-card__title { display: inline-block; min-height: 32px; }
 .agent-card__item .item-link { display: inline-block; min-height: 24px; padding-block: 2px; box-sizing: border-box; }
+
+/* The Work mix tile (#567): its label is the link, its categories one to a line while the tile is narrow. */
+.metric { container-type: inline-size; }
+.metric__tile { align-content: start; cursor: default; }
+.metric__tile:hover { border-color: var(--line); }
+.metric__link { color: var(--link); }
+.metric__mix { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.05rem; font-size: 0.8125rem; line-height: 1.25; }
+.metric__mix b { font-family: var(--font-display); }
+.metric__cat { text-decoration: underline dotted; text-underline-offset: 0.2em; cursor: help; }
+@container (min-width: 26rem) {
+  .metric__mix { display: block; }
+  .metric__mix li { display: inline; }
+  .metric__mix li + li::before { content: " · "; }
+}

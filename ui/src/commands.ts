@@ -9,12 +9,25 @@
  */
 
 import { useEffect, useRef } from 'react';
+import type { ViewContext } from './view-context.ts';
 
 export type UiCommand = { kind: 'ask' } | { kind: 'analyze' } | { kind: 'agents' } | { kind: 'assign'; id: string } | { kind: 'agent'; name: string | null; label: string }
   /** A workflow job (#532): its prompt (`job:review:<change id>`) and what the chat shows for it. */
-  | { kind: 'job'; prompt: string; label: string };
+  | { kind: 'job'; prompt: string; label: string }
+  /** Open Ask about a chart (#567): the chart's figures attach to the question, with a suggested question the person may send or change. */
+  | { kind: 'ask-about'; context: ViewContext; question?: string };
 
 const bus = new EventTarget();
+
+/**
+ * How a Charts view opens Ask about the chart it shows (#567): attaches the
+ * chart's context to the chat, puts the suggested question in the box without
+ * sending it, and opens the conversation. The person sees what is attached,
+ * and removes it with the chip's ✕, before anything is sent.
+ */
+export function askAboutChart(context: ViewContext, question?: string): void {
+  sendCommand(question === undefined ? { kind: 'ask-about', context } : { kind: 'ask-about', context, question });
+}
 
 export function sendCommand(command: UiCommand): void {
   bus.dispatchEvent(new CustomEvent<UiCommand>('command', { detail: command }));

@@ -30,6 +30,8 @@ import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { stubToil } from './toil-stub.ts';
 import { headCommit, hiddenStaged, hostRunner } from '../server/assign/runner.ts';
 import { spawnSync } from 'node:child_process';
+import { cellCite } from '../src/view-context.ts';
+import { sampleContext } from './view-context-kit.ts';
 
 /**
  * The agent adapters (#251), each against a stubbed SDK module: no test
@@ -186,7 +188,7 @@ describe('the tool list', () => {
   it('is the three cache tools and toil mcp\'s read tools, and none of them writes', () => {
     const names = host().tools('card-payments', data, new Ledger()).map((t) => t.name);
     const live = LIVE_COMMANDS.map((c) => registry.commands.find((r) => r.name === c)!);
-    expect(names).toEqual(['owi_query', 'owi_get', 'owi_similar', 'owi_history', 'pr_query', 'pr_get', 'pr_metrics', 'people_list', 'person_get', 'readiness_list', 'readiness_get', 'proposal_fields', ...live.map((c) => c.tool)]);
+    expect(names).toEqual(['owi_query', 'owi_get', 'owi_similar', 'owi_history', 'insights_pivot', 'pr_query', 'pr_get', 'pr_metrics', 'people_list', 'person_get', 'readiness_list', 'readiness_get', 'proposal_fields', ...live.map((c) => c.tool)]);
     for (const c of live) expect(neverWrites(c), c.name).toBe(true);
     const writers = new Set(registry.commands.filter((c) => !neverWrites(c)).map((c) => c.tool));
     expect(names.filter((n) => writers.has(n))).toEqual([]);
@@ -1545,5 +1547,34 @@ describe("npm's copilot.cmd on Windows (#344)", () => {
     expect(shimScript('C:\\nodejs\\copilot.cmd', '"%dp0%\\..\\..\\evil\\x.js"')).toBeNull();
     expect(shimScript('C:\\nodejs\\copilot.cmd', 'start copilot.exe')).toBeNull();
     expect(shimScript('C:\\nodejs\\copilot', 'exec node  "$basedir/node_modules/@github/copilot/npm-loader.js" "$@"')).toBe('C:\\nodejs\\node_modules\\@github\\copilot\\npm-loader.js');
+  });
+});
+
+describe('the chart a question is about (#567)', () => {
+  it('goes into the prompt as data, and its cells and items are what the answer may cite beyond its tools', async () => {
+    const context = sampleContext();
+    const held = context.cells.find((c) => c.items.length > 0)!;
+    const grants = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const script: Script = { calls: [], chunks: [`Here [[cell:${cellCite(held)}]] holds [[${held.items[0]}]], and [[cell:v:no/v:where]] is made up.`] };
+    const codex = codexStub(script, grants);
+    const { host } = hostFor('codex', codex.module, { serveTools: (tools) => grants.serve(tools) });
+    const answer = await host.ask(ctx(), 'card-payments', 'Why is this so big?', null, { id: 'chat-chart', turn: 1 }, { context });
+    expect(codex.seen.input).toContain('untrusted-data');
+    expect(codex.seen.input).toContain(`[[cell:${cellCite(held)}]]`);
+    expect(codex.seen.input).toMatch(/Why is this so big\?$/);
+    // The held cell and its item pass; the made-up cell is flagged the way an unknown item is.
+    expect(answer.unverified).toEqual(['cell:v:no/v:where']);
+    expect(answer.citations).toEqual([held.items[0]]);
+    // Without a chart the same text has nothing to vouch for the cell.
+    const bare = await host.ask(ctx(), 'card-payments', 'Why?', null, { id: 'chat-chart-2', turn: 1 });
+    expect(bare.unverified).toContain(`cell:${cellCite(held)}`);
+  });
+
+  it('is told about in the tool rule: insights_pivot, figures only from it or the view, and cell citations', () => {
+    const rule = systemPrompt('card-payments', FIXTURE_NOW);
+    expect(rule).toContain('insights_pivot');
+    expect(rule).toContain('never estimate');
+    expect(rule).toContain('[[cell:<column>/<row>]]');
+    expect(rule).toContain('a dash or null is a figure nobody read, never 0');
   });
 });

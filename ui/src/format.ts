@@ -4,6 +4,7 @@
  * time zones as it is.
  */
 
+import { withQuery } from './address.ts';
 import type { Person, SourceKind, WorkItem } from './toil.ts';
 
 export const SOURCE_LABEL: Record<SourceKind, string> = {
@@ -47,12 +48,14 @@ export const personText = (p: Person | null) => (p ? (p.name ?? p.id) : 'Unassig
 
 export const toilProjectHref = (toilProject: string) => `#/project/${encodeURIComponent(toilProject)}`;
 export const itemHref = (toilProject: string, id: string) => `${toilProjectHref(toilProject)}/item/${encodeURIComponent(id)}`;
-/** The page you're on with an item's drawer open over it (#494): its path, then `?item=`. */
-export const peekHref = (page: string, id: string) => `${page.split('?')[0] || '#/'}?item=${encodeURIComponent(id)}`;
-/** The page you're on with its drawer closed. */
-export const unpeekHref = (page: string) => page.split('?')[0] || '#/';
+/** The page you're on with an item's drawer open over it (#494): `item=` added to its query, which keeps its filters and any open list of items. */
+export const peekHref = (page: string, id: string) => withQuery(page, (q) => q.set('item', id));
+/** The page you're on with the item drawer closed, whatever else it holds (a filter, the list the item was opened from) left as it was. */
+export const unpeekHref = (page: string) => withQuery(page, (q) => q.delete('item'));
 export const prsHref = (toilProject: string) => `${toilProjectHref(toilProject)}/prs`;
 export const peopleHref = (toilProject: string) => `${toilProjectHref(toilProject)}/people`;
+/** The Charts tab (#567): its list of dashboards, or one dashboard by its id. */
+export const chartsHref = (toilProject: string, dashboard?: string) => `${toilProjectHref(toilProject)}/charts${dashboard ? `/${encodeURIComponent(dashboard)}` : ''}`;
 /** The Command Center (#307): every work item with its readiness verdict. */
 export const commandCenterHref = (toilProject: string) => `${toilProjectHref(toilProject)}/command-center`;
 /** The Board tab (#394), or the board filtered to one person (#292), by the key the People view gives them. */
