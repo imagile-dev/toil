@@ -32,6 +32,11 @@ Read from the code on 9 November 2026, not from a running instance.
 | Grouping and filters | Board by status columns only (no swimlanes; long columns fold with "Show N more", Done keeps 10 and the others 25; a whole card is its drag handle and carries no button), People as one card per person (never ranked), code review flow by author kind, Command Center pickers in local state, the Board's person filter in the URL | No split-by, no shared filter bar, no saved views, no sortable tables, filters not in the address |
 | AI agent | The Ask bar, "Get a briefing" (kept runs, compared), stand-up write-up, jobs. Answers cite items as `[[id]]`, are checked, and may carry proposals applied by a press. The agent reads the cache through read-only tools (`owi_query` filters by type, status, assignee, iteration and label, and returns records without `native`; there is no write tool, `ui/server/agents/tools.ts:11`) | No screen has "ask about this". `POST agent/ask` sends only the toil project and the prompt, never what is on screen: no screen data, filters or figures |
 
+`docs/work-insights-seats.md` reads the same gaps from three seats, a manager's, a scrum
+master's and a product owner's: ten questions each, where each is answered today, and
+where it gets built. `docs/sample-team.md` is the sample team every one of them can be
+answered on.
+
 So the work is three layers: get the dimensions into the data, build one model that splits
 any measure by any dimension, then put it on screens and in prompts.
 
@@ -298,15 +303,22 @@ focus:
   component, team, and so on. Optionally, it shows a forecast range drawn from recent
   throughput, labelled as a forecast with its method (decision 5).
 - **Sprints.** Committed, added, carried and done per sprint, from the sprint model Toil UI
-  already has, split by category or team.
+  already has, split by category or team, or by planned and unplanned work. Its headline is
+  the velocity: the done figure per sprint, with its range over the sprints read
+  (`docs/work-insights-seats.md`, S3 and S4).
 - **Work mix.** The #566 page: a stacked trend of the category shares by month, with
-  breakdowns by team, release, component or epic.
+  breakdowns by team, release, component or epic. Beside the chart, never behind a
+  tooltip, it says how much of the mix was decided by rules, by the AI agent and by
+  people, and how much is still unsure; the unsure share opens the Board's Classify view
+  (seats M4 and S10).
 - **Where we're working.** A heatmap with rows by any dimension (it starts at the parent
   epic, and changes to feature, component, release, area or anything else) and columns by
   week. Each cell shows days in progress, and the row's category
   share sits at its end. Beside it:
   - "parallel streams": how many epics were in progress each week;
   - the share of work with no epic above it.
+
+  Both are headline figures of the dashboard, and each opens its items (seats M8 and P7).
 - **Flow.** Throughput stacked by any split, a cumulative flow diagram, the cycle-time
   scatter with its dots marked by a split, and aging work in progress by a split.
 - **Explore.** Pick a measure, a split, an across and filters, and the chart form follows

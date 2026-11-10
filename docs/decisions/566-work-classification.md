@@ -115,208 +115,163 @@ agent made where the proposal was silent, or where it couldn't be built as writt
   branch still needs `main` merged through the app before a PR (the app's sync was
   off, and the three app-protected files are behind `main`). Splitting the work into
   `kolatts/566-…` and `kolatts/567-…` PRs is the maintainer's call once it is.
+- **`projects classify set` is modelled on `projects analyze set`.** The call is
+  `projects classify set <toil-project> [--scheme <name|./file.json>] [--target
+  <area>.<key>=<value>]… [--clear <scheme|jira|github|ado>]… [--replace]`, and `--clear`
+  is refused over MCP by `offMcpWhen`, as it is there. The `--target` keys are
+  `<area>.field=<alias or id>`, `github.project=<owner>/<number>` and
+  `<area>.value.<categoryId>=<option>`. After setting a scheme it resolves it and warns
+  `CLASSIFY_SCHEME_UNRESOLVED` if it can't, but still sets it. `--clear` removes the
+  whole `classify` key when nothing is left. In the toil project file a scheme path
+  must be relative and end `.json`, text in `classify` is capped at 200 characters,
+  and the key refuses `connection`, `host`, `fields`, `transitions` and `writes`
+  inside it, so it can't select a connection or turn writes on (`src/projects/`,
+  `src/core/toil-project.ts`).
+- **`classify scheme set` and `import` are a person's commands; the rest stay on
+  MCP.** The two are `cli-only` and listed in `PERSON_COMMANDS` in `src/api.ts`.
+  `init`, `export`, `list`, `show` and `projects classify set` are ordinary config
+  commands and are served over MCP.
+- **`--scheme` takes a name or a file.** A value ending `.json` or holding a path
+  separator is a file (source `file`); anything else is a name, looked up in the user
+  folder, then the repository's, then the built-ins. A toil project's
+  `classify.scheme` that starts `./` or `../`, or ends `.json`, is relative to the toil
+  project file (source `toil-project`). A value that is neither a name nor a file is
+  `INVALID_INPUT`; an unknown name is `NOT_FOUND`.
+- **`projects classify set` gets the retired `dossiers …` path, as every `projects`
+  command but `migrate` does.** The cost: `toil dossiers classify set` answers with
+  `TOIL_PROJECT_DEPRECATED_NAME`, though it never existed under that name. `projects
+  pivot` and `projects view` will get one too unless the maintainer says otherwise.
+  Pinned in `src/classify/scheme-commands.test.ts`.
+- **`src/core/classify/` and `src/classify/` are on the safety-layer list in
+  `scripts/triage/changes.mjs`.** It is the one `scripts/` edit, and it makes triage
+  stricter: a triage PR touching them is listed at the top of the draft PR.
+- **`skills/toil/SKILL.md` was shortened in nine places to fit its 4096-byte cap.** It
+  is exactly 4096 bytes now, so any addition needs a removal.
+- **`classify.md` has its own site page, `/docs/classify/` ("Work categories").** It
+  sits in the Use group after Toil projects and carries the classify command index.
+  The trackers' `categorize` commands stay on their areas' pages.
+- **A scheme file is validated against fixed limits.** `name` matches `SCHEME_NAME`;
+  `revision` is a positive whole number, 1 when absent; there are 2 to 12 categories
+  with unique ids matching `CATEGORY_ID`, never `unsure`; `short` is 1 to 24
+  characters, `name` 1 to 60, `definition` 1 to 600; `label` matches
+  `/^[A-Za-z0-9][A-Za-z0-9._:-]{0,49}$/` and is unique ignoring case. `guidance` is at
+  most 20 lines of 300 characters, `examples` at most 40, and `rules` at most 100,
+  each with an id matching `/^[a-z][a-z0-9-]{0,40}$/`, a `when` with at least one of
+  the four keys (each a non-empty list of at most 50) and a `then` that is a category
+  id. An unknown `when` key is an error. Where: `src/core/classify/scheme.ts`.
+- **A scheme file is also checked for what it may carry.** `signals` defaults to true.
+  `labels` takes only `jira`, `github` and `ado`, with category ids inside, unique per
+  tracker ignoring case. An unknown top-level key is ignored with `SCHEME_UNKNOWN_KEY`
+  (`$schema` is allowed). Text shaped like a credential (`findSecrets`) and control
+  characters are refused, and each value is one line.
+- **Two schemes are built in: `ktlo-feature` and `balance`, both revision 1.**
+  `ktlo-feature` has `ktlo` (short `KTLO`, name `Keep the lights on`, label `ktlo`) and
+  `feature` (label `feature`), with the proposal's definitions and one guidance line
+  on upgrades. `balance` has `new` ("New capabilities"), `improve` ("Improvements"),
+  `ktlo` and `productivity`.
+- **The built-in signals all point at the category whose id is `ktlo`.** They are
+  `signal:type` (bug, incident), `signal:security-id`, `signal:incident-link`,
+  `signal:bot-author` (the reporter only), `signal:label` (`security`, `dependencies`,
+  `compliance`, `incident`, `hotfix`) and `signal:title` (opens with the whole word
+  Bump, Upgrade or Patch).
+- **The parent step runs again after agent verdicts, and an item that appears twice is
+  classified once.** The second appearance gets `CLASSIFY_DUPLICATE_ITEM`. Where:
+  `src/core/classify/`.
+- **The engine's warnings are few and grouped.** One `CLASSIFY_VERDICT_IGNORED` covers
+  every ignored verdict. `CLASSIFY_NO_WRITE_BACK` names only areas outside jira,
+  github and ado that have a settled item. A rule with no keys matches nothing, and a
+  rule whose `then` names an unknown category is skipped with one
+  `CLASSIFY_RULE_UNKNOWN_CATEGORY` warning, not one per item.
+- **The prompt treats the work items as untrusted data.** Its fence is one backtick
+  longer than any run inside the data (three at least), with the info string
+  `untrusted-data`. Titles, labels and bodies are flattened to one line; a body that
+  isn't text keeps only its `text` leaves; an excerpt is 600 characters; at most 200
+  items go in by default, with the omitted count stated. Where: `src/core/classify/`.
+- **`classify run` finds its toil project, or none.** A toil project named on the call
+  or in `TOIL_PROJECT` that doesn't exist is an error, and with no toil project
+  catalog it is `NOT_CONFIGURED`. With none, the built-in scheme or `--scheme` applies,
+  there are no targets and `toilProject` is `null`. Several candidates is an error
+  rather than a guess. A target's field id is
+  `toilProject.sections[area]?.fields?.[target.field] ?? target.field`. Where:
+  `src/classify/run.ts`.
+- **`--verdicts <file>` is read strictly, through `ctx.files`.** `-` is refused. An
+  unknown id, an unknown category, a repeat, a non-array, or more than 5000 verdicts
+  is `INVALID_INPUT`.
+- **Input that isn't a work item is skipped, and no items at all is an error.**
+  Records that aren't work items get `CLASSIFY_SKIPPED`; zero items is
+  `INVALID_INPUT`. `classify prompt` keeps the input's order and warns
+  `CLASSIFY_NOTHING_UNSURE` when there is nothing to ask. The MCP prompt's description
+  is "Classify N unsure work items into the scheme X".
+- **The workflow page takes backlog, scheme and connection as its inputs.** It tells
+  the agent to add `toil github project items <number> --owner <owner>` when the
+  category lives in a project field, hands the plan over with `--summary-file
+  plan.json`, and says tuning comes in a later release. Toil UI has no `classify`
+  face until the UI slice.
+- **A broken scheme file is `CONFIG_INVALID`, and `resolve` doesn't fall through.** The
+  message is "Scheme <file> can't be used: <path>: <message>", with up to five
+  problems in `details`. A file found by name whose `name` differs from its file name
+  is an error too. A broken file stops `resolve`, and the next folder's scheme of that
+  name does not win; `list` counts its name as taken (`SCHEME_INVALID`). Where: `src/core/classify/catalog.ts`.
+- **A scheme file is held to bounds.** Files are capped at 256 KiB
+  (`MAX_SCHEME_BYTES`). Under `~/.toil` a scheme may name only `classify/` and, for a
+  path from a toil project, that toil project's own folder; the `--config` file is
+  always off limits. A link out of a scheme folder is skipped with
+  `SCHEME_PATH_INVALID`. A duplicate JSON key is a `SCHEME_DUPLICATE_KEY` warning.
+  `resolve` takes an optional `cwd`, and a repository `.toil/classify` that is the
+  user folder isn't counted twice. Why: the same rule the file service keeps for
+  toil's own config and credentials (**Bounds**).
+- **`classify scheme set` takes no toil project input and edits in place.** It bumps
+  the revision by one, writes where the scheme lives, and writes a user copy for a
+  built-in. An unchanged file writes nothing and warns `SCHEME_UNCHANGED`. A write is a
+  temp file then a rename; the user folder is `0o700` and its files `0o600`. In a
+  scheme folder the file must be `<name>.json`. `init` and `export` accept `--cwd`.
+- **`jira issue categorize` searches one page of keys and falls back to reading
+  issues.** The JQL quotes and escapes the keys. A search returns one page of up to
+  100 keys; keys a successful search omitted are read one at a time, and a search
+  answered 400 falls back to reading each issue. A group with no items returns early
+  with no requests, and its `field` has no `id`.
+- **`jira issue categorize` reads `editmeta` where the proposal said `createmeta`.**
+  It is fetched only for the first issue of each project and type among the items that
+  carry a field value. `changed[].field.value` is the matched option's own text, and a
+  live value equal to either the plan's value or that text counts as equal, so a
+  second run sends nothing.
+- **Known gap: a plain string sent to a multi-line text field on Jira Cloud v3 needs
+  ADF.** The `PUT` fails and is recorded as that item's failure.
+- **`ado work-item categorize` uses api-version 7.1 on collection-level routes, on
+  both deployments.** Where: `collectionOf` in `src/areas/ado/server/client.ts`. For a
+  dotted reference name, a batch read answered 400 probes `GET _apis/wit/fields/<ref>`
+  and turns a 404 into "field not found".
+- **`ado work-item categorize` takes a field's allowed values from each work item
+  type's own definition, where the proposal said the process lists API.** An item
+  whose read lacks `System.TeamProject` or `System.WorkItemType` is treated as not
+  carrying the field. A group with no items sends nothing.
+- **`ado work-item categorize` guards each patch with the revision it read.** The
+  patch starts with a `test` of that revision. A conflict is a 409, a 412, or a 400
+  naming the test operation or `/rev`; the item is read again and tried once more, and
+  a second refusal is that item's failure, with Azure DevOps's own message. A review
+  finding narrowed the match from any mention of `rev`.
+- **`github issue categorize` reads everything, then writes.** The item query uses the
+  field's real name from the project's own field list, and each item's project item is
+  read before its labels are written. When an item's labels were written and its field
+  step fails, the reason ends "(its labels were changed; the field was not)". The
+  command removes `owner` and `repo` from `ctx.resolved.inputs`, so `meta.context`
+  doesn't report values it never used. Where: `src/areas/github/`.
+- **`github issue categorize` validates its keys and stops on a missing scope.** Keys
+  match `[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[1-9][0-9]*`, and an owner or repo of `.` or
+  `..` is refused. A GraphQL `INSUFFICIENT_SCOPES` stops the whole call. Option matching inside `setProjectField` keeps `project status`'s compare
+  (ignores case, doesn't trim); the check before any write uses `sameValue`.
+- **Shared by the three: which errors stop a call.** `failureReason`
+  (`src/core/classify/apply.ts`) rethrows an `AUTH` error whenever `details.status`
+  isn't 403, no status included: a 401, a network failure and a cancel stop the call,
+  while a 403, a 404 and any other HTTP error are that item's failure.
+- **Shared by the three: the field is looked up only when a group needs it.** It is
+  read only when some item in the group carries a field value, so a plan that changes
+  labels alone needs no field (a review finding).
+- **Shared by the three: an error that stops a call halfway says how far it got.** It
+  carries the counts so far in `details.categorize`, and its message ends "N of M items
+  were changed before this." Nothing is added when no item had been processed (a
+  review finding). Because the calls are idempotent, the caller can rerun.
 
 **Not verified:** no command here has been run against a real Jira, GitHub or Azure
 DevOps. Every request is checked against canned responses shaped from the vendors'
 documentation, and each fixture says so.
-
-## Raw notes, still to be written up as entries
-
-These are defaults the agents took while building slice 1, noted at a session
-hand-off on 2026-11-10 so they travel with the branch. Each is in the code and
-pinned by a test; none has been written as a proper entry yet. Before a PR opens,
-turn each into an entry above (what, why, where) or drop it as too small to record,
-and delete this section.
-
-**Commands**
-
-- `projects classify set <toil-project> [--scheme <name|./file.json>] [--target
-  <area>.<key>=<value>]… [--clear <scheme|jira|github|ado>]… [--replace]`, modelled on
-  `projects analyze set`, `offMcpWhen` for `--clear` included. `--target` keys:
-  `<area>.field=<alias or id>`, `github.project=<owner>/<number>`,
-  `<area>.value.<categoryId>=<option>`.
-- `classify scheme set` and `import` are a person's commands (`cli-only`, and in
-  `PERSON_COMMANDS` in `src/api.ts`). `init`, `export`, `list`, `show` and
-  `projects classify set` are ordinary config commands and stay on MCP.
-- `--scheme` takes a name or a file: a value ending `.json` or holding a path
-  separator is a file (source `file`); anything else is a name, looked up user, then
-  repo, then built-in. A toil project's `classify.scheme` starting `./` or `../`, or
-  ending `.json`, is relative to the toil project file (source `toil-project`).
-- `projects classify set` gets the retired `dossiers …` path like every other
-  `projects` command but `migrate` (pinned in `src/classify/scheme-commands.test.ts`).
-  The cost: `toil dossiers classify set` answers, with `TOIL_PROJECT_DEPRECATED_NAME`,
-  though it never existed under that name. `projects pivot` and `projects view` will
-  get one too unless the maintainer says otherwise.
-- `src/core/classify/` and `src/classify/` are on the safety-layer list in
-  `scripts/triage/changes.mjs`. It is the one `scripts/` edit, and it makes triage
-  stricter.
-- `skills/toil/SKILL.md` was shortened in nine places to fit its 4096-byte cap; it is
-  exactly 4096 bytes now, so any addition needs a removal.
-- `classify.md` has its own site page, `/docs/classify/` ("Work categories" in the
-  Use group, after Toil projects), with the classify command index. The trackers'
-  `categorize` commands stay on their areas' pages.
-- `classify run --record` is left to the ledger slice.
-
-**Scheme validation**
-
-- `name` matches `SCHEME_NAME`; `revision` is a positive whole number, 1 when absent;
-  2 to 12 categories with unique ids matching `CATEGORY_ID`, never `unsure`; `short`
-  1 to 24 characters, `name` 1 to 60, `definition` 1 to 600; `label` matches
-  `/^[A-Za-z0-9][A-Za-z0-9._:-]{0,49}$/` and is unique ignoring case.
-- `guidance` at most 20 lines of 300 characters; `examples` at most 40; `rules` at
-  most 100, each with an id matching `/^[a-z][a-z0-9-]{0,40}$/`, a `when` with at
-  least one of the four keys (each a non-empty list of at most 50), and a `then` that
-  is a category id. An unknown `when` key is an error.
-- `signals` defaults to true. `labels` takes only `jira`, `github`, `ado`, with
-  category ids inside, unique per tracker ignoring case.
-- An unknown top-level key is ignored with `SCHEME_UNKNOWN_KEY`; `$schema` is allowed.
-  No credential-shaped text (`findSecrets`), no control characters, one line each.
-
-**Built-in schemes**
-
-- `ktlo-feature`, revision 1: `ktlo` (short `KTLO`, name `Keep the lights on`, label
-  `ktlo`) and `feature` (label `feature`), with the proposal's definitions and one
-  guidance line on upgrades.
-- `balance`, revision 1: `new` ("New capabilities"), `improve` ("Improvements"),
-  `ktlo`, `productivity`.
-- The built-in signals point at the category whose id is `ktlo`: `signal:type` (bug,
-  incident), `signal:security-id`, `signal:incident-link`, `signal:bot-author` (the
-  reporter only), `signal:label` (`security`, `dependencies`, `compliance`,
-  `incident`, `hotfix`), `signal:title` (opens with the whole word Bump, Upgrade or
-  Patch).
-
-**The engine and the prompt**
-
-- The parent step runs again after agent verdicts. An item that appears twice is
-  classified once, with `CLASSIFY_DUPLICATE_ITEM`.
-- One `CLASSIFY_VERDICT_IGNORED` warning covers every ignored verdict.
-  `CLASSIFY_NO_WRITE_BACK` names only areas outside jira, github and ado that have a
-  settled item.
-- `labels.remove` is spelled as the item spells it. `settledByRules` is rounded to
-  three places. `byCategory` includes zeros and `unsure`.
-- Reasons: a parent verdict uses the category's `name`; a field verdict names
-  `target.field`; a rule's reason joins its keys with "and". A rule with no keys
-  matches nothing. A rule whose `then` names an unknown category is skipped with one
-  `CLASSIFY_RULE_UNKNOWN_CATEGORY` warning.
-- GHSA ids are matched with the advisory alphabet (`23456789cfghjmpqrvwx`), ignoring
-  case.
-- The prompt's fence is one backtick longer than any run inside the data (three at
-  least), with the info string `untrusted-data`. Titles, labels and bodies are
-  flattened to one line; a body that isn't text keeps only its `text` leaves; an
-  excerpt is 600 characters; 200 items at most by default, with the omitted count
-  stated.
-
-**`classify run` and `classify prompt`**
-
-- `complete()` fills the record fields a caller omitted as empty, because
-  `EXAMPLE_BRIEF_RECORDS` leaves several out.
-- A toil project named on the call or in `TOIL_PROJECT` that doesn't exist is an
-  error; with no toil project catalog it is `NOT_CONFIGURED`. With none, the built-in
-  scheme or `--scheme` applies, there are no targets, and `toilProject` is `null`.
-  Several candidates is an error.
-- A target's field id is `toilProject.sections[area]?.fields?.[target.field] ??
-  target.field`.
-- `--verdicts <file>` reads through `ctx.files`; `-` is refused. `readVerdicts` is
-  strict: an unknown id, an unknown category, a repeat, a non-array, or more than
-  5000 is `INVALID_INPUT`.
-- `CLASSIFY_SKIPPED` for records that aren't work items; zero items is
-  `INVALID_INPUT`. `classify prompt` keeps the input's order and warns
-  `CLASSIFY_NOTHING_UNSURE`. The MCP prompt's description is "Classify N unsure work
-  items into the scheme X".
-- The workflow page's inputs are backlog, scheme and connection. It tells the agent
-  to add `toil github project items <number> --owner <owner>` when the category lives
-  in a project field, hands the plan over with `--summary-file plan.json`, and says
-  tuning comes in a later release. Toil UI has no `classify` face until the UI slice.
-
-**The scheme catalog**
-
-- A broken scheme file is `CONFIG_INVALID` ("Scheme <file> can't be used: <path>:
-  <message>", up to five problems in `details`). A value that is neither a scheme
-  name nor a file is `INVALID_INPUT`; an unknown name is `NOT_FOUND`.
-- A file found by name whose `name` differs from its file name is an error. A broken
-  file is an error in `resolve`, with no fall-through to the next folder, and `list`
-  counts its name as taken (`SCHEME_INVALID`).
-- `resolve` takes an optional `cwd`. A repo `.toil/classify` that is the user folder
-  isn't counted twice.
-- Under `~/.toil` a scheme may name only `classify/` and, for a path from a toil
-  project, that toil project's own folder. The `--config` file is always off limits.
-- Scheme files are capped at 256 KiB (`MAX_SCHEME_BYTES`). A duplicate JSON key is a
-  `SCHEME_DUPLICATE_KEY` warning. A link out of a scheme folder is skipped with
-  `SCHEME_PATH_INVALID`.
-- `set` takes no toil project input, bumps the revision by one, writes where the
-  scheme lives, and writes a user copy for a built-in. An unchanged file writes
-  nothing and warns `SCHEME_UNCHANGED`. Writes are a temp file, then a rename; the
-  user folder is `0o700` and its files `0o600`. In a scheme folder the file must be
-  `<name>.json`.
-- `projects classify set` resolves the scheme after setting it and warns
-  `CLASSIFY_SCHEME_UNRESOLVED`, but still sets it. `--clear` removes the whole
-  `classify` key when nothing is left. A scheme path in a toil project must end
-  `.json` and be relative; text in `classify` is capped at 200 characters; the key
-  refuses `connection`, `host`, `fields`, `transitions` and `writes` inside it.
-- `init` and `export` accept `--cwd`.
-
-**`jira issue categorize`**
-
-- JQL quotes and escapes keys. Search is one page of up to 100 keys; keys a
-  successful search omitted are read one at a time, and a search answered 400 falls
-  back to reading each issue.
-- A group with no items returns early with no requests, and `field` has no `id`.
-- `editmeta` is used where the proposal said `createmeta`, and is fetched only for
-  the first issue of each project and type among the items that carry a field value.
-- `changed[].field.value` is the matched option's own text. A live value equal to
-  either the plan's value or the matched option's text counts as equal.
-- **Known gap:** a plain string sent to a multi-line text field on Cloud v3 needs
-  ADF. The `PUT` fails and is recorded as that item's failure.
-
-**`ado work-item categorize`**
-
-- Both deployments use api-version 7.1, on collection-level routes (`collectionOf`
-  in `src/areas/ado/server/client.ts`).
-- For a dotted reference name, a batch read answered 400 probes
-  `GET _apis/wit/fields/<ref>` and turns a 404 into "field not found".
-- An item whose read lacks `System.TeamProject` or `System.WorkItemType` is treated
-  as not carrying the field. A group with no items sends nothing.
-- The field's allowed values come from each work item type's own definition, where
-  the proposal said the process lists API.
-- The patch starts with a `test` of the revision read. A conflict is a 409, a 412,
-  or a 400 naming the test operation or `/rev`; the item is read again and tried
-  once more, and a second refusal is that item's failure, with Azure DevOps's own
-  message (a review finding narrowed the match from any mention of `rev`).
-
-**`github issue categorize`**
-
-- A second example sets `owner` and `repo`, for the parity suite. The command
-  removes `owner` and `repo` from `ctx.resolved.inputs`, so `meta.context` doesn't
-  report values it never used.
-- The item query uses the field's real name from the project's own field list. Each
-  item's project item is read before its labels are written: read all, then write.
-- When an item's labels were written and its field step fails, the reason ends
-  "(its labels were changed; the field was not)".
-- Keys are matched against `[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[1-9][0-9]*`; an owner
-  or repo of `.` or `..` is refused.
-- Option matching inside `setProjectField` keeps `project status`'s compare (ignores
-  case, doesn't trim); the check before any write uses `sameValue`.
-- A GraphQL `INSUFFICIENT_SCOPES` stops the whole call.
-
-**Shared by the three (`src/core/classify/apply.ts`)**
-
-- `labelsAfter` drops by exact string. `failureReason` rethrows an `AUTH` error
-  whenever `details.status` isn't 403, no status included: a 401, a network failure
-  and a cancel stop the call; a 403, a 404 and any other HTTP error are that item's
-  failure.
-- `CATEGORIZE_FAILED` takes its count from `counts.planned`.
-- The field is looked up only when some item in the group carries a field value, so
-  a plan that changes labels alone needs no field (a review finding).
-- All three take the connection name from `ctx.connection.name`, report the
-  tracker's own option text in `changed[].field.value`, and word a type through
-  `typeLabel(project, type)`: project first, "unknown type" when the type is empty
-  (review findings).
-- An error that stops a call halfway carries the counts so far in
-  `details.categorize`, and its message ends "N of M items were changed before
-  this." Nothing is added when no item had been processed (a review finding).
-
-**Not done**
-
-- The sample team this file promises above is decided, not built.
-- The `566` slices still to build: the ledger (`--record`, `classify stats`, `tune`,
-  `backtest`, `classify mix`) and everything in Toil UI.
