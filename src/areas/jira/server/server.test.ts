@@ -281,6 +281,19 @@ describe('search', () => {
     expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Unknown field in --fields: "Epic Name".' });
   });
 
+  it('--more-fields adds to the default set or to --fields, de-duplicated, and refuses an unknown name', async () => {
+    const plain = await run(search, { jql: 'x', limit: 1 }, [searchRoute(1)]);
+    const base = JSON.parse(plain.calls[0]!.body!).fields as string[];
+    const more = await run(search, { jql: 'x', limit: 1, moreFields: 'fixVersions, summary, components' }, [searchRoute(1)]);
+    expect(JSON.parse(more.calls[0]!.body!).fields).toEqual([...base, 'fixVersions', 'components']);
+    const both = await run(search, { jql: 'x', limit: 1, fields: 'summary', moreFields: 'Story Points,summary' }, [searchRoute(1)]);
+    expect(JSON.parse(both.calls[0]!.body!).fields).toEqual(['summary', 'customfield_10016']);
+    const bad = await run(search, { jql: 'x', moreFields: 'Epic Name' }, []);
+    expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Unknown field in --more-fields: "Epic Name".' });
+    const empty = await run(search, { jql: 'x', moreFields: ' , ' }, []);
+    expect(empty.envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
+  });
+
   it('reads and trims --jql-file, and refuses both, neither, or an empty file', async () => {
     const files = { 'q.jql': 'project = P\n', 'empty.jql': ' \n' };
     const { calls } = await run(search, { jqlFile: 'q.jql', limit: 1 }, [searchRoute(1)], { files });

@@ -262,6 +262,17 @@ describe('search', () => {
     expect(envelope.meta.page).toBeUndefined();
   });
 
+  it('--more-fields adds to the default set or to --fields, de-duplicated, and refuses an unknown name', async () => {
+    const plain = await run(search, { jql: 'project = PROJ', limit: 1 }, [pages]);
+    const base = body(plain.calls[0]!).fields as string[];
+    const more = await run(search, { jql: 'project = PROJ', limit: 1, moreFields: 'fixVersions, summary' }, [pages]);
+    expect(body(more.calls[0]!).fields).toEqual([...base, 'fixVersions']);
+    const both = await run(search, { jql: 'project = PROJ', limit: 1, fields: 'summary', moreFields: 'customfield_10016,summary' }, [pages]);
+    expect(body(both.calls[0]!).fields).toEqual(['summary', 'customfield_10016']);
+    const bad = await run(search, { jql: 'x', moreFields: 'Epic Name' }, []);
+    expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Unknown field in --more-fields: "Epic Name".' });
+  });
+
   it('stops at maxResults and hands back a cursor that resumes exactly', async () => {
     const first = await run(search, { jql: 'project = PROJ', limit: 1, fields: 'summary, customfield_10016' }, [pages]);
     expect(body(first.calls[0]!)).toEqual({ jql: 'project = PROJ', maxResults: 1, fields: ['summary', 'customfield_10016'] });

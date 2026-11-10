@@ -135,7 +135,7 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 | `issue comment` ✎ | `<key> --body` | The comment (on Cloud plus `bodyText`) |
 | `issue comments` | `<key> --limit --cursor` | Every comment, or a page of them (on Cloud each with `bodyText`) |
 | `issue log-work` ✎ | `<key> --time-spent --comment --started` | The worklog (on Cloud plus `commentText`) |
-| `issue search` | `--jql` or `--jql-file`, `--limit --start-at --cursor --updated-since --changelog --fields` | Data Center: `{ issues, total, startAt, maxResults }`. Cloud: `{ issues, maxResults, isLast }`. `--start-at` is Data Center only |
+| `issue search` | `--jql` or `--jql-file`, `--limit --start-at --cursor --updated-since --changelog --fields --more-fields` | Data Center: `{ issues, total, startAt, maxResults }`. Cloud: `{ issues, maxResults, isLast }`. `--start-at` is Data Center only |
 | `issue label` ✎ / `issue unlabel` ✎ | `<key> --labels a,b` | `{ updated, labelsAdded }` / `{ updated, labelsRemoved }` |
 | `issue categorize` ✎ | `--from <file>` | `{ connection, scheme, field, changed, unchanged, failed, skipped, counts }`: applies a classification plan; see **Categorizing issues** |
 | `issue assign` ✎ | `<key> --assignee <user>` | `{ assigned, assignee }`: a username on Data Center, an accountId on Cloud |
@@ -173,6 +173,7 @@ flags (`key`, `issueType`, `limit`, `attachmentId`). Cloud has no tools of its o
 toil jira issue get ABC-123
 toil jira issue search --jql 'project = ABC AND status = "In Progress"' --limit 20
 toil jira issue search --jql-file query.jql --fields summary,status,"Story Points"
+toil jira issue search --jql 'project = ABC' --more-fields fixVersions,components
 toil jira issue create --project ABC --type Bug --summary "Login broken on Safari" --priority High --allow-write
 toil jira issue transition ABC-123 --transition "In Progress" --allow-write
 toil jira issue transition ABC-123 --to review --allow-write
