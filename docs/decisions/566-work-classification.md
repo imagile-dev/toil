@@ -331,6 +331,47 @@ agent made where the proposal was silent, or where it couldn't be built as writt
 - **`readBriefRecords` accepts the `sample team` envelope.** It took only `util owi
   map`'s, so `toil sample team | toil classify run` could not work. Where:
   `src/core/brief/read.ts`.
+- **In Toil UI a reclassify records the person's say and writes nothing to the
+  tracker.** A press on the category chip runs `classify run --record` over the item
+  and its parents, then `classify correct`, both local writes to the person's own
+  ledger. The record comes first because a confirmation counts as agreement only
+  against a stored verdict. Undo records a correction back to the previous word, since
+  the ledger is append-only. Where: `ui/server/classify.ts`.
+- **A pending tracker change is derived, never stored.** It is a decided item whose
+  label differs from the decision, worked out each time, so it survives a reload and
+  can't drift from the ledger. After an Apply the page remembers what it wrote until
+  the next sync, so nothing is offered twice.
+- **Apply builds its plan on the server from the items the page sends, and takes no
+  command, path or file name from the page.** It runs `classify run --recheck` over the
+  decided items with the accepted agent answers as a verdicts file, saves the result
+  with `--summary-file` through toil's file service into Toil UI's data folder, and runs
+  the tracker's own `categorize --from <that file> --allow-write`, behind the
+  connection's `writes`. It then runs `classify run --record` with the same input. The
+  approval card is the one place a command line is shown.
+- **The AI agent gets no tool for classification and applies nothing.** Ask your AI
+  agent and Improve with your AI agent hand it toil's own prompt, read its answer with
+  `readVerdicts` or `readScheme`, and show proposals. Applying a revision, and saving
+  the editor, run `classify scheme set` as a person's command and are never on the
+  list of config changes an agent-facing route can reach.
+- **`classify stats --standing` returns each item's last say from a person.** Added so
+  the page and the agent's tools classify with the same corrections the CLI does. It
+  is an additive flag.
+- **The Classify view lists unsure items and disagreements, and an answer on a parent
+  settles the items under it.** A disagreement is an item whose verdict changes when
+  labels and fields are ignored. A row whose parent is in the list says how many items
+  follow its answer. K and F are bound only for the two-category scheme; any other
+  scheme uses 1 to 9, and U is always Unsure.
+- **Known gap: the Classification editor resolves a scheme by name.** A scheme that
+  sits beside the toil project file by relative path is not resolved by the editor.
+- **Known gap: the page's build stubs `node:async_hooks`.** The scheme reader the page
+  imports reaches toil's progress listener, which makes an `AsyncLocalStorage` when it
+  loads. The page never runs a command, so `ui/vite.config.ts` aliases the module to a
+  small stand-in for the page build only; the server and the tests use Node's own. The
+  cleaner fix is to split the scheme reader from the HTTP helpers it shares a module
+  with.
+- **Not verified: the real tracker path and a real AI agent in Toil UI.** No
+  `categorize` has run against a live Jira, GitHub or Azure DevOps from Toil UI; its
+  tests fake that one command, and the scripted sample agent stands in for a real one.
 
 **Not verified:** no command here has been run against a real Jira, GitHub or Azure
 DevOps. Every request is checked against canned responses shaped from the vendors'

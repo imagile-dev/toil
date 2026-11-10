@@ -98,3 +98,31 @@ and each is folded into the insights proposal where it is built:
 - **Forecast dates stated as fact.** A release forecast is a range from recent
   throughput, labelled a forecast with its method.
 - **Capitalization.** Finance owns the method; it is deferred in #566.
+
+## The screen review
+
+Done on 10 November 2026 on the sample team (`?sample=1`, the clock pinned at 13
+October 2026), in a browser at 1440 and 375 px and by the layout check at 375, 768 and
+1440 px. What was opened and what each seat could read:
+
+| Screen | Seat questions it answered | What was fixed after looking |
+|---|---|---|
+| Summary, with the Work mix tile | M1 | nothing |
+| Charts list | M1, M5, M8, P1, S3 as headlines | nothing |
+| Work mix | M1 to M4, P6 by a split | a heavy focus box on the heading; ISO dates in the notes |
+| Releases | P1 to P3, P5 | a crash on a release with no day gone yet; the scope line had no legend entry; the due date had no marker |
+| Sprints | S2 to S4, M5 | nothing |
+| Where we're working | M8, P4, P7 | truncated row labels; the mixes had no legend |
+| Flow | M5, M6, S6, S7, P8 | the 85th-percentile tick floated free of its bar |
+| Explore | P8, P10, and any other by hand | the chart menu overlapped the Split by menu |
+| Board, grouped and filtered | S5, S7, P3, P4 | controls stacked in three rows; an uncaptioned mix bar |
+| People | M7, M9 | the mix bar had no key; counts are shown, never a share |
+| Sort work into categories | S10 | the Apply bar dominated the page; an ISO date in the intro |
+
+Not answerable on a screen: P9, what is carried from one release to the next, since an
+item holds only its current fix versions.
+
+Not looked at by a person: every decorative theme on every screen. The layout check
+covers them at three widths; a person opened Plain, Realm, Frontier and Harvest. Three
+frames read weakly at chart size and are for the maintainer to judge: Harvest's wheat,
+Realm's map neatline and Sprawl's barcode.
