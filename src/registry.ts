@@ -1,6 +1,7 @@
 import { modules } from './areas.generated.js';
 import { auditCommands } from './audit/commands.js';
 import { connectionsCommands } from './connections/commands.js';
+import { classifyLedgerCommands } from './classify/ledger-commands.js';
 import { classifyProjectCommands } from './classify/project-commands.js';
 import { classifyRunCommands } from './classify/run.js';
 import { classifySchemeCommands } from './classify/scheme-commands.js';
@@ -14,6 +15,7 @@ import type { AnyArea } from './core/area.js';
 import { assertUniquePaths, withCoreAliases, type AnyCommand } from './core/command.js';
 import { toilProjectMigrateCommands } from './projects/migrate.js';
 import { resolveRoutedAliases, type RoutedAlias } from './core/routed-alias.js';
+import { sampleCommands } from './sample/commands.js';
 import { setupCommands } from './setup/commands.js';
 import { skillsConfigCommands } from './skills/commands.js';
 import { skillCommands } from './skills/skill-commands.js';
@@ -49,7 +51,7 @@ const withRetiredToilProjectPaths = (list: AnyCommand[]): AnyCommand[] =>
     return def;
   });
 
-export const commands: AnyCommand[] = withRetiredToilProjectPaths(withCoreAliases([...modules.flatMap((m) => m.commands), ...connectionsCommands(areas), ...toilProjectsCommands(areas), ...toilProjectMigrateCommands(), ...toilProjectBriefCommands(), ...toilProjectBuildCommands(areas), ...toilProjectOnboardCommands(areas), ...classifySchemeCommands(), ...classifyProjectCommands(), ...classifyRunCommands(), ...reposCommands(), ...skillsConfigCommands(), ...skillCommands(areas), ...setupCommands(), ...auditCommands(() => commands), ...themeCommands(), ...feedbackCommands(), waitCommand], areas));
+export const commands: AnyCommand[] = withRetiredToilProjectPaths(withCoreAliases([...modules.flatMap((m) => m.commands), ...connectionsCommands(areas), ...toilProjectsCommands(areas), ...toilProjectMigrateCommands(), ...toilProjectBriefCommands(), ...toilProjectBuildCommands(areas), ...toilProjectOnboardCommands(areas), ...classifySchemeCommands(), ...classifyProjectCommands(), ...classifyRunCommands(), ...classifyLedgerCommands(), ...reposCommands(), ...sampleCommands(), ...skillsConfigCommands(), ...skillCommands(areas), ...setupCommands(), ...auditCommands(() => commands), ...themeCommands(), ...feedbackCommands(), waitCommand], areas));
 
 // An alias in another group (`deps outdated` for `artifactory package outdated`) can
 // collide with a command there; better a failed start than a silent winner.
