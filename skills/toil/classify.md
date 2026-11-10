@@ -201,6 +201,31 @@ Over MCP the prompt `classify` is `classify_prompt`'s answer, served when that t
 Its arguments are `file` (required: a workspace file holding the OWI records, since MCP
 has no stdin), `toilProject` and `scheme`. A missing `file` is an error naming it.
 
+## The work mix
+
+`toil classify mix` is how the finished work divides between a scheme's categories: a thin
+wrapper over `toil projects pivot` (split by category, shares on, nothing folded into
+Other), reading the same records as `classify run`.
+
+```bash
+toil jira issue search --jql "project = PAY AND resolved >= -90d" --fields summary,description,issuetype,labels,parent,resolutiondate | toil util owi map | toil classify mix --toil-project payments --by month
+```
+
+| Command | Flags | What it does |
+|---------|-------|--------------|
+| `toil classify mix` | `--file`, `--text`, `--toil-project`, `--cwd`, `--scheme`, `--by`, `--group`, `--unit`, `--from`, `--to`, `--as-of` | Each category's share per period, or per group, and overall |
+
+`--by week|month|quarter` (default month) gives one column per period, counting the work
+finished in it. `--group team|assignee|project|epic|component|release` gives one column
+per group instead. `--unit count` (the default) counts items, `estimate` sums estimates
+and `days` counts person-days in progress. `data` holds `periods` or `groups`, each
+`{ key, label, total, shares [{ category, name, short, value, share, items }] }`, and
+`overall` in the same shape. `unsure` is always a line of its own, never spread over the
+categories. `sources` says how each item's category was decided (`rules`, `signals`,
+`labels` for a label or a field, `parent`, `agent`, `person`, `unsure`), adding up to the
+items read. A share that cannot be computed is `null` with a `MIX_UNREAD` warning, and a
+period with no finished work has `null` shares and a `MIX_EMPTY` warning: never `0`.
+
 ## Corrections and the ledger
 
 People will disagree with some verdicts, and each disagreement is the best evidence of

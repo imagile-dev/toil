@@ -55,6 +55,8 @@ export interface Prepared {
   planFields: boolean;
   /** The applied toil project's file, for the warning when its field targets were left out. */
   toilProjectFile: string | null;
+  /** The toil project that applied, whole, for a command that reads more of it (people, saved views); undefined when none did. */
+  applied?: Applied | undefined;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -156,6 +158,7 @@ export async function prepare(input: { file?: string | undefined; text?: string 
     targets,
     planFields: applied === undefined || applied.file.source === 'user',
     toilProjectFile: applied ? forwardSlashes(applied.file.file) : null,
+    applied,
   };
 }
 

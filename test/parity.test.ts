@@ -94,7 +94,9 @@ const outsideDisk = toilProjectDisk({
       { name: 'ledger-svc', remotes: ['https://bitbucket.imagile.dev/scm/pay/ledger-svc.git'] },
     ],
     jira: { project: 'PAY', projects: ['PAY', 'LEDG'] },
-    people: [{ name: 'Pat Example', email: 'you@example.com', ids: { jira: 'pat' } }],
+    people: [{ name: 'Pat Example', email: 'you@example.com', ids: { jira: 'pat' }, team: 'Checkout' }],
+    // The saved views `projects view show | list | remove` and `projects pivot --view` read.
+    views: { 'release-mix': { measure: 'items', split: 'release', share: true, top: 4 }, 'by-status': { measure: 'items', split: 'status' } },
   },
   'work/.git/HEAD': 'ref: refs/heads/main\n',
   // The classify scheme commands: a checked-in scheme, and revised files for `set` to read (one with no name, which takes the scheme's).

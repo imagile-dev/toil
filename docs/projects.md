@@ -211,6 +211,17 @@ TOIL_CONN_OCP_PROD_TOKEN=...
   `fields`, `connection`, `host`, `transitions` or `writes` (an error by key path), so it
   picks no connection and turns on no writes. Each field is one line of at most 200 characters,
   never shaped like a credential; an area toil doesn't have is kept with a warning.
+- **`views`** (#567) keeps saved pivots by name: `{ "release-mix": { "measure": "items",
+  "split": "release", "share": true, "top": 4, "title": "Fix versions" } }`. A view holds the
+  keys of `toil projects pivot` (`measure`, `split`, `across`, `where` as a list of
+  `{ dimension, op, values }`, `from`, `to`, `share`, `top`, `pin`, `includeParents`) plus a
+  `title` and a `chart` form for Toil UI. The key is a view name (lowercase letters, digits and
+  hyphens, starting with a letter, at most 41 characters; at most 50 views). `toil projects view
+  set | show | list` and `toil projects pivot --view <name>` read and write it. toil reads any
+  other unknown top-level key as an area's section, so `views` is reserved, and it never holds a
+  view named `fields`, `connection`, `host`, `transitions` or `writes`. A view that fails its
+  checks is an error by key path and stops the file loading, so no rewrite drops one quietly.
+  A view holds no connection, host or secret.
 - **`analyze`** holds how Analyze briefs the toil project (#494): `goal`, `audience`
   (`lead`, `engineer` or `stakeholder`), `lenses` (each `{ id, on, threshold }`, in the
   order to apply them; any not listed follow in the standard order), and `watchFor`

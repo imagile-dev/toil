@@ -199,3 +199,26 @@ describe('determinism', () => {
     expect(() => pivot({ ...input, spec: { measure: 'speed' as never } })).toThrow(/Unknown measure/);
   });
 });
+
+describe('a release axis', () => {
+  const rel = (name: string, date: string | null) => ({ id: null, name, released: false, date });
+  const releases = [rel('1.1', '2026-01-10'), rel('1.2', '2026-03-10'), rel('1.3', '2026-06-10'), rel('1.4', '2026-09-10'), rel('1.5', '2026-10-10'), rel('next', null)];
+  const items = releases.flatMap((r, i) => Array.from({ length: releases.length - i }, (_, n) => item(`R${i}-${n}`, { releases: [r] })));
+  it('reads in date order, undated last, and keeps every value when top is 0', () => {
+    expect(rowKeys(run(items, { measure: 'items', split: 'release', top: 0 }))).toEqual(['1.1', '1.2', '1.3', '1.4', '1.5', 'next']);
+  });
+  it('folds to the latest top values, in order, with the rest in Other', () => {
+    const r = run(items, { measure: 'items', split: 'release', top: 3 });
+    expect(rowKeys(r)).toEqual(['1.4', '1.5', 'next', 'Other']);
+    expect(r.rows.at(-1)!.kind).toBe('other');
+    expect(r.rowTotals.at(-1)!.value).toBe(6 + 5 + 4);
+  });
+  it('keeps a pinned release even when it is old, and counts it inside top', () => {
+    const r = run(items, { measure: 'items', split: 'release', top: 3, pin: ['1.1'] });
+    expect(rowKeys(r)).toEqual(['1.1', '1.5', 'next', 'Other']);
+  });
+  it('never folds a time axis', () => {
+    const r = run(items, { measure: 'items', across: 'created:month', top: 1 });
+    expect(r.columns.every((c) => c.kind === 'value')).toBe(true);
+  });
+});

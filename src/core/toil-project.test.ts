@@ -306,3 +306,37 @@ describe("a toil project's dimensions key and a person's team (#567)", () => {
     expect(people('Checkout').problems).toEqual([]);
   });
 });
+
+describe("a toil project's views key (#567)", () => {
+  const read = (views: unknown) => validateToilProject({ name: 'payments', views }, areas);
+  const view = { measure: 'items', split: 'release', share: true, top: 3, title: 'Releases' };
+
+  it('reads each view, and writes it back as it read it', () => {
+    const out = read({ 'release-mix': view });
+    expect(out.problems).toEqual([]);
+    expect(out.toilProject?.views).toEqual({ 'release-mix': view });
+    expect(toilProjectContent(out.toilProject!).views).toEqual({ 'release-mix': view });
+    expect(out.toilProject?.sections).not.toHaveProperty('views');
+    expect(validateToilProject({ name: 'payments' }, areas).toilProject).not.toHaveProperty('views');
+    expect(toilProjectContent(validateToilProject({ name: 'payments' }, areas).toilProject!)).not.toHaveProperty('views');
+  });
+
+  it('refuses a view named for what a section holds, saying so by key path, and keeps the file from loading', () => {
+    for (const key of ['fields', 'connection', 'host', 'transitions', 'writes']) {
+      const found = read({ [key]: view }).problems.filter((p) => p.level === 'error');
+      expect(found.map((p) => p.path), key).toEqual([`views.${key}`]);
+      expect(found[0]!.message).toContain(`"views" never holds a key named "${key}"`);
+    }
+    expect(read({ writes: view }).toilProject).toBeUndefined();
+    expect(read([]).problems.map((p) => [p.level, p.path])).toEqual([['error', 'views']]);
+  });
+
+  it('refuses a bad view or name by key path rather than dropping it, so no rewrite loses one', () => {
+    const out = read({ good: view, bad: { measure: 'nope' }, 'Bad-Name': view });
+    expect(out.toilProject).toBeUndefined();
+    expect(out.problems.map((p) => [p.level, p.path])).toEqual([['error', 'views.bad'], ['error', 'views.Bad-Name']]);
+    expect(out.problems[0]!.message).toContain('views.bad.measure');
+    const many = Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`v${i}`, view]));
+    expect(read(many).problems.map((p) => [p.level, p.path])).toEqual([['error', 'views']]);
+  });
+});

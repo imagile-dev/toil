@@ -14,6 +14,8 @@ import { findSecrets } from './secret-shapes.js';
 import { JsonSyntaxError, parseStrictJson } from './strict-json.js';
 import { INTENTS, type TransitionPins } from './transition-intent.js';
 import { isLensId, lensDef, LENSES, type LensId } from './brief/brief.js';
+import { MAX_VIEWS, VIEW_NAME, type SavedView } from './insights/types.js';
+import { readSavedView } from './insights/saved-view.js';
 import { AUDIENCES, MAX_FOCUS, type Audience, type ToilProjectAnalyze } from './brief/prompt.js';
 import { CATEGORY_ID, CLASSIFY_AREAS, SCHEME_NAME, type ClassifyArea, type ClassifySettings, type ClassifyTarget } from './classify/types.js';
 
@@ -97,6 +99,8 @@ export interface ToilProject {
   classify?: ClassifySettings;
   /** Extra dimensions to split work by: a dimension's name to the field that holds it in each area (`{ "customer": { "jira": "customfield_10500" } }`); absent when it names none. */
   dimensions?: Record<string, Record<string, string>>;
+  /** Saved pivots a team opens the same way (#567), by view name (`views.release-mix`); absent when it keeps none. */
+  views?: Record<string, SavedView>;
 }
 
 
@@ -129,7 +133,7 @@ export interface ToilProjectArea {
 
 /** Keys of a section that core reads itself; every other key is a context input or reference data. */
 const CORE_SECTION_KEYS = new Set(['connection', 'host', 'fields', 'transitions']);
-const TOP_LEVEL = new Set(['$schema', 'name', 'description', 'env', 'repos', 'environments', 'people', 'wipLimit', 'archived', 'analyze', 'classify', 'dimensions']);
+const TOP_LEVEL = new Set(['$schema', 'name', 'description', 'env', 'repos', 'environments', 'people', 'wipLimit', 'archived', 'analyze', 'classify', 'dimensions', 'views']);
 const ALIAS = /^[a-z][a-zA-Z0-9]*$/;
 const HOST = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:\d{1,5})?$/i;
 
@@ -412,6 +416,7 @@ export function validateToilProject(input: unknown, areas: readonly ToilProjectA
   const analyze = readAnalyze(raw.analyze, error, warn);
   const classify = readClassify(raw.classify, error, warn);
   const dimensions = readDimensions(raw.dimensions, byName, error, warn);
+  const views = readViews(raw.views, error);
 
   if (problems.some((p) => p.level === 'error')) return { problems };
   return {
@@ -429,6 +434,7 @@ export function validateToilProject(input: unknown, areas: readonly ToilProjectA
       ...(analyze ? { analyze } : {}),
       ...(classify ? { classify } : {}),
       ...(dimensions ? { dimensions } : {}),
+      ...(views ? { views } : {}),
     },
     problems,
   };
@@ -656,6 +662,51 @@ function readDimensions(
   return out;
 }
 
+/** What a tracker section holds, never a `views` key, for the same reason `dimensions` refuses them. */
+export const VIEWS_REFUSED = ['fields', 'connection', 'host', 'transitions', 'writes'];
+
+/**
+ * The `views` object (#567): saved pivots by name, each checked by
+ * `readSavedView`. Toil reads any unknown top-level key as an area's section,
+ * so `views` is reserved, and a view is never named for a key a section holds.
+ * A view that fails its checks stops the file loading, with the problem named
+ * by key path, rather than being half-used or quietly dropped by the next
+ * rewrite. A view holds no connection,
+ * host or secret: it is a chart's recipe, filed under a name.
+ */
+function readViews(
+  value: unknown,
+  error: (path: string, message: string) => void,
+): Record<string, SavedView> | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    error('views', '"views" must be an object keyed by view name: { "release-mix": { "measure": "items", "split": "release" } }.');
+    return undefined;
+  }
+  const out: Record<string, SavedView> = {};
+  let count = 0;
+  for (const [name, raw] of Object.entries(value)) {
+    const path = `views.${name}`;
+    if (RESERVED_OBJECT_KEYS.has(name)) continue;
+    if (VIEWS_REFUSED.includes(name)) {
+      error(path, `"views" never holds a key named "${name}": a view is a saved pivot, and a connection, host, fields, transitions or writes belong to the area's own section or to your connections.`);
+      continue;
+    }
+    if (!VIEW_NAME.test(name)) {
+      error(path, `"${name}" isn't a view name: lowercase letters, digits and hyphens, starting with a letter, up to 41 characters, e.g. "release-mix".`);
+      continue;
+    }
+    if (++count > MAX_VIEWS) {
+      if (count === MAX_VIEWS + 1) error('views', `A toil project keeps at most ${MAX_VIEWS} views.`);
+      continue;
+    }
+    const read = readSavedView(raw, path);
+    if (read.view) out[name] = read.view;
+    else for (const message of read.problems) error(path, message);
+  }
+  return out;
+}
+
 /** Why a value can't be an identity: it's shaped like a credential, which a toil project never holds. Undefined when it can. */
 export function identityProblem(value: string): string | undefined {
   if (findSecrets(value).length > 0) return "it's shaped like a credential, and a toil project never holds one. Give the user name, login or email the system shows";
@@ -798,6 +849,7 @@ export function toilProjectContent(toilProject: ToilProject): Record<string, unk
     ...(toilProject.analyze !== undefined ? { analyze: toilProject.analyze } : {}),
     ...(toilProject.classify !== undefined ? { classify: classifyContent(toilProject.classify) } : {}),
     ...(toilProject.dimensions !== undefined ? { dimensions: toilProject.dimensions } : {}),
+    ...(toilProject.views !== undefined ? { views: toilProject.views } : {}),
   };
 }
 

@@ -14,3 +14,4 @@ export { pivot, DEFAULT_TOP, DEFAULT_PERIOD_DAYS } from './pivot.js';
 export { notable } from './notable.js';
 export { readSavedView, viewToSpec, specToQuery, specFromQuery, CHARTS, MAX_TOP, MAX_PINS, MAX_TITLE } from './saved-view.js';
 export { pivotMarkdown, MAX_COLUMNS } from './markdown.js';
+export { insightsPrompt, measureLines, dimensionLine } from './prompt.js';

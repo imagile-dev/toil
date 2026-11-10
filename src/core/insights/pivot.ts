@@ -87,8 +87,21 @@ function arrange(a: AxisRead, valueSets: Sets, run: (ids: string[]) => MeasureCe
   const axis: PivotAxisValue[] = [];
   const ordered = dim.kind === 'time' || (real.length > 0 && real.every((k) => entry(k).order !== undefined));
   let folded: string[] = [];
-  if (ordered) {
-    axis.push(...[...real].sort((x, y) => entry(x).order!.localeCompare(entry(y).order!) || entry(x).label.localeCompare(entry(y).label)).map(value));
+  const byOrder = (x: string, y: string) => entry(x).order!.localeCompare(entry(y).order!) || entry(x).label.localeCompare(entry(y).label);
+  // Only a multi-valued ordered axis (releases, sprints) folds, keeping its latest values; categories, derived buckets and time never fold.
+  const foldsLatest = ordered && dim.kind === 'multi' && top > 0 && real.length > top;
+  if (foldsLatest) {
+    const pinned: string[] = [];
+    for (const p of pin) {
+      const hit = sized.find((s) => s.label.toLowerCase() === p.toLowerCase());
+      if (hit && !pinned.includes(hit.k)) pinned.push(hit.k);
+    }
+    const latest = real.filter((k) => !pinned.includes(k)).sort((x, y) => byOrder(y, x)).slice(0, Math.max(0, top - pinned.length));
+    const keep = new Set([...pinned, ...latest]);
+    axis.push(...real.filter((k) => keep.has(k)).sort(byOrder).map(value));
+    folded = real.filter((k) => !keep.has(k));
+  } else if (ordered) {
+    axis.push(...[...real].sort(byOrder).map(value));
   } else {
     const pinned: string[] = [];
     for (const p of pin) {

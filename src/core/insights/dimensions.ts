@@ -189,7 +189,9 @@ const read = (values: Entry[]): DimensionValues => ({ unread: false, values });
 const one = (key: string, label: string, order?: string): DimensionValues => read([{ key: `v:${key}`, label, order }]);
 const maybe = (key: string | null, label: string): DimensionValues => (key === null ? read([]) : one(key, label));
 const entries = (list: string[]): DimensionValues => read(uniq(list.map((s) => ({ key: `v:${s.toLowerCase()}`, label: s }))));
-const releases = (list: Release[]): DimensionValues => read(uniq(list.map((r) => ({ key: `v:${r.id ?? r.name}`, label: r.name }))));
+/** A release sorts by its date, so a release axis reads in date order; one with no date sorts after every dated one, by name. */
+const UNDATED = '9999-99-99';
+const releases = (list: Release[]): DimensionValues => read(uniq(list.map((r) => ({ key: `v:${r.id ?? r.name}`, label: r.name, order: dayOf(r.date) ?? UNDATED }))));
 const rank = (i: number) => String(i).padStart(4, '0');
 const lower = (s: string) => s.toLowerCase();
 

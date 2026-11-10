@@ -148,5 +148,25 @@
       "--scheme <name|file>",
       "--limit <n>"
     ]
+  },
+  {
+    "name": "mix",
+    "tool": "classify_mix",
+    "description": "Show how work divides between a scheme's categories, by period or by team, assignee, project, epic, component or release (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--file <path>",
+      "--text <text>",
+      "--toil-project <name|file>",
+      "--cwd <dir>",
+      "--scheme <name|file>",
+      "--by <period>",
+      "--group <by>",
+      "--unit <unit>",
+      "--from <day>",
+      "--to <day>",
+      "--as-of <time>"
+    ]
   }
 ]

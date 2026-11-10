@@ -91,6 +91,89 @@
     ]
   },
   {
+    "name": "pivot",
+    "tool": "projects_pivot",
+    "description": "Pivot a toil project's work items: one measure, split by one dimension, across time or another, from OWI records you pass (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[toil-project]",
+      "--file <path>",
+      "--text <text>",
+      "--measure <id>",
+      "--split <dimension>",
+      "--across <dimension>",
+      "--where <filter>",
+      "--from <day>",
+      "--to <day>",
+      "--share",
+      "--top <n>",
+      "--pin <label>",
+      "--include-parents",
+      "--as-of <time>",
+      "--view <name>",
+      "--scheme <name|file>",
+      "--markdown",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "view set",
+    "tool": "projects_view_set",
+    "description": "Save a pivot as a named view in a toil project, so everyone opens the same chart",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<toil-project>",
+      "<name>",
+      "--measure <id>",
+      "--split <dimension>",
+      "--across <dimension>",
+      "--where <filter>",
+      "--from <day>",
+      "--to <day>",
+      "--share",
+      "--top <n>",
+      "--pin <label>",
+      "--include-parents",
+      "--title <text>",
+      "--chart <form>",
+      "--replace"
+    ]
+  },
+  {
+    "name": "view show",
+    "tool": "projects_view_show",
+    "description": "Show one saved view of a toil project, and the pivot it runs",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<toil-project>",
+      "<name>"
+    ]
+  },
+  {
+    "name": "view list",
+    "tool": "projects_view_list",
+    "description": "List a toil project's saved views",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<toil-project>"
+    ]
+  },
+  {
+    "name": "view remove",
+    "tool": null,
+    "description": "Delete one saved view from a toil project",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<toil-project>",
+      "<name>"
+    ]
+  },
+  {
     "name": "init",
     "tool": "projects_init",
     "description": "Create a toil project in your own folder (~/.toil/projects), or with --shared in a repository for the team",

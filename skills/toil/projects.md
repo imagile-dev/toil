@@ -407,6 +407,71 @@ applies, and the prompt says where it came from and that you haven't adopted it.
 The agent is told to list anything `--leave-out` hid, so nothing drops off the
 briefing unsaid.
 
+### Pivots and saved views
+
+`toil projects pivot` counts one thing, splits it by one dimension and, if you ask, spreads
+it across another, which is how "how much of our work is keep-the-lights-on, month by
+month?" becomes a table. It reads the same Open Work Items `brief` does and contacts no
+service. The toil project supplies its people (for `team`), its scheme (for `category`) and
+its saved views.
+
+```bash
+toil jira issue search --toil-project card-payments --jql "project = PAY AND resolved >= -90d" --changelog --fields summary,description,issuetype,status,labels,parent,fixVersions,versions,components,resolutiondate | toil util owi map > work.owi.json
+toil projects pivot card-payments --file work.owi.json --measure throughput --split category --across resolved:month --share
+toil projects view set card-payments release-mix --split release --share --top 4
+toil projects pivot card-payments --file work.owi.json --view release-mix
+```
+
+| Command | Flags | What it does |
+|---------|-------|--------------|
+| `toil projects pivot [toil-project]` | `--file`, `--text`, `--measure`, `--split`, `--across`, `--where`, `--from`, `--to`, `--share`, `--top`, `--pin`, `--include-parents`, `--as-of`, `--view`, `--scheme`, `--markdown`, `--cwd` | The table: `rows`, `columns`, `cells[row][column]` each with its `value`, `share`, the `items` behind it and how many were `measured`, plus totals, `coverage` and `notable` |
+| `toil projects view set <toil-project> <name>` | the pivot flags, `--title`, `--chart`, `--replace` | Save a pivot as a named view in the toil project's `views` key |
+| `toil projects view show <toil-project> <name>` | | One view, and the pivot it runs |
+| `toil projects view list <toil-project>` | | The toil project's views |
+| `toil projects view remove <toil-project> <name>` | | Delete a view (CLI only, like every delete) |
+
+`--measure` is one of `items` (the default), `estimate`, `days` (person-days in progress),
+`throughput` (items finished in the period), `cycleTime`, `wip` or `aging`.
+`--split` makes the rows and `--across` the columns, each one dimension:
+
+- single-valued: `category`, `type`, `status`, `statusCategory`, `priority`, `assignee`,
+  `team`, `iteration`, `project`, `tracker`, `connection`, `area` or `area:<depth>`;
+- parent: `parent`, `parent:top`, `parent:<TypeName>` such as `parent:Epic`;
+- multi-valued, so an item counts in each value it holds: `label` or `label:<prefix>`,
+  `component`, `release`, `affects`, `sprint`, and `dim:<name>` for a dimension the toil
+  project's `dimensions` key names;
+- time: `created`, `started` or `resolved`, each with `:week`, `:month` or `:quarter`;
+- derived: `age`, `size`, `planned`, `hasEpic`, `carried`, `reopened`.
+
+`--where "<dimension> = a, b"` or `"<dimension> != a"` keeps matching items (repeatable);
+`--from` and `--to` are days (`YYYY-MM-DD`), the period defaulting to the 90 days up to
+`--as-of`. `--top <n>` keeps that many rows and folds the rest into **Other** (default 4, `0`
+keeps all); a release or sprint axis keeps its latest values, in date order. `--pin
+<label>` keeps a row whatever its size. Splitting by a parent dimension leaves the parents
+out so their children carry the work, until you pass `--include-parents`. `--view <name>`
+runs a saved view, and any flag you pass overrides the view's field (`--where` replaces its
+filters). `--markdown` adds the table as Markdown in `data.markdown`.
+
+**Unread is not none.** A figure nobody read is `null`, never `0`. A dimension the read
+never fetched (no `components` on the records, no status history) puts those items in no
+row and says so in `coverage.notes`, and in `meta.warnings` as `PIVOT_UNREAD`; an item that
+was read and holds nothing goes in the "none" row (`No component`, `Unassigned`,
+`Unsure`). A cell that is `0` was counted and is empty; a cell that is `null` could not be
+counted, and carries a `reason`. `coverage` also says how many items an estimate, or a
+history, was read for. Each cell lists the OWI ids behind it, so a cell can be cited as
+`[[cell:<column key>/<row key>]]`.
+
+A saved view is the pivot's own fields under a name, plus a `title` and a `chart` form for
+Toil UI. `view set` checks every part before writing, refuses a different view of a name
+that is taken unless `--replace`, and holds no connection, host or secret, so an agent may
+run it over MCP. `view remove` deletes, so it is CLI only. Views live under `"views"` in
+the toil project file.
+
+The `insights` prompt, which `toil mcp` serves when `projects_pivot` is served, walks an
+agent through answering a question this way: read the toil project, read its work items
+with the fields a split needs, map them, pivot, and answer with every figure cited and
+what was not read said.
+
 ### Share
 
 A toil project a team shares selects each area's connection by `host`, because teammates
