@@ -5,7 +5,7 @@ The maintainer's call (2026-11-09): Usage shows what the agents used and nothing
 - **Old saved usage settings still load.** A file saved with a `caps` key is read, the key is ignored, and the next save writes the file without it (`ui/server/usage.ts`). Why: nobody should have to clear a cache to open Toil UI.
 - **Old records still read.** An assignment that stopped with reason `usage` and a worklog run with outcome `capped` keep their types and their wording, marked as from before caps were removed; nothing produces either any more (`ui/src/assign/model.ts`, `ui/src/model/worklog.ts`).
 - **Old addresses land on the Codex rates.** `#/settings/agent/caps` and `#/settings/usage/caps` open `#/settings/usage/rates`, the one thing the caps card held that remains (`ui/src/App.tsx`).
-- **The `caps` help topic is gone.** Its Context window and Effort glossary entries moved to the `model-usage` topic, which changes the #418 mapping.
+- **The `caps` help topic is gone**, with its Context window and Effort glossary entries, which nothing on the screen names any more; this changes the #418 mapping. A `rates` topic explains the Codex rates.
 - **The usage-cap notification is gone**, with the 80% warning.
 - **Supersedes `561-setup-guide.md` and `561-ui-plain-copy.md` on caps.** There are no caps; the setup guide's usage is still in the ledger under "(setup guide)", and the caps addresses land as above.
 - **The live-run records keep their cap rows**, under one line saying caps were removed later (`ui/docs/live-runs/`). They are dated records of what ran.
