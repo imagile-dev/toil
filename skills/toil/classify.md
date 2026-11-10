@@ -109,7 +109,7 @@ toil jira issue search --jql "project = PAY AND statusCategory != Done" --fields
 | `toil classify run` | `--file`, `--text`, `--toil-project`, `--cwd`, `--scheme`, `--recheck`, `--record`, `--verdicts` | One verdict per item, the summary, and the plan `categorize` applies; `--record` also keeps the verdicts in the ledger |
 | `toil classify prompt` | `--file`, `--text`, `--toil-project`, `--cwd`, `--scheme`, `--recheck`, `--limit` | The prompt that asks the AI agent about the items `run` left `unsure` |
 | `toil classify correct <item-id>` | `--to`, `--reason`, `--title`, `--toil-project`, `--cwd`, `--scheme` | Record that an item belongs in another category (or confirm its verdict) in the ledger |
-| `toil classify stats` | `--file`, `--text`, `--toil-project`, `--cwd`, `--scheme`, `--backtest`, `--revised` | Agreement, the sources people overrule and which way the errors run; with `--backtest`, a revised scheme scored against the corrections held back |
+| `toil classify stats` | `--file`, `--text`, `--toil-project`, `--cwd`, `--scheme`, `--backtest`, `--revised`, `--standing` | Agreement, the sources people overrule and which way the errors run; with `--backtest`, a revised scheme scored against the corrections held back |
 | `toil classify tune` | `--toil-project`, `--cwd`, `--scheme`, `--limit` | The prompt that asks the AI agent to sharpen the scheme from the corrections |
 
 Both read the records from `--file` (a file in the workspace, or `-`), `--text`, or
@@ -266,7 +266,9 @@ the last tune; items corrected more than once; and corrections by door. Only a v
 the scheme gave counts as checked: a person changing a person's earlier say shows under
 the items corrected twice. Every share is `null`, never 0, where nothing was checked. An
 empty ledger is not an error: zero counts and a `LEDGER_EMPTY` warning that says how to
-fill one.
+fill one. `--standing` adds `standing`, each item's last say from a person as
+`{ "<item id>": { category, reason } }`, `category` null where they took it back
+(`unsure`): what a screen needs to show an item as already answered.
 
 ### Tuning: `classify tune` and the backtest
 

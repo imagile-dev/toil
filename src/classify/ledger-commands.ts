@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { inputFields, openInput, textOption } from '../areas/util/kit/input.js';
 import { readBriefRecords } from '../core/brief/read.js';
 import { classify } from '../core/classify/engine.js';
-import { backtest, cleanLine, heldBack, heldBackItems, ledgerStats, standing } from '../core/classify/ledger.js';
+import { backtest, cleanLine, heldBack, heldBackItems, lastSays, ledgerStats, standing } from '../core/classify/ledger.js';
 import type { LedgerCorrection, LedgerLine } from '../core/classify/ledger-types.js';
 import { tunePrompt, type TuneCorrection } from '../core/classify/tune-prompt.js';
 import { UNSURE, type AgentVerdict, type Scheme } from '../core/classify/types.js';
@@ -144,7 +144,7 @@ export function classifyLedgerCommands(): AnyCommand[] {
     path: ['classify', 'stats'],
     description: "Where a scheme gets it wrong: agreement, the sources people overrule, and which way the errors run, from the ledger (local only)",
     toolDescription:
-      "Reads the scheme's ledger on this machine (what classify_run recorded and what people corrected) and reports how often people agreed: overall, per category and per scheme revision; per source (each rule, each built-in signal, label, field, parent and the AI agent) how often it was overruled and to what; which way errors run (from a category to another); corrections since the last tune, items corrected more than once, and corrections by door (mcp is what an AI agent recorded for a person). Every share is null, never 0, where nothing was checked. An empty or missing ledger is not an error: zero counts and a LEDGER_EMPTY warning. toilProject narrows to one toil project. backtest scores a revised scheme (revised, a scheme file in the workspace) on the corrections held back from classify_tune: backtest is a workspace file of the AI agent's answers for those items, [{ id, category, reason }] from classify_prompt over them with the revised scheme; file or text may add the items as OWI records so the revised scheme's rules run by code. Returns the statistics, plus backtest { heldBack, before, after, disagreements, worse } with it, and file. Changes nothing, not even a scheme; sends nothing anywhere.",
+      "Reads the scheme's ledger on this machine (what classify_run recorded and what people corrected) and reports how often people agreed: overall, per category and per scheme revision; per source (each rule, each built-in signal, label, field, parent and the AI agent) how often it was overruled and to what; which way errors run (from a category to another); corrections since the last tune, items corrected more than once, and corrections by door (mcp is what an AI agent recorded for a person). Every share is null, never 0, where nothing was checked. An empty or missing ledger is not an error: zero counts and a LEDGER_EMPTY warning. toilProject narrows to one toil project. backtest scores a revised scheme (revised, a scheme file in the workspace) on the corrections held back from classify_tune: backtest is a workspace file of the AI agent's answers for those items, [{ id, category, reason }] from classify_prompt over them with the revised scheme; file or text may add the items as OWI records so the revised scheme's rules run by code. standing adds standing { <item id>: { category, reason } }, each item's last say from a person (category null where they took it back), which a screen needs to show an item as answered. Returns the statistics, plus backtest { heldBack, before, after, disagreements, worse } with it, and file. Changes nothing, not even a scheme; sends nothing anywhere.",
     input: z.object({
       ...inputFields,
       toilProject: toilProjectField,
@@ -152,6 +152,7 @@ export function classifyLedgerCommands(): AnyCommand[] {
       scheme: schemeField,
       backtest: z.string().min(1).optional().describe("A workspace file of the AI agent's answers for the held-back items under the revised scheme: a JSON array of { id, category, reason }."),
       revised: z.string().min(1).optional().describe('The revised scheme, a scheme file in the workspace. Required with backtest.'),
+      standing: z.boolean().optional().describe("Add standing { <item id>: { category, reason } }: each item's last say from a person, category null where they took it back (unsure). It is what classify_run holds an item to, for a screen that must show it."),
     }),
     writes: false,
     writesLocal: false,
@@ -163,9 +164,11 @@ export function classifyLedgerCommands(): AnyCommand[] {
       schemeOption,
       { flags: '--backtest <file>', field: 'backtest', description: "Score a revised scheme: the AI agent's answers for the held-back items, a JSON array of { id, category, reason } in a file inside the workspace" },
       { flags: '--revised <file>', field: 'revised', description: 'With --backtest: the revised scheme file' },
+      { flags: '--standing', field: 'standing', description: "Add each item's last say from a person, for a screen that shows which items are already answered" },
     ],
     examples: [
       {},
+      { standing: true },
       { toilProject: 'payments', cwd: '.', scheme: 'team' },
       { scheme: 'team', backtest: 'owi/verdicts.json', revised: 'schemes/team-v2.json', file: 'owi/brief.owi.json' },
       { scheme: 'team', backtest: 'owi/verdicts.json', revised: 'schemes/team-v2.json', text: EXAMPLE_BRIEF_RECORDS },
@@ -184,7 +187,8 @@ export function classifyLedgerCommands(): AnyCommand[] {
       const held = readLedger(ledger, s.scheme.name, ctx);
       if (held.lines.length === 0) ctx.warn({ code: 'LEDGER_EMPTY', message: `The ledger for ${s.scheme.name} is empty (${held.file}). ${emptyAdvice}` });
       const out = ledgerStats(held.lines, s.scheme, { toilProject: s.named });
-      if (input.backtest === undefined || input.revised === undefined) return { ...out, file: held.file };
+      const says = input.standing === true ? { standing: lastSays(held.lines) } : {};
+      if (input.backtest === undefined || input.revised === undefined) return { ...out, ...says, file: held.file };
 
       const revised = ctx.manage!.schemes?.readFile(input.revised, input.cwd);
       if (!revised) throw new ToilError('NOT_CONFIGURED', 'Classification schemes are not available here.', { fix: 'Run toil classify from the CLI or toil mcp.' });
@@ -232,7 +236,7 @@ export function classifyLedgerCommands(): AnyCommand[] {
           message: `The revised scheme agrees with people on ${scored.after.agreed} of ${scored.heldBack} held-back items (${pct(scored.after.agreement)}); the scheme as it was agreed on ${scored.before.agreed} (${pct(scored.before.agreement)}). It scores lower, so this revision is not an improvement. Nothing was changed; a person decides whether to apply it.`,
         });
       }
-      return { ...out, backtest: scored, file: held.file };
+      return { ...out, ...says, backtest: scored, file: held.file };
     },
   });
 

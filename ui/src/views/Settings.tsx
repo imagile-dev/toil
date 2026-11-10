@@ -21,6 +21,8 @@ import type { HelpTopicId } from '../help.ts';
 import './settings.css';
 import { Connections } from './settings/Connections.tsx';
 import { ToilProjectSetup } from './settings/ToilProjectSetup.tsx';
+import type { ClassifyApi } from '../classify-api.ts';
+import type { WorkItem } from '../toil.ts';
 import { Advanced, type CacheControl } from './settings/General.tsx';
 import { ChartMarksSetting } from './settings/ChartMarks.tsx';
 import { MotionSetting } from './settings/Motion.tsx';
@@ -47,7 +49,7 @@ export const SETTINGS_PAGES: Array<{ page: SettingsPage; label: string; plain?: 
   { page: 'agent', label: 'AI agent', about: 'Which AI agent answers questions in the chat, and your own instructions for it.', topic: 'agent' },
 ];
 
-export function Settings({ page, at = [], config, agent, modelUsage = null, cache }: { page: SettingsPage; at?: string[]; config: ConfigApi | null; agent?: AgentSettingsPanelProps; modelUsage?: ModelUsageApi | null; cache?: CacheControl }) {
+export function Settings({ page, at = [], config, agent, modelUsage = null, cache, classify, loadItems }: { page: SettingsPage; at?: string[]; config: ConfigApi | null; agent?: AgentSettingsPanelProps; modelUsage?: ModelUsageApi | null; cache?: CacheControl; classify?: ClassifyApi | undefined; loadItems?: ((toilProject: string) => Promise<WorkItem[]>) | undefined }) {
   const current = SETTINGS_PAGES.find((p) => p.page === page)!;
   const form = at[0] === '+add' || at[0] === '+new';
   const words = useWords();
@@ -103,7 +105,7 @@ export function Settings({ page, at = [], config, agent, modelUsage = null, cach
       ) : page === 'connections' ? (
         <Connections config={config} {...(form ? { toForm: true } : at[0] ? { at: at[0] } : {})} />
       ) : page === 'projects' ? (
-        <ToilProjectSetup config={config} {...(form ? { toForm: true } : at[0] ? { at: { toilProject: at[0], section: at[1] ?? null } } : {})} />
+        <ToilProjectSetup config={config} classify={classify} loadItems={loadItems} {...(form ? { toForm: true } : at[0] ? { at: { toilProject: at[0], section: at[1] ?? null } } : {})} />
       ) : null}
     </>
   );

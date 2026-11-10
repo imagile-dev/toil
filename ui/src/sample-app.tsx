@@ -12,6 +12,7 @@ import { App } from './App.tsx';
 import { scriptedAgent } from './fixtures/agent.ts';
 import { fixtureAnalyses } from './fixtures/analyses.ts';
 import { fixtureAssignments } from './fixtures/assignments.ts';
+import { fixtureClassify } from './fixtures/classify.ts';
 import { fixtureConfig } from './fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from './fixtures/execute.ts';
 import { fixtureFeedback } from './fixtures/feedback.ts';
@@ -28,6 +29,7 @@ export function SampleApp({ onLeave }: { onLeave?: () => void }) {
     assignments: fixtureAssignments(),
     worklog: fixtureWorklog(),
     analyses: fixtureAnalyses(),
+    classify: fixtureClassify(),
   }));
   return <App {...fixtures} now={FIXTURE_NOW} preview {...(onLeave ? { onLeaveSample: onLeave } : {})} />;
 }

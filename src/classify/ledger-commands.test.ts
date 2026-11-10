@@ -193,6 +193,16 @@ describe('classify stats', () => {
     expect(out.file).toContain('ktlo-feature.jsonl');
   });
 
+  it('with --standing, adds the last say on each item, keeping a taking-back as null', async () => {
+    const d = disk();
+    await cli(d, ['classify', 'correct', 'corp-jira:PAY-1', '--to', 'feature', '--reason', 'adds a format', '--title', 'T1']);
+    await cli(d, ['classify', 'correct', 'corp-jira:PAY-2', '--to', 'ktlo', '--title', 'T2']);
+    await cli(d, ['classify', 'correct', 'corp-jira:PAY-2', '--to', 'unsure']);
+    const out = data(await cli(d, ['classify', 'stats', '--standing']));
+    expect(out.standing).toEqual({ 'corp-jira:PAY-1': { category: 'feature', reason: 'adds a format' }, 'corp-jira:PAY-2': { category: null, reason: null } });
+    expect(data(await cli(d, ['classify', 'stats'])).standing).toBeUndefined();
+  });
+
   it('skips lines it cannot read and says so', async () => {
     const d = disk();
     await cli(d, ['classify', 'correct', 'corp-jira:PAY-9', '--to', 'ktlo', '--title', 'T']);

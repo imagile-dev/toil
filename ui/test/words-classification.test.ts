@@ -32,6 +32,8 @@ const FUNCTIONAL_LIST = [
   'charts.measuredIn',
   'charts.saved',
   'charts.splitBy',
+  'classify.ask',
+  'classify.title',
   'explore.title',
   'filter.add',
   'filter.dates',

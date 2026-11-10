@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { splitHash, withQuery } from './address.ts';
 import { useData } from './data.ts';
 import { parseFilters, type Filters } from './filters.ts';
+import { personOf } from './model/classify.ts';
 import { buildInsights, type WorkInsights } from './model/work-insights.ts';
 import type { ToilProjectData } from './load.ts';
 
@@ -20,11 +21,14 @@ const built = new WeakMap<ToilProjectData, Map<string, WorkInsights>>();
 
 /** The pivot data layer for the toil project on screen, at the clock the app reads figures at. */
 export function useWorkInsights(): WorkInsights {
-  const { toilProject, now } = useData();
+  const { toilProject, now, classification } = useData();
+  // The scheme toil resolved and each item's standing say from the ledger, once read; the version keys the memo so a new word reclassifies.
+  const view = classification?.view ?? null;
+  const key = `${now}|${classification?.version ?? 0}`;
   let byNow = built.get(toilProject);
   if (!byNow) built.set(toilProject, (byNow = new Map()));
-  let ins = byNow.get(now);
-  if (!ins) byNow.set(now, (ins = buildInsights(toilProject, now, toilProject.classifyScheme)));
+  let ins = byNow.get(key);
+  if (!ins) byNow.set(key, (ins = buildInsights(toilProject, now, toilProject.classifyScheme, view ? { scheme: view.scheme, person: personOf(view.standing) } : {})));
   return ins;
 }
 

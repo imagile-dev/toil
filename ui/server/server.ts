@@ -66,7 +66,8 @@ import { ANALYZE, type Answer, type AskExtra, type HistoryTurn } from '../src/ag
 import { readViewContext } from '../src/view-context.ts';
 import { GUIDE_MAX, GUIDE_REFUSAL, GUIDE_REFUSAL_FIX, looksLikeSecret, readGuideState, type GuideRequest } from '../src/guide.ts';
 import { isWhole, type AnalysisKeeper } from './analyses.ts';
-import type { Envelope, ExecutePerson } from '../src/toil.ts';
+import type { Envelope, ExecutePerson, WorkItem } from '../src/toil.ts';
+import type { AgentVerdict } from '../../src/core/classify/types.ts';
 import type { AreaInfo, SettingsInfo } from '../src/config.ts';
 import type { Agent } from './agent.ts';
 import { AnswersError, CONFIG_COMMANDS, isConfigRead, personFrom, settingsFrom } from './config.ts';
@@ -86,6 +87,7 @@ import { SyncBusy, type SyncService } from './sync.ts';
 import { WorklogRefusal, type ExportWhat, type WorklogApi } from '../src/worklog.ts';
 import type { UsageControl } from './usage.ts';
 import { assignmentRoute, type AssignmentControl } from './assign/routes.ts';
+import { ClassifyRefusal, MAX_ITEMS, type ClassifyBackend } from './classify.ts';
 import { AssignError } from '../src/assign/queue.ts';
 import { CHAT_ID, UsageSettingsError, type AnswerUsage, type ChatTurn } from '../src/model-usage.ts';
 import type { ServerStatus } from '../src/fingerprint.ts';
@@ -117,6 +119,8 @@ export interface UiServerOptions {
   usage?: UsageControl;
   /** Assigning work items to an agent (#293): `api/assignments`. */
   assignments?: AssignmentControl;
+  /** Sorting work into categories (#566): `api/classify/*`, every step through toil's own commands (ui/server/classify.ts). */
+  classify?: ClassifyBackend;
   /**
    * A toil project renamed through `/api/config` (#342, `toil projects describe --name`):
    * `blocked` says why it can't be renamed now (a sync or an assignment of it is
@@ -574,10 +578,89 @@ export function createUiServer(options: UiServerOptions): UiServer {
     json(res, 200, await store.execute(ctx, 'feedback', fields as Record<string, unknown>, 'feedback', { readOnly: !consent, person }));
   };
 
+  /**
+   * `api/classify/*` (#566): the page names a Toil project and sends items or ids, never a command or a path. Each is one
+   * method of the ClassifyService, whose refusals are shown the way every other refusal is.
+   */
+  const classifyCall = async (key: string, req: IncomingMessage, res: ServerResponse, url: URL, ctx: RequestContext) => {
+    const service = options.classify;
+    if (!service) throw new HttpError(404, 'This Toil UI sorts no work into categories.', 'Start toil-ui with its cache, or with --sample for the sample.');
+    const shape = 'Send { "toilProject": "<name>", "items": [ ... ] }.';
+    const toilProjectOf = (v: unknown): string => {
+      if (typeof v !== 'string' || !TOIL_PROJECT_NAME.test(v)) throw new HttpError(400, 'Name the Toil project by its name.', shape);
+      return v;
+    };
+    const itemsOf = (v: unknown): WorkItem[] => {
+      if (!Array.isArray(v) || v.length > MAX_ITEMS || v.some((i) => typeof i !== 'object' || i === null || typeof (i as { id?: unknown }).id !== 'string')) throw new HttpError(400, `items is a list of up to ${MAX_ITEMS} work items.`, shape);
+      return v as WorkItem[];
+    };
+    const acceptedOf = (v: unknown): AgentVerdict[] => {
+      if (v === undefined) return [];
+      if (!Array.isArray(v) || v.length > MAX_ITEMS || v.some((a) => typeof a !== 'object' || a === null || typeof (a as AgentVerdict).id !== 'string' || typeof (a as AgentVerdict).category !== 'string' || typeof (a as AgentVerdict).reason !== 'string')) throw new HttpError(400, 'accepted is a list of { id, category, reason }.', shape);
+      return (v as AgentVerdict[]).map((a) => ({ id: a.id, category: a.category, reason: a.reason }));
+    };
+    const adapterOf = (v: unknown): string | undefined => {
+      if (v === undefined) return undefined;
+      if (typeof v !== 'string' || !/^[a-z]{2,20}$/.test(v)) throw new HttpError(400, 'adapter names an AI agent.', 'Send adapter as claude, copilot or codex, or leave it out.');
+      return v;
+    };
+    try {
+      switch (key) {
+        case 'GET classify/ledger':
+          json(res, 200, await service.ledger(toilProjectOf(url.searchParams.get('toilProject'))));
+          return;
+        case 'GET classify/agents':
+          json(res, 200, await service.agents());
+          return;
+        default:
+      }
+      const body = await readJson(req);
+      switch (key) {
+        case 'POST classify/record':
+          await service.record(toilProjectOf(body.toilProject), itemsOf(body.items));
+          json(res, 200, { ok: true });
+          return;
+        case 'POST classify/correct': {
+          const [item] = itemsOf([body.item]);
+          if (body.to !== null && (typeof body.to !== 'string' || !/^[a-z][a-z0-9-]{0,30}$/.test(body.to))) throw new HttpError(400, 'to is a category id, or null for unsure.', shape);
+          if (typeof body.reason !== 'string' || body.reason.length > 300) throw new HttpError(400, 'reason is text of at most 300 characters.', shape);
+          await service.correct(toilProjectOf(body.toilProject), { item: item!, context: body.context === undefined ? [] : itemsOf(body.context), to: body.to, reason: body.reason });
+          json(res, 200, { ok: true });
+          return;
+        }
+        case 'POST classify/ask':
+          json(res, 200, await service.ask(toilProjectOf(body.toilProject), itemsOf(body.items), adapterOf(body.adapter), ctx.signal));
+          return;
+        case 'POST classify/plan':
+          json(res, 200, await service.plan(toilProjectOf(body.toilProject), { items: itemsOf(body.items), accepted: acceptedOf(body.accepted) }));
+          return;
+        case 'POST classify/apply':
+          json(res, 200, await service.apply(toilProjectOf(body.toilProject), { items: itemsOf(body.items), accepted: acceptedOf(body.accepted) }, ctx.signal));
+          return;
+        case 'POST classify/tune':
+          json(res, 200, await service.tune(toilProjectOf(body.toilProject), itemsOf(body.items), adapterOf(body.adapter), ctx.signal));
+          return;
+        case 'POST classify/revision/apply':
+          if (typeof body.id !== 'string' || !body.id) throw new HttpError(400, 'Name the revision by its id.', 'Send { "id": "<revision id>" }.');
+          json(res, 200, await service.applyRevision(body.id));
+          return;
+        case 'POST classify/scheme/save':
+          json(res, 200, await service.saveScheme(toilProjectOf(body.toilProject), body.scheme));
+          return;
+        default:
+          throw new HttpError(404, `There is no ${key} in the API.`, 'The classify routes are classify/ledger, classify/agents, and POST classify/record, correct, ask, plan, apply, tune, revision/apply and scheme/save.');
+      }
+    } catch (e) {
+      if (e instanceof ClassifyRefusal) throw new HttpError(e.status, e.message, e.fix);
+      throw e;
+    }
+  };
+
   const api = async (req: IncomingMessage, res: ServerResponse, route: string, url: URL, ctx: RequestContext) => {
     const key = `${req.method === 'HEAD' ? 'GET' : req.method} ${route}`;
     if (key === 'POST agent/mcp') return mcpCall(req, res, ctx);
     if (await assignmentRoute(key, req, res, url, options.assignments, { readJson, json, headers: SECURITY_HEADERS })) return;
+    if (/^(GET|POST) classify\//.test(key)) return classifyCall(key, req, res, url, ctx);
     switch (key) {
       case 'GET info':
         json(res, 200, serverInfo());

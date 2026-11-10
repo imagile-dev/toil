@@ -49,7 +49,7 @@ import { loadUsageSettings, memoryLedger, type UsageLedger } from '../usage.ts';
 import { checkAgentSettings, cliPathOf, loadAgentSettings, modelOf, saveAgentSettings, DEFAULT_AGENT_SETTINGS, ENDPOINTS, type AgentSettings } from './settings.ts';
 import { promptStyle, type StyleChoice } from './voices.ts';
 import { CALLER } from '../store.ts';
-import { cacheTools, insightsTools, toilProjectReader, Ledger, liveTools, peopleTools, proposalTool, prTools, readinessTools, recorded, standupTool, worklogTool, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
+import { cacheTools, classificationReader, insightsTools, toilProjectReader, Ledger, liveTools, peopleTools, proposalTool, prTools, readinessTools, recorded, standupTool, worklogTool, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
 
 /** A task Toil UI wrote for an agent (#293): an assignment's run. */
 export interface TaskRequest {
@@ -241,7 +241,7 @@ export class AgentHost implements Agent {
   /** The tools a question about this toil project gets, and the ledger they fill: what every adapter is handed. */
   tools(toilProject: string, data: AgentData, ledger: Ledger): ToolSpec[] {
     const now = this.o.now ?? (() => new Date().toISOString());
-    return recorded([...cacheTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject), now), ...insightsTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject), now), ...prTools(toilProject, data, ledger), ...peopleTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject)), ...worklogTool(toilProject, data, ledger, now), ...standupTool(toilProject, data, ledger, now), ...readinessTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject)), proposalTool(this.o.registry), ...liveTools(toilProject, this.o.registry, this.o.execute, this.o.mapIds, ledger)], ledger);
+    return recorded([...cacheTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject), now, classificationReader(this.o.execute, toilProject)), ...insightsTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject), now, classificationReader(this.o.execute, toilProject)), ...prTools(toilProject, data, ledger), ...peopleTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject)), ...worklogTool(toilProject, data, ledger, now), ...standupTool(toilProject, data, ledger, now), ...readinessTools(toilProject, data, ledger, toilProjectReader(this.o.execute, toilProject)), proposalTool(this.o.registry), ...liveTools(toilProject, this.o.registry, this.o.execute, this.o.mapIds, ledger)], ledger);
   }
 
   /**

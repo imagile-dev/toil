@@ -71,6 +71,8 @@ function whatsNew(): Plugin {
 export default defineConfig(({ mode }) => ({
   base: './',
   plugins: [react(), contentSecurityPolicy(), whatsNew(), ...(mode === 'app' ? [localApp()] : [])],
+  // The page's builds get a stand-in for the one Node module a pure toil module loads (src/shims-async-hooks.ts); the tests run on Node's own.
+  resolve: { alias: { ...(mode === 'test' ? {} : { 'node:async_hooks': fileURLToPath(new URL('./src/shims-async-hooks.ts', import.meta.url)) }) } },
   server: { fs: { allow: ['..'] } },
   build: {
     outDir: mode === 'app' ? 'dist/app' : 'dist/preview',

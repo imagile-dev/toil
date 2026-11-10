@@ -21,6 +21,7 @@ import { cacheData } from './agents/tools.ts';
 import { Cache, CacheError, wipeCacheFiles } from './cache.ts';
 import { areasFrom, settingsFrom } from './config.ts';
 import { createUiServer, type ToilProjectRenames } from './server.ts';
+import { ClassifyService, hostAgents, sampleBackend } from './classify.ts';
 import { loadMachineSecret, MachineSecretError } from './machine-secret.ts';
 import { ToilProjectAgents } from './agents/toil-project-agents.ts';
 import { parseSettings, SettingsError, themesNotice, USAGE } from './settings.ts';
@@ -267,6 +268,8 @@ async function main(): Promise<number> {
     analyses: cache ? cacheAnalyses(() => cache!) : sampleAnalyses(fixtureAnalyses(), async (toilProject) => (await loadToilProject(fixtureExecute().execute, toilProject)).items, () => FIXTURE_NOW),
     usage,
     assignments,
+    // Sorting work into categories (#566): toil's own classify commands with the chosen agent, or the sample's script, which writes nothing.
+    classify: cache ? new ClassifyService({ execute, dataDir: settings.dataDir, agents: host ? hostAgents(host) : null, cwd: process.cwd() }) : sampleBackend(),
     ...(fingerprints ? { serverStatus: () => fingerprints!.server() } : {}),
     appDir: fileURLToPath(new URL('../app/', import.meta.url)),
     version: __TOIL_UI_VERSION__,

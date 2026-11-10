@@ -38,6 +38,11 @@ export const SHORTCUTS = {
   chartDrill: { keys: ['Enter'], or: [['Space']], where: 'Charts', what: 'Open the items behind the focused mark; with Shift, filter to it' },
   chartMenu: { keys: ['M'], or: [['Menu']], where: 'Charts, on a legend entry', what: 'Open its menu: show only it, or hide it' },
   chartClose: { keys: ['Escape'], where: 'Charts, on a legend entry', what: 'Close its menu' },
+  classifyK: { keys: ['K'], where: 'Sort work into categories, on a row', what: 'Pick Keep the lights on for the row' },
+  classifyF: { keys: ['F'], where: 'Sort work into categories, on a row', what: 'Pick Feature for the row' },
+  classifyU: { keys: ['U'], where: 'Sort work into categories, on a row', what: 'Pick Unsure for the row' },
+  classifyDigit: { keys: ['1'], or: [['2'], ['3'], ['4'], ['5'], ['6'], ['7'], ['8'], ['9']], where: 'Sort work into categories, on a row, for a scheme of other categories', what: 'Pick the numbered category for the row' },
+  classifyConfirm: { keys: ['Enter'], where: 'Sort work into categories, on a row', what: 'Confirm the pick and move to the next row' },
   drawerClose: { keys: ['Escape'], where: "In an item's drawer", what: 'Close it, and go back to the view behind it' },
 } as const satisfies Record<string, Shortcut>;
 

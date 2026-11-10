@@ -43,6 +43,8 @@ import { Avatar, InsightChips, StatusChip } from '../components/bits.tsx';
 import { CategoryChip, hasCategory } from '../components/category-chip.tsx';
 import { MixBar } from '../components/chartkit/index.ts';
 import { ProposalCard } from '../components/proposal.tsx';
+import { ReclassifyDialog } from '../components/reclassify.tsx';
+import { useClassify } from '../classify-state.tsx';
 import { AssignModal } from '../assign/views.tsx';
 import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, estimateText, itemHref, peekHref, personText, shortKey, sourceLabel } from '../format.ts';
@@ -247,6 +249,8 @@ function Card({ item, lane, others, onMove, menuOpen, setMenuOpen }: { item: Wor
   const can = canMove(item);
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: dragId(lane, item.id), disabled: !can.ok, attributes: { role: 'group', ...(can.ok ? { roleDescription: 'draggable card' } : {}) } });
   const [assigning, setAssigning] = useState(false);
+  const [reclassifying, setReclassifying] = useState(false);
+  const { api: classifyApi } = useClassify();
   const grip = useRef<HTMLDivElement | null>(null);
   const ids = useId();
   const key = shortKey(item);
@@ -286,6 +290,7 @@ function Card({ item, lane, others, onMove, menuOpen, setMenuOpen }: { item: Wor
     closeMenu(false);
     if (k === 'open') window.location.hash = href;
     else if (k === 'assign') setAssigning(true);
+    else if (k === 'category') setReclassifying(true);
     else onMove(k as StatusCategory);
   };
 
@@ -328,6 +333,11 @@ function Card({ item, lane, others, onMove, menuOpen, setMenuOpen }: { item: Wor
               </MenuItem>
             ))}
           </MenuSection>
+          {classifyApi ? (
+            <MenuItem id="category" className="menu-item">
+              Change its category…
+            </MenuItem>
+          ) : null}
           {assignments ? (
             <MenuItem id="assign" className="menu-item">
               Give to an AI agent…
@@ -336,6 +346,7 @@ function Card({ item, lane, others, onMove, menuOpen, setMenuOpen }: { item: Wor
         </Menu>
       </Popover>
       {assignments && <AssignModal item={item} isOpen={assigning} onOpenChange={setAssigning} />}
+      {classifyApi && <ReclassifyDialog item={item} isOpen={reclassifying} onOpenChange={setReclassifying} />}
     </li>
   );
 }

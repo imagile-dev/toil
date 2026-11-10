@@ -87,6 +87,10 @@ export const ROUTES = [
   '#/project/sample-team/people',
   '#/project/sample-team/people?mix=release',
   '#/project/sample-team/job/classify',
+  // Sorting work into categories (#566): the Board's third view with its rows, the reclassify form open on an item's page, and the Classification editor on a Toil project's edit page.
+  '#/project/sample-team/board/classify',
+  item('sample-team', 'sample-jira:SHOP-26'),
+  '#/settings/projects/sample-team/classification',
   // The Charts tab (#567): its list, Work mix by month and split by team, Releases, a drill list open over a chart (the 8 items added to 2.4 after it started), and a filtered view.
   '#/project/sample-team/charts',
   '#/project/sample-team/charts/mix',
@@ -453,6 +457,20 @@ function states(route, width, sample = true) {
   // Escape alone can leave it open on a slow runner (focus not yet inside it), which then holds focus through every
   // state at the next width; its own Cancel or Close closes it for certain.
   const closeAssign = clickAll('[role="dialog"] button', '/^(Cancel|Close)$/', 0);
+  // The Classify view's states (#566): How it's doing open, the AI agent's answers beside the rows, the approval card with every change, and the tune result with its scores.
+  if (route === '#/project/sample-team/board/classify') {
+    const until = (sel) => `(async () => { const deadline = Date.now() + 8000; while (!document.querySelector(${JSON.stringify(sel)}) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector(${JSON.stringify(sel)}) ? 1 : 'no ' + ${JSON.stringify(sel)}; })()`;
+    const openDoing = `(async () => { const deadline = Date.now() + 8000; while (!document.querySelector('[data-how-its-doing]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const d = document.querySelector('[data-how-its-doing]'); if (!d) return 0; d.open = true; return 1; })()`;
+    // The page stays open from one width to the next, so at the second width the answers may already have been accepted: the line saying it asked is then what shows.
+    const asked = `(async () => { if (!document.querySelector('[data-proposal], [data-asked]')) { if (!(await ${clickAll('[data-ask-agent]:not([disabled])', null, 8000)})) return 'the Ask button never came on'; } return await ${until('[data-proposal], [data-asked]')}; })()`;
+    out.push({ clearOverlays: true, name: 'doing-open', setup: openDoing, undoJs: `(() => { const d = document.querySelector('[data-how-its-doing]'); if (d) d.open = false; })()` });
+    out.push({ clearOverlays: true, name: 'agent-answers', setup: asked });
+    out.push({ clearOverlays: true, name: 'apply-card', setup: `(async () => { const n = await ${asked}; if (n !== 1) return n; await ${clickAll('[data-accept-all]', null, 500)}; await ${clickAll('[data-review-apply]', null, 2000)}; return await ${until('[data-apply] [data-change]')}; })()` });
+    out.push({ clearOverlays: true, name: 'tune-result', setup: `(async () => { await ${openDoing}; if (!(await ${clickAll('[data-improve]')})) return 'no Improve button'; return await ${until('[data-tune]')}; })()` });
+  }
+  // The reclassify form from an item's chip, and the editor's parts open with a blank rule added.
+  if (/\/item\/sample-jira%3ASHOP-26$/.test(route)) out.push({ name: 'reclassify-open', setup: `(async () => { if (!(await ${clickAll('button.cat-chip--button')})) return 0; const deadline = Date.now() + 5000; while (!document.querySelector('[data-reclassify-form]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('[data-reclassify-form]') ? 1 : 'the form did not open'; })()`, undo: 'Escape' });
+  if (route === '#/settings/projects/sample-team/classification') out.push({ name: 'editor-open', setup: `(async () => { const group = document.querySelector('[data-edit-group="classification"]'); if (group && !group.open) group.querySelector('summary')?.click(); const deadline = Date.now() + 15000; while (!document.querySelector('[data-classification-editor]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const e = document.querySelector('[data-classification-editor]'); if (!e) return 0; e.querySelectorAll('details').forEach((d) => (d.open = true)); const add = e.querySelector('[data-add-rule]'); if (add) add.click(); await new Promise((r) => setTimeout(r, 200)); return 1; })()` });
   if (route.includes('/item/')) out.push({ name: 'assign-open', setup: clickAll('[data-assign-open]'), undo: 'Escape', undoJs: closeAssign });
   // The Agents panel (#394, #552) is closed at every width until its button is pressed: a drawer below 1200px (SIDEBAR_WIDE in
   // src/views/ToilProjectShell.tsx), a column beside the view from there up, which the same button closes again.

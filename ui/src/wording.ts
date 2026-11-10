@@ -36,6 +36,10 @@ export const FUNCTIONAL = {
   // The sample team, opened from a real install (src/sample-mode.tsx): its action and the way back out.
   'sample.look': 'Look around with a sample team',
   'sample.leave': 'Leave the sample',
+  // Sorting work into categories (#566): the view's name, one plain text in every theme, with toil's own term (Classify) one hover away.
+  'classify.title': 'Sort work into categories',
+  // Plain words turn "agent" into "AI agent", so the key says "Ask your agent" and the button reads "Ask your AI agent".
+  'classify.ask': 'Ask your agent',
   // The chat (#343): the Ask bar's placeholder, and the status line's words, which a tool's name follows. Where a figure was read from is a fact (principle 4).
   'ask.placeholder': 'Ask a question about {name}',
   // On a narrow screen the bar is too short for a toil project's name, so it says what to do and leaves the name to the page.

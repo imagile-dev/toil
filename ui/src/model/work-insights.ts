@@ -18,7 +18,7 @@ import {
 } from '../../../src/core/insights/index.ts';
 import { bucketLabel, bucketsBetween, bucketStart } from '../../../src/core/insights/dimensions.ts';
 import { day, sourceLabel } from '../format.ts';
-import { categoriesOf, classifyItems, insightsPeople, schemeFor, schemeSummary, withHistory } from '../insights-input.ts';
+import { categoriesOf, classifyItems, insightsPeople, schemeFor, schemeSummary, withHistory, type Classification } from '../insights-input.ts';
 import type { ToilProjectData } from '../load.ts';
 import type { WorkItem } from '../toil.ts';
 
@@ -101,16 +101,16 @@ const sentence = (names: string[]) => (names.length < 2 ? names.join('') : `${na
  */
 export const resolveScheme = schemeFor;
 
-export function buildInsights(data: Pick<ToilProjectData, 'items' | 'people'>, now: string, schemeName?: string | null): WorkInsights {
-  return makeInsights(data.items, insightsPeople(data.people), now, schemeName);
+export function buildInsights(data: Pick<ToilProjectData, 'items' | 'people'>, now: string, schemeName?: string | null, extra: Classification = {}): WorkInsights {
+  return makeInsights(data.items, insightsPeople(data.people), now, schemeName, undefined, extra);
 }
 
 /**
  * `verdicts` is passed when a view narrows an earlier one: an item's category can come from its parent, which a filter may
  * have taken out of the input, so the narrowed view keeps the verdicts of the whole and never classifies a fragment afresh.
  */
-function makeInsights(items: WorkItem[], people: InsightsPerson[], now: string, schemeName?: string | null, whole?: ReadonlyMap<string, Verdict>): WorkInsights {
-  const classified = classifyItems(whole ? [] : items, schemeName);
+function makeInsights(items: WorkItem[], people: InsightsPerson[], now: string, schemeName?: string | null, whole?: ReadonlyMap<string, Verdict>, extra: Classification = {}): WorkInsights {
+  const classified = classifyItems(whole ? [] : items, schemeName, extra);
   const { scheme, note } = classified;
   const verdicts = whole ?? classified.verdicts;
   const categories = categoriesOf(items, verdicts);
@@ -182,7 +182,7 @@ function makeInsights(items: WorkItem[], people: InsightsPerson[], now: string, 
       if (where.length === 0) return self;
       const key = JSON.stringify(where);
       let n = narrowed.get(key);
-      if (!n) narrowed.set(key, (n = makeInsights(applyFilters(items, where, vctx).kept, people, now, schemeName, verdicts)));
+      if (!n) narrowed.set(key, (n = makeInsights(applyFilters(items, where, vctx).kept, people, now, schemeName, verdicts, extra)));
       return n;
     },
     sourceLine: () => (items.length === 0 ? 'No items were read.' : `From ${sentence([...new Set(areas.map(sourceLabel))])}, read ${day(now)}.${created[0] ? ` Items go back to ${day(`${created[0]}T00:00:00Z`)}.` : ''}`),

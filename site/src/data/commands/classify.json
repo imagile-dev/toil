@@ -133,7 +133,8 @@
       "--cwd <dir>",
       "--scheme <name|file>",
       "--backtest <file>",
-      "--revised <file>"
+      "--revised <file>",
+      "--standing"
     ]
   },
   {

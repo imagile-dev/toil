@@ -25,7 +25,7 @@ import type { FormChoices } from '../../src/core/connection-form.ts';
 import type { DescribedScopes } from '../../src/core/scopes.ts';
 
 /** The reads the pages make: run read-only, even on the config path. The audit reads fill Usage (#309). */
-export const CONFIG_READS = ['connections list', 'connections test', 'projects list', 'projects show', 'projects check', 'jira field discover', 'audit stats', 'audit list', 'theme list'] as const;
+export const CONFIG_READS = ['connections list', 'connections test', 'projects list', 'projects show', 'projects check', 'jira field discover', 'audit stats', 'audit list', 'theme list', 'classify scheme list', 'classify scheme show'] as const;
 
 /** The changes, each only to toil's own config or toil projects. */
 export const CONFIG_CHANGES = [
@@ -52,6 +52,10 @@ export const CONFIG_CHANGES = [
   'projects unarchive',
   // A view saved in a toil project, so the team opens the same chart from Charts (#567). Removing one is a delete, a CLI-only command this path doesn't serve, so a person does that in a terminal.
   'projects view set',
+  // A person's correction of one item's category, in their own ledger on this machine (#566). It changes nothing in any tracker; the Classify view's Apply does that, behind the connection's writes.
+  'classify correct',
+  // Which scheme a toil project sorts its work by, and the field it writes the category to in each tracker (#566): the toil project's own `classify` key, which can't select a connection or turn writes on.
+  'projects classify set',
   // The theme a person picks, as toil's own setting, which the welcome menu follows too (#427).
   'theme set',
 ] as const;

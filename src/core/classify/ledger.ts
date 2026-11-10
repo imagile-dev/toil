@@ -132,6 +132,20 @@ export function personSay(lines: readonly LedgerLine[]): Record<string, { catego
 }
 
 /**
+ * Each item's last say, for a screen: the category a person chose, or null where they took the category back
+ * ("unsure"), with the reason. Unlike `personSay` it keeps the takings-back, because a screen must not show an item
+ * a person already answered as one still waiting for an answer.
+ */
+export function lastSays(lines: readonly LedgerLine[]): Record<string, { category: string | null; reason: string | null }> {
+  const out: Record<string, { category: string | null; reason: string | null }> = {};
+  for (const line of lines) {
+    if (line.kind !== 'correction') continue;
+    out[line.item] = { category: line.to === UNSURE ? null : line.to, reason: line.reason };
+  }
+  return out;
+}
+
+/**
  * Whether an item is held back from the tune prompt, so a revised scheme is
  * scored on items it never saw. The first four bytes of the SHA-256 of the id,
  * as a big-endian number, modulo 3: zero holds the item back, about a third of

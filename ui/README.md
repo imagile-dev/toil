@@ -139,7 +139,7 @@ in any view.
 
 Screens always read in everyday words: a pull request is a **code review**, an agent an **AI agent**, with toil's own term in the hover. There is no switch. Anything a person reads to act (a menu item, tab, button, label, heading, an error and its fix) is plain English and identical in every theme; a theme speaks only in ledes and explanations, loading text, empty-state sentences and its moments (**Words** in `docs/themes.md`). Facts, numbers, commands and errors read the same everywhere. Themed wording is on by default and themed agent voice is off until chosen.
 
-The tabs read **Summary**, **Board**, **What blocks what** (Dependencies), **Code reviews**, **People**, **What happened** (Worklog) and **Past briefings** (Analyses); Analyze is **Get a briefing**. A panel's source reads "From Jira and GitHub", with each tool and how many reads it took one step in. **Settings → Appearance** has a **Font** control: the theme's own type first, then pairings made only of fonts already bundled (`docs/themes.md`, **Fonts**). Quoted titles, the tracker's words and a briefing's own sentences are never reworded.
+The tabs read **Summary**, **Board**, **What blocks what** (Dependencies), **Code reviews**, **People**, **Charts**, **What happened** (Worklog) and **Past briefings** (Analyses); Analyze is **Get a briefing**. A panel's source reads "From Jira and GitHub", with each tool and how many reads it took one step in. **Settings → Appearance** has a **Font** control: the theme's own type first, then pairings made only of fonts already bundled (`docs/themes.md`, **Fonts**). Quoted titles, the tracker's words and a briefing's own sentences are never reworded.
 
 ## Plain copy: no terminal in the words
 
@@ -556,6 +556,42 @@ How many finish a week and how long they took, then throughput by any split; fol
 ### Explore
 
 Pick a measure, a split, an across and filters; the chart's form follows the data (columns over time, stacked bars, a heatmap for two wide dimensions, one bar per value with no across), with small multiples when a split has more than four values. The whole view is in the address, so a link shows the same chart. The Split and Across menus offer every dimension the data holds, including the parent levels it has, label families (a prefix three labels share) and the fields your Toil project names, greyed "not read yet" when unread. **Save to Charts** keeps the view in the Toil project (`projects view set`, the same local write the Settings pages make, with the name and title you type); saved views appear on the Charts list under "Saved by your team". In the preview, which changes nothing, the button says so. Removing a saved view is a delete and stays on the command line.
+
+## Sort work into categories
+
+The Board's third view, beside **Board** and **Ready to start?** (`#/project/<name>/board/classify`). It lists the items that need
+a person: the **unsure** ones, and the ones where a rule or a signal and a label or field already on the item disagree. Each row shows
+the suggested category with its reason ("Its parent SHOP-12 is Feature"), and the choices as a row of buttons: "Keep the lights on",
+"Feature" and "Unsure". **K**, **F** and **U** pick for that scheme (**1** to **9** for any other), and **Enter** confirms and moves to
+the next row. Pressing a category chip anywhere else (an item's page, its drawer, a row in an items drawer) opens the same choice in
+a small form with an optional reason; a board card's ☰ menu has **Change its category…**.
+
+- **A choice is saved in your own record on this computer** (`toil classify correct`), at once, and never touches the tracker. Choosing the
+  category an item already has is saved too, as agreement. A line under the tabs says what changed and offers **Undo**, which records the item
+  back where it stood ("Changed back"): the record only ever adds.
+- **Ask your AI agent** gives the agent toil's own question for the unsure items, with no tool to change anything. Its answers come
+  back as suggestions, each with its reason and the AI-agent badge, and you accept them one at a time or all at once. Every answer is checked against
+  the scheme before it is shown.
+- **Apply** gathers what is decided into one card per tracker connection and shows every change first: the item, the label from and to, and the
+  field from and to, with the one command toil runs. One press runs the tracker's own `categorize` through toil's write rules, so the connection
+  must have changes switched on; the card says when it doesn't. Each item's result is reported, and pressing again changes nothing. Then the verdicts
+  are recorded. In the sample nothing can be written, and the card says so.
+
+### How it's doing
+
+Folded at the top of the view: how often people agreed with the answers they checked, which source they overrule most ("a label such as security
+or dependencies was overruled 3 of 8 times, all to Feature"), and how many corrections have come in since the categories were last improved. A
+figure nobody has read yet is a dash, "not read yet", never 0%. With ten corrections or more, **Improve with your AI agent** asks your agent for a
+sharper version of the categories from your corrections, tries it on corrections it was not shown, and lists what would change beside the score before
+and after. A version that scores worse is shown as worse. **Use this version** saves it as a new revision, which is a person's decision and only a press.
+
+### The Classification editor
+
+On a Toil project's edit page, **Classification** shows which categories the Toil project sorts by ("Keep the lights on / Feature, 2 rules, signals on,
+revision 3", kept as your own copy, shared in the repository, or built in) and opens into steps: pick other categories and the field each tracker keeps
+the category in, and edit the categories themselves: names, definitions, labels, guidance, examples, rules and the built-in signals. Each rule says how many of
+the items already read it would catch. Save stays off until toil's own check accepts the draft, with each problem named where it is; saving makes a new
+revision, and a built-in scheme is saved as your own copy.
 
 ## Readiness and the Command Center
 

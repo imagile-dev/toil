@@ -58,6 +58,8 @@ export const peopleHref = (toilProject: string) => `${toilProjectHref(toilProjec
 export const chartsHref = (toilProject: string, dashboard?: string) => `${toilProjectHref(toilProject)}/charts${dashboard ? `/${encodeURIComponent(dashboard)}` : ''}`;
 /** The Command Center (#307): every work item with its readiness verdict. */
 export const commandCenterHref = (toilProject: string) => `${toilProjectHref(toilProject)}/command-center`;
+/** The Board's third view (#566): sorting the items that need a person into categories. */
+export const classifyHref = (toilProject: string) => `${toilProjectHref(toilProject)}/board/classify`;
 /** The Board tab (#394), or the board filtered to one person (#292), by the key the People view gives them. */
 export const boardHref = (toilProject: string, person?: string) => `${toilProjectHref(toilProject)}/board${person ? `/${encodeURIComponent(person)}` : ''}`;
 /** The Dependencies tab (#394). */

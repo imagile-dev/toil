@@ -20,7 +20,7 @@ import { FilterBar } from '../../components/filter-bar.tsx';
 import { Help } from '../../components/help.tsx';
 import { Unread } from '../../components/unread.tsx';
 import { useData } from '../../data.ts';
-import { boardHref } from '../../format.ts';
+import { classifyHref } from '../../format.ts';
 import { toWhere } from '../../filters.ts';
 import { useAddress, useWorkInsights } from '../../insights-data.ts';
 import { mixSources, mixOverview, mixSentence, inNameOrder, isPeopleDimension, labelOfDimension, MIX_UNITS, periodWords, SPLIT_MENU, type MixUnit } from '../../model/work-insights.ts';
@@ -135,7 +135,7 @@ export function MixView() {
                 </li>
               ))}
               <li>
-                <a href={`${boardHref(toilProject.name)}?category=none`} data-unsure-link="">
+                <a href={classifyHref(toilProject.name)} data-unsure-link="">
                   Unsure
                 </a>{' '}
                 <b>{share(decided.unsure)}</b>

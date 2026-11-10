@@ -7,6 +7,7 @@
 
 import { createContext, useContext } from 'react';
 import type { Agent } from './agent.ts';
+import type { ClassifyApi, LedgerView } from './classify-api.ts';
 import type { AnalysesApi } from './analyses.ts';
 import type { AssignmentsApi } from './assign/model.ts';
 import type { ConfigApi } from './config.ts';
@@ -26,6 +27,18 @@ import type { WorklogApi } from './worklog.ts';
  * anything it queued first.
  */
 export type StartReady = (plan: { id: string; items: string[] }) => Promise<string>;
+
+/** The person's classification ledger as the page last read it (#566), and how to read it again. */
+export interface ClassificationState {
+  api: ClassifyApi;
+  /** Null while it loads or where it could not be read: the page then classifies with the built-in scheme and no one's word, and says so. */
+  view: LedgerView | null;
+  error: string | null;
+  loading: boolean;
+  /** Goes up each time the ledger was read again, so a memoized figure is worked out afresh. */
+  version: number;
+  reload(): Promise<void>;
+}
 
 export interface Data {
   toilProject: ToilProjectData;
@@ -57,6 +70,8 @@ export interface Data {
   startReady?: StartReady;
   /** Starts a sync, where the local app keeps a cache: the action an empty panel that a sync fills offers (#417). Absent in the preview. */
   sync?: () => void;
+  /** The classification ledger (#566), where the app can read one; absent in a view rendered on its own. */
+  classification?: ClassificationState;
   /** The worklog (#308), which the Summary's stand-up card reads through; absent where nothing keeps one. */
   worklog?: WorklogApi;
 }

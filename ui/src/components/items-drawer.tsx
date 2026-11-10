@@ -19,7 +19,7 @@ import { decodeDrill, resolveDrill } from '../model/drill.ts';
 import { labelOfDimension } from '../model/work-insights.ts';
 import type { WorkItem } from '../toil.ts';
 import { StatusChip } from './bits.tsx';
-import { CategoryChip } from './category-chip.tsx';
+import { ReclassifyChip } from './reclassify.tsx';
 import { Choice } from './choice.tsx';
 import { DataTable, type Column } from './layout.tsx';
 import './items-drawer.css';
@@ -112,7 +112,7 @@ export function ItemsDrawer({ spec }: { spec: string }) {
     { header: header('Status', 'status'), label: 'Status', cell: (i) => <StatusChip category={i.statusCategory} status={i.status} /> },
     { header: header('Assignee', 'assignee'), label: 'Assignee', cell: (i) => personText(i.assignee) },
     { header: header('Estimate', 'estimate'), label: 'Estimate', cell: (i) => estimateText(i) },
-    { header: header('Category', 'category'), label: 'Category', cell: (i) => <CategoryChip ins={ins} itemId={i.id} /> },
+    { header: header('Category', 'category'), label: 'Category', cell: (i) => <ReclassifyChip item={i} /> },
     ...dims.map(
       (d): Column<WorkItem> => ({ header: header(labelOfDimension(d), `dim:${d}`), label: labelOfDimension(d), cell: (i) => ins.valueText(i, d) ?? <span aria-label="not read yet">–</span> }),
     ),

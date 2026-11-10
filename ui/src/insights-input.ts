@@ -32,8 +32,20 @@ export interface InsightsBase extends Pick<PivotInput, 'items' | 'categories' | 
   schemeNote: string | null;
 }
 
-/** The scheme a toil project's page uses: the built-in one it names, else the standard one. */
-export function schemeFor(name: string | null | undefined): { scheme: Scheme; note: string | null } {
+/**
+ * What a page knows about classification beyond the toil project's own file: the scheme as toil resolved it (the person's own
+ * copy, or the repository's, which the page cannot find by name), and what a person has said about each item, from the ledger.
+ * Both come from toil's own reads, never from this page's guess, so a screen and the agent's tools classify the same way.
+ */
+export interface Classification {
+  scheme?: Scheme | null | undefined;
+  /** An item's standing say from a person (the ledger's last correction), for the engine's `person` input. */
+  person?: Record<string, { category: string; reason: string | null }> | undefined;
+}
+
+/** The scheme a toil project's page uses: the one toil resolved when it was read, else the built-in one it names, else the standard one. */
+export function schemeFor(name: string | null | undefined, given?: Scheme | null): { scheme: Scheme; note: string | null } {
+  if (given) return { scheme: given, note: null };
   const named = name ? builtinScheme(name) : undefined;
   if (named) return { scheme: named, note: null };
   return { scheme: defaultScheme(), note: name ? `This Toil project names a classification, ${name}, that Toil UI can't read, so the standard Keep the lights on or Feature split is used.` : null };
@@ -50,9 +62,10 @@ export const schemeSummary = (scheme: Scheme): NonNullable<PivotInput['scheme']>
 });
 
 /** What the engine decided for each item, under the scheme the toil project names. The one place items are classified for a page or an agent. */
-export function classifyItems(items: WorkItem[], schemeName?: string | null): { scheme: Scheme; note: string | null; verdicts: Map<string, Verdict> } {
-  const { scheme, note } = schemeFor(schemeName);
-  return { scheme, note, verdicts: new Map(classify({ scheme, items }).result.verdicts.map((v) => [v.id, v])) };
+export function classifyItems(items: WorkItem[], schemeName?: string | null, extra: Classification = {}): { scheme: Scheme; note: string | null; verdicts: Map<string, Verdict> } {
+  const { scheme, note } = schemeFor(schemeName, extra.scheme);
+  const person = extra.person && Object.keys(extra.person).length > 0 ? { person: extra.person } : {};
+  return { scheme, note, verdicts: new Map(classify({ scheme, items, ...person }).result.verdicts.map((v) => [v.id, v])) };
 }
 
 /** Each item's category id, null where the engine stayed unsure, from verdicts that may cover more items than these. */
@@ -66,8 +79,8 @@ export function categoriesOf(items: readonly WorkItem[], verdicts: ReadonlyMap<s
 export const withHistory = (items: WorkItem[]): WorkItem[] => (items.some((i) => i.history === undefined) ? items.map((i) => (i.history === undefined ? { ...i, history: null } : i)) : items);
 
 /** Items, people, each item's category (null where the engine stayed unsure) and the scheme's categories. */
-export function insightsBase(items: WorkItem[], people: readonly PersonLike[], schemeName?: string | null): InsightsBase {
-  const { scheme, note, verdicts } = classifyItems(items, schemeName);
+export function insightsBase(items: WorkItem[], people: readonly PersonLike[], schemeName?: string | null, extra: Classification = {}): InsightsBase {
+  const { scheme, note, verdicts } = classifyItems(items, schemeName, extra);
   return { items: withHistory(items), people: insightsPeople(people), categories: categoriesOf(items, verdicts), scheme: schemeSummary(scheme), schemeNote: note };
 }
 

@@ -163,7 +163,7 @@ export function ReleasesView() {
   const { open, latest } = releasesToShow(view);
   return (
     <div className="chart-page" data-dashboard="releases">
-      <DashboardHead title={words('releases.title')} help="charts" />
+      <DashboardHead title={words('releases.title')} help="releases" />
       {!ins.releasesRead ? (
         <NotRead what="Fix versions" />
       ) : (

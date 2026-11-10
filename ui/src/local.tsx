@@ -18,7 +18,7 @@ import './views.css';
 import type { ConfigApi } from './config.ts';
 import type { SetupProgress } from './setup.ts';
 import type { NewProjectProgress } from './views/NewProject.tsx';
-import { httpAgent, httpAgentSettings, httpConfig, httpExecute, httpFeedback, httpModelUsage, httpServerStatus, httpSync, httpWorklog, httpAnalyses, readServerInfo, type AgentStatus, type ServerInfo, type SyncStatus } from './server-client.ts';
+import { httpAgent, httpAgentSettings, httpConfig, httpExecute, httpFeedback, httpModelUsage, httpServerStatus, httpSync, httpWorklog, httpAnalyses, httpClassify, readServerInfo, type AgentStatus, type ServerInfo, type SyncStatus } from './server-client.ts';
 import { SyncPanel, lastSynced } from './sync-panel.tsx';
 import { httpAssignments } from './assign/client.ts';
 import { CALL_OPTIONS, type Execute } from './toil.ts';
@@ -59,6 +59,7 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   const [feedback] = useState(() => httpFeedback(session));
   const [worklog] = useState(() => httpWorklog(session));
   const [analyses] = useState(() => httpAnalyses());
+  const [classify] = useState(() => httpClassify());
   const [modelUsage] = useState(() => httpModelUsage());
   const [assignments] = useState(() => httpAssignments(session));
   // The server's own staleness (#305), for the header: one function for the page's life, which the header asks every minute.
@@ -98,7 +99,7 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   );
   return (
     <OfferSampleContext.Provider value={!session.sample}>
-      <App key={generation} setupKeep={setupKeep} newProjectKeep={newProjectKeep}syncing={syncing} news={news} syncedAt={finished} serverStatus={serverStatus} execute={execute} agent={agent} config={config} {...(session.sample ? {} : { themeSetting: config })} feedback={feedback} modelUsage={modelUsage} {...(cache ? { cache } : {})} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byToilProject, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByToilProject(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} versions={{ ui: session.version, toil: session.toil.version }} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { toilProject: names[0] } : {}) } } : {})} />
+      <App key={generation} setupKeep={setupKeep} newProjectKeep={newProjectKeep}syncing={syncing} news={news} syncedAt={finished} serverStatus={serverStatus} execute={execute} agent={agent} config={config} {...(session.sample ? {} : { themeSetting: config })} feedback={feedback} modelUsage={modelUsage} {...(cache ? { cache } : {})} assignments={assignments} worklog={worklog} analyses={analyses} classify={classify} {...(session.sync ? { synced: byToilProject, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByToilProject(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} versions={{ ui: session.version, toil: session.toil.version }} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { toilProject: names[0] } : {}) } } : {})} />
       {sync && <SyncPanel key={panelKey} client={sync} onChange={onChange} onStatus={onStatus} request={syncAsked} />}
     </OfferSampleContext.Provider>
   );

@@ -28,7 +28,7 @@ import { categoryHint } from '../components/category-chip.tsx';
 import { Unread } from '../components/unread.tsx';
 import { useWorkInsights } from '../insights-data.ts';
 import { mixOverview, mixSentence, nextRelease, periodWords, releaseSentence } from '../model/work-insights.ts';
-import { analysesHref, analysisHref, boardHref, chartsHref, dependenciesHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, worklogHref } from '../format.ts';
+import { analysesHref, analysisHref, boardHref, chartsHref, classifyHref, dependenciesHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, worklogHref } from '../format.ts';
 import { Empty, TrackerAction } from '../components/empty.tsx';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput } from '../model/flow.ts';
@@ -355,9 +355,15 @@ function MixTile() {
             <ul className="metric__mix" aria-label={`Work mix, ${periodWords(ins.today, period)}`}>
               {lines.map((l) => (
                 <li key={l.key}>
-                  <span className="metric__cat" title={categoryHint(ins, l.id)}>
-                    {l.name}
-                  </span>{' '}
+                  {l.id === null ? (
+                    <a className="metric__cat" href={classifyHref(toilProject.name)} title={categoryHint(ins, l.id)} data-unsure-link="">
+                      {l.name}
+                    </a>
+                  ) : (
+                    <span className="metric__cat" title={categoryHint(ins, l.id)}>
+                      {l.name}
+                    </span>
+                  )}{' '}
                   <b>{Math.round(l.share * 100)}%</b>
                 </li>
               ))}

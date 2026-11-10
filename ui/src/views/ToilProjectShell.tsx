@@ -33,9 +33,10 @@ import { useData, useDerived } from '../data.ts';
 import { writeFilters } from '../filters.ts';
 import { useAddress } from '../insights-data.ts';
 import { ItemsDrawer } from '../components/items-drawer.tsx';
-import { analysesHref, boardHref, chartsHref, commandCenterHref, dependenciesHref, toilProjectEditHref, toilProjectHref, peopleHref, prsHref, worklogHref } from '../format.ts';
+import { ClassifyNoticeLine } from '../components/reclassify.tsx';
+import { analysesHref, boardHref, chartsHref, classifyHref, commandCenterHref, dependenciesHref, toilProjectEditHref, toilProjectHref, peopleHref, prsHref, worklogHref } from '../format.ts';
 import { needingAttention } from '../model/insights.ts';
-import { useTerm, useTheme } from '../skins.tsx';
+import { useTerm, useTheme, useWords } from '../skins.tsx';
 import { usePlain } from '../plain-words.ts';
 import { momentsOf, useEnter } from '../moments/Moments.tsx';
 import './toil-project-shell.css';
@@ -66,10 +67,11 @@ export const PHONE_BAR = '(max-width: 599px)';
  * their own (Overview, Board, Dependencies, Analyses); the others keep theirs.
  * `boardView` says which of the Board tab's two views is showing.
  */
-export function ToilProjectShell({ tab, heading, boardView, peek = null, items = null, children }: { tab: ToilProjectTab | null; heading: boolean; boardView?: 'board' | 'readiness'; peek?: string | null; items?: string | null; children: ReactNode }) {
+export function ToilProjectShell({ tab, heading, boardView, peek = null, items = null, children }: { tab: ToilProjectTab | null; heading: boolean; boardView?: 'board' | 'readiness' | 'classify'; peek?: string | null; items?: string | null; children: ReactNode }) {
   const { toilProject, config, described } = useData();
   const { health: h, insights } = useDerived();
   const term = useTerm();
+  const words = useWords();
   const wide = useMediaQuery(SIDEBAR_WIDE);
   // On a phone the description and the source badges sit behind a button beside the name, one tap away.
   const phone = useMediaQuery(PHONE_BAR);
@@ -180,8 +182,12 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, items =
           <a href={carry(commandCenterHref(toilProject.name))} aria-current={boardView === 'readiness' ? 'page' : undefined} title={plain.title('Readiness (Command Center)')}>
             {pw('Readiness (Command Center)', 'Ready to start?')}
           </a>
+          <a href={carry(classifyHref(toilProject.name))} aria-current={boardView === 'classify' ? 'page' : undefined} title={plain.title('Classify')} data-board-view="classify">
+            {words('classify.title')}
+          </a>
         </nav>
       )}
+      <ClassifyNoticeLine />
       <PaletteAssign />
       <div className="toil-project-body">
         <div className="toil-project-main" ref={view}>

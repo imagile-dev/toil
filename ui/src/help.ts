@@ -95,6 +95,7 @@ export const HELP = {
   readiness: { title: 'the Command Center', text: 'Each verdict is worked out from the cached records, with no model call and no live read. Only ready items are slated, in the Toil project\'s order.', page: '/docs/ui/', anchor: 'readiness-and-the-command-center' },
   charts: { title: 'the Charts tab', text: 'Each dashboard answers one question about the work, counted by code from the items Toil UI read, and every number opens the items behind it. The period and filters are in the address, so a link shows the same chart.', page: '/docs/ui/', anchor: 'charts' },
   'work-mix': { title: 'how the mix is worked out', text: "Each item takes the first category that fits: a label it already has, your rules, built-in signals, then its parent's. What none of them settles is Unsure, and the mix counts what was finished in the period.", page: '/docs/ui/', anchor: 'work-mix' },
+  releases: { title: 'releases', text: "Scope is every item with the release's fix version: done is what is resolved, and left is the rest. Added since it started counts items created after the release's own start date, and is a dash when the release has none.", page: '/docs/ui/', anchor: 'releases' },
   sprints: { title: 'sprint velocity', text: "Done is what was resolved by a sprint's end; committed was in it when it started, added joined after, and carried over was left undone for a later sprint. Without an item's sprint history, committed and added are unknown.", page: '/docs/ui/', anchor: 'sprints' },
   where: { title: 'where the team is working', text: "Days in progress are counted from each item's status history, by the week they fall in; a parallel stream is an epic with work in progress that week. The team is measured, never a person.", page: '/docs/ui/', anchor: 'where-were-working' },
   flow: { title: 'flow', text: 'Throughput counts what was resolved each week, cycle time the days from started to resolved with the 85th percentile marked, and age the days since an open item started. The diagram and cycle time need status history.', page: '/docs/ui/', anchor: 'flow' },
@@ -137,6 +138,9 @@ export const HELP = {
   'notification-history': { title: 'the notification history', text: "The last 50 notices and sync results, kept in this browser and sent nowhere, each linking to what it's about. Mark all read clears the count and keeps them.", page: '/docs/ui/', anchor: 'notification-history' },
   'theme-motion': { title: 'theme motion', text: "How much the theme's splash, loading screens, entrances and moments move: full, subtle or off. Off whenever reduced motion is asked for.", page: '/docs/themes/', anchor: 'theme-moments' },
   tips: { title: 'toil tips', text: 'One line about toil on each loading screen, in plain words, each with a Read more link. Turn them off here; the choice is kept in this browser.', page: '/docs/themes/', anchor: 'toil-tips' },
+  classify: { title: 'sorting work into categories', text: 'Lists the items nobody has put in a category, and the ones where a label and a rule disagree. Your answers are saved in your own record; the tracker changes only when you apply them, after seeing every change.', page: '/docs/ui/', anchor: 'sort-work-into-categories' },
+  'classify-doing': { title: 'how the categories are doing', text: 'Counts how often people agreed with the answers they checked, and which source they overrule most. A figure nobody has read yet is a dash, never 0%.', page: '/docs/ui/', anchor: 'how-its-doing' },
+  'classification-editor': { title: 'the categories editor', text: 'Edits the categories, rules and guidance a Toil project sorts its work by. A rule shows how many items it would catch, and saving makes a new revision.', page: '/docs/ui/', anchor: 'the-classification-editor' },
 } as const satisfies Record<string, HelpTopic>;
 
 export type HelpTopicId = keyof typeof HELP;
@@ -144,7 +148,7 @@ export type HelpTopicId = keyof typeof HELP;
 export const helpHref = (topic: HelpTopic): string => `${DOCS_SITE}${topic.page}#${topic.anchor}`;
 
 /** The header's Help entry: the docs section for the view in front of you. */
-export type HelpView = 'toilProjects' | 'dashboard' | 'prs' | 'people' | 'charts' | 'command-center' | 'worklog' | 'standup' | 'item' | 'assignment' | 'job' | 'settings' | 'setup' | 'newProject';
+export type HelpView = 'toilProjects' | 'dashboard' | 'prs' | 'people' | 'charts' | 'command-center' | 'classify' | 'worklog' | 'standup' | 'item' | 'assignment' | 'job' | 'settings' | 'setup' | 'newProject';
 const VIEW_TOPIC: Record<HelpView, HelpTopicId> = {
   toilProjects: 'toilProjects',
   dashboard: 'dashboard',
@@ -152,6 +156,7 @@ const VIEW_TOPIC: Record<HelpView, HelpTopicId> = {
   people: 'people',
   charts: 'charts',
   'command-center': 'readiness',
+  classify: 'classify',
   worklog: 'worklog',
   standup: 'standup',
   item: 'readiness',

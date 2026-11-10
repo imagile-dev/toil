@@ -1,0 +1,89 @@
+/* Sort work into categories (#566): the reclassify form, the Classify view's rows, the approval card, "How it's doing" and the editor. Theme tokens only, and nothing wider than its container at 375px. */
+
+.reclassify__anchor { display: inline-block; vertical-align: baseline; }
+.reclassify { max-width: min(26rem, calc(100vw - 2rem)); padding: 0.75rem 1rem; }
+.reclassify__dialog { outline: none; }
+.reclassify__form { display: grid; gap: 0.6rem; }
+.reclassify__title { margin: 0; font-size: 1rem; }
+.reclassify__choices { display: grid; gap: 0.25rem; }
+.reclassify__choice { display: flex; align-items: center; gap: 0.5rem; min-height: 44px; padding: 0 0.5rem; border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; }
+.reclassify__choice[data-selected] { border-color: var(--accent); background: var(--surface); font-weight: 600; }
+.reclassify__choice[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
+.reclassify__choice::before { content: ''; flex: none; width: 1rem; height: 1rem; border: 2px solid var(--muted); border-radius: 50%; }
+.reclassify__choice[data-selected]::before { border-color: var(--accent); background: radial-gradient(var(--accent) 45%, transparent 50%); }
+.reclassify__reason { display: grid; gap: 0.25rem; }
+.reclassify__reason label { font-size: 0.875rem; }
+.reclassify__reason textarea { box-sizing: border-box; width: 100%; font: inherit; color: var(--ink); background: var(--raised); border: 1px solid var(--muted); border-radius: var(--radius); padding: 0.4rem 0.5rem; resize: vertical; }
+.reclassify__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.classify-notice { margin: 0.5rem 0; }
+
+/* The view */
+.classify__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0.75rem 0; }
+.classify__bar .note { flex: 1 1 18rem; margin: 0; }
+.classify__adapter { display: inline-block; }
+.classify__pending { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; margin: 0.75rem 0; padding: 0.5rem 0.75rem; border-inline-start: 4px solid var(--accent); border-radius: var(--radius); background: var(--surface); }
+.classify__pending h2 { margin: 0; font-size: 1rem; }
+.classify__pending > .note { flex: 1 1 14rem; margin: 0; }
+.classify__cards { display: grid; gap: 1rem; flex: 1 0 100%; min-width: 0; }
+.classify__rows h2 { font-size: 1.05rem; }
+.sortrows { display: grid; gap: 0.75rem; margin: 0.5rem 0 0; padding: 0; list-style: none; }
+.sortrow { display: grid; gap: 0.4rem; padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); min-width: 0; }
+.sortrow:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sortrow__head { margin: 0; overflow-wrap: anywhere; }
+.sortrow__why { margin: 0; overflow-wrap: anywhere; }
+.sortrow__proposal { display: grid; gap: 0.35rem; padding: 0.5rem 0.75rem; border-inline-start: 4px solid var(--accent); background: var(--surface); }
+.sortrow__proposal p { margin: 0; overflow-wrap: anywhere; }
+.sortrow__proposal-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.badge--agent { display: inline-block; padding: 0 0.45rem; border: 1px solid var(--line); border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: var(--raised); white-space: nowrap; }
+.sortrow__choices { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.sortrow__choice { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0 0.75rem; border: 1px solid var(--muted); border-radius: var(--radius); background: var(--raised); color: var(--ink); cursor: pointer; }
+.sortrow__choice[data-selected] { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.sortrow__choice[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sortrow__key { padding: 0 0.3rem; border: 1px solid currentColor; border-radius: 0.25rem; font: inherit; font-size: 0.75rem; opacity: 0.85; }
+.sortrow__actions { display: flex; }
+
+/* The approval card */
+.apply { display: grid; gap: 0.6rem; padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.apply h3 { margin: 0; }
+.apply__group { display: grid; gap: 0.5rem; }
+.apply__changes { display: grid; gap: 0.5rem; margin: 0; padding: 0; }
+.apply__change { padding: 0.4rem 0.6rem; border-inline-start: 3px solid var(--line); overflow-wrap: anywhere; }
+.apply__what, .apply__lines { margin: 0; }
+.apply__command pre { max-width: 100%; overflow: auto; }
+.apply__outcome ul { margin: 0.25rem 0 0; }
+.apply__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+/* How it's doing */
+.doing { margin: 0.5rem 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
+.doing > summary { min-height: 44px; display: flex; align-items: center; padding: 0 1rem; cursor: pointer; font-weight: 600; }
+.doing__body { display: grid; gap: 0.5rem; padding: 0 1rem 1rem; }
+.doing__body p { margin: 0; overflow-wrap: anywhere; }
+.doing__sources { border-collapse: collapse; width: 100%; max-width: 36rem; font-size: 0.875rem; }
+.doing__sources th, .doing__sources td { padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
+.doing__sources td { white-space: nowrap; }
+.doing__improve { display: grid; gap: 0.35rem; justify-items: start; }
+.tune { display: grid; gap: 0.5rem; padding: 0.75rem 1rem; border: 1px solid var(--accent); border-radius: var(--radius); background: var(--surface); }
+.tune h3 { margin: 0; }
+.tune__changes { margin: 0; padding-inline-start: 1.25rem; }
+.tune__changes li { overflow-wrap: anywhere; }
+.tune__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+/* The editor */
+.cedit { display: grid; gap: 0.75rem; }
+.cedit__summary { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.cedit details { border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
+.cedit details > summary { min-height: 44px; display: flex; align-items: center; padding: 0 0.75rem; cursor: pointer; font-weight: 600; }
+.cedit__part { display: grid; gap: 0.6rem; padding: 0 0.75rem 0.75rem; }
+.cedit__card { display: grid; gap: 0.4rem; padding: 0.6rem 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.cedit__card label { display: grid; gap: 0.15rem; font-size: 0.875rem; }
+.cedit__card input, .cedit__card textarea, .cedit__card select, .cedit__part textarea { box-sizing: border-box; width: 100%; max-width: 100%; font: inherit; color: var(--ink); background: var(--raised); border: 1px solid var(--muted); border-radius: var(--radius); padding: 0.4rem 0.5rem; }
+.cedit > *, .cedit__part > *, .cedit__card > * { min-width: 0; }
+.cedit select, .cedit input[type='text'], .cedit textarea { box-sizing: border-box; max-width: 100%; }
+.cedit__part select, .cedit__part textarea { width: 100%; font: inherit; color: var(--ink); background: var(--raised); border: 1px solid var(--muted); border-radius: var(--radius); padding: 0.4rem 0.5rem; }
+.cedit__summary, .cedit__part p, .cedit__problems li { overflow-wrap: anywhere; }
+.cedit label { overflow-wrap: anywhere; }
+.cedit__part label { display: grid; gap: 0.15rem; font-size: 0.875rem; }
+.cedit .check-line { display: flex; align-items: flex-start; gap: 0.5rem; }
+.cat-chip--button { min-height: 44px; padding: 0 0.9rem; align-items: center; }
+.cedit__problems { margin: 0; padding-inline-start: 1.25rem; }
+.cedit__count { margin: 0; }

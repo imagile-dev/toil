@@ -33,7 +33,9 @@ import { people, readPeople, type Card } from '../../src/model/people.ts';
 import { CHECK_LABEL, readiness, readReadiness, tally, VERDICTS, type Readiness } from '../../src/model/readiness.ts';
 import { SimilarityIndex } from '../../../src/core/owi/similar.ts';
 import { applyFilters, DIMENSION_MENU, isDay as isPivotDay, MAX_TOP, MEASURES, parseDimension, parseWhere, pivot, type Filter, type PivotResult, type PivotSpec } from '../../../src/core/insights/index.ts';
-import { insightsBase, valuesContext, type PersonLike } from '../../src/insights-input.ts';
+import { insightsBase, valuesContext, type Classification, type PersonLike } from '../../src/insights-input.ts';
+import { readScheme } from '../../../src/core/classify/scheme.ts';
+import { personOf, type Say } from '../../src/model/classify.ts';
 import { CALLER } from '../store.ts';
 import { addDays, appliedText, dayOf, isDay, OUTCOME_TEXT, timeOf, type WorklogPage } from '../../src/model/worklog.ts';
 import { BUCKETS, BUCKET_TITLE, defaultRange, whenText, type StandupLine, type StandupReport } from '../../src/model/standup.ts';
@@ -80,6 +82,28 @@ export function toilProjectReader(execute: Execute, toilProject: string): ReadTo
     const e = await execute('projects show', { toilProject }, { readOnly: true, caller: CALLER });
     if (!e.ok) return { toilProject: null, error: `toil projects show ${toilProject} failed: ${e.error.message}${e.error.fix ? ` ${e.error.fix}` : ''}` };
     return { toilProject: typeof e.data === 'object' && e.data !== null ? ((e.data as { toilProject?: unknown }).toilProject ?? null) : null, error: null };
+  };
+}
+
+/**
+ * What the person's own ledger and scheme say, read the way the page reads them (`classify stats --standing`, `classify scheme show`),
+ * so an agent's figure and the one on screen classify every item the same way. Empty where toil can't read them: the built-in scheme and no one's word.
+ */
+export type ReadClassification = () => Promise<Classification>;
+
+export function classificationReader(execute: Execute, toilProject: string): ReadClassification {
+  return async () => {
+    const stats = await execute('classify stats', { toilProject, standing: true }, { readOnly: true, caller: CALLER });
+    if (!stats.ok) return {};
+    const data = (typeof stats.data === 'object' && stats.data !== null ? stats.data : {}) as { scheme?: { name?: string }; standing?: Record<string, Say> };
+    const shown = await execute('classify scheme show', { name: data.scheme?.name ?? 'ktlo-feature' }, { readOnly: true, caller: CALLER });
+    let scheme: Classification['scheme'];
+    try {
+      scheme = shown.ok ? readScheme((shown.data as { scheme?: unknown }).scheme, 'the scheme').scheme : undefined;
+    } catch {
+      scheme = undefined;
+    }
+    return { scheme, person: personOf(data.standing ?? {}) };
   };
 }
 
@@ -579,7 +603,7 @@ export function readinessTools(toilProject: string, data: AgentData, ledger: Led
 }
 
 /** The four work item cache tools for one toil project. */
-export function cacheTools(toilProject: string, data: AgentData, ledger: Ledger, readToilProject?: ReadToilProject, now: () => string = () => new Date().toISOString()): ToolSpec[] {
+export function cacheTools(toilProject: string, data: AgentData, ledger: Ledger, readToilProject?: ReadToilProject, now: () => string = () => new Date().toISOString(), readClassification?: ReadClassification): ToolSpec[] {
   const note = () => ({ toilProject, syncedAt: data.syncedAt() });
   return [
     {
@@ -655,7 +679,7 @@ export function cacheTools(toilProject: string, data: AgentData, ledger: Ledger,
             const named = typeof shown === 'object' && shown !== null ? (shown as { classify?: { scheme?: unknown } }).classify?.scheme : undefined;
             if (typeof named === 'string') scheme = named;
           }
-          const base = insightsBase(data.items(), people, scheme);
+          const base = insightsBase(data.items(), people, scheme, wants('category') && readClassification ? await readClassification() : {});
           const byId = new Map(base.items.map((i) => [i.id, i]));
           const out = applyFilters(first.map((i) => byId.get(i.id) ?? i), filters.map((f) => f.filter), valuesContext(base, now()));
           for (const u of out.unjudged) {
@@ -951,7 +975,7 @@ export function pivotBrief(result: PivotResult, ledger?: Ledger) {
 }
 
 /** `insights_pivot` (#567): the pure pivot the Charts screens run, over this toil project's cached items. */
-export function insightsTools(toilProject: string, data: AgentData, ledger: Ledger, readToilProject: ReadToilProject, now: () => string = () => new Date().toISOString()): ToolSpec[] {
+export function insightsTools(toilProject: string, data: AgentData, ledger: Ledger, readToilProject: ReadToilProject, now: () => string = () => new Date().toISOString(), readClassification?: ReadClassification): ToolSpec[] {
   const note = () => ({ toilProject, syncedAt: data.syncedAt() });
   const RULE = 'These figures are the ones the Charts screens show. Quote them as they are: a null or a dash is a figure nobody read, never 0. Say what coverage says was not read. Cite a cell as [[cell:<column>/<row>]], using the column and row keys, and an item as [[<owi id>]].';
   return [
@@ -1010,7 +1034,7 @@ export function insightsTools(toilProject: string, data: AgentData, ledger: Ledg
         const shown = await readToilProject();
         const people = readPeople(shown.toilProject).people;
         const named = typeof shown.toilProject === 'object' && shown.toilProject !== null ? (shown.toilProject as { classify?: { scheme?: unknown } }).classify?.scheme : undefined;
-        const base = insightsBase(data.items(), people, typeof named === 'string' ? named : null);
+        const base = insightsBase(data.items(), people, typeof named === 'string' ? named : null, readClassification ? await readClassification() : {});
         let result: PivotResult;
         try {
           result = pivot({ items: base.items, changes: pullRequestsOf(data.changes()), spec, asOf: now(), people: base.people, ...(base.categories ? { categories: base.categories } : {}), ...(base.scheme ? { scheme: base.scheme } : {}) });
