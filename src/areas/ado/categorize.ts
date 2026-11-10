@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { categorizeResult, categorizeWarnings, failureReason, fieldNotFound, fieldNotOnType, labelChange, labelsAfter, optionMissing, sameValue } from '../../core/classify/apply.js';
+import { categorizeResult, categorizeWarnings, failureReason, fieldNotFound, fieldNotOnType, labelChange, labelsAfter, optionMissing, sameValue, typeLabel } from '../../core/classify/apply.js';
 import { PLAN_FROM_DESCRIPTION, planFor, readPlanFrom } from '../../core/classify/plan.js';
 import type { CategorizeChange, CategorizeResult, PlanItem } from '../../core/classify/types.js';
 import type { CommandContext } from '../../core/context.js';
@@ -28,7 +28,7 @@ export interface AdoWire {
   patchItem<T>(path: string, json: unknown): Promise<T>;
 }
 
-export type CategorizeContext = Pick<CommandContext<unknown>, 'files' | 'warn' | 'resolved' | 'toilProjectFields'>;
+export type CategorizeContext = Pick<CommandContext<{ name: string }>, 'files' | 'warn' | 'resolved' | 'toilProjectFields' | 'connection'>;
 
 export const categorizeInput = z.object({
   from: z.string().optional().describe(PLAN_FROM_DESCRIPTION),
@@ -73,12 +73,14 @@ const statusOf = (err: unknown): number | undefined => {
 /**
  * The item moved past the revision read. Azure DevOps answers a failed `test`
  * operation with 409 or 412 by the documentation; a 400 is taken for one only
- * when its message talks about the revision, and nothing else.
+ * when its message names the test operation or the `/rev` path. A looser match
+ * (the word "revision", or "rev" next to a dot) also catches rule errors about
+ * `System.Rev` and retries what no retry can fix.
  */
 function isConflict(err: unknown): boolean {
   const status = statusOf(err);
   if (status === 409 || status === 412) return true;
-  return status === 400 && err instanceof ToilError && /revision|\brev\b|test operation/i.test(err.message);
+  return status === 400 && err instanceof ToilError && /test operation|\/rev\b/i.test(err.message);
 }
 
 function tagsOf(value: unknown): string[] {
@@ -157,7 +159,7 @@ type Outcome = { changed: CategorizeChange } | { unchanged: true } | { failed: s
 
 export async function categorize(ctx: CategorizeContext, input: { from?: string | undefined }, wire: AdoWire): Promise<CategorizeResult> {
   const plan = readPlanFrom(ctx, input.from);
-  const connection = ctx.resolved.connection?.value ?? '';
+  const connection = ctx.connection.name;
   const { group, skipped } = planFor(plan, 'ado', connection);
   if (!group) {
     const empty = categorizeResult({ connection, plan, group, field: null, skipped, changed: [], unchanged: [], failed: [] });
@@ -183,7 +185,8 @@ export async function categorize(ctx: CategorizeContext, input: { from?: string 
   if (group.items.length > 0) {
     const name = group.field?.name;
     let given = true;
-    if (name) ({ ref: fieldRef, given } = await resolveField(wire, ctx, name));
+    // The field is looked up only when an item sets it: a plan that changes tags alone doesn't depend on the field existing.
+    if (name && group.items.some((item) => item.field)) ({ ref: fieldRef, given } = await resolveField(wire, ctx, name));
 
     const ids = [...new Set(group.items.map((item) => Number(item.key)))];
     let live: Map<number, Live>;
@@ -206,9 +209,7 @@ export async function categorize(ctx: CategorizeContext, input: { from?: string 
         if (!types.has(slot)) types.set(slot, state.project && state.type ? await typeField(wire, state.project, state.type, fieldRef) : { carries: false, allowed: [] });
         const def = types.get(slot)!;
         if (!def.carries) {
-          const projects = new Set([...live.values()].map((s) => s.project));
-          const typeName = state.type || 'unknown type';
-          const label = projects.size > 1 && state.project ? `${state.project} ${typeName}` : typeName;
+          const label = typeLabel(state.project, state.type);
           notOnType.set(label, (notOnType.get(label) ?? 0) + 1);
           continue;
         }
@@ -243,13 +244,14 @@ export async function categorize(ctx: CategorizeContext, input: { from?: string 
           return { changed: { id: item.id, key: item.key, category: item.category, labels: { added: change.add, removed: change.remove }, field: setField ? { value: wanted! } : null } };
         } catch (err) {
           if (!isConflict(err)) throw err;
-          if (attempt > 0) return { failed: `Work item ${item.key} changed twice while toil was applying the plan, so its revision check refused both writes. Run the same plan again.` };
+          if (attempt > 0) return { failed: `Work item ${item.key} changed twice while toil was applying the plan, so its revision check refused both writes. Azure DevOps said "${(err as Error).message}". Run the same plan again.` };
           // Someone else's edit landed first: read the item again and work out the change from what it holds now.
           state = (await readItems(wire, [id], fieldRef)).get(id);
         }
       }
     };
 
+    const progress = () => ({ planned: group.items.length, changed: changed.length, unchanged: unchanged.length, failed: failed.length });
     for (const item of group.items) {
       try {
         const outcome = await apply(item);
@@ -257,7 +259,7 @@ export async function categorize(ctx: CategorizeContext, input: { from?: string 
         else if ('unchanged' in outcome) unchanged.push(item.key);
         else failed.push({ key: item.key, reason: outcome.failed });
       } catch (err) {
-        failed.push({ key: item.key, reason: failureReason(err) });
+        failed.push({ key: item.key, reason: failureReason(err, progress) });
       }
     }
   }

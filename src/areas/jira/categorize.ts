@@ -10,6 +10,7 @@ import {
   labelChange,
   optionMissing,
   sameValue,
+  typeLabel,
 } from '../../core/classify/apply.js';
 import { PLAN_FROM_DESCRIPTION, planFor, readPlanFrom } from '../../core/classify/plan.js';
 import type { CategorizeChange, PlanItem } from '../../core/classify/types.js';
@@ -201,7 +202,8 @@ async function run(adapter: CategorizeAdapter, input: Input, ctx: JiraContext) {
   // Nothing to apply, so nothing to look up: not even the field.
   if (!group || group.items.length === 0) return done([], [], []);
 
-  const fieldId = group.field ? await resolveField(adapter, ctx, group.field.name) : undefined;
+  // The field is looked up only when an item sets it: a plan that changes labels alone doesn't depend on the field existing.
+  const fieldId = group.field && group.items.some((item) => item.field) ? await resolveField(adapter, ctx, group.field.name) : undefined;
   const { live, failed } = await readLive(adapter, ctx, [...new Set(group.items.map((item) => item.key))], fieldId);
   const readable = group.items.filter((item) => live.has(item.key));
 
@@ -212,7 +214,7 @@ async function run(adapter: CategorizeAdapter, input: Input, ctx: JiraContext) {
     const metas = new Map<string, Record<string, { allowedValues?: Option[] }>>();
     const typeOf = (item: PlanItem) => {
       const l = live.get(item.key)!;
-      return { id: `${l.project}\u0000${l.type}`, label: [l.project, l.type].filter(Boolean).join(' ') };
+      return { id: `${l.project}\u0000${l.type}`, label: typeLabel(l.project, l.type) };
     };
     const withField = readable.filter((item) => item.field);
     for (const item of withField) {
@@ -246,6 +248,7 @@ async function run(adapter: CategorizeAdapter, input: Input, ctx: JiraContext) {
 
   const changed: CategorizeChange[] = [];
   const unchanged: string[] = [];
+  const progress = () => ({ planned: group.items.length, changed: changed.length, unchanged: unchanged.length, failed: failed.length });
   for (const item of readable) {
     const state = live.get(item.key)!;
     const change = labelChange(state.labels, group, item.category);
@@ -260,7 +263,7 @@ async function run(adapter: CategorizeAdapter, input: Input, ctx: JiraContext) {
     try {
       await adapter.call<void>(ctx, adapter.api + apiPath`/issue/${item.key}`, { method: 'PUT', body });
     } catch (err) {
-      failed.push({ key: item.key, reason: failureReason(err) });
+      failed.push({ key: item.key, reason: failureReason(err, progress) });
       continue;
     }
     changed.push({

@@ -38,6 +38,13 @@ export interface ClassifyInput {
   changes?: Change[];
   /** Where the category goes besides labels, per tracker, with the field's id resolved. */
   targets?: Partial<Record<ClassifyArea, ResolvedTarget>>;
+  /**
+   * Whether the plan may carry a field (default true). False still reads an
+   * existing category from the target's field, for a verdict and the summary,
+   * but plans labels only: a target the user hasn't adopted may say where a
+   * category is read from, never where a write goes.
+   */
+  planFields?: boolean;
   /** Ignore a category already on the item and classify afresh. */
   recheck?: boolean;
   verdicts?: AgentVerdict[];
@@ -100,6 +107,7 @@ export function classify(input: ClassifyInput): { result: ClassifyResult; warnin
   const { scheme } = input;
   const warnings: Warning[] = [];
   const targets = input.targets ?? {};
+  const planFields = input.planFields !== false;
   const category = new Map<string, Category>(scheme.categories.map((c) => [c.id, c]));
 
   // One verdict per item: the first of a repeated id stands.
@@ -251,7 +259,7 @@ export function classify(input: ClassifyInput): { result: ClassifyResult; warnin
     const add = item.labels.some((l) => lower(l) === lower(wanted)) ? [] : [wanted];
     const remove = [...new Set(item.labels.filter((l) => others.has(lower(l))))];
     let field: PlanItem['field'];
-    if (target?.field) {
+    if (target?.field && planFields) {
       const value = fieldValueFor(target, chosen);
       const read = readCategoryField(item, target);
       if (read === undefined || read === null || lower(read) !== lower(value)) field = { value };
@@ -265,7 +273,7 @@ export function classify(input: ClassifyInput): { result: ClassifyResult; warnin
         area,
         connection: item.source.connection,
         labels: Object.fromEntries(scheme.categories.map((c) => [c.id, labelFor(scheme, area, c)])),
-        ...(target?.field ? { field: { name: target.field, ...(target.project ? { project: target.project } : {}) } } : {}),
+        ...(target?.field && planFields ? { field: { name: target.field, ...(target.project ? { project: target.project } : {}) } } : {}),
         items: [],
       };
       groups.set(slot, group);

@@ -45,6 +45,13 @@ interface Prepared {
   items: WorkItem[];
   changes: ReturnType<typeof readBriefRecords>['changes'];
   targets: Partial<Record<(typeof CLASSIFY_AREAS)[number], ResolvedTarget>>;
+  /**
+   * Whether a field target may reach the plan: only a toil project in the user's own folder may say
+   * where a write goes (principle 2). One that isn't still says where to read a category from.
+   */
+  planFields: boolean;
+  /** The applied toil project's file, for the warning when its field targets were left out. */
+  toilProjectFile: string | null;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -138,15 +145,18 @@ async function prepare(input: { file?: string | undefined; text?: string | undef
     items: records.items.map(complete),
     changes: records.changes,
     targets,
+    planFields: applied === undefined || applied.file.source === 'user',
+    toilProjectFile: applied ? forwardSlashes(applied.file.file) : null,
   };
 }
 
-function runOn(p: Prepared, ctx: CommandContext<unknown>, options: { recheck?: boolean | undefined; verdicts?: AgentVerdict[] }): ClassifyResult {
+function runOn(p: Prepared, ctx: CommandContext<unknown>, options: { recheck?: boolean | undefined; verdicts?: AgentVerdict[]; planFields?: boolean }): ClassifyResult {
   const { result, warnings } = classify({
     scheme: p.scheme,
     items: p.items,
     changes: p.changes,
     targets: p.targets,
+    ...(options.planFields !== undefined ? { planFields: options.planFields } : {}),
     ...(options.recheck !== undefined ? { recheck: options.recheck } : {}),
     ...(options.verdicts ? { verdicts: options.verdicts } : {}),
     toilProject: p.toilProject,
@@ -194,7 +204,15 @@ export function classifyRunCommands(): AnyCommand[] {
         }
         verdicts = readVerdicts(ctx.files.readText(input.verdicts), input.verdicts, p.scheme, new Set(p.items.map((i) => i.id)));
       }
-      return runOn(p, ctx, { recheck: input.recheck, ...(verdicts ? { verdicts } : {}) });
+      // The prompt never plans, so only `run` holds back an unadopted toil project's fields.
+      const fieldAreas = CLASSIFY_AREAS.filter((area) => p.targets[area]?.field !== undefined);
+      if (!p.planFields && fieldAreas.length > 0) {
+        ctx.warn({
+          code: 'CLASSIFY_TARGETS_NOT_ADOPTED',
+          message: `The toil project ${p.toilProject} (${p.toilProjectFile}) isn't in your own folder, so its field targets (${fieldAreas.join(', ')}) were left out of the plan and only labels are planned. A category already in the field is still read. Adopt it with toil projects import ${p.toilProject} (the CLI only) to plan the field too.`,
+        });
+      }
+      return runOn(p, ctx, { recheck: input.recheck, planFields: p.planFields, ...(verdicts ? { verdicts } : {}) });
     },
   });
 

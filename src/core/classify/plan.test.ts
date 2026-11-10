@@ -62,12 +62,12 @@ describe('readPlanFrom', () => {
     expect(refusal(() => read('[]')).message).toContain('no plan list');
   });
 
-  it('refuses a label the scheme does not own, in add or remove', () => {
+  it("refuses an addition or removal the entry's own labels map does not name", () => {
     for (const labels of [{ add: ['bug'], remove: [] }, { add: ['ktlo'], remove: ['urgent'] }]) {
       const bad = group({ items: [{ id: 'a', key: 'A-1', category: 'ktlo', labels }] });
       const err = refusal(() => read(JSON.stringify(plan(bad))));
       expect(err.code).toBe('INVALID_INPUT');
-      expect(err.message).toContain("is not one of the scheme's labels");
+      expect(err.message).toContain("is not one of the labels this entry's labels map names");
     }
   });
 
@@ -82,6 +82,21 @@ describe('readPlanFrom', () => {
     expect(refusal(() => read(JSON.stringify(plan(unlabelled)))).message).toContain('has no label');
     const orphanField = group({ items: [{ id: 'a', key: 'A-1', category: 'ktlo', labels: { add: [], remove: [] }, field: { value: 'KTLO' } }] });
     expect(refusal(() => read(JSON.stringify(plan(orphanField)))).message).toContain('no field named');
+  });
+
+  it('refuses a key repeated in one entry, and names the entry and the key', () => {
+    const item = (id: string, category: string) => ({ id, key: 'A-1', category, labels: { add: [], remove: [] } });
+    const err = refusal(() => read(JSON.stringify(plan(group({ items: [item('a', 'ktlo'), item('b', 'feature')] })))));
+    expect(err.code).toBe('INVALID_INPUT');
+    expect(err.message).toContain('"A-1" appears more than once in the jira entry for connection "corp-jira"');
+    // Jira keys are one key whatever the case; Azure DevOps ids are numbers.
+    const cased = group({ items: [item('a', 'ktlo'), { ...item('b', 'feature'), key: 'a-1' }] });
+    expect(refusal(() => read(JSON.stringify(plan(cased)))).message).toContain('appears more than once');
+    const ids = group({ area: 'ado', connection: 'corp-ado', items: [{ ...item('a', 'ktlo'), key: '7' }, { ...item('b', 'feature'), key: '007' }] });
+    expect(refusal(() => read(JSON.stringify(plan(ids)))).message).toContain('appears more than once in the ado entry');
+    // The same key in two different connections' entries is two items.
+    const twoConnections = [group({ items: [item('a', 'ktlo')] }), group({ connection: 'other-jira', items: [item('a', 'ktlo')] })];
+    expect(read(JSON.stringify(plan(...twoConnections))).plan).toHaveLength(2);
   });
 
   it('accepts a field with its name and project', () => {

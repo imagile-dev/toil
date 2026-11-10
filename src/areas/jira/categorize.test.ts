@@ -306,6 +306,26 @@ describe.each(DEPLOYMENTS)('jira issue categorize on $name', (d) => {
     expect(refused.puts).toHaveLength(1);
   });
 
+  it('a 401 after some issues were written fails the command with the counts so far in details.categorize', async () => {
+    const items = [{ key: 'PROJ-1', category: 'ktlo' }, { key: 'PROJ-2', category: 'ktlo' }, { key: 'PROJ-3', category: 'ktlo' }];
+    const issues = { 'PROJ-1': issue('PROJ-1'), 'PROJ-2': issue('PROJ-2'), 'PROJ-3': issue('PROJ-3') };
+    const { envelope, puts } = await apply(d, planFile(d, { field: null, items }), { issues, put: { 'PROJ-2': 401 } });
+    expect(envelope.ok).toBe(false);
+    expect(envelope.error?.code).toBe('AUTH');
+    expect(envelope.error?.message).toContain('1 of 3 items were changed before this.');
+    expect(envelope.error?.details).toMatchObject({ categorize: { planned: 3, changed: 1, unchanged: 0, failed: 0 } });
+    expect(puts).toHaveLength(2);
+  });
+
+  it('looks the field up only when an issue sets it: a plan that changes labels alone is not refused over a field Jira no longer has', async () => {
+    const { envelope, calls, puts } = await apply(d, planFile(d, { items: [{ key: 'PROJ-1', category: 'ktlo' }] }), { fields: [] });
+    expect(envelope.ok, JSON.stringify(envelope.error)).toBe(true);
+    expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([`POST ${d.searchPath}`, `PUT ${d.api}/issue/PROJ-1`]);
+    expect(puts[0]!.body).toEqual({ update: { labels: [{ add: 'ktlo' }] } });
+    expect(envelope.data).toMatchObject({ field: { name: 'Work category' }, changed: [{ key: 'PROJ-1', field: null }] });
+    expect((envelope.data as { field: Record<string, unknown> }).field).not.toHaveProperty('id');
+  });
+
   it("a plan with entries only for another connection is INVALID_INPUT, and with some for others they are skipped and said so", async () => {
     const other = await apply(d, planFile(d, { connection: 'elsewhere' }));
     expect(other.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('"elsewhere"') });

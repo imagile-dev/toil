@@ -27,7 +27,9 @@ const TRACKER: Record<ClassifyArea, string> = { jira: 'Jira', github: 'GitHub', 
  * when it's there. Labels compare without regard to case, the way the trackers
  * treat them (GitHub and Azure DevOps hold one spelling; Jira holds both and a
  * team means one). A label to remove is spelled as the item spells it; nothing
- * outside the scheme's own labels is ever named.
+ * outside the plan group's own `labels` map is ever named. The command can't
+ * look the scheme up, so that map is the plan's word for which labels are the
+ * scheme's; `toil classify run` builds it from the scheme.
  */
 export function labelChange(current: readonly string[], group: Pick<PlanGroup, 'labels'>, category: string): { add: string[]; remove: string[] } {
   const want = group.labels[category];
@@ -78,14 +80,41 @@ export function fieldNotOnType(field: string, types: ReadonlyArray<{ type: strin
  * One item's failure, as `failed` records it, or a rethrow when going on would
  * only repeat it: the credential was refused outright (401), the network is
  * down, or the error isn't one a tracker sent. A 403 or 404 on one item is that
- * item's problem and the rest of the plan still applies.
+ * item's problem and the rest of the plan still applies. Where items have
+ * already been processed, the caller passes `progress` and a rethrown
+ * `ToilError` carries it as `details.categorize`; anything that isn't a
+ * `ToilError` is rethrown untouched.
  */
-export function failureReason(err: unknown): string {
+export function failureReason(err: unknown, progress?: () => CategorizeProgress): string {
   if (!(err instanceof ToilError)) throw err;
   const status = (err.details as { status?: unknown } | undefined)?.status;
-  if (err.code === 'NETWORK' || err.code === 'TIMEOUT' || err.code === 'CANCELLED' || err.code === 'INTERNAL') throw err;
-  if (err.code === 'AUTH' && status !== 403) throw err;
+  const stops = err.code === 'NETWORK' || err.code === 'TIMEOUT' || err.code === 'CANCELLED' || err.code === 'INTERNAL' || (err.code === 'AUTH' && status !== 403);
+  if (stops) throw progress ? stoppedAfter(err, progress()) : err;
   return err.message;
+}
+
+/** How far a run got: the counts a result carries, taken at the moment an error stopped it. */
+export type CategorizeProgress = CategorizeResult['counts'];
+
+/**
+ * The same error with the record of what the run had done, so a failure
+ * envelope doesn't hide writes that were made. Code, message and fix are kept,
+ * and so is every detail the error already had.
+ */
+function stoppedAfter(err: ToilError, progress: CategorizeProgress): ToilError {
+  const processed = progress.changed + progress.unchanged + progress.failed;
+  if (processed === 0) return err;
+  const before = progress.changed > 0 ? ` ${progress.changed} of ${progress.planned} ${progress.planned === 1 ? 'item was' : 'items were'} changed before this.` : '';
+  const had = typeof err.details === 'object' && err.details !== null && !Array.isArray(err.details) ? err.details : err.details === undefined ? {} : { error: err.details };
+  return new ToilError(err.code, `${err.message}${before}`, {
+    ...(err.fix !== undefined ? { fix: err.fix } : {}),
+    details: { ...had, categorize: progress },
+  });
+}
+
+/** An issue type as a message names it: its project first, so two projects' "Bug" are two things. */
+export function typeLabel(project: string, type: string): string {
+  return [project, type || 'unknown type'].filter(Boolean).join(' ');
 }
 
 /** The result every `categorize` returns, with the counts worked out from the lists. */

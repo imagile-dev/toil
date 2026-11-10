@@ -2,9 +2,13 @@
  * Reading a classification plan: what `toil classify run` wrote and a
  * tracker's `categorize` command applies. The three trackers share this reader
  * so a plan means the same thing to each, and so the one promise a plan makes
- * is checked in one place: an entry adds and removes only the scheme's own
- * labels. A plan is a file an agent may have written by hand, so nothing in it
- * is taken on trust. The form has no box for "and while you're there".
+ * is checked in one place: an item adds and removes only labels its entry's own
+ * `labels` map names. A tracker command can't look the scheme up (area commands
+ * never see the scheme catalog), so the plan is the caller's input like any
+ * other write input and the write gate decides whether it may be sent at all;
+ * `toil classify run` is what builds that map from the scheme. A plan is a file
+ * an agent may have written by hand, so its shape is checked, never its
+ * author's intentions. The form has no box for "and while you're there".
  */
 import { z } from 'zod';
 import type { Warning } from '../envelope.js';
@@ -40,6 +44,11 @@ const planGroup = z.object({
 
 const category = z.object({ id: categoryId, short: text, name: text, label: text, definition: z.string() });
 
+/** A key as the tracker addresses the item: Jira and GitHub keys without regard to case, Azure DevOps ids as numbers. */
+function itemKey(area: ClassifyArea, key: string): string {
+  return area === 'ado' && /^\d+$/.test(key) ? String(Number(key)) : key.toLowerCase();
+}
+
 const classifyPlan = z
   .object({
     scheme: z.object({ name: text, revision: z.number().int().positive() }),
@@ -52,17 +61,25 @@ const classifyPlan = z
       const slot = `${group.area}/${group.connection}`;
       if (seen.has(slot)) ctx.addIssue({ code: 'custom', path: ['plan', g], message: `a second entry for ${group.area} connection "${group.connection}"` });
       seen.add(slot);
-      // A label is the scheme's when the group says so, compared the way the
-      // trackers compare labels: without regard to case.
+      // A label is the entry's own when its `labels` map names it, compared the
+      // way the trackers compare labels: without regard to case.
       const own = new Set(Object.values(group.labels).map((label) => label.toLowerCase()));
+      // Two items for one key would each be worked out from the same read and
+      // put two category labels on one issue, so the second is refused.
+      const keys = new Set<string>();
       group.items.forEach((item, i) => {
+        const key = itemKey(group.area, item.key);
+        if (keys.has(key)) {
+          ctx.addIssue({ code: 'custom', path: ['plan', g, 'items', i, 'key'], message: `"${item.key}" appears more than once in the ${group.area} entry for connection "${group.connection}"` });
+        }
+        keys.add(key);
         if (!(item.category in group.labels)) {
           ctx.addIssue({ code: 'custom', path: ['plan', g, 'items', i, 'category'], message: `"${item.category}" has no label in this entry's labels` });
         }
         for (const [list, labels] of [['add', item.labels.add], ['remove', item.labels.remove]] as const) {
           labels.forEach((label, l) => {
             if (!own.has(label.toLowerCase())) {
-              ctx.addIssue({ code: 'custom', path: ['plan', g, 'items', i, 'labels', list, l], message: `"${label}" is not one of the scheme's labels` });
+              ctx.addIssue({ code: 'custom', path: ['plan', g, 'items', i, 'labels', list, l], message: `"${label}" is not one of the labels this entry's labels map names` });
             }
           });
         }
@@ -84,8 +101,9 @@ function pathText(path: ReadonlyArray<PropertyKey>): string {
 /**
  * The plan a `categorize` call was handed: `from`, a file in the workspace, or
  * stdin on the CLI. It takes the `classify run` envelope or its `data`, and
- * refuses a failed envelope, anything that isn't a plan, and a plan whose
- * entries would touch a label the scheme doesn't own.
+ * refuses a failed envelope, anything that isn't a plan, a key repeated in one
+ * entry, and an item that adds or removes a label its entry's labels map
+ * doesn't name.
  */
 export function readPlanFrom(ctx: { files: FileAccess }, from: string | undefined): ClassifyPlan {
   const where = from === undefined || from === '-' ? 'stdin' : `"${from}"`;
@@ -122,7 +140,7 @@ export function readPlanFrom(ctx: { files: FileAccess }, from: string | undefine
   if (!plan.success) {
     const issue = plan.error.issues[0];
     throw new ToilError('INVALID_INPUT', `The plan from ${where} isn't one toil classify run wrote: ${issue ? `${pathText(issue.path)}: ${issue.message}` : 'it has the wrong shape'}.`, {
-      fix: 'Run toil classify run again and pass its output unchanged. A plan adds and removes only the labels of its own scheme.',
+      fix: 'Run toil classify run again and pass its output unchanged. A plan adds and removes only the labels its entries name.',
       details: plan.error.issues.slice(0, 5).map((i) => ({ path: i.path, message: i.message })),
     });
   }

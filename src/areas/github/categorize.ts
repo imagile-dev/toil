@@ -89,7 +89,7 @@ export const categorizeCommand = githubArea.command({
     delete ctx.resolved.inputs?.owner;
     delete ctx.resolved.inputs?.repo;
     const plan = readPlanFrom(ctx, input.from);
-    const connection = ctx.resolved.connection?.value ?? ctx.connection.name;
+    const connection = ctx.connection.name;
     const { group, skipped } = planFor(plan, 'github', connection);
 
     const changed: CategorizeChange[] = [];
@@ -110,13 +110,15 @@ export const categorizeCommand = githubArea.command({
       for (const w of warnings) ctx.warn(w);
       return result;
     };
-    if (!group) return finish(null);
+    // Nothing to apply, so nothing to look up: not even the field.
+    if (!group || group.items.length === 0) return finish(group?.field ?? null);
 
     // Everything that can be refused is refused before the first request that changes anything.
     const items = group.items.map(parseKey);
     let project: { owner: string; number: number } | undefined;
     let field: { id: string; name: string; options: Array<{ id: string; name: string }> } | undefined;
-    if (group.field) {
+    // The field is looked up only when an item sets it: a plan that changes labels alone doesn't depend on the field existing.
+    if (group.field && group.items.some((i) => i.field)) {
       project = parseProject(group);
       const where = `on project ${project.owner}/${project.number}`;
       const found = (await projectFieldList(ctx, project.owner, project.number)).find((f) => f.name?.trim().toLowerCase() === group.field!.name.trim().toLowerCase());
@@ -173,6 +175,7 @@ export const categorizeCommand = githubArea.command({
       }
     }
 
+    const progress = () => ({ planned: group.items.length, changed: changed.length, unchanged: unchanged.length, failed: failed.length });
     for (const { p, labels, change } of live) {
       const key = p.item.key;
       const broken = change.add.map((label) => badLabel.get(labelKey(p.slug, label))).find((reason) => reason !== undefined);
@@ -196,14 +199,16 @@ export const categorizeCommand = githubArea.command({
           await github(ctx, apiPath`/repos/${p.owner}/${p.repo}/issues/${p.number}/labels`, { method: 'POST', json: { labels: change.add } });
           wrote = true;
         }
-        const set = onProject && p.item.field ? (await setProjectField(ctx, onProject, field!.name, p.item.field.value, project!.owner)).changed : false;
+        const setResult = onProject && p.item.field ? await setProjectField(ctx, onProject, field!.name, p.item.field.value, project!.owner) : undefined;
+        const set = setResult?.changed ?? false;
         if (!wrote && !set) {
           unchanged.push(key);
           continue;
         }
-        changed.push({ id: p.item.id, key, category: p.item.category, labels: { added: change.add, removed: change.remove }, field: set ? { value: p.item.field!.value } : null });
+        // The project's own spelling of the option, as Jira and Azure DevOps report theirs.
+        changed.push({ id: p.item.id, key, category: p.item.category, labels: { added: change.add, removed: change.remove }, field: set ? { value: setResult!.to } : null });
       } catch (err) {
-        const reason = failureReason(err);
+        const reason = failureReason(err, progress);
         failed.push({ key, reason: wrote ? `${reason} (its labels were changed; the field was not)` : reason });
       }
     }

@@ -158,6 +158,10 @@ The result:
 - `plan`: per tracker connection, `{ area, connection, labels, field?, items }`. It holds
   only what would change: an item already as the scheme wants it is left out, and an
   unsure item is never in it. `categorize` reads each item again before it writes.
+  Only a toil project in your own folder (`~/.toil/projects/`) puts a `field` in the plan.
+  One that is checked in, listed or loose still lets `run` read a category from its field,
+  but its field targets are left out of the plan and `CLASSIFY_TARGETS_NOT_ADOPTED` says so;
+  `toil projects import <name>` adopts it.
 
 To apply it, pass the result to a `categorize` command: on the CLI as stdin or
 `--from <file>`; over MCP `from` must be a workspace file, which `--summary-file`

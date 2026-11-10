@@ -531,19 +531,20 @@ The plan's keys are work item ids, which are unique in a collection (Server) or 
 
 - **Tags.** Each work item gets its category's tag, and loses the scheme's other tags. Tags are
   compared without regard to case, so `KTLO` already there counts as `ktlo`; a tag to remove is
-  spelled as the work item spells it. The other tags on the item are kept, and no tag outside
-  the scheme is touched.
+  spelled as the work item spells it. The other tags on the item are kept, and no tag the plan
+  doesn't name is touched.
 - **A field, when the plan names one.** The toil project's `classify` target names it by
   alias, by reference name (`Custom.WorkCategory`, anything with a dot) or by display name,
   looked up in the collection's or organization's field list. The field must already exist:
   toil never creates it. Each work item type's own definition of the field is read, and a
   value the field lists is sent in the spelling the field lists; a field with no listed values
-  takes the text as it is.
+  takes the text as it is. The field is looked up only when the plan sets a value on some work
+  item, so a plan that changes tags alone doesn't need it.
 - **Read first, write once.** Every work item is read before any is changed, 200 to a request.
   One JSON Patch carries a work item's tag and field changes together, and starts with a
   `test` of the revision that was read, so Azure DevOps refuses it if someone else changed the
   item in between. toil then reads that item again and tries once more; a second refusal puts
-  the item in `failed`. Notifications are suppressed. A work item that already matches is left
+  the item in `failed` with Azure DevOps's own message. Only a 409, a 412, or a 400 naming the test operation or `/rev` counts as a moved item. Notifications are suppressed. A work item that already matches is left
   alone and listed in `unchanged`, so running a plan twice changes nothing.
 - **Refused before anything is written:** a key that isn't a work item id, a field with no such
   name (`NOT_FOUND`), two fields with the display name (`INVALID_INPUT`, which names the
@@ -552,7 +553,8 @@ The plan's keys are work item ids, which are unique in a collection (Server) or 
   names the types; an admin adds the field to them, and the same plan applied again fills it in.
 - **A work item that fails** (not found, no permission to edit) is in `failed` with Azure
   DevOps's reason and a `CATEGORIZE_FAILED` warning; the rest are applied, and the command
-  still succeeds. A refused token stops the whole call.
+  still succeeds. A refused token, a network failure or a cancel stops the whole call; its error
+  carries what was done by then in `details.categorize` (`planned`, `changed`, `unchanged`, `failed`).
 - **One connection per call.** Entries in the plan for other connections are left alone
   (`skipped`, `CATEGORIZE_SKIPPED`); a plan with entries but none for this connection is refused.
 

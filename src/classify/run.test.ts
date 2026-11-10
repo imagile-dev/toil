@@ -141,6 +141,44 @@ describe('classify run', () => {
     expect(out.plan[0].items.find((i: any) => i.key === 'PAY-5').field).toBeUndefined();
   });
 
+  it("plans the field of an adopted toil project (one in the user's own folder) with no warning", async () => {
+    const found = records(item('PAY-6', { title: 'Hotfix payouts' }));
+    const env = await cli(disk(), ['classify', 'run', '--toil-project', 'payments', '--file', 'items.json'], { 'items.json': found });
+    const out = data(env);
+    expect(out.plan[0].field).toMatchObject({ name: 'workCategory' });
+    expect(out.plan[0].items[0].field).toEqual({ value: 'KTLO' });
+    expect((env.meta.warnings ?? []).map((w) => w.code)).not.toContain('CLASSIFY_TARGETS_NOT_ADOPTED');
+  });
+
+  it("reads a category from the field of a toil project nobody adopted, but plans no field: labels only, one CLASSIFY_TARGETS_NOT_ADOPTED warning", async () => {
+    const d = toilProjectDisk({
+      'work/.toil/projects/ci.json': { name: 'ci', jira: { fields: { workCategory: 'customfield_10042' } }, classify: { scheme: 'team', targets: { jira: { field: 'workCategory' } } } },
+      'home/.toil/classify/team.json': team(),
+      'work/.git/HEAD': 'ref: refs/heads/main\n',
+    });
+    disks.push(d);
+    const found = records(
+      item('PAY-5', { title: 'Wire the ledger', native: jiraField({ value: 'feature' }) }),
+      item('PAY-6', { title: 'Hotfix payouts' }),
+      // Labelled right with an empty field: with fields planned this would be a field-only change.
+      item('PAY-7', { title: 'Tidy the docs', labels: ['ktlo'] }),
+    );
+    const env = await cli(d, ['classify', 'run', '--toil-project', 'ci', '--file', 'items.json'], { 'items.json': found });
+    const out = data(env);
+    // The field is still read: PAY-5 is settled by it.
+    expect(verdictOf(out, 'PAY-5')).toMatchObject({ category: 'feature', source: 'field' });
+    expect(out.plan).toHaveLength(1);
+    expect(out.plan[0].field).toBeUndefined();
+    expect(out.plan[0].items.map((i: any) => [i.key, i.labels.add, i.field])).toEqual([['PAY-5', ['feature'], undefined], ['PAY-6', ['ktlo'], undefined]]);
+    const warnings = (env.meta.warnings ?? []).filter((w) => w.code === 'CLASSIFY_TARGETS_NOT_ADOPTED');
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]!.message).toMatch(/^The toil project ci \(.*work\/\.toil\/projects\/ci\.json\) isn't in your own folder, so its field targets \(jira\) were left out of the plan and only labels are planned\./);
+    expect(warnings[0]!.message).toContain('toil projects import ci');
+    // classify prompt plans nothing, so it says nothing about it.
+    const asked = await cli(d, ['classify', 'prompt', '--toil-project', 'ci', '--file', 'items.json'], { 'items.json': found });
+    expect((asked.meta.warnings ?? []).map((w) => w.code)).not.toContain('CLASSIFY_TARGETS_NOT_ADOPTED');
+  });
+
   it('lets --scheme override the toil project, and --recheck ignore a label already on an item', async () => {
     const d = disk();
     const over = data(await cli(d, ['classify', 'run', '--toil-project', 'payments', '--scheme', 'balance', '--file', 'items.json']));

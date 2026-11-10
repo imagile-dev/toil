@@ -214,6 +214,11 @@ describe('github issue categorize: the project field', () => {
     expect(set.variables.option).toBe('a1b2c3d4');
   });
 
+  it("reports the project's own spelling of the option, not the plan's", async () => {
+    const { envelope } = await run(categoryPlan([item(9, 'ktlo', { field: { value: 'ktlo' } })]), world({ issues: { [KEY(9)]: ['ktlo'] }, onProject: { [KEY(9)]: null } }));
+    expect(envelope.data).toMatchObject({ changed: [{ key: KEY(9), field: { value: 'KTLO' } }] });
+  });
+
   it('sends no mutation when the field already holds the value, and a second run changes nothing', async () => {
     const { envelope, calls } = await run(categoryPlan([item(9)]), world({ issues: { [KEY(9)]: ['ktlo'] }, onProject: { [KEY(9)]: 'KTLO' } }));
     expect(seq(calls)).toEqual(['GRAPHQL read fields', `GET ${R}/issues/9`, 'GRAPHQL read item']);
@@ -303,6 +308,13 @@ describe('github issue categorize: what goes wrong', () => {
     expect(calls).toHaveLength(1);
   });
 
+  it('a 401 after some issues were written stops the command with the counts so far in details.categorize', async () => {
+    const w = world({ issues: { [KEY(9)]: [], [KEY(10)]: [], [KEY(11)]: [] }, fail: (r) => (r.url.includes('/issues/10/labels') ? { status: 401, json: { message: 'Bad credentials' } } : undefined) });
+    const { envelope } = await run(categoryPlan([labelOnly(9), labelOnly(10), labelOnly(11)], noField), w);
+    expect(envelope.ok).toBe(false);
+    expect(envelope.error).toMatchObject({ code: 'AUTH', message: 'Bad credentials 1 of 3 items were changed before this.', details: { categorize: { planned: 3, changed: 1, unchanged: 0, failed: 0 } } });
+  });
+
   it('a label that cannot be created fails every issue that needs it in that repository, and adds nothing to them', async () => {
     const w = world({ labels: {}, issues: { [KEY(9)]: [], [KEY(10)]: [] }, fail: (r) => (r.method === 'POST' && r.url.endsWith('/labels') ? { status: 403, json: { message: 'Must have admin rights to Repository.' } } : undefined) });
     const { envelope, calls } = await run(categoryPlan([labelOnly(9), labelOnly(10)], noField), w);
@@ -325,6 +337,23 @@ describe('github issue categorize: the plan', () => {
     const { envelope, calls } = await run(plan, world());
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'The plan has nothing for the github connection "github". It holds entries for: github "ghe-other".', fix: expect.stringContaining('--connection ghe-other') });
     expect(calls).toEqual([]);
+  });
+
+  it('a group that names a field but holds no items is CATEGORIZE_NOTHING with no request, the field as the plan named it', async () => {
+    const { envelope, calls } = await run(categoryPlan([], { field: { name: 'Nope', project: 'imagile/3' } }), world());
+    expect(calls).toEqual([]);
+    expect(envelope.ok).toBe(true);
+    expect(envelope.data).toMatchObject({ field: { name: 'Nope', project: 'imagile/3' }, counts: { planned: 0 } });
+    expect((envelope.data as { field: Record<string, unknown> }).field).not.toHaveProperty('id');
+    expect(warned(envelope)).toEqual(['CATEGORIZE_NOTHING']);
+  });
+
+  it('looks the field up only when an item sets it: a plan that changes labels alone is not refused over a field the project lacks', async () => {
+    const { envelope, calls } = await run(categoryPlan([labelOnly(9)], { field: { name: 'Nope', project: 'imagile/3' } }), world({ issues: { [KEY(9)]: ['bug'] } }));
+    expect(envelope.ok, JSON.stringify(envelope.error)).toBe(true);
+    expect(seq(calls)).toEqual([`GET ${R}/issues/9`, `GET ${R}/labels/ktlo`, `POST ${R}/issues/9/labels`]);
+    expect(envelope.data).toMatchObject({ field: { name: 'Nope', project: 'imagile/3' }, changed: [{ key: KEY(9), field: null }] });
+    expect((envelope.data as { field: Record<string, unknown> }).field).not.toHaveProperty('id');
   });
 
   it('an empty plan does nothing and says so', async () => {

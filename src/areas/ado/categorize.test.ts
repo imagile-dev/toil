@@ -275,7 +275,7 @@ describe.each(DEPLOYMENTS)('ado work-item categorize on $name', (d) => {
     expect(body(r.patches[1]!)).toEqual([{ op: 'test', path: '/rev', value: 3 }, { op: 'add', path: '/fields/System.Tags', value: 'ui; backend; ktlo' }]);
     expect(r.data?.changed.map((c) => c.field)).toEqual([{ value: 'KTLO' }, null]);
     expect(r.warnings).toEqual(['CATEGORIZE_FIELD_NOT_ON_TYPE']);
-    expect(r.envelope.meta.warnings?.[0]?.message).toContain('Epic (1 item)');
+    expect(r.envelope.meta.warnings?.[0]?.message).toContain('Imagile Epic (1 item)');
   });
 
   it('when no work item type carries the field, it is NOT_FOUND before any write', async () => {
@@ -317,10 +317,22 @@ describe.each(DEPLOYMENTS)('ado work-item categorize on $name', (d) => {
     expect(r.data).toMatchObject({ changed: [{ key: '42' }], failed: [] });
   });
 
-  it('a 400 that says the revision moved counts as a conflict too', async () => {
-    const r = await run(d, { items: { 42: {} }, patch: (id, count) => (count > 1 ? { json: { id } } : { status: 400, json: { message: 'The revision of work item 42 does not match.' } }) }, plan(d.connection, [{ key: '42' }], false));
-    expect(r.patches).toHaveLength(2);
+  it('a 400 from the revision test on /rev counts as a conflict: it is read again and retried once', async () => {
+    const r = await run(d, { items: { 42: {} }, patch: (id, count) => (count > 1 ? { json: { id } } : { status: 400, json: { message: 'VS403000: Test operation failed for path /rev: expected 3.' } }) }, plan(d.connection, [{ key: '42' }], false));
+    expect(r.calls.map((c) => c.method)).toEqual(['POST', 'PATCH', 'POST', 'PATCH']);
     expect(r.data?.changed).toHaveLength(1);
+  });
+
+  it.each([
+    'VS402625: Dates must be increasing with each revision.',
+    'The field System.Rev cannot be set to that value.',
+    'The field Custom.Rev is not valid',
+  ])('a 400 that only mentions a revision or a Rev field is not a conflict: sent once, and the failure carries the server message (%s)', async (message) => {
+    const r = await run(d, { items: { 42: {} }, patch: () => ({ status: 400, json: { message } }) }, plan(d.connection, [{ key: '42' }], false));
+    expect(r.patches).toHaveLength(1);
+    expect(r.reads).toHaveLength(1);
+    expect(r.data?.failed).toEqual([{ key: '42', reason: expect.stringContaining(message) }]);
+    expect(r.data?.failed[0]!.reason).not.toContain('changed twice');
   });
 
   it('a second conflict is failed, and the next item still goes ahead', async () => {
@@ -331,6 +343,8 @@ describe.each(DEPLOYMENTS)('ado work-item categorize on $name', (d) => {
     );
     expect(r.patches.map((p) => p.url)).toEqual([patchUrl(42), patchUrl(42), patchUrl(7)]);
     expect(r.data).toMatchObject({ changed: [{ key: '7' }], failed: [{ key: '42', reason: expect.stringContaining('changed twice') }] });
+    // The second refusal's own words are kept.
+    expect(r.data?.failed[0]!.reason).toContain('Azure DevOps said "conflict 2"');
     expect(r.warnings).toEqual(['CATEGORIZE_FAILED']);
   });
 
@@ -347,6 +361,24 @@ describe.each(DEPLOYMENTS)('ado work-item categorize on $name', (d) => {
     expect(refused.envelope.ok).toBe(false);
     expect(refused.envelope.error?.code).toBe('AUTH');
     expect(refused.patches).toHaveLength(1);
+  });
+
+  it('a 401 after some items were written fails the command with the counts so far in details.categorize', async () => {
+    const r = await run(d, { items: { 42: {}, 7: {}, 9: {} }, patch: (id) => (id === 7 ? { status: 401, json: { message: 'TF400813: not authorized' } } : { json: { id } }) }, plan(d.connection, [{ key: '42' }, { key: '7' }, { key: '9' }], false));
+    expect(r.envelope.ok).toBe(false);
+    expect(r.envelope.error?.code).toBe('AUTH');
+    expect(r.envelope.error?.message).toContain('1 of 3 items were changed before this.');
+    expect(r.envelope.error?.details).toMatchObject({ categorize: { planned: 3, changed: 1, unchanged: 0, failed: 0 } });
+    expect(r.patches).toHaveLength(2);
+  });
+
+  it('looks the field up only when an item sets it: a plan that changes tags alone sends no field lookup, and the result names the field without an id', async () => {
+    const r = await run(d, { items: { 42: {} }, fields: [] }, plan(d.connection, [{ key: '42' }], 'Work Category'));
+    expect(r.envelope.ok).toBe(true);
+    expect(r.calls.filter((c) => c.url.includes('/_apis/wit/fields'))).toEqual([]);
+    expect(r.data?.field).toEqual({ name: 'Work Category' });
+    expect(r.data?.counts).toMatchObject({ planned: 1, changed: 1 });
+    expect(body(r.patches[0]!)).toHaveLength(2);
   });
 
   it('a key that is not a work item id is INVALID_INPUT before anything is sent', async () => {

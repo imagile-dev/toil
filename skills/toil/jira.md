@@ -470,11 +470,11 @@ toil jira issue categorize --from plan.json --allow-write
 
 - **Labels.** Each issue gets its category's label, and loses the scheme's other labels.
   Labels are compared without regard to case, so `KTLO` already there counts as `ktlo`; a
-  label to remove is spelled as the issue spells it. No label outside the scheme is touched.
+  label to remove is spelled as the issue spells it. No label the plan doesn't name is touched; `toil classify run` builds that list from the scheme.
 - **A field, when the plan names one.** The toil project's `classify` target names it by
   alias, by id (`customfield_10042`) or by name, looked up in Jira's field list. A select
   field is set to the option whose value or name matches the category's value, sent as the
-  option's id; a text field is sent the value. toil never creates a field or an option.
+  option's id; a text field is sent the value. toil never creates a field or an option. The field is looked up only when the plan sets a value on some issue, so a plan that changes labels alone doesn't need it.
 - **Read first, write once.** Every issue is read before any is changed, and one update
   carries an issue's label and field changes together. An issue that already matches is left
   alone and listed in `unchanged`, so running a plan twice changes nothing.
@@ -485,7 +485,7 @@ toil jira issue categorize --from plan.json --allow-write
   names the types; an admin adds the field to them, and the same plan applied again fills it in.
 - **An issue that fails** (not found, no permission to edit) is in `failed` with Jira's reason
   and a `CATEGORIZE_FAILED` warning; the rest are applied, and the command still succeeds.
-  A refused token stops the whole call.
+  A refused token, a network failure or a cancel stops the whole call; its error carries what was done by then in `details.categorize` (`planned`, `changed`, `unchanged`, `failed`).
 - **One connection per call.** Entries in the plan for other connections are left alone
   (`skipped`, `CATEGORIZE_SKIPPED`); a plan with entries but none for this connection is refused.
 

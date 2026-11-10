@@ -5,7 +5,7 @@ import { classify, type ClassifyInput } from './engine.js';
 import { planFor, readPlanFrom } from './plan.js';
 import type { Scheme } from './types.js';
 
-function item(key: string, extra: Partial<WorkItem> & { connection?: string; area?: string } = {}): WorkItem {
+function item(key: string, extra: Omit<Partial<WorkItem>, 'area'> & { connection?: string; area?: string } = {}): WorkItem {
   const { connection = 'corp-jira', area = 'jira', ...rest } = extra;
   return {
     owi: '0.2',
@@ -271,6 +271,28 @@ describe('the plan', () => {
     expect(group!.field).toEqual({ name: 'Work category' });
     expect(group!.items.map((i) => [i.key, i.field])).toEqual([['A-1', { value: 'KTLO' }], ['A-2', { value: 'KTLO' }], ['A-3', { value: 'KTLO' }]]);
     expect(group!.items.every((i) => i.labels.add.length === 0)).toBe(true);
+  });
+
+  it('with planFields off, still reads the field for a verdict but plans labels only: no group field, no item field, and no entry for an item whose only change was the field', () => {
+    const t = { field: 'Work category', fieldId: 'customfield_10042' };
+    const items = [
+      // Settled by the field alone; its label is missing, so the plan adds the label and no field value.
+      item('A-1', { native: jiraField('customfield_10042', { value: 'ktlo' }) }),
+      // Labelled right and the field is empty: the only change would be the field, so it is left out.
+      item('A-2', { labels: ['ktlo'], native: jiraField('customfield_10042', null) }),
+      // Labelled right and the field is right: nothing to do either way.
+      item('A-3', { labels: ['ktlo'], native: jiraField('customfield_10042', { value: 'ktlo' }) }),
+    ];
+    const withFields = classify({ scheme: scheme(), items, targets: { jira: t } }).result;
+    expect(withFields.plan[0]!.field).toEqual({ name: 'Work category' });
+    expect(withFields.plan[0]!.items.map((i) => i.key)).toEqual(['A-1', 'A-2']);
+
+    const { result } = classify({ scheme: scheme(), items, targets: { jira: t }, planFields: false });
+    expect(result.verdicts[0]).toMatchObject({ category: 'ktlo', source: 'field' });
+    expect(result.plan).toHaveLength(1);
+    expect(result.plan[0]!.field).toBeUndefined();
+    expect(result.plan[0]!.items).toEqual([{ id: 'corp-jira:A-1', key: 'A-1', category: 'ktlo', labels: { add: ['ktlo'], remove: [] } }]);
+    expect(result.plan[0]!.items.every((i) => i.field === undefined)).toBe(true);
   });
 
   it("carries a GitHub project and the target's values", () => {

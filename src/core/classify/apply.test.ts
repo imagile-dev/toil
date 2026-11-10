@@ -19,6 +19,7 @@ import {
   labelsAfter,
   optionMissing,
   sameValue,
+  typeLabel,
 } from './apply.js';
 import type { CategorizeResult, ClassifyPlan, PlanGroup } from './types.js';
 
@@ -186,6 +187,47 @@ describe('failureReason', () => {
     ['a plain Error', new Error('not ours')],
   ])('rethrows the same error for %s', (_name, err) => {
     expect(thrown(() => failureReason(err))).toBe(err);
+  });
+});
+
+describe('failureReason with progress', () => {
+  const counts = { planned: 5, changed: 2, unchanged: 1, failed: 0 };
+
+  it('rethrows a stopping ToilError with its code, fix and details kept, the counts added and a sentence on the message', () => {
+    const err = new ToilError('NETWORK', 'The network went away.', { fix: 'Check the proxy.', details: { status: 502, url: 'https://jira.imagile.dev/x' } });
+    const out = thrown(() => failureReason(err, () => counts)) as ToilError;
+    expect(out).toBeInstanceOf(ToilError);
+    expect(out.code).toBe('NETWORK');
+    expect(out.message).toBe('The network went away. 2 of 5 items were changed before this.');
+    expect(out.fix).toBe('Check the proxy.');
+    expect(out.details).toEqual({ status: 502, url: 'https://jira.imagile.dev/x', categorize: counts });
+  });
+
+  it('says nothing about changes when none were made, and carries the counts when others were processed', () => {
+    const out = thrown(() => failureReason(new ToilError('AUTH', 'bad token', { details: { status: 401 } }), () => ({ planned: 3, changed: 0, unchanged: 1, failed: 1 }))) as ToilError;
+    expect(out.message).toBe('bad token');
+    expect(out.details).toEqual({ status: 401, categorize: { planned: 3, changed: 0, unchanged: 1, failed: 1 } });
+  });
+
+  it('words one item in the singular, and rethrows the same error when nothing was processed', () => {
+    const one = thrown(() => failureReason(new ToilError('TIMEOUT', 'slow'), () => ({ planned: 1, changed: 1, unchanged: 0, failed: 0 }))) as ToilError;
+    expect(one.message).toBe('slow 1 of 1 item was changed before this.');
+    const err = new ToilError('NETWORK', 'down');
+    expect(thrown(() => failureReason(err, () => ({ planned: 4, changed: 0, unchanged: 0, failed: 0 })))).toBe(err);
+  });
+
+  it('still returns the message for an item-level error, and rethrows a plain Error untouched', () => {
+    expect(failureReason(new ToilError('NOT_FOUND', 'gone'), () => counts)).toBe('gone');
+    const plain = new Error('not ours');
+    expect(thrown(() => failureReason(plain, () => counts))).toBe(plain);
+  });
+});
+
+describe('typeLabel', () => {
+  it('words a type as project then type, and a missing type as unknown type', () => {
+    expect(typeLabel('PAY', 'Bug')).toBe('PAY Bug');
+    expect(typeLabel('PAY', '')).toBe('PAY unknown type');
+    expect(typeLabel('', '')).toBe('unknown type');
   });
 });
 
