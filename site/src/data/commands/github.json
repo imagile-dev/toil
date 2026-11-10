@@ -191,6 +191,20 @@
     ]
   },
   {
+    "name": "milestone list",
+    "tool": "github_milestone_list",
+    "description": "List a repository's milestones",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--state <state>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
     "name": "project list",
     "tool": "github_project_list",
     "description": "List an owner's projects (v2)",

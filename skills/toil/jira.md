@@ -151,6 +151,8 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 | `user search` (Cloud) | `--query --limit --cursor` | One page of matching users, with `accountId` |
 | `board list` | `--project --limit --cursor` | Boards (id, name, scrum or kanban) |
 | `sprint list` | `--board` or `--project`, `--state active,future,closed`, `--limit --cursor` (with `--board`) | Sprints with dates and goal |
+| `version list` | `--project --limit --cursor` | The project's versions as Jira records them (`id`, `name`, `released`, `archived`, `startDate`, `releaseDate`, `overdue`), the values a fix version can take |
+| `component list` | `--project --limit --cursor` | The project's components as Jira records them (`id`, `name`, `description`, `lead`, `assigneeType`) |
 | `sprint get` (Cloud) | `<sprint>` | The sprint as Jira returns it (state, dates, goal, board) |
 | `sprint create` ✎ (Cloud) | `<name> --board <id> --start --end --goal` | The new sprint, state `future` |
 | `sprint update` ✎ (Cloud) | `<sprint> --name --start --end --goal` | The sprint; only what you pass changes |
@@ -301,7 +303,7 @@ These are what a sync needs: read everything once, then only what changed.
 the connection's `project`, and `meta.context.inputs.project` says which: `input` for
 the flag or the file, `connection` for the setting (`TOIL_JIRA_PROJECT` and
 `defaults.jira.project` both report `connection`, not `default`). The `--project` on `issue fields`,
-`board list` and `sprint list` never falls back to the connection.
+`board list` and `sprint list` never falls back to the connection. `version list` and `component list` take `--project` the way `issue create` does: the flag, a toil project's `project`, then the connection's setting; one without a project is refused.
 `--time-spent` takes Jira durations (`1d`, `2h 30m`); `--started` takes Jira's datetime
 format (`2024-01-15T09:00:00.000+0000`) and defaults to now on Data Center. Cloud requires it.
 

@@ -350,6 +350,7 @@
       "--key <key>",
       "--field <name=field>",
       "--key-pattern <pattern=connection>",
+      "--dimension <name=area:field>",
       "--author-kind <id=KIND>"
     ]
   },

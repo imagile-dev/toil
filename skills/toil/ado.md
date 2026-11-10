@@ -186,7 +186,7 @@ and `team`.
   `work-item transition`, `work-item history` and `work-item get-many` need neither a
   project nor a repo.
 - `work-item create`, `work-item search`, `work-item comments`, `work-item comment`,
-  `work-item iterations`, `work-item states` and `repo list` need a project.
+  `work-item areas`, `work-item iterations`, `work-item states` and `repo list` need a project.
 - `repo get` and every `pr` command need a project and a repo.
 - Every `sprint`, `backlog` and `board` command needs a project and acts for one
   team: `--team <name or id>` on the command (not the group; `team` over MCP), else a
@@ -285,7 +285,7 @@ Work items (`<id>` is the work item id):
   dropped, as are trailing dots and spaces. The token only goes to the configured host:
   an attachment URL naming another host is fetched from the configured one, with an
   `ADO_ATTACHMENT_HOST` warning.
-- `work-item areas` (Server), `work-item iterations`: The area or iteration tree,
+- `work-item areas`, `work-item iterations`: The area or iteration tree,
   `--depth` (default 10), with start and finish dates on the iterations.
 - `work-item types` (Server): The work item types with their states and required fields.
 - `work-item states`: The states of `--type`, each `{ name, color, category }` on

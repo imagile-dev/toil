@@ -199,6 +199,16 @@ const routes: Route[] = [
   { method: 'POST', path: `${REPO}/issues`, respond: { status: 201, json: issue() } },
   // The issues endpoint answers with pull requests mixed in; issue list drops them.
   { path: `${REPO}/issues`, respond: { json: [issue(9), prAsIssue(7)] } },
+  // Written from the vendor's Milestones documentation, not captured from a server.
+  {
+    path: `${REPO}/milestones`,
+    respond: {
+      json: [
+        { url: `${API}/repos/imagile/toil-probe/milestones/1`, id: 3001, node_id: 'MI_kwDOabc12345', number: 1, title: 'v1.0', description: 'First release', state: 'open', open_issues: 4, closed_issues: 2, created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-15T10:00:00Z', closed_at: null, due_on: '2025-03-01T08:00:00Z' },
+        { url: `${API}/repos/imagile/toil-probe/milestones/2`, id: 3002, node_id: 'MI_kwDOabc12346', number: 2, title: 'v1.1', description: null, state: 'open', open_issues: 1, closed_issues: 0, created_at: '2025-01-02T00:00:00Z', updated_at: '2025-01-15T10:00:00Z', closed_at: null, due_on: null },
+      ],
+    },
+  },
   { path: `${REPO}/issues/9`, respond: { json: issue(9) } },
   { path: `${REPO}/issues/10`, respond: { json: issue(10) } },
   { path: `${REPO}/issues/9/sub_issues`, respond: { json: [issue(10)] } },

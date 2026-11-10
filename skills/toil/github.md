@@ -34,7 +34,7 @@ What each group of commands needs from the token:
 
 | Commands | Fine-grained token | Classic token |
 |----------|--------------------|---------------|
-| `issue list`, `issue search`, `issue get`, `issue history` | Issues: read, on the repository | `repo` (`public_repo` for public repositories only) |
+| `issue list`, `issue search`, `issue get`, `issue history`, `milestone list` | Issues: read, on the repository | `repo` (`public_repo` for public repositories only) |
 | `repo file` | Contents: read, on the repository | `repo` (`public_repo` for public repositories only) |
 | `project list`, `project fields`, `project items` | Projects: read, under the organization's permissions. A fine-grained token can't read a user's own projects | `read:project` (plus `repo` to see items from private repositories) |
 | `project status` | Projects: read and write, under the organization's permissions (organization projects only) | `project` (plus `repo` to reach an item in a private repository) |
@@ -148,6 +148,7 @@ Owner, repo, labels and refs go into request paths as typed; a value that would 
     created|updated|comments`, `--direction asc|desc`; `--updated-since <iso>`,
     GitHub's `since`). The issues endpoint mixes pull requests in; toil leaves them out
     (`pr list` has them).
+  - `milestone list` (`--state open|closed|all`, default `open`): the repository's milestones as GitHub returns them (`number`, `title`, `state`, `due_on`, `open_issues`, `closed_issues`), the values an issue's milestone takes.
   - `issue search --query <q>` (GitHub search syntax; `--sort`, `--order`,
     `--updated-since`). toil adds `is:issue`, and `updated:>=<iso>` with
     `--updated-since`, but not `--owner` or `--repo`: scope the query with `repo:`,
@@ -236,7 +237,7 @@ Owner, repo, labels and refs go into request paths as typed; a value that would 
 
 Lists page 100 at a time until a short page, and stop with an error after 1,000 pages.
 Every list (`pr list`, `pr files`, `pr comments`, `pr review-comments`, `pr reviews`,
-`commit checks`, `issue list`, `issue search`, `issue history` and the three `project`
+`commit checks`, `issue list`, `issue search`, `issue history`, `milestone list` and the three `project`
 lists) reads every page by default. `--limit <n>` stops after `n` items and sets
 `meta.page.nextCursor`; pass it back as `--cursor` with the same `--limit` for the next
 `n`, until `nextCursor` is `null`. On `pr list`, `--limit` counts the pull requests that

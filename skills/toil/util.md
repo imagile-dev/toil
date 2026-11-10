@@ -1427,8 +1427,9 @@ toil util owi map prs.jsonl --key-pattern "PAY-{n}=corp-jira" --author-kind rele
 | `--text <text>` | The input itself, instead of a file |
 | `--command <name>` | The command whose data the input is, when it holds `data` without its envelope (`"jira issue search"`) |
 | `--key <key>` | The item a history belongs to, when its output doesn't say: `PAY-104`, or `imagile/payments-web#44` (a bare `44` takes the envelope's owner and repo) |
-| `--field <name=field>` | Point an OWI field at a field of your own, repeatable: `estimate`, `estimateUnit` (`points`, `hours` or `days`), `priority`, `type`, `team`, `dueDate` or `iteration`; and for GitHub without a board, `estimateLabel` (`size/{n}`) and `iterationDays` |
+| `--field <name=field>` | Point an OWI field at a field of your own, repeatable: `estimate`, `estimateUnit` (`points`, `hours` or `days`), `priority`, `type`, `team`, `dueDate`, `iteration`, `release` or `affects`; and for GitHub without a board, `estimateLabel` (`size/{n}`) and `iterationDays`. Jira and GitHub read their own fix versions and milestone, so only Azure DevOps uses `release` and `affects`, as the fields that hold them |
 | `--key-pattern <pattern=connection>` | Where work item keys in a pull request's title, branch and description point, repeatable, with `{n}` where the number is: `PAY-{n}=corp-jira`, `AB#{n}=corp-ado` |
+| `--dimension <name=area:field>` | Name an extra dimension to split by, repeatable, one for each area that holds it: `customer=jira:customfield_10500`, `customer=ado:Custom.Customer`. Each item of that area carries it under `dims` |
 | `--author-kind <id=KIND>` | Set a pull request author's kind by hand, repeatable: `release-bot=BOT`, with `KIND` one of `HUMAN`, `AGENT` or `BOT`. It wins over every other signal |
 
 Over MCP the tool is `util_owi_map`, with `file` or `text`, and `command`, `key`,

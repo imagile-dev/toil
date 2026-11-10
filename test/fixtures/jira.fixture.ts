@@ -223,6 +223,22 @@ export const routes: Route[] = [
     }),
   },
 
+  // Invented from the docs: GET /rest/api/2/project/{key}/versions and /components, each a whole array (no paging).
+  {
+    url: api('/project/PROJ/versions'),
+    respond: json([
+      { self: `${JIRA}/rest/api/2/version/10200`, id: '10200', description: 'First release', name: '1.4.2', archived: false, released: true, releaseDate: '2026-01-20', overdue: false, userReleaseDate: '20/Jan/26', projectId: 10000 },
+      { self: `${JIRA}/rest/api/2/version/10201`, id: '10201', name: '1.5.0', archived: false, released: false, startDate: '2026-02-01', releaseDate: '2026-03-01', overdue: false, projectId: 10000 },
+    ]),
+  },
+  {
+    url: api('/project/PROJ/components'),
+    respond: json([
+      { self: `${JIRA}/rest/api/2/component/10300`, id: '10300', name: 'Payments', description: 'Payment flows', lead: user('jsmith', 'J. Smith'), assigneeType: 'PROJECT_LEAD', realAssigneeType: 'PROJECT_LEAD', isAssigneeTypeValid: false, project: 'PROJ', projectId: 10000 },
+      { self: `${JIRA}/rest/api/2/component/10301`, id: '10301', name: 'Growth', assigneeType: 'UNASSIGNED', project: 'PROJ', projectId: 10000 },
+    ]),
+  },
+
   // Agile: the recorded examples' shapes, with the isLast the real API sends.
   {
     url: agile('/board\\?projectKeyOrId=PROJ&startAt=(0|1)&maxResults=100'),

@@ -1,5 +1,6 @@
 import type { CommandContext } from '../../../core/context.js';
-import { authorKinds, documentsFrom, fieldOverrides, keyPatterns, mapOwi, parseOwiInput, OWI_VERSION, type Change, type OrphanHistory, type OwiSkipped, type WorkItem } from '../../../core/owi/index.js';
+import { ToilError } from '../../../core/errors.js';
+import { OWI_AREAS, authorKinds, dimensionMap, documentsFrom, fieldOverrides, keyPatterns, mapOwi, parseOwiInput, OWI_VERSION, type Change, type OrphanHistory, type OwiSkipped, type WorkItem } from '../../../core/owi/index.js';
 import type { UtilInput } from '../kit/input.js';
 import { Verifier, type Verified } from '../kit/verify.js';
 
@@ -20,6 +21,26 @@ export interface OwiMapInput {
   field?: string[] | undefined;
   keyPattern?: string[] | undefined;
   authorKind?: string[] | undefined;
+  dimension?: string[] | undefined;
+}
+
+const DIMENSION_FORM = 'Write it as name=area:field, for example --dimension customer=jira:customfield_10500; repeat the flag for each area that holds the dimension.';
+
+/** `--dimension name=area:field` entries as the map `dimensionMap` checks; the field may itself contain colons. */
+function dimensionFlags(entries: string[] | undefined) {
+  if (entries === undefined) return undefined;
+  const raw: Record<string, Record<string, string>> = {};
+  for (const entry of entries) {
+    const eq = entry.indexOf('=');
+    const colon = eq < 0 ? -1 : entry.indexOf(':', eq + 1);
+    const name = entry.slice(0, Math.max(eq, 0));
+    const area = colon < 0 ? '' : entry.slice(eq + 1, colon);
+    const field = colon < 0 ? '' : entry.slice(colon + 1);
+    if (eq <= 0 || colon < 0 || area === '' || field.trim() === '') throw new ToilError('INVALID_INPUT', `"${entry}" isn't a dimension.`, { fix: DIMENSION_FORM });
+    if (!OWI_AREAS.includes(area)) throw new ToilError('INVALID_INPUT', `"${area}" isn't an area that OWI maps (in "${entry}").`, { fix: `Use one of: ${OWI_AREAS.join(', ')}. ${DIMENSION_FORM}` });
+    (raw[name] ??= {})[area] = field;
+  }
+  return dimensionMap(raw);
 }
 
 export interface OwiMapOutput {
@@ -37,8 +58,9 @@ export async function mapOwiInput(ctx: Pick<CommandContext, 'warn' | 'signal'>, 
   const fields = fieldOverrides(input.field);
   const keys = keyPatterns(input.keyPattern);
   const authors = authorKinds(input.authorKind);
+  const dimensions = dimensionFlags(input.dimension);
   const { documents, skipped } = documentsFrom(parseOwiInput(input.text), { command: input.command, key: input.key });
-  const result = mapOwi(documents, { fields, skipped, keys, authors });
+  const result = mapOwi(documents, { fields, skipped, keys, authors, ...(dimensions === undefined ? {} : { dimensions }) });
   for (const warning of result.warnings) ctx.warn(warning);
 
   const unmapped: Record<string, number> = {};

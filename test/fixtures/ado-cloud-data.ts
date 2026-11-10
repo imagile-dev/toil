@@ -88,6 +88,18 @@ const revision = (rev: number, state: string) => ({
 // Invented from Comments - Get Comments (7.1-preview.4).
 export const comment = (id: number) => ({ workItemId: 42, id, version: 1, text: `Comment ${id}`, createdBy: identity(ME, 'Jane Doe'), createdDate: `2026-09-0${id}T12:00:00Z`, modifiedBy: identity(ME, 'Jane Doe'), modifiedDate: `2026-09-0${id}T12:00:00Z`, isDeleted: false, url: `${ORG_URL}/abc12345-0000-0000-0000-000000000070/_apis/wit/workItems/42/comments/${id}` });
 
+// Written from the Classification Nodes - Get reference (structureType area), not captured from a server.
+const areas = {
+  id: 3,
+  identifier: 'abc12345-0000-0000-0000-000000000103',
+  name: 'Imagile',
+  structureType: 'area',
+  hasChildren: true,
+  path: '\\Imagile\\Area',
+  children: [{ id: 4, identifier: 'abc12345-0000-0000-0000-000000000104', name: 'Web', structureType: 'area', hasChildren: false, path: '\\Imagile\\Area\\Web' }],
+  url: `${ORG_URL}/Imagile/_apis/wit/classificationNodes/Areas`,
+};
+
 const iterations = {
   id: 1,
   identifier: 'abc12345-0000-0000-0000-000000000101',
@@ -339,6 +351,7 @@ export const routes: Route[] = [
         : { json: { totalCount: 3, count: 2, comments: [comment(3), comment(2)], continuationToken: 'abc12345', nextPage: `${ORG_URL}/Imagile/_apis/wit/workItems/42/comments?continuationToken=abc12345` } },
   },
   { method: 'POST', path: `${PROJ}/_apis/wit/workItems/42/comments`, respond: { json: comment(4) } },
+  { path: `${PROJ}/_apis/wit/classificationnodes/areas`, respond: { json: areas } },
   { path: `${PROJ}/_apis/wit/classificationnodes/iterations`, respond: { json: iterations } },
   // The passthrough's second read.
   { path: `${PROJ}/_apis/wit/workitemtypes`, respond: { json: { count: 1, value: [{ name: 'Bug', referenceName: 'Microsoft.VSTS.WorkItemTypes.Bug', states: [{ name: 'New' }, { name: 'Active' }] }] } } },

@@ -274,6 +274,30 @@
     ]
   },
   {
+    "name": "version list",
+    "tool": "jira_version_list",
+    "description": "List a Jira project's versions (releases)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--project <key>"
+    ]
+  },
+  {
+    "name": "component list",
+    "tool": "jira_component_list",
+    "description": "List a Jira project's components",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--project <key>"
+    ]
+  },
+  {
     "name": "field discover",
     "tool": "jira_field_discover",
     "description": "Find the custom fields your issues use, by sampling one issue of each type (read only)",
