@@ -197,7 +197,7 @@ export function dimensionMap(value: unknown): DimensionMap | undefined {
     const fields: Record<string, string> = {};
     for (const [area, field] of Object.entries(byArea)) {
       if (typeof field !== 'string' || field.trim() === '') throw bad(`dimensions.${name}.${area} must be the id or name of a field.`);
-      fields[area] = field;
+      fields[area] = field.trim();
     }
     out[name] = fields;
   }

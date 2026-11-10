@@ -2667,14 +2667,6 @@
       },
       "sprints": [
         {
-          "id": "abc12345-0000-0000-0000-000000000400",
-          "name": "Payments",
-          "path": null,
-          "start": null,
-          "end": null,
-          "state": null
-        },
-        {
           "id": "abc12345-0000-0000-0000-000000000440",
           "name": "Sprint 40",
           "path": "Payments\\Sprint 40",
@@ -3537,14 +3529,6 @@
       },
       "sprints": [
         {
-          "id": "abc12345-0000-0000-0000-000000000400",
-          "name": "Payments",
-          "path": null,
-          "start": null,
-          "end": null,
-          "state": null
-        },
-        {
           "id": "abc12345-0000-0000-0000-000000000442",
           "name": "Sprint 42",
           "path": "Payments\\Sprint 42",
@@ -4247,14 +4231,6 @@
       },
       "sprints": [
         {
-          "id": "abc12345-0000-0000-0000-000000000400",
-          "name": "Payments",
-          "path": null,
-          "start": null,
-          "end": null,
-          "state": null
-        },
-        {
           "id": "abc12345-0000-0000-0000-000000000442",
           "name": "Sprint 42",
           "path": "Payments\\Sprint 42",
@@ -4561,7 +4537,16 @@
           }
         ]
       },
-      "sprints": [],
+      "sprints": [
+        {
+          "id": "b7e2a91c",
+          "name": "Sprint 41",
+          "path": null,
+          "start": "2026-09-21T00:00:00.000Z",
+          "end": "2026-10-03T00:00:00.000Z",
+          "state": null
+        }
+      ],
       "ancestors": []
     },
     {
@@ -4767,7 +4752,16 @@
           }
         ]
       },
-      "sprints": [],
+      "sprints": [
+        {
+          "id": "b7e2a91c",
+          "name": "Sprint 41",
+          "path": null,
+          "start": "2026-09-21T00:00:00.000Z",
+          "end": "2026-10-03T00:00:00.000Z",
+          "state": null
+        }
+      ],
       "ancestors": []
     },
     {
@@ -5560,7 +5554,16 @@
           }
         ]
       },
-      "sprints": [],
+      "sprints": [
+        {
+          "id": "cfc16e4d",
+          "name": "Sprint 42",
+          "path": null,
+          "start": "2026-10-05T00:00:00.000Z",
+          "end": "2026-10-17T00:00:00.000Z",
+          "state": null
+        }
+      ],
       "ancestors": []
     },
     {

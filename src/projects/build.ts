@@ -10,7 +10,7 @@ import { toilProjectConnection } from '../core/call-context.js';
 import { CONNECTION_NAME, connectionWrites, defaultConnectionName, type ResolvedConfig } from '../core/config.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
 import {
-  toilProjectContent, EMAIL, hasSecretUserinfo, identityKey, identityProblem, normalizeRemote, PERSON_KINDS, samePath, selectorHost, stripUserinfo,
+  toilProjectContent, EMAIL, hasSecretUserinfo, identityKey, identityProblem, teamProblem, normalizeRemote, PERSON_KINDS, samePath, selectorHost, stripUserinfo,
   type ToilProject, type ToilProjectCatalog, type ToilProjectFile, type ToilProjectPerson, type Section,
 } from '../core/toil-project.js';
 import { isLensId, LENSES, type LensId } from '../core/brief/brief.js';
@@ -366,7 +366,7 @@ export function toilProjectBuildCommands(areas: readonly AnyArea[]): AnyCommand[
       }
       if (input.team !== undefined) {
         const team = input.team.trim();
-        if (team === '' || team.length > 100 || identityProblem(team) || [...team].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f)) throw refuse("--team isn't a team name", 'Give the name as one short line of text, such as Checkout, and never a token.');
+        if (teamProblem(team)) throw refuse("--team isn't a team name", 'Give the name as one short line of text, such as Checkout, and never a token.');
         if (next.team !== undefined && next.team.toLowerCase() !== team.toLowerCase() && !input.replace) throw refuse(`${next.name}'s team is already ${next.team}`, 'Pass --replace to change it.');
         // The same team in another case is the same team: the file keeps it as first written.
         if (next.team === undefined || next.team.toLowerCase() !== team.toLowerCase()) next.team = team;

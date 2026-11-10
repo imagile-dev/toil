@@ -127,6 +127,9 @@ export function githubItem(doc: OwiDocument, issue: Issue, state: MapState): Wor
     const m = milestoneOf(issue);
     item.releases = m ? [{ id: String(m.number), name: m.title, released: m.closed, date: m.due === null ? null : (day(m.due) ?? null) }] : [];
   }
+  for (const name of ['release', 'affects'] as const) {
+    if (state.fields[name] !== undefined) unmapped(item, name === 'release' ? 'releases' : 'affects', `fields ${name} names "${state.fields[name]}", but GitHub reads the milestone as the release (and has no affects), so the pointer was not used`);
+  }
   if (Array.isArray(issue.sub_issues)) item.children = issue.sub_issues.flatMap((s) => (isRecord(s) && issueKey(s) ? [idFor(doc.connection, issueKey(s)!)] : []));
   setInstant(item, 'created', issue.created_at, 'created_at');
   setInstant(item, 'updated', issue.updated_at, 'updated_at');
@@ -354,12 +357,14 @@ export function applyBoard(item: WorkItem, entry: BoardEntry, doc: OwiDocument, 
     else if (field === 'dueDate') setDay(item, read, fieldName);
     else item[field] = read;
   }
-  // Dimensions a toil project names: any single-select, iteration, text, number or date field of the board. The board leaves an empty field out, so "empty" and "no such field" read alike, and are said so.
+  // Dimensions a toil project names: any single-select, iteration, text, number or date field of the board. The board leaves an empty field out, so "empty" and "no such field" can't be told apart: the key stays absent (unknown, not none) and the note says why.
   for (const [name, pointer] of dimensionsFor(state, doc.area)) {
     const value = entry.values.get(pointer);
-    const read = value ? [str(value.name) ?? str(value.title) ?? str(value.text) ?? str(value.date) ?? (num(value.number) === null ? null : String(value.number))].filter((v): v is string => v !== null) : [];
-    setDim(item, name, read);
-    if (!value) absent(pointer, `dims.${name}`);
+    if (!value) {
+      absent(pointer, `dims.${name}`);
+      continue;
+    }
+    setDim(item, name, [str(value.name) ?? str(value.title) ?? str(value.text) ?? str(value.date) ?? (num(value.number) === null ? null : String(value.number))].filter((v): v is string => v !== null));
   }
   if (state.fields.type !== undefined) {
     const value = entry.values.get(state.fields.type);

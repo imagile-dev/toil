@@ -8,6 +8,7 @@ import { StrandedInput, ToilError } from './errors.js';
 import { forwardSlashes, isSystemPath, type Workspace } from './files.js';
 import { findGitRepo, readGitBranch, readGitRemotes, type GitContext } from './git-repo.js';
 import { assertLocalPath } from './local-path.js';
+import { DIMENSION_NAME } from './owi/map.js';
 import { RENAMED_AREAS } from './renamed-areas.js';
 import { findSecrets } from './secret-shapes.js';
 import { JsonSyntaxError, parseStrictJson } from './strict-json.js';
@@ -595,7 +596,6 @@ function classifyContent(c: ClassifySettings): Record<string, unknown> {
   return { ...(c.scheme !== undefined ? { scheme: c.scheme } : {}), ...(Object.keys(c.targets).length > 0 ? { targets: c.targets } : {}) };
 }
 
-const DIMENSION_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 /** What a tracker section holds, never a `dimensions` key, for the same reason `classify` refuses them. */
 const DIMENSIONS_REFUSED = ['fields', 'connection', 'host', 'transitions', 'writes'];
 
@@ -662,6 +662,11 @@ export function identityProblem(value: string): string | undefined {
   return undefined;
 }
 
+/** Whether a team name is unusable: empty, longer than 100 characters, shaped like a credential, or more than one line of text. */
+export function teamProblem(value: string): boolean {
+  return value.trim() === '' || value.length > 100 || identityProblem(value) !== undefined || [...value].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f);
+}
+
 /** The key one identity is held under: system ids compare without case, as every one of those systems compares them. */
 export const identityKey = (area: string, id: string) => `${area}\u0000${id.trim().toLowerCase()}`;
 
@@ -697,7 +702,7 @@ function readPeople(
     for (const key of Object.keys(entry)) if (!['name', 'kind', 'email', 'team', 'ids'].includes(key)) warn('TOIL_PROJECT_UNKNOWN_KEY', at(path, key), `"${key}" isn't a person key; people take name, kind, email, team and ids. It was ignored.`);
     if (entry.kind !== undefined && !(PERSON_KINDS as readonly unknown[]).includes(entry.kind)) error(at(path, 'kind'), `"kind" must be ${PERSON_KINDS.join(' or ')}.`);
     if (entry.email !== undefined && (typeof entry.email !== 'string' || !EMAIL.test(entry.email) || identityProblem(entry.email))) error(at(path, 'email'), '"email" must be an email address, e.g. you@example.com, and never a credential.');
-    if (entry.team !== undefined && (typeof entry.team !== 'string' || entry.team.trim() === '' || entry.team.length > 100 || identityProblem(entry.team) || [...entry.team].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f))) error(at(path, 'team'), '"team" must be a team name as one short line of text (at most 100 characters), and never a credential.');
+    if (entry.team !== undefined && (typeof entry.team !== 'string' || teamProblem(entry.team))) error(at(path, 'team'), '"team" must be a team name as one short line of text (at most 100 characters), and never a credential.');
     if (entry.ids !== undefined && !isRecord(entry.ids)) error(at(path, 'ids'), '"ids" must map each area to the identity it knows this person by, e.g. { "github": "pat-ex" }.');
     const ids: Record<string, string> = {};
     for (const [area, value] of Object.entries(isRecord(entry.ids) ? entry.ids : {})) {

@@ -141,18 +141,21 @@ export function adoItem(doc: OwiDocument, record: Item, state: MapState, dates: 
     if (f[state.fields.team] === undefined) unmapped(item, 'team', missing(state.fields.team, 'team'));
   }
 
-  // The dimensions people split by. The area path is read or it isn't. A pointed-at field Azure DevOps leaves out may be empty or may never have been asked for, so it reads as empty and says so in unmapped.
-  if ('System.AreaPath' in f) item.area = str(f['System.AreaPath']) === null ? null : { path: f['System.AreaPath'] as string };
+  // The dimensions people split by. The area path is read or it isn't. A pointed-at field Azure DevOps leaves out may be empty or may never have been asked for, so its key stays absent and unmapped says so.
+  if ('System.AreaPath' in f) {
+    const path = f['System.AreaPath'];
+    item.area = typeof path === 'string' && path.trim() !== '' ? { path } : null;
+  }
   for (const name of ['release', 'affects'] as const) {
     const pointer = state.fields[name];
     if (pointer === undefined) continue;
-    const releases: Release[] = textsOf(f[pointer]).map((n) => ({ id: null, name: n, released: null, date: null }));
-    item[name === 'release' ? 'releases' : 'affects'] = releases;
-    if (f[pointer] === undefined) unmapped(item, name === 'release' ? 'releases' : 'affects', missing(pointer, name));
+    const field = name === 'release' ? 'releases' : 'affects';
+    if (f[pointer] === undefined) unmapped(item, field, missing(pointer, name));
+    else item[field] = textsOf(f[pointer]).map((n): Release => ({ id: null, name: n, released: null, date: null }));
   }
   for (const [name, pointer] of dimensionsFor(state, doc.area)) {
-    setDim(item, name, textsOf(f[pointer]));
     if (f[pointer] === undefined) unmapped(item, `dims.${name}`, missing(pointer, false));
+    else setDim(item, name, textsOf(f[pointer]));
   }
 
   estimate(item, f, state);

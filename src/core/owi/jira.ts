@@ -124,6 +124,9 @@ export function jiraItem(doc: OwiDocument, issue: Issue, state: MapState, catego
   if ('fixVersions' in f) item.releases = releasesOf(f.fixVersions);
   if ('versions' in f) item.affects = releasesOf(f.versions);
   if ('components' in f) item.components = (Array.isArray(f.components) ? f.components : []).flatMap((c) => (isRecord(c) && str(c.name) !== null ? [str(c.name)!] : typeof c === 'string' && c !== '' ? [c] : []));
+  for (const name of ['release', 'affects'] as const) {
+    if (state.fields[name] !== undefined) unmapped(item, name === 'release' ? 'releases' : 'affects', `fields ${name} names "${state.fields[name]}", but Jira reads ${name === 'release' ? 'fixVersions' : 'versions'}, so the pointer was not used`);
+  }
   for (const [name, pointer] of dimensionsFor(state, doc.area)) {
     const key = fieldKey(issue, pointer);
     if (key === undefined) unmapped(item, `dims.${name}`, `the record has no field "${pointer}" (dimensions ${name}): ask for it with --fields`);
@@ -209,9 +212,14 @@ function iteration(item: WorkItem, issue: Issue, state: MapState): void {
   const raw = issue.fields?.[key];
   const values = raw === null || raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
   const sprints = values.map(sprintOf);
-  if (sprints.some((s) => s === undefined)) unmapped(item, 'iteration', `"${key}" holds a value that isn't a sprint`);
   const found = sprints.filter((s): s is Iteration => s !== undefined);
   item.iteration = current(found);
+  if (found.length < sprints.length) {
+    unmapped(item, 'iteration', `"${key}" holds a value that isn't a sprint`);
+    // A list with a value we couldn't read is not the list of sprints, and a short one would read as "fewer sprints".
+    unmapped(item, 'sprints', `"${key}" holds a value that isn't a sprint, so the list of sprints is unknown`);
+    return;
+  }
   // Every sprint the field lists, not only the current one: an item carried over three sprints is in three.
   item.sprints = found;
 }

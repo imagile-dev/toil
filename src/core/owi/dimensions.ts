@@ -1,4 +1,5 @@
 import { pathKey } from './ado.js';
+import { OWI_SOURCES } from './types.js';
 import type { Ancestor, Iteration, WorkItem } from './types.js';
 
 /**
@@ -42,16 +43,24 @@ export function setAncestors(items: Map<string, WorkItem>, parentRead: ReadonlyS
 /**
  * Sets `sprints` for an item that has a history, from the iterations the
  * history says it was in: the one it started in, then each it moved to, each
- * once, in order. The current iteration is used where it matches, so it keeps
- * its dates and id; an Azure DevOps path takes its dates from the iteration
+ * once, in order, then the current iteration if the history never named it
+ * (an item that sat in one sprint all its life has no iteration change).
+ * The current iteration is used where it matches, so it keeps its dates and id; an Azure DevOps path takes its dates from the iteration
  * tree when the input held one. An item with no history has no `sprints`.
  */
 export function setSprintsFromHistory(item: WorkItem, dates: Map<string, { id: string | null; start: string | null; end: string | null }> | undefined): void {
   if (item.history === null || item.sprints !== undefined) return;
+  // An Azure DevOps path with no `\` is the project's root node, which is where an item sits when it is in no sprint, so it is not one.
+  const ado = OWI_SOURCES[item.source.area]?.family === 'ado';
   const names: string[] = [];
-  for (const change of item.history.iterations) for (const name of [...change.from, ...change.to]) if (!names.includes(name)) names.push(name);
+  const add = (name: string) => {
+    if (ado && !name.includes('\\')) return;
+    if (!names.includes(name)) names.push(name);
+  };
+  for (const change of item.history.iterations) for (const name of [...change.from, ...change.to]) add(name);
+  const now = item.iteration;
+  if (now && !names.includes(now.name) && !(now.path && names.includes(now.path))) add(now.path ?? now.name);
   const sprints: Iteration[] = names.map((name) => {
-    const now = item.iteration;
     if (now && (now.name === name || now.path === name)) return { ...now };
     const known = dates?.get(pathKey(name, false));
     return { id: known?.id ?? null, name: name.split('\\').pop()!, path: name.includes('\\') ? name : null, start: known?.start ?? null, end: known?.end ?? null, state: null };
