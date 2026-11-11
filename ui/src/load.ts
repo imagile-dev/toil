@@ -210,12 +210,15 @@ export function owiFields(fields: unknown): Record<string, string> {
 export const JIRA_STANDARD_FIELDS = ['summary', 'status', 'priority', 'assignee', 'issuetype', 'project', 'created', 'updated', 'labels', 'reporter'];
 
 /**
- * Everything else `mapOwi` reads from a Jira issue (src/core/owi/jira.ts) and
- * a search does not return by itself: the description (the readiness check
- * reads it), how and when it was resolved, the due date, and the parent,
- * sub-tasks and links that the Board, the Graph and the blockers are drawn from.
+ * What `mapOwi` reads from a Jira issue (src/core/owi/jira.ts) by a standard
+ * field name and a search does not return by itself: the description (the
+ * readiness check reads it), how and when it was resolved, the due date, the
+ * original estimate (the hours fallback when no points field is registered),
+ * and the parent, sub-tasks and links that the Board, the Graph and the
+ * blockers are drawn from. The epic link is not here: it comes only from a
+ * registered field.
  */
-export const JIRA_OWI_FIELDS = ['description', 'resolution', 'resolutiondate', 'duedate', 'parent', 'subtasks', 'issuelinks'];
+export const JIRA_OWI_FIELDS = ['description', 'resolution', 'resolutiondate', 'duedate', 'timeoriginalestimate', 'parent', 'subtasks', 'issuelinks'];
 
 /** The OWI keys whose value is the name or id of a Jira field (the others are units, labels and day counts). */
 const JIRA_FIELD_KEYS = ['estimate', 'iteration', 'team', 'dueDate', 'priority', 'type'] as const;
@@ -255,12 +258,25 @@ export function jiraSearchFields(registered: readonly RegisteredField[], section
 }
 
 /**
- * The OWI overrides as the issues will carry them. Jira search names a
- * registered field by its registered name, so an override that names it by id
- * (what the Fields step writes) would find nothing; it is rewritten to that name.
+ * Jira search returns a registered custom field under the name the connection
+ * registers it as, but an OWI override (and the readiness check's acceptance
+ * criteria) may name it by id, which is what the Fields step writes. Each
+ * issue gets every registered field's value copied back under its id, so both
+ * spellings find it. The overrides themselves stay as written: the sprint
+ * history (`jiraHistory`) matches Jira's own label or the id, never the
+ * registered name. A field the search returned no value for is left alone, and
+ * a value already under its id is never replaced.
  */
-export function jiraOwiOverrides(registered: readonly RegisteredField[], overrides: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(Object.entries(overrides).map(([k, v]) => [k, (JIRA_FIELD_KEYS as readonly string[]).includes(k) ? (registeredBy(registered, v)?.name ?? v) : v]));
+export function withFieldIds(search: Envelope, registered: readonly RegisteredField[]): Envelope {
+  const data = search.data;
+  if (!search.ok || !registered.length || !isRec(data) || !Array.isArray(data.issues)) return search;
+  const issues = data.issues.map((issue) => {
+    if (!isRec(issue) || !isRec(issue.fields)) return issue;
+    const fields: Rec = { ...issue.fields };
+    for (const { id, name } of registered) if (fields[id] === undefined && fields[name] !== undefined) fields[id] = fields[name];
+    return { ...issue, fields };
+  });
+  return { ...search, data: { ...data, issues } } as Envelope;
 }
 
 /** How many pull requests that aren't open are still read in full (`pr get --include`): the newest ones, which the flow metrics measure. */
@@ -433,15 +449,16 @@ export async function loadToilProject(execute: Execute, name: string, options: L
     // `issue fields` lists what the connection holds and asks Jira nothing.
     const listed = projects.length ? await run('work', `${jira} issue fields`, { ...base }) : null;
     registered[jira] = registeredFields(listed?.data);
-    const fields = jiraSearchFields(registered[jira], isRec(section(jira).fields) ? (section(jira).fields as Rec) : {});
+    // A list that failed is unknown, not empty: the search is then asked for no `fields`, as before #573, and returns what it returns by itself.
+    const fields = listed ? jiraSearchFields(registered[jira], isRec(section(jira).fields) ? (section(jira).fields as Rec) : {}) : undefined;
     for (const project of projects) {
       tasks.push((async () => {
         const state = track(jira, projects.length > 1 ? project : '');
         // The search brings each issue's history with it (toil's --changelog); only an issue whose changelog came back short is read with a call of its own.
-        const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(project, options.windowDays), changelog: true, fields });
+        const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(project, options.windowDays), changelog: true, ...(fields === undefined ? {} : { fields }) });
         if (!asked) return markUnread(state, 'work');
         const { search, histories: inline, incomplete } = splitChangelogs(asked, `${jira} issue history`);
-        work[jira].push(search);
+        work[jira].push(withFieldIds(search, registered[jira] ?? []));
         for (const { key, history } of inline) work[jira].push({ key, history });
         const histories = await runEach('work', `${jira} issue history`, incomplete.map((key) => ({ ...base, key })));
         histories.forEach((history, n) => {
@@ -547,7 +564,7 @@ export async function loadToilProject(execute: Execute, name: string, options: L
   }
   await Promise.all(tasks);
   const mapper = options.mapOwi ?? mapOwi;
-  const items = Object.entries(work).flatMap(([area, docs]) => (docs.length ? (mapper(docs, { fields: area === 'jira' ? jiraOwiOverrides(registered.jira ?? [], owiFields(section(area).fields)) : owiFields(section(area).fields) }).items as WorkItem[]) : []));
+  const items = Object.entries(work).flatMap(([area, docs]) => (docs.length ? (mapper(docs, { fields: owiFields(section(area).fields) }).items as WorkItem[]) : []));
 
   // An issue on a board remembers which one, so a move on the Board can say which project's Status to set.
   for (const item of items) {
