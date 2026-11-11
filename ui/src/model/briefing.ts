@@ -52,8 +52,10 @@ export interface BriefingView {
   unknown: string[];
   /** What the page must say about the briefing itself: a block that didn't fit, ids its tools never returned. Shown, never folded. */
   problems: string[];
-  /** Lenses that couldn't test some items, or couldn't run, and why: one step in. */
+  /** Lenses that did not run at all, and why (no limit set, a source missing): one step in. */
   unchecked: Array<{ label: string; note: string }>;
+  /** Lenses that ran but couldn't test some items, and which (three items with no assignee): one step in. Said apart from `unchecked`, since the rest of the lens was read. */
+  partlyChecked: Array<{ label: string; note: string }>;
   /** The code's briefing, always: the drawer's facts and the lens notes come from it. */
   code: Brief;
 }
@@ -81,7 +83,9 @@ export function briefingOf(input: BriefingInput): BriefingView {
   const latest = input.analyses[0] ?? null;
   const usable = latest?.briefing && isCurrent(latest, input.now) ? latest : null;
   const onTrackByCode = `${code.onTrack.open} open and ${code.onTrack.done} done are on track.`;
-  const unchecked = code.lenses.filter((l) => l.on && l.note).map((l) => ({ label: plainLabel(l.label), note: l.note! }));
+  const noted = (ran: boolean) => code.lenses.filter((l) => l.on && l.note && l.checked === ran).map((l) => ({ label: plainLabel(l.label), note: l.note! }));
+  const unchecked = noted(false);
+  const partlyChecked = noted(true);
   if (!usable) {
     const stale = !latest ? null : !isCurrent(latest, input.now) ? 'The latest Analyze is older than the data.' : 'The latest Analyze has no briefing block, so it is shown as it came on its own page.';
     return {
@@ -97,6 +101,7 @@ export function briefingOf(input: BriefingInput): BriefingView {
       unknown: [],
       problems: [],
       unchecked,
+      partlyChecked,
       code,
     };
   }
@@ -117,6 +122,7 @@ export function briefingOf(input: BriefingInput): BriefingView {
     unknown: [...named, ...left].filter((id) => !ids.has(id)),
     problems: [...usable.briefingProblems, ...(usable.unverified ? [`Analyze named ${usable.unverified === 1 ? 'an item' : `${usable.unverified} items`} its tools never returned; the analysis marks ${usable.unverified === 1 ? 'it' : 'them'}.`] : [])],
     unchecked,
+    partlyChecked,
     code,
   };
 }

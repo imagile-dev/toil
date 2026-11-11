@@ -266,7 +266,7 @@ further in, and each step one you choose (#494). The tab's top is the answer (#5
   stories not ready to start take the place of an empty one, and an all-clear card
   says so when nothing needs anyone; if a read failed, that card says which reads could not be read instead of an all-clear. A card's title is its one link, opening the item in
   its drawer (or its page, as Customize says), with the ticket key in small print.
-- **Outside the fold, too:** one compact line for each red reason no card already tells (it opens the reason in the fold), and the "Couldn't check" line for a panel that could not be read.
+- **Outside the fold, too:** one compact line for each red reason no card already tells (it opens the reason in the fold), and two lines for what could not be read: "Couldn't check" for a check that did not run, and "Partly checked" for one that ran but could not test some items.
 - **Show the full briefing**, closed until you open it, and remembered in this
   browser: everything below, with Customize. The source and sprint line, any problem
   with the briefing, and **Go to** stay in view outside it.

@@ -52,6 +52,8 @@ export const area = defineArea({
       for (const issue of [...tlsIssues(conn, provider, providers), ...(provider?.check?.(conn) ?? [])]) check.addIssue({ code: 'custom', path: [issue.key], message: issue.message });
     }),
   secrets: { password: 'password', token: 'token' },
+  // SQLite signs in with a file path, so it has no password to be missing; Toil UI reads this to say "not needed" rather than "missing".
+  appliesTo: { password: providers.filter((p) => p.engine !== 'sqlite').map((p) => p.engine), token: ['teradata'] },
   // Each engine names the keys its connections need; core checks them.
   variants: { by: 'engine', of: Object.fromEntries(providers.map((p) => [p.engine, { label: p.label, requires: [...p.requires] }])) },
 });

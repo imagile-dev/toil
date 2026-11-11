@@ -100,6 +100,32 @@ describe('the setup wizard', () => {
     expect(document.querySelector('[data-setup-more] summary')!.textContent).toBe('More tools (2)');
   });
 
+  it('asks for the Jira project key on the Toil project step and saves it on the Jira link', async () => {
+    const jira = { name: 'corp-jira', area: 'jira', isDefault: true, host: 'jira.imagile.dev', writes: false, values: { baseUrl: 'file', apiToken: 'store' }, definedIn: 'file' };
+    const { config, calls } = emptyMachine([jira]);
+    await open(config);
+    await press('Start');
+    await screen.findByRole('heading', { level: 1, name: 'An AI agent (optional)' });
+    await notNow();
+    await press('Next');
+    // A tool that is already linked starts ticked.
+    expect(((await screen.findByRole('checkbox', { name: /Jira/ })) as HTMLInputElement).checked).toBe(true);
+    await press('Next');
+    await screen.findByRole('heading', { level: 1, name: 'Link Jira' });
+    await press('Next');
+    await screen.findByRole('heading', { level: 1, name: 'Your Toil project' });
+    const field = document.querySelector('[data-setup-jira-key]')!;
+    expect(field.textContent).toContain('Jira project key (optional)');
+    expect(field.textContent).toMatch(/such as PAY in PAY-123/);
+    expect(field.textContent).toMatch(/reads no Jira issues/);
+    await userEvent.type(screen.getByLabelText(/^Jira project key/), 'PAY');
+    expect(document.querySelector('[data-setup-jira-key]')!.textContent).not.toMatch(/reads no Jira issues/);
+    await userEvent.type(screen.getByLabelText(/^Name/), 'payments');
+    await userEvent.click(screen.getByRole('button', { name: 'Create this Toil project' }));
+    await screen.findByText(/payments was created. Jira linked to payments./);
+    expect(calls.find((c) => c.command === 'projects link')!.input).toEqual({ toilProject: 'payments', area: 'jira', connection: 'corp-jira', set: ['project=PAY'] });
+  });
+
   it('walks every step, sending the secret only as the call\'s secrets and leaving writes off', async () => {
     const { config, calls } = emptyMachine();
     let synced = 0;

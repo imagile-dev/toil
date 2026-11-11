@@ -13,10 +13,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RadioGroup, Radio } from 'react-aria-components';
 import type { ConfigApi, ConnectionRow } from '../../config.ts';
-import { fieldCommands, type FieldCommand, type FieldPick, type OwiGuess } from '../../../../src/core/field-discovery.ts';
+import { fieldCommands, type FieldPick, type OwiGuess } from '../../../../src/core/field-discovery.ts';
 import { DataTable } from '../../components/layout.tsx';
 import { Loader } from '../../moments/Moments.tsx';
 import { Info, OutcomeLine, SelectField, TextField, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
+import { JIRA_KEY_LABEL } from '../project-create.ts';
 import './find-fields.css';
 
 /** `jira field discover`'s data, as this page reads it. */
@@ -33,6 +34,8 @@ const OWI_WORD: Record<OwiGuess['field'], string> = { estimate: 'Story points', 
 const ALIAS = /^[a-z][A-Za-z0-9]*$/;
 
 type Reading = { kind: 'idle' } | { kind: 'reading' } | { kind: 'read'; data: Discovered; warnings: string[] } | { kind: 'failed'; outcome: Outcome };
+/** One call the save runs: a name for a field (`projects field`), or the Jira project key the person typed (`projects link`). */
+type Planned = { command: 'projects field' | 'projects link'; input: Record<string, unknown>; line: string };
 type Result = { line: string; /** What the person sees for it: the name being given. */ label: string; ok: boolean; message: string; fix: string | null };
 
 export interface FindFieldsProps {
@@ -64,6 +67,8 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
   }, [connection]);
   const [how, setHow] = useState<'auto' | 'keys'>('auto');
   const [jiraProject, setJiraProject] = useState('');
+  /** The Jira project the Toil project names: its key, none (a reading that found none), or undefined while that is not read. Unknown is not none. */
+  const [named, setNamed] = useState<string | null | undefined>(undefined);
   const [keys, setKeys] = useState('');
   const [reading, setReading] = useState<Reading>({ kind: 'idle' });
   const [ticked, setTicked] = useState<Record<string, boolean>>({});
@@ -81,10 +86,13 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
   useEffect(() => {
     if (!project) return;
     let live = true;
+    setNamed(undefined);
     config.run('projects show', { toilProject: project }).then(
       (e) => {
-        const key = e.ok ? (e.data as { areas?: Record<string, { inputs?: Record<string, string> }> }).areas?.jira?.inputs?.project : undefined;
-        if (live && key) setJiraProject((now) => now || key);
+        const key = e.ok ? ((e.data as { areas?: Record<string, { inputs?: Record<string, string> }> }).areas?.jira?.inputs?.project ?? null) : undefined;
+        if (!live) return;
+        setNamed(key);
+        if (key) setJiraProject((now) => now || key);
       },
       () => {},
     );
@@ -116,16 +124,24 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
   const data = reading.kind === 'read' ? reading.data : null;
   const picks: FieldPick[] = useMemo(() => (data ? data.fields.filter((f) => ticked[f.id]).map((f) => ({ id: f.id, alias: aliases[f.id] ?? f.alias, ...(f.owi ? { owi: f.owi.field } : {}) })) : []), [data, ticked, aliases]);
   const badAlias = picks.find((p) => !ALIAS.test(p.alias));
-  const commands: FieldCommand[] = project ? fieldCommands(project, 'jira', picks) : [];
+  // A key typed here to sample from is saved too, but only where the Toil project names none: a key it already has is never changed from here.
+  const typedKey = how === 'auto' ? jiraProject.trim() : '';
+  const saveKey = project !== '' && typedKey !== '' && named === null;
+  const commands: Planned[] = project
+    ? [
+        ...fieldCommands(project, 'jira', picks).map((c): Planned => ({ command: 'projects field', input: c.input, line: c.line })),
+        ...(saveKey ? [{ command: 'projects link' as const, input: { toilProject: project, area: 'jira', set: [`project=${typedKey}`] }, line: `toil projects link ${project} jira --set project=${typedKey}` }] : []),
+      ]
+    : [];
 
-  const run = async (list: FieldCommand[], earlier: Result[]) => {
+  const run = async (list: Planned[], earlier: Result[]) => {
     setSaving(true);
     const out: Result[] = [...earlier];
     let file: string | null = saved?.file ?? null;
     for (const c of list) {
       let r: Result;
       try {
-        const e = await config.run('projects field', c.input);
+        const e = await config.run(c.command, c.input);
         r = e.ok ? { line: c.line, label: labelOf(c), ok: true, message: 'Saved.', fix: null } : { line: c.line, label: labelOf(c), ok: false, message: e.error.message, fix: e.error.fix ?? null };
         if (e.ok && typeof (e.data as { file?: unknown } | null)?.file === 'string') file = (e.data as { file: string }).file;
       } catch (err) {
@@ -138,7 +154,7 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
     setSaving(false);
     if (out.length > 0 && out.every((r) => r.ok)) onSaved?.();
   };
-  const labelOf = (c: FieldCommand) => String((c.input as { alias?: unknown }).alias ?? 'a field');
+  const labelOf = (c: Planned) => (c.command === 'projects link' ? JIRA_KEY_LABEL : String((c.input as { alias?: unknown }).alias ?? 'a field'));
   const failed = results?.filter((r) => !r.ok) ?? [];
   const retry = () => void run(commands.filter((c) => failed.some((f) => f.line === c.line)), (results ?? []).filter((r) => r.ok));
 
@@ -171,7 +187,7 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
             </Radio>
           </RadioGroup>
           {how === 'auto' ? (
-            <TextField label="Jira project key (required)" value={jiraProject} onChange={setJiraProject} required hint={jiraProject.trim() === '' ? 'Type the key of a Jira project, such as PAY, before you press Read the fields. toil needs it to find sample issues. Filled in from the Toil project when it names one.' : 'Filled in from the Toil project when it names one.'} />
+            <TextField label="Jira project key" value={jiraProject} onChange={setJiraProject} required hint={jiraProject.trim() === '' ? 'Type the key of a Jira project, such as PAY, before you press Read the fields. toil needs it to find sample issues. Filled in from the Toil project when it names one.' : 'Filled in from the Toil project when it names one.'} />
           ) : (
             <TextField label="Issue keys" value={keys} onChange={setKeys} hint="Separated by spaces or commas, up to 20." />
           )}
@@ -196,6 +212,11 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
               {data.fields.length > 0 && (
                 <div className="find-fields__save">
                   <p className="note">{picks.length === 0 ? 'Tick the fields to name.' : `${picks.length} field${picks.length === 1 ? '' : 's'} ticked. Only the ones toil is sure of start ticked.`}</p>
+                  {saveKey && (
+                    <p className="note" data-find-key="">
+                      {project} names no Jira project yet, so naming the fields also saves {typedKey} as its {JIRA_KEY_LABEL.toLowerCase()}. Toil UI reads Jira issues from it.
+                    </p>
+                  )}
                   {badAlias && (
                     <p className="failure" role="alert">
                       A name is a camelCase word, such as storyPoints: change “{badAlias.alias}”.
