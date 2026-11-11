@@ -23,7 +23,7 @@ import { parseRoute } from '../App.tsx';
 import { Help } from '../components/help.tsx';
 import { Cited, PrLink } from '../components/items.tsx';
 import { useData, useDerived } from '../data.ts';
-import { analysesHref, analysisHref, boardHref, dependenciesHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, worklogHref } from '../format.ts';
+import { analysesHref, analysisHref, boardHref, dependenciesHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, toilProjectEditHref, worklogHref } from '../format.ts';
 import { Empty, TrackerAction } from '../components/empty.tsx';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput } from '../model/flow.ts';
@@ -119,6 +119,12 @@ export function Overview() {
                     {list.map((u) => (
                       <p key={u.label}>
                         {u.label}: {u.note}
+                        {id === 'unchecked' && u.lens === 'load' && (
+                          <>
+                            {' '}
+                            <a href={toilProjectEditHref(toilProject.name, 'wip')}>Set one in the Toil project's settings</a>.
+                          </>
+                        )}
                       </p>
                     ))}
                   </div>
