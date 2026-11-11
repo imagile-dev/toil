@@ -27,7 +27,7 @@ interface Call {
 }
 
 /** A machine with a Jira connection and one Toil project; `failing` lines are refused until `heal()`. */
-function machine(failing: string[] = [], named: string | null = null) {
+function machine(failing: string[] = [], named: string | Record<string, string> | null = null) {
   const calls: Call[] = [];
   let broken = new Set(failing);
   const config: ConfigApi = {
@@ -38,7 +38,7 @@ function machine(failing: string[] = [], named: string | null = null) {
       calls.push({ command, input });
       if (command === 'connections list') return ok(command, { configFile: '/home/you/.toil/config.json', connections: [{ name: 'corp-jira', area: 'jira', isDefault: true, host: 'jira.imagile.dev', writes: false, values: {}, definedIn: 'file' }] });
       if (command === 'projects list') return ok(command, { toilProjects: [{ name: 'payments', description: null, source: 'user', file: '/home/you/.toil/projects/payments.json', shadowedBy: null, problems: 0 }], places: { user: '/home/you/.toil/projects' } });
-      if (command === 'projects show') return ok(command, { areas: named ? { jira: { inputs: { project: named } } } : {}, toilProject: {} });
+      if (command === 'projects show') return ok(command, { areas: typeof named === 'string' ? { jira: { inputs: { project: named } } } : {}, toilProject: named ? { jira: { project: named } } : {} });
       if (command === 'jira field discover') return ok(command, (input.project === 'NONE' || Array.isArray(input.issue)) ? { ...FIELD_DISCOVERY, issueTypes: [{ name: 'Story', sampled: ['NONE-1'], status: 'sampled', fields: [] }], fields: [], commands: [] } : FIELD_DISCOVERY);
       if (command === 'projects field') {
         const line = `${input.alias}`;
@@ -167,6 +167,17 @@ describe('Find the fields', () => {
     await press('Read the fields');
     await screen.findByRole('heading', { level: 4, name: 'Story' });
     expect(document.querySelector('[data-find-key]')).toBeNull();
+    await press('Name these fields');
+    await screen.findByText(/4 of 4 saved/);
+    expect(keySaves(calls)).toEqual([]);
+  });
+
+  it('treats a per-repository project map as naming one, though it resolves to nothing here: no save and no note', async () => {
+    const { config, calls } = machine([], { 'C:/Code/elsewhere': 'PAY' });
+    mount(config);
+    await read('PAY');
+    expect(document.querySelector('[data-find-key]')).toBeNull();
+    expect(document.body.textContent).not.toContain('names no Jira project yet');
     await press('Name these fields');
     await screen.findByText(/4 of 4 saved/);
     expect(keySaves(calls)).toEqual([]);

@@ -35,7 +35,8 @@ import { LoginForm, NewConnectionForm } from './settings/Connections.tsx';
 import { FieldsStep } from './settings/FindFields.tsx';
 import { testSentence, type ConnectionTestData } from '../connection-test.ts';
 import { ChangeForm, ChoiceRadios, OutcomeLine, SelectField, TextField, failedOutcome, outcomeOf, type Outcome } from './settings/parts.tsx';
-import { addRepos, JIRA_KEY_EMPTY, JIRA_KEY_HINT, JIRA_KEY_LABEL, linkTools, withJiraKey, type RepoResult } from './project-create.ts';
+import { addRepos, linkTools, withJiraKey, type RepoResult } from './project-create.ts';
+import { JiraKeyField, NamedJiraLine, useNamedJira } from './jira-key.tsx';
 import './setup.css';
 
 /** Where the wizard lives, and what opens it from the first run, the palette and Settings. */
@@ -440,7 +441,7 @@ function ConnectOne({ config, areas, area, rows, known, allNames, made, onMade, 
  * repository, and the wizard never passes `--shared`: that would write into a
  * repository, and it is a decision for a team, made on the Toil project page.
  */
-function NewProject({ config, link, onChosen, reload, onCreated }: { config: ConfigApi; link: (name: string) => Promise<Outcome>; onChosen: (n: string | null) => void; reload: () => Promise<void>; onCreated: () => void }) {
+function NewProject({ config, link, onChosen, reload, onCreated, jiraKey }: { config: ConfigApi; link: (name: string) => Promise<Outcome>; onChosen: (n: string | null) => void; reload: () => Promise<void>; onCreated: () => void; jiraKey: { value: string; onChange: (v: string) => void } | null }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [rows, setRows] = useState<string[]>(['']);
@@ -506,6 +507,7 @@ function NewProject({ config, link, onChosen, reload, onCreated }: { config: Con
             Lets Toil work out which project you are in from the folder you are working in. Nothing is written to that folder.
           </p>
         </fieldset>
+        {jiraKey && <JiraKeyField value={jiraKey.value} onChange={jiraKey.onChange} attr="data-setup-jira-key" />}
         <p className="note" data-setup-writes="">
           Creating it saves one small file of your own on this computer. Nothing is saved in any folder or repository you list; Toil only remembers where they are.
         </p>
@@ -544,14 +546,18 @@ function ProjectStep({ config, projects, made, existing, picked, chosen, onChose
   const [created, setCreated] = useState(false);
   // A Toil project chosen on an earlier visit to this step is already linked as far as this page knows.
   const [before] = useState(chosen);
-  // The connection each picked area would use: the one made here, else the first the person already had.
   const [jiraKey, setJiraKey] = useState('');
+  // The connection each picked area would use: the one made here, else the first the person already had.
   const links = picked.flatMap((a) => {
     const c = made[a] ?? existing.find((e) => e.area === a)?.name;
     return c ? [{ area: a, connection: c }] : [];
   });
   const hasJira = links.some((l) => l.area === 'jira');
-  const linkAll = (toilProject: string): Promise<Outcome> => linkTools(config, toilProject, withJiraKey(links, jiraKey));
+  // A Toil project that is already there is asked what it names: a key is typed only where it names none (`projects link` refuses a different one without --replace, and the refusal would drop the connection too), and a read that failed sends none.
+  const existingMode = mode !== '+new' && mode !== '+later';
+  const named = useNamedJira(config, existingMode && hasJira && before !== mode ? mode : null);
+  const keyToSend = mode === '+new' ? jiraKey : named?.kind === 'none' ? jiraKey : '';
+  const linkAll = (toilProject: string): Promise<Outcome> => linkTools(config, toilProject, withJiraKey(links, keyToSend));
   useEffect(() => {
     if (mode === '+later') onChosen(null);
     else if (mode !== '+new') onChosen(mode);
@@ -589,15 +595,12 @@ function ProjectStep({ config, projects, made, existing, picked, chosen, onChose
           <span className="note">Carry on without one. You can make one later.</span>
         </Radio>
       </RadioGroup>
-      {mode !== '+later' && hasJira && before !== mode && (
-        <div data-setup-jira-key="">
-          <TextField label={`${JIRA_KEY_LABEL} (optional)`} value={jiraKey} onChange={(v) => (setJiraKey(v), setLinked(null))} hint={jiraKey.trim() === '' ? `${JIRA_KEY_HINT} ${JIRA_KEY_EMPTY}` : JIRA_KEY_HINT} />
-        </div>
-      )}
       {mode === '+later' ? null : mode === '+new' ? (
-        <NewProject config={config} link={linkAll} onChosen={onChosen} reload={reload} onCreated={() => setCreated(true)} />
+        <NewProject config={config} link={linkAll} onChosen={onChosen} reload={reload} onCreated={() => setCreated(true)} jiraKey={hasJira ? { value: jiraKey, onChange: setJiraKey } : null} />
       ) : (
         <>
+          {named?.kind === 'none' && <JiraKeyField value={jiraKey} onChange={(v) => (setJiraKey(v), setLinked(null))} attr="data-setup-jira-key" />}
+          {named && <NamedJiraLine named={named} />}
           {links.length > 0 && (
             <div className="setup__actions">
               <button type="button" className="btn" data-setup-link="" onClick={async () => {

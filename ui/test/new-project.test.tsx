@@ -231,12 +231,16 @@ describe('the New Toil project wizard', () => {
     await toTools();
     const key = screen.getByRole('textbox', { name: /^Jira project key/ });
     expect(screen.getByText(/before the number in an issue key, such as PAY in PAY-123/)).toBeTruthy();
-    expect(document.querySelector('[data-new-project-jira-key]')!.textContent).toMatch(/reads no Jira issues/);
+    // The consequence is one press away, in an (i) with a Read more link, and not on the screen.
+    const field = document.querySelector('[data-new-project-jira-key]')!;
+    expect(field.textContent).not.toMatch(/reads no Jira issues/);
+    expect(within(field as HTMLElement).getByRole('button', { name: 'About the Jira project key' })).toBeTruthy();
+    // It sits directly under the Jira row, so it goes when Jira is unticked.
+    expect(field.previousElementSibling!.textContent).toContain('corp-jira');
     await userEvent.type(key, 'PAY');
-    expect(document.querySelector('[data-new-project-jira-key]')!.textContent).not.toMatch(/reads no Jira issues/);
     await next();
     await heading('Create it');
-    expect(document.querySelector('[data-new-project-summary]')!.textContent).toContain('Jira through corp-jira (jira project key PAY)');
+    expect(document.querySelector('[data-new-project-summary]')!.textContent).toContain('Jira through corp-jira (Jira project key PAY)');
     await next();
     await heading('payments was created');
     expect(writes(calls).filter((c) => c.command === 'projects link')).toEqual([

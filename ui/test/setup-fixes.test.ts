@@ -5,7 +5,7 @@ import { jiraOwiOverrides, jiraSearchFields, loadToilProject, registeredFields }
 import { briefingOf } from '../src/model/briefing.ts';
 import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
 import { TOKEN_WORD } from '../src/setup.ts';
-import { JIRA_KEY_EMPTY, withJiraKey } from '../src/views/project-create.ts';
+import { namedJiraProject, withJiraKey } from '../src/views/project-create.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
 import { loaded } from './harness.ts';
 
@@ -25,9 +25,16 @@ describe('the Jira project key', () => {
       { area: 'github', connection: 'github' },
     ];
     expect(withJiraKey(links, ' PAY ')).toEqual([{ area: 'jira', connection: 'corp-jira', set: ['project=PAY'] }, links[1]]);
-    // No key typed: the link is as it was, and the field says what that means.
+    // No key typed: the link is as it was.
     expect(withJiraKey(links, '  ')).toEqual(links);
-    expect(JIRA_KEY_EMPTY).toMatch(/reads no Jira issues/);
+  });
+
+  it('reads what a Toil project names from the raw section: a key, a per-repository map, or nothing', () => {
+    expect(namedJiraProject({ toilProject: { jira: { project: 'PAY' } } })).toEqual({ kind: 'key', key: 'PAY' });
+    expect(namedJiraProject({ toilProject: { jira: { project: { 'C:/Code/pay': 'PAY' } } } })).toEqual({ kind: 'map' });
+    expect(namedJiraProject({ toilProject: { jira: { connection: 'corp-jira' } } })).toEqual({ kind: 'none' });
+    expect(namedJiraProject({ toilProject: {} })).toEqual({ kind: 'none' });
+    expect(namedJiraProject(null)).toEqual({ kind: 'none' });
   });
 });
 

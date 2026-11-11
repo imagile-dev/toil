@@ -20,7 +20,8 @@ import { Help } from '../components/help.tsx';
 import { Loader } from '../moments/Moments.tsx';
 import { toilProjectEditHref, toilProjectHref } from '../format.ts';
 import { locationKind, locationProblems, toolName } from '../setup.ts';
-import { addRepos, createProject, JIRA_KEY_EMPTY, JIRA_KEY_HINT, JIRA_KEY_LABEL, linkTools, nameProblem, withJiraKey, type Created, type RepoResult, type ToolLink } from './project-create.ts';
+import { addRepos, createProject, JIRA_KEY_LABEL, linkTools, nameProblem, withJiraKey, type Created, type RepoResult, type ToolLink } from './project-create.ts';
+import { JiraKeyField } from './jira-key.tsx';
 import { OutcomeLine, TextField, type Outcome } from './settings/parts.tsx';
 import './setup.css';
 
@@ -117,7 +118,8 @@ export function NewProject({ config, keep }: NewProjectProps) {
   const links: ToolLink[] = connections.filter((c) => chosen.includes(c.name)).map((c) => ({ area: c.area, connection: c.name }));
   const locations = foldersLater ? [] : filled;
   const toolLinks = toolsLater ? [] : withJiraKey(links, jiraKey);
-  const hasJira = toolLinks.some((l) => l.area === 'jira');
+  // The key is typed once, under the first ticked Jira row, and goes to every Jira link.
+  const firstJira = toolsLater ? undefined : connections.find((c) => c.area === 'jira' && chosen.includes(c.name))?.name;
   const problem = nameProblem(name, taken);
 
   const toggleTool = (c: ConnectionRow) => {
@@ -282,15 +284,11 @@ export function NewProject({ config, keep }: NewProjectProps) {
                               )}
                             </span>
                           </label>
+                          {c.name === firstJira && <JiraKeyField value={jiraKey} onChange={setJiraKey} attr="data-new-project-jira-key" />}
                         </li>
                       ))}
                     </ul>
                   </fieldset>
-                )}
-                {hasJira && (
-                  <div data-new-project-jira-key="">
-                    <TextField label={`${JIRA_KEY_LABEL} (optional)`} value={jiraKey} onChange={setJiraKey} hint={jiraKey.trim() === '' ? `${JIRA_KEY_HINT} ${JIRA_KEY_EMPTY}` : JIRA_KEY_HINT} />
-                  </div>
                 )}
                 <Later checked={toolsLater} onChange={setToolsLater} note="Carry on without linking a tool. You can link them any time in Settings." />
               </>
@@ -303,7 +301,7 @@ export function NewProject({ config, keep }: NewProjectProps) {
                   </li>
                   <li>{description.trim() ? `What it is: ${description.trim()}.` : 'No description.'}</li>
                   <li>{locations.length ? `Folders and addresses: ${locations.join(', ')}.` : 'No folders or addresses yet.'}</li>
-                  <li>{toolLinks.length ? `Tools: ${toolLinks.map((l) => `${toolName(l.area)} through ${l.connection}${l.set?.length ? ` (${JIRA_KEY_LABEL.toLowerCase()} ${jiraKey.trim()})` : ''}`).join(', ')}.` : 'No tools linked yet.'}</li>
+                  <li>{toolLinks.length ? `Tools: ${toolLinks.map((l) => `${toolName(l.area)} through ${l.connection}${l.set?.length ? ` (${JIRA_KEY_LABEL} ${jiraKey.trim()})` : ''}`).join(', ')}.` : 'No tools linked yet.'}</li>
                 </ul>
                 <p className="note" data-new-project-writes="">
                   Creating it saves one small file of your own on this computer. Nothing is saved in any folder or repository you list, and each link keeps its own rule on whether it may make changes.
