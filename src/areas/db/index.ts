@@ -14,9 +14,11 @@ import type { SupportedVersion } from '../../core/supported.js';
 /**
  * The `db` area: one set of commands for every database engine. Each
  * connection names its `engine`, and the command hands the call to that
- * engine's provider in src/core/db/. Nothing here knows SQLite from Oracle,
+ * engine's provider in src/core/db/. Almost nothing here knows SQLite from Oracle,
  * which is the point; the commands were written once and the engines queue
- * up behind them like forms behind a single stamp.
+ * up behind them like forms behind a single stamp. The one footnote is the
+ * `appliesTo` line below: SQLite never queued for a password, so Toil UI
+ * must not ask for one.
  *
  * Reads run read-only at the engine, or, where the engine has no read-only
  * mode (SQL Server, Teradata), in a transaction that is always rolled back. The one command that writes, `execute`,
