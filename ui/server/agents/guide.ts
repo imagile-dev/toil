@@ -67,7 +67,7 @@ const ONE = (list: readonly string[]) => (list.length ? list.join(', ') : 'none 
  * The context the prompt carries: where the person is, and what is true so
  * far, as non-secret facts. A connection is its name, tool, address, which
  * deployment, whether changes are on and where its token lives (saved, from an
- * environment variable, or missing): the same badge Settings shows, never a value.
+ * environment variable, missing, or not needed): the same badge Settings shows, never a value.
  */
 export function guideContext(state: GuideState, rows: readonly ConnectionRow[] | null, areas: readonly AreaInfo[]): string {
   const lines = [`The person is on the step "${STEP_TITLE[state.step]}", ${STEP_NOW[state.step]}.`, `Tools they ticked: ${ONE(state.areas.map(toolName))}.`];
