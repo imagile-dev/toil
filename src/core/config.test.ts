@@ -125,6 +125,33 @@ describe('precedence', () => {
     expect(anyWrites(config, 'jira')).toBe(true);
   });
 
+  it('warns, in meta.warnings, about a writes value that is neither true nor false, and leaves writes off', () => {
+    const area = load({ TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev', TOIL_JIRA_WRITES: '1' });
+    expect(anyWrites(area, 'jira')).toBe(false);
+    expect(area.warnings.map((w) => w.code)).toEqual(['CONFIG_WRITES_UNREADABLE']);
+    expect(area.warnings[0]!.message).toContain('TOIL_JIRA_WRITES is "1"');
+    expect(area.warnings[0]!.message).toContain('writes are OFF for connection jira');
+    expect(area.warnings[0]!.message).toContain('true');
+
+    const named = load({ TOIL_CONN_OCP_PROD_AREA: 'jira', TOIL_CONN_OCP_PROD_WRITES: 'yes'.repeat(30) });
+    expect(named.warnings[0]!.message).toContain('TOIL_CONN_OCP_PROD_WRITES is "yesyes');
+    expect(named.warnings[0]!.message).toContain('…');
+    expect(named.warnings[0]!.message).not.toContain('yes'.repeat(30));
+
+    writeJson(file(), { version: 2, connections: { corp: { area: 'jira', writes: 'yes' }, other: { area: 'db', writes: 1 } } });
+    const filed = load().warnings.filter((w) => w.code === 'CONFIG_WRITES_UNREADABLE');
+    expect(filed).toHaveLength(2);
+    expect(filed[0]!.message).toContain('"writes" on connection corp in ');
+  });
+
+  it('says nothing about a writes value toil can read: true, false, or their text forms', () => {
+    for (const writes of [true, false, 'true', 'false']) {
+      writeJson(file(), { version: 2, connections: { corp: { area: 'jira', writes } } });
+      expect(load().warnings).toEqual([]);
+    }
+    expect(load({ TOIL_CONN_CORP_WRITES: 'true' }).warnings).toEqual([]);
+  });
+
   it('TOIL_<AREA>_* is ignored with a warning when the area has several connections and no default', () => {
     writeJson(file(), { version: 2, connections: { a: { area: 'db' }, b: { area: 'db' } } });
     const config = load({ TOIL_DB_HOST: 'h' });

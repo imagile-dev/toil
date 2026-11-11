@@ -10,6 +10,7 @@
  * quarterly review.
  */
 
+import { OWI_SOURCES } from '../owi/types.js';
 import type { Ancestor, Release, WorkItem } from '../owi/types.js';
 import { calendarDays, DAY } from '../brief/time.js';
 import { DIMENSION_BASES, TIME_GRAINS, type Dimension, type DimensionBase, type DimensionValues, type InsightsPerson, type PivotInput, type TimeGrain } from './types.js';
@@ -313,6 +314,14 @@ function carriedValues(item: WorkItem): DimensionValues {
   return count > 1 ? one('carried', 'Carried over') : read([]);
 }
 
+/** An Azure DevOps path with no backslash is the project's root node, where an item sits when it is in no sprint, so it reads as none (as OWI's sprints do). */
+function iterationValues(item: WorkItem): DimensionValues {
+  const it = item.iteration;
+  if (!it) return read([]);
+  if (OWI_SOURCES[item.source.area]?.family === 'ado' && !(it.path ?? it.name).includes('\\')) return read([]);
+  return one(it.id ?? it.name, it.name);
+}
+
 function categoryValues(item: WorkItem, ctx: ValuesContext): DimensionValues {
   const map = ctx.categories;
   if (!map || !(item.id in map)) return unread();
@@ -333,7 +342,7 @@ export function valuesOf(item: WorkItem, d: Dimension, ctx: ValuesContext): Dime
     case 'priority': return maybe(item.priority, item.priority ?? '');
     case 'assignee': return item.assignee ? one(item.assignee.id, item.assignee.name ?? item.assignee.email ?? item.assignee.id) : read([]);
     case 'team': return teamOf(item, ctx.people);
-    case 'iteration': return item.iteration ? one(item.iteration.id ?? item.iteration.name, item.iteration.name) : read([]);
+    case 'iteration': return iterationValues(item);
     case 'project': return one(projectOf(item), projectOf(item));
     case 'tracker': return one(item.source.area, item.source.area);
     case 'connection': return one(item.source.connection, item.source.connection);

@@ -208,7 +208,9 @@ connection it uses, set by a person in their config or with a
 call (`allowWrite: true` over MCP). Without either it fails with `WRITE_DISABLED`,
 naming what's missing. Over MCP a write tool isn't listed until writes are on, and
 deletes are never tools. A command that is CLI only and has no connection yet
-(`toil skills marketplace add`) needs `--allow-write` alone.
+(`toil skills marketplace add`) needs `--allow-write` alone. Only `true` turns writes on:
+a `writes` value that is neither `true` nor `false` (`1`, `yes`) leaves them off and
+adds a `CONFIG_WRITES_UNREADABLE` warning naming the variable or key.
 
 ### Exceptions
 

@@ -159,7 +159,34 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
   applyAreaEnv(config, options.env, options.areas ?? []);
   applyConnectionEnv(config, options.env);
   if (options.areas?.length) warnUnknownAreas(config, options.areas);
+  warnUnreadableWrites(config, options.env, globalPath);
   return config;
+}
+
+/**
+ * The write gate reads only true and false, so a `writes` of `1` or `yes` is off,
+ * and a person who set it believes otherwise. The gate stays shut (nothing
+ * guesses a write open); the warning says so. Nobody has yet filed a ticket to
+ * have the word "yes" ratified by the change advisory board.
+ */
+function warnUnreadableWrites(config: ResolvedConfig, env: NodeJS.ProcessEnv, globalPath: string): void {
+  for (const [name, conn] of Object.entries(config.connections)) {
+    const value = conn.writes;
+    if (value === undefined || value === true || value === false || value === 'true' || value === 'false') continue;
+    const text = typeof value === 'string' ? value : JSON.stringify(value) ?? String(value);
+    const shown = text.length > 40 ? `${text.slice(0, 40)}…` : text;
+    let holder: string;
+    if (config.sources[`${name}.writes`] === 'env') {
+      const own = connectionEnvName(name, 'writes');
+      holder = env[own] !== undefined ? own : envName(conn.area, 'writes');
+    } else {
+      holder = `"writes" on connection ${name} in ${globalPath.replace(/\\/g, '/')}`;
+    }
+    config.warnings.push({
+      code: 'CONFIG_WRITES_UNREADABLE',
+      message: `${holder} is "${shown}", which toil can't read as on or off, so writes are OFF for connection ${name}. Set it to true to turn writes on, or false to say they are off.`,
+    });
+  }
 }
 
 /**

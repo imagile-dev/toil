@@ -58,12 +58,19 @@ function parseProject(group: PlanGroup): { owner: string; number: number } {
 }
 
 /** The label's description: the category's name, then the start of its definition, cut on a word boundary to GitHub's limit. */
-function describeLabel(name: string, definition: string): string {
+export function describeLabel(name: string, definition: string): string {
   const full = definition.trim() === '' ? name : `${name}: ${definition.replace(/\s+/g, ' ').trim()}`;
   if (full.length <= DESCRIPTION_MAX) return full;
-  const cut = full.slice(0, DESCRIPTION_MAX + 1);
-  const space = cut.lastIndexOf(' ');
-  return (space > 0 ? cut.slice(0, space) : cut.slice(0, DESCRIPTION_MAX)).replace(/[\s:,;.-]+$/, '');
+  // Room for the ellipsis; a text cut here ends on a whole word and never on a dangling "and" or "of".
+  const room = full.slice(0, DESCRIPTION_MAX - 1); // one character is kept back for "…"
+  const space = room.lastIndexOf(' ');
+  let text = full[DESCRIPTION_MAX - 1] === ' ' || space <= 0 ? room : room.slice(0, space);
+  const trim = (s: string) => s.replace(/[\s:,;.-]+$/, '').replace(/\s+(and|or|the|a|an|of|to|for|with|in|on)$/i, '');
+  for (let prev = ''; prev !== text; ) {
+    prev = text;
+    text = trim(text);
+  }
+  return `${text}…`;
 }
 
 interface IssueRead {

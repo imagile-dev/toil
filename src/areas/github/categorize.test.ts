@@ -3,7 +3,7 @@ import { testContext } from '../../../test/harness/context.js';
 import type { CannedResponse, RecordedRequest, Route } from '../../../test/harness/fake-fetch.js';
 import { API, categoryPlan, fixture, GHE, label, projectField, workCategoryField } from '../../../test/fixtures/github.fixture.js';
 import { execute } from '../../core/run.js';
-import { categorizeCommand } from './categorize.js';
+import { categorizeCommand, describeLabel } from './categorize.js';
 
 /**
  * `github issue categorize`: the requests it sends in the order it sends them,
@@ -140,7 +140,7 @@ describe('github issue categorize: labels', () => {
     const created = bodies(calls, 'POST')[0] as { name: string; description: string };
     expect(Object.keys(created).sort()).toEqual(['description', 'name']);
     expect(created.name).toBe('ktlo');
-    expect(created.description).toBe('Keep the lights on: Work that keeps what already exists running: fixes, upgrades, on-call');
+    expect(created.description).toBe('Keep the lights on: Work that keeps what already exists running: fixes, upgrades, on-call…');
     expect(created.description.length).toBeLessThanOrEqual(100);
     expect(envelope.data).toMatchObject({ labelsCreated: [{ repo: 'imagile/toil-probe', label: 'ktlo' }], counts: { changed: 2 } });
   });
@@ -389,5 +389,18 @@ describe('github issue categorize: the write gate', () => {
     const { envelope, calls } = await run(categoryPlan([item(9)]), world({ issues: { [KEY(9)]: [] } }), { settings: { writes: false } });
     expect(envelope.error?.code).toBe('WRITE_DISABLED');
     expect(calls).toEqual([]);
+  });
+});
+
+describe('github issue categorize: a label description', () => {
+  it('cuts at a word, drops a dangling conjunction, and says it cut', () => {
+    const text = describeLabel('Keep the lights on', 'Security patches, bug fixes, dependency upgrades, compliance updates and evidence for the regulators');
+    expect(text).toBe('Keep the lights on: Security patches, bug fixes, dependency upgrades, compliance updates…');
+    expect(text.length).toBeLessThanOrEqual(100);
+    expect(describeLabel('Run', `${'word '.repeat(30)}`.trim()).length).toBeLessThanOrEqual(100);
+  });
+  it('leaves a text that fits alone', () => {
+    expect(describeLabel('Grow', 'New features and experiments')).toBe('Grow: New features and experiments');
+    expect(describeLabel('Grow', '')).toBe('Grow');
   });
 });

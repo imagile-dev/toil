@@ -39,6 +39,15 @@ describe('parseDimension', () => {
   });
 });
 
+describe('iteration on Azure DevOps', () => {
+  const ado = (path: string, name: string) => item('1', { source: { area: 'ado', connection: 'corp-ado', key: '1', command: 'ado work-item get' }, iteration: { id: null, name, path, start: null, end: null, state: null } });
+  it('reads the project root node as no sprint, and a real sprint as a value', () => {
+    expect(vals('iteration', ado('Toil Sandbox', 'Toil Sandbox'))).toEqual({ unread: false, values: [] });
+    expect(labels('iteration', ado('Toil Sandbox', 'Toil Sandbox'))).toEqual([]);
+    expect(labels('iteration', ado('Toil Sandbox\\Sprint 1', 'Sprint 1'))).toEqual(['Sprint 1']);
+  });
+});
+
 describe('calendar buckets', () => {
   it('starts weeks on Monday and labels the ISO week, month and quarter', () => {
     expect(bucketStart('2026-11-10', 'week')).toBe('2026-11-09');
