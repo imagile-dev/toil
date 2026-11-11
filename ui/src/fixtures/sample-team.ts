@@ -14,8 +14,10 @@
 import { sampleTeam } from '../../../src/core/sample/team.ts';
 import { PEOPLE } from '../../../src/core/sample/people.ts';
 
+import { SAMPLE_AS_OF } from './now.ts';
+
 /** The moment the sample data was read: day seven of Sprint 42, which is also the sample team's seventh working day of ten. */
-export const SAMPLE_AS_OF = '2026-10-13T08:00:00.000Z';
+export { SAMPLE_AS_OF };
 
 export const SAMPLE_TEAM = sampleTeam(SAMPLE_AS_OF);
 

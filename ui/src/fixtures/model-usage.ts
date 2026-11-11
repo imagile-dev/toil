@@ -9,7 +9,7 @@
  */
 
 import type { AnswerUsage, ModelUsageApi, UsageAdapter, UsageRecord, UsageSettings } from '../model-usage.ts';
-import { FIXTURE_NOW } from './execute.ts';
+import { SAMPLE_AS_OF as FIXTURE_NOW } from './now.ts';
 
 const TOIL_PROJECTS = ['card-payments', 'settlement', 'checkout-web'];
 const MODELS: Record<UsageAdapter, string[]> = { claude: ['claude-sonnet-4-6', 'claude-haiku-4-5'], codex: ['gpt-5.5'], copilot: ['gpt-5-mini', 'claude-sonnet-4.6'] };
