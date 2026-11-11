@@ -226,7 +226,7 @@ describe.each(DEPLOYMENTS)('ado work-item categorize on $name', (d) => {
   it('reclassifying removes the other category tag and adds the new one in one patch, keeping the tags that are not the scheme’s', async () => {
     const r = await run(d, { items: { 42: { tags: 'ui; Feature; backend' } } }, plan(d.connection, [{ key: '42' }], false));
     expect(r.patches).toHaveLength(1);
-    expect(body(r.patches[0]!)[1]).toEqual({ op: 'add', path: '/fields/System.Tags', value: 'ui; backend; ktlo' });
+    expect(body(r.patches[0]!)[1]).toEqual({ op: 'replace', path: '/fields/System.Tags', value: 'ui; backend; ktlo' });
     expect(r.data?.changed[0]?.labels).toEqual({ added: ['ktlo'], removed: ['Feature'] });
   });
 

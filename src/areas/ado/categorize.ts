@@ -237,7 +237,10 @@ export async function categorize(ctx: CategorizeContext, input: { from?: string 
         const tagging = change.add.length > 0 || change.remove.length > 0;
         if (!tagging && !setField) return { unchanged: true };
         const ops: Array<{ op: string; path: string; value: unknown }> = [{ op: 'test', path: '/rev', value: state.rev }];
-        if (tagging) ops.push({ op: 'add', path: '/fields/System.Tags', value: labelsAfter(state.tags, change).join('; ') });
+        // Azure DevOps reads `add` on System.Tags as "add these tags": a tag left out of the value stays on the item (seen live on
+        // Services, 11 November 2026). Taking one off needs `replace`, which sets the whole list; an item with a tag to remove
+        // always has a value to replace.
+        if (tagging) ops.push({ op: change.remove.length > 0 ? 'replace' : 'add', path: '/fields/System.Tags', value: labelsAfter(state.tags, change).join('; ') });
         if (setField) ops.push({ op: 'add', path: `/fields/${fieldRef}`, value: wanted });
         try {
           await wire.patchItem(`/_apis/wit/workitems/${enc(id)}`, ops);

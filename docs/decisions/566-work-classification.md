@@ -436,11 +436,19 @@ agent made where the proposal was silent, or where it couldn't be built as writt
   signals, the next plan removed `ktlo` and added `feature`, which GitHub applied with
   one `PUT` and Jira with one `PUT`. `classify run --record` and `classify stats` read
   the result back.
+- **Azure DevOps Services** (project `Toil Sandbox`), once the maintainer had turned
+  the connection's writes on: twelve seeded bugs were tagged `ktlo` with their other
+  tags kept, one `PATCH` each behind a revision test, and a second run changed nothing.
+  The reclassification then **failed live**: the command reported the old tag removed,
+  and Azure DevOps kept it, because `add` on `System.Tags` only adds. `categorize` now
+  sends `replace` when a tag must come off, and the rerun left the item with `feature`
+  alone. Known gap, recorded not fixed: `ado work-item untag` (Server only, behaviour
+  the command contract records) sends the same `add`, so it is a suspected bug to
+  check on a live Azure DevOps Server.
 - **Reads on all three**, Azure DevOps Services included: the value lists, `jira issue
   search --more-fields`, the mapper's dimension fields, `projects pivot` and `classify
   run`.
 
-**Not verified:** `ado work-item categorize` against a real Azure DevOps (the
-connection's writes were off), a category *field* on any tracker (none of the three
+**Not verified:** a category *field* on any tracker (none of the three
 test projects has one), Jira Data Center, Azure DevOps Server, and `categorize` from
 Toil UI's Apply.
