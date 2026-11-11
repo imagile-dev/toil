@@ -33,8 +33,15 @@ export interface ToolLink {
 export const JIRA_KEY_LABEL = 'Jira project key';
 /** Said under the field: where to find the key. */
 export const JIRA_KEY_HINT = 'The letters before the number in an issue key, such as PAY in PAY-123.';
-/** Said when the field is left empty, since sync reads Jira by project and nothing else. */
-export const JIRA_KEY_EMPTY = 'Leave it empty and Toil UI reads no Jira issues, unless the Toil project already names a Jira project.';
+
+/** What a Toil project says about its Jira project, from the raw section `projects show` returns: the resolved input misses a per-repository map that matches no repository here. */
+export type NamedJira = { kind: 'none' } | { kind: 'key'; key: string } | { kind: 'map' };
+export function namedJiraProject(show: unknown): NamedJira {
+  const project = (show as { toilProject?: { jira?: { project?: unknown } } } | null)?.toilProject?.jira?.project;
+  if (typeof project === 'string' && project.trim() !== '') return { kind: 'key', key: project.trim() };
+  if (typeof project === 'object' && project !== null) return { kind: 'map' };
+  return { kind: 'none' };
+}
 
 /** The links with the typed Jira project key on the Jira one, when there is a key. */
 export function withJiraKey(links: readonly ToolLink[], key: string): ToolLink[] {

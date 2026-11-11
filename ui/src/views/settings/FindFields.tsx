@@ -6,7 +6,8 @@
  * ticked ones in the Toil project with `toil projects field`, one call per name,
  * each shown first and each with its own result. The read changes nothing in
  * Jira; naming a field only writes the Toil project's file. Only the fields toil
- * is sure of start ticked. The same component is the wizard's optional step and
+ * is sure of start ticked. It also saves the Jira project key it sampled from,
+ * with `toil projects link`, when the Toil project names none. The same component is the wizard's optional step and
  * the box in Settings, Toil projects. A treasure map where X marks the custom field.
  */
 
@@ -17,7 +18,7 @@ import { fieldCommands, type FieldPick, type OwiGuess } from '../../../../src/co
 import { DataTable } from '../../components/layout.tsx';
 import { Loader } from '../../moments/Moments.tsx';
 import { Info, OutcomeLine, SelectField, TextField, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
-import { JIRA_KEY_LABEL } from '../project-create.ts';
+import { JIRA_KEY_LABEL, namedJiraProject } from '../project-create.ts';
 import './find-fields.css';
 
 /** `jira field discover`'s data, as this page reads it. */
@@ -67,7 +68,7 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
   }, [connection]);
   const [how, setHow] = useState<'auto' | 'keys'>('auto');
   const [jiraProject, setJiraProject] = useState('');
-  /** The Jira project the Toil project names: its key, none (a reading that found none), or undefined while that is not read. Unknown is not none. */
+  /** The Jira project the Toil project names: its key, '' for a per-repository map, null for none (a reading that found none), or undefined while that is not read. Unknown is not none. */
   const [named, setNamed] = useState<string | null | undefined>(undefined);
   const [keys, setKeys] = useState('');
   const [reading, setReading] = useState<Reading>({ kind: 'idle' });
@@ -89,10 +90,11 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
     setNamed(undefined);
     config.run('projects show', { toilProject: project }).then(
       (e) => {
-        const key = e.ok ? ((e.data as { areas?: Record<string, { inputs?: Record<string, string> }> }).areas?.jira?.inputs?.project ?? null) : undefined;
+        // The raw section decides, not the resolved input: a per-repository map that matches no repository resolves to nothing, and still names a project.
+        const n = e.ok ? namedJiraProject(e.data) : undefined;
         if (!live) return;
-        setNamed(key);
-        if (key) setJiraProject((now) => now || key);
+        setNamed(n === undefined ? undefined : n.kind === 'none' ? null : n.kind === 'key' ? n.key : '');
+        if (n?.kind === 'key') setJiraProject((now) => now || n.key);
       },
       () => {},
     );
@@ -214,7 +216,7 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
                   <p className="note">{picks.length === 0 ? 'Tick the fields to name.' : `${picks.length} field${picks.length === 1 ? '' : 's'} ticked. Only the ones toil is sure of start ticked.`}</p>
                   {saveKey && (
                     <p className="note" data-find-key="">
-                      {project} names no Jira project yet, so naming the fields also saves {typedKey} as its {JIRA_KEY_LABEL.toLowerCase()}. Toil UI reads Jira issues from it.
+                      {project} names no Jira project yet, so naming the fields also saves {typedKey} as its {JIRA_KEY_LABEL}. Toil UI reads Jira issues from it.
                     </p>
                   )}
                   {badAlias && (
