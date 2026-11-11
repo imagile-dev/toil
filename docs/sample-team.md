@@ -99,7 +99,21 @@ toil sample team | toil projects brief sample-team
 
 # The same records from the file
 toil classify run --file sample/sample-team.owi.json --toil-project sample-team
+
+# Where the work goes: by team, then by category across the releases
+toil sample team | toil projects pivot sample-team --split team
+toil sample team | toil projects pivot sample-team --split category --across release
+
+# The work mix by month, and what changed in it
+toil sample team | toil classify mix --toil-project sample-team
+toil sample team | toil projects pivot sample-team --measure throughput --split category --across resolved:month --share
 ```
+
+The pivots need the toil project: it is what says who is on which team. Run on 10
+November 2026 these gave Storefront 101, Platform 23 and no team 22; one notable change
+for the releases ("2.4: 8 items were added after it started, 19% more than the 43 it
+started with"); and a work mix of 55% feature, 35% keep the lights on and 10% unsure
+over the items finished in the last 90 days.
 
 `toil projects import` reports that the connections `sample-jira` and `sample-github` are
 not set up; the sample does not read them. `toil sample team --part toil-project`, `--part jira`,
@@ -115,6 +129,11 @@ around with a sample team" on a fresh install, before any connection or Toil pro
 exists. It is generated for the day the sample is pinned to, so its dates stay in step
 with each other. It exercises the Summary's Work mix, the six dashboards on Charts, the
 Board's lanes, and People by team.
+
+Toil UI's sample shows a slightly different mix from the commands above (59% feature,
+31% keep the lights on, 10% unsure). That is by design: its sample comes with ten
+corrections a person has already made, so the Classify view and its "How it's doing"
+line have something to show, and a person's say changes an item's category.
 
 ## The thirty questions
 

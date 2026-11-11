@@ -101,9 +101,13 @@ and each is folded into the insights proposal where it is built:
 
 ## The screen review
 
-Done on 10 November 2026 on the sample team (`?sample=1`, the clock pinned at 13
-October 2026), in a browser at 1440 and 375 px and by the layout check at 375, 768 and
-1440 px. What was opened and what each seat could read:
+Done on 10 November 2026 on the sample team (the clock pinned at 13 October 2026) by
+the AI agents that built the screens, not by a person. Each building agent read its own
+screenshots at 1440 and 375 px in Plain and one decorative theme, and the lead agent
+then opened the Summary, the Charts list, all six dashboards, the Board's Classify view
+with its review card, and the Classification editor in a browser at 1440 px, Work mix
+at 375 px and Sprints at 768 px. The layout check covered every route in every theme at
+375, 768 and 1440 px with no problems. What was opened and what each seat could read:
 
 | Screen | Seat questions it answered | What was fixed after looking |
 |---|---|---|
@@ -122,7 +126,9 @@ October 2026), in a browser at 1440 and 375 px and by the layout check at 375, 7
 Not answerable on a screen: P9, what is carried from one release to the next, since an
 item holds only its current fix versions.
 
-Not looked at by a person: every decorative theme on every screen. The layout check
-covers them at three widths; a person opened Plain, Realm, Frontier and Harvest. Three
+Not looked at by anyone: every decorative theme on every screen. The layout check
+covers them at three widths; the agents opened Plain, Realm, Frontier and Harvest. No
+person has reviewed these screens yet, and the Summary's Work mix tile was read from a
+building agent's screenshot only. Three
 frames read weakly at chart size and are for the maintainer to judge: Harvest's wheat,
 Realm's map neatline and Sprawl's barcode.

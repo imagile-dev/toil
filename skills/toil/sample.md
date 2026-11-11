@@ -39,6 +39,9 @@ toil sample team | toil classify run
 toil sample team --out sample
 toil projects import sample/sample-team.project.json
 toil sample team | toil projects brief sample-team
+toil sample team | toil projects pivot sample-team --split team
+toil sample team | toil projects pivot sample-team --split category --across release
+toil sample team | toil classify mix --toil-project sample-team
 ```
 
 The `sample-team` toil project selects the connections `sample-jira` and `sample-github`, which the sample does not need: it is read only through the piped records. No command here reads from them, and nothing is written to a tracker.
