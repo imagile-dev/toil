@@ -73,7 +73,7 @@ connection's own, and must be the address the token belongs to.
 | `email` | `TOIL_CONFLUENCE_EMAIL` | Cloud | Email address of the Atlassian account the token belongs to |
 | `apiToken` | `TOIL_CONFLUENCE_API_TOKEN` | yes, unless borrowed from Jira | Personal access token (Data Center) or Atlassian account API token (Cloud) |
 | `apiTokenFrom` | `TOIL_CONFLUENCE_API_TOKEN_FROM` | no | A Jira connection whose token this connection uses |
-| `writes` | `TOIL_CONFLUENCE_WRITES` | no | `true` lets write commands run (with `--allow-write`) |
+| `writes` | `TOIL_CONFLUENCE_WRITES` | no | `true` or `1` lets write commands run (with `--allow-write`) |
 
 toil adds `/wiki/api/v2` and `/wiki/rest/api` itself on Cloud, so `baseUrl` is the site root. A
 Cloud `baseUrl` ending in `/wiki` (as the browser shows it) is refused with `CONFIG_INVALID`

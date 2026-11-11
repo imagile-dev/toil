@@ -126,12 +126,12 @@ describe('precedence', () => {
   });
 
   it('warns, in meta.warnings, about a writes value that is neither true nor false, and leaves writes off', () => {
-    const area = load({ TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev', TOIL_JIRA_WRITES: '1' });
+    const area = load({ TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev', TOIL_JIRA_WRITES: 'yes' });
     expect(anyWrites(area, 'jira')).toBe(false);
     expect(area.warnings.map((w) => w.code)).toEqual(['CONFIG_WRITES_UNREADABLE']);
-    expect(area.warnings[0]!.message).toContain('TOIL_JIRA_WRITES is "1"');
+    expect(area.warnings[0]!.message).toContain('TOIL_JIRA_WRITES is "yes"');
     expect(area.warnings[0]!.message).toContain('writes are OFF for connection jira');
-    expect(area.warnings[0]!.message).toContain('true');
+    expect(area.warnings[0]!.message).toContain('true or 1');
 
     const named = load({ TOIL_CONN_OCP_PROD_AREA: 'jira', TOIL_CONN_OCP_PROD_WRITES: 'yes'.repeat(30) });
     expect(named.warnings[0]!.message).toContain('TOIL_CONN_OCP_PROD_WRITES is "yesyes');

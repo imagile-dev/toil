@@ -100,7 +100,9 @@ export async function resolveConnection(
       warn({ code: 'CONFIG_UNKNOWN_KEY', message: `"${key}" on connection ${name} isn't ${withArticle(area.name)} setting and was ignored.` });
       delete merged[key];
     } else {
-      merged[key] = coerce(shape[key]!, merged[key]);
+      // A value from an env var (or a CI fallback) also reads 1 and 0 as a boolean; one from the file stays a real boolean or nothing.
+      const source = config.sources[`${name}.${key}`];
+      merged[key] = coerce(shape[key]!, merged[key], { env: key in own && (source === 'env' || source === 'ci') });
     }
   }
 

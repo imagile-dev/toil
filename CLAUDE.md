@@ -846,7 +846,7 @@ variables match the longest connection name first, and one naming no connection 
 a warning, as is a connection for an area toil doesn't have. Env-only connections are
 created before an area's default is chosen, so `TOIL_CONN_CI_AREA=jira` plus
 `TOIL_JIRA_TOKEN` is one connection. Env values stay strings until the area's schema types them (`"5432"` to a number,
-`"true"` to a boolean only where the schema says boolean), keys
+`"true"` or `"1"` to a boolean only where the schema says boolean), keys
 an area doesn't declare are dropped with a warning, and renamed keys still work, with
 one; with both names set, the higher tier wins (an old env var over a new name in the
 file), and the new name wins a tie.
@@ -903,6 +903,13 @@ connection. `writes` is per connection, so writes can be on for a sandbox and of
 for production; it is never read from `defaults.<area>`. Env vars can enable writes
 for CI (`TOIL_CONN_<NAME>_WRITES=true`, or `TOIL_<AREA>_WRITES=true` for the
 default connection), following normal precedence.
+
+**A boolean read from an environment variable takes `true` or `1` for on and `false` or
+`0` for off,** the words in any letter case (the maintainer's call, 2026-11-11): a
+connection's `writes`, every boolean connection setting, and toil's own switches. Any
+other value is unreadable, never guessed: `writes` stays off and every command warns
+`CONFIG_WRITES_UNREADABLE`, naming the variable. A flag on the command line and a
+value in the config file are not environment variables and keep their own forms.
 Deletes are never exposed through MCP: a delete command sets `mcp: false`, and the
 raw passthrough refuses a `DELETE` over MCP (`offMcpWhen`). A delete is a command
 that sends an HTTP `DELETE`; a removal the service takes another way (Jira removes a

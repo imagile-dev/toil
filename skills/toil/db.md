@@ -45,7 +45,7 @@ There is nothing to install: toil uses the SQLite built into Node.
 |-----|----------|---------|
 | `engine` | yes | `sqlite` |
 | `path` | yes | Absolute path to an existing database file. toil never creates one. |
-| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
+| `writes` | no | `true` or `1` lets `db execute` change data on this connection. Off by default. |
 
 **Environment variables**, for the default `db` connection:
 
@@ -98,7 +98,7 @@ into toil): no libpq, no `psql`, nothing to install.
 | `ssl` | no | `true` connects over TLS and verifies the server's certificate against Node's CAs, `NODE_EXTRA_CA_CERTS` and the OS certificate store, so a corporate root in the OS store is trusted. Off by default. |
 | `tlsServerName` | no | With `ssl` (env: `TOIL_DB_TLS_SERVER_NAME`): the host name the server's certificate is verified against (and sent as SNI) instead of `host`, for a server reached through an alias, a VPN name or a tunnel whose name isn't on its certificate. The connection still goes to `host`, and chain and name verification stay fully on. A DNS name only; see [Cloud and private CAs](#cloud-and-private-cas). |
 | `tlsCaFile` | no | With `ssl` (env: `TOIL_DB_TLS_CA_FILE`): an absolute path to a PEM file of CA certificates (Amazon's RDS `global-bundle.pem`, say) trusted for this connection, in addition to the CAs above. Verification stays fully on. |
-| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
+| `writes` | no | `true` or `1` lets `db execute` change data on this connection. Off by default. |
 
 **Environment variables**, for the default `db` connection:
 
@@ -157,7 +157,7 @@ CLI, nothing to install.
 | `ssl` | no | `true` connects over TLS and verifies the server's certificate and host name against Node's and the OS's certificate stores. Off by default. |
 | `tlsServerName` | no | With `ssl` (env: `TOIL_DB_TLS_SERVER_NAME`): the host name the server's certificate is verified against (and sent as SNI) instead of `host`, for a server reached through an alias, a VPN name or a tunnel whose name isn't on its certificate. The connection still goes to `host`, and chain and name verification stay fully on. A DNS name only; see [Cloud and private CAs](#cloud-and-private-cas). |
 | `tlsCaFile` | no | With `ssl` (env: `TOIL_DB_TLS_CA_FILE`): an absolute path to a PEM file of CA certificates (Amazon's RDS `global-bundle.pem`, say) trusted for this connection, in addition to the CAs above. Verification stays fully on. |
-| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
+| `writes` | no | `true` or `1` lets `db execute` change data on this connection. Off by default. |
 
 **Environment variables**, for the default `db` connection:
 
@@ -215,7 +215,7 @@ authentication (`"auth": "windows"`, below).
 | `tlsCaFile` | no | With `ssl` (env: `TOIL_DB_TLS_CA_FILE`): an absolute path to a PEM file of CA certificates (Amazon's RDS `global-bundle.pem`, say) trusted for this connection, in addition to the CAs above. Verification stays fully on. |
 | `auth` | no | `sql` (a SQL Server login, the default) or `windows` (Windows authentication, Windows only) |
 | `domain` | no | With `"auth": "windows"` and `user`: the account's domain |
-| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
+| `writes` | no | `true` or `1` lets `db execute` change data on this connection. Off by default. |
 
 **Environment variables**, for the default `db` connection:
 
@@ -331,7 +331,7 @@ toil never switches the driver to Thick mode.
 | `user` | yes | The user. Unquoted, it's read in upper case, as Oracle does; wrap it in double quotes for a case-sensitive one. |
 | `password` | no | The user's password. A secret: an env var or the OS credential store, never the config file. |
 | `ssl` | no | `true` connects over TCPS and verifies the server's certificate, and that its name matches `host`, against the OS certificate store. Off by default. |
-| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
+| `writes` | no | `true` or `1` lets `db execute` change data on this connection. Off by default. |
 
 ```bash
 export TOIL_DB_ENGINE=oracle
@@ -388,7 +388,7 @@ system's alias.
 | `token` | instead of `user` | A bearer token for the Query Service, such as a JWT for a database that accepts JWT logons. A secret, like `password`. toil doesn't issue or refresh it: when it expires, the service refuses it with `AUTH`, and you store a new one. |
 | `database` | with `token` | The default database: unqualified names resolve in it, and it's what `--schema` defaults to. Without it, the user's own database. |
 | `logMech` | no | The session's logon mechanism: `TD2`, `LDAP` (a directory account) or `JWT`. Default: the system's own default. |
-| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
+| `writes` | no | `true` or `1` lets `db execute` change data on this connection. Off by default. |
 
 ```bash
 export TOIL_DB_ENGINE=teradata
@@ -459,7 +459,7 @@ into toil): no ODBC or JDBC driver, no `beeline` or `impala-shell`, nothing to i
 | `tlsServerName` | no | With `ssl` (env: `TOIL_DB_TLS_SERVER_NAME`): the host name the server's certificate is verified against (and sent as SNI) instead of `host`, for a server reached through an alias, a VPN name or a tunnel whose name isn't on its certificate. The connection still goes to `host`, and chain and name verification stay fully on. A DNS name only; see [Cloud and private CAs](#cloud-and-private-cas). |
 | `tlsCaFile` | no | With `ssl` (env: `TOIL_DB_TLS_CA_FILE`): an absolute path to a PEM file of CA certificates (Amazon's RDS `global-bundle.pem`, say) trusted for this connection, in addition to the CAs above. Verification stays fully on. |
 | `auth` | no | `nosasl` for a server that runs without authentication (Impala's default, or Hive's `NOSASL` mode): no sign-in, and `user` goes only into the session. Leave it out to sign in with `user` and `password` (SASL PLAIN), which is what LDAP authentication, and Hive's default `NONE` mode, expect. |
-| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
+| `writes` | no | `true` or `1` lets `db execute` change data on this connection. Off by default. |
 
 ```bash
 export TOIL_DB_ENGINE=hive

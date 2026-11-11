@@ -70,7 +70,7 @@ search as no results. When a call that should work finds nothing, check `email` 
 | `project` | `TOIL_JIRA_PROJECT` | no | Default project for `issue create` |
 | `issueType` | `TOIL_JIRA_ISSUE_TYPE` | no | Default issue type for `issue create` (`Task` when unset) |
 | `priority` | `TOIL_JIRA_PRIORITY` | no | Default priority for `issue create` |
-| `writes` | `TOIL_JIRA_WRITES` | no | `true` lets write commands run (with `--allow-write`) |
+| `writes` | `TOIL_JIRA_WRITES` | no | `true` or `1` lets write commands run (with `--allow-write`) |
 
 Environment variables (CI, or a one-off shell):
 

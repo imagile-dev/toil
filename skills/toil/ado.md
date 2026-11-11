@@ -108,7 +108,7 @@ On Services, `System.CollectionUri` is the organization URL with a trailing slas
 | `fieldAliases` | `TOIL_ADO_FIELD_ALIASES` | no | Work item field aliases as a JSON object, friendly name to reference name, e.g. `{"storypoints": "Microsoft.VSTS.Scheduling.StoryPoints"}` |
 | `discoveredFields` | `TOIL_ADO_DISCOVERED_FIELDS` | no | Server only: fields an earlier discovery recorded; kept, not read |
 | `discoveredTypes` | `TOIL_ADO_DISCOVERED_TYPES` | no | Server only: work item types an earlier discovery recorded; kept, not read |
-| `writes` | `TOIL_ADO_WRITES` | no | `true` lets write commands run (with `--allow-write`) |
+| `writes` | `TOIL_ADO_WRITES` | no | `true` or `1` lets write commands run (with `--allow-write`) |
 
 A Services `baseUrl` that doesn't name exactly one organization is refused with
 `CONFIG_INVALID` before anything is sent: `https://dev.azure.com` with no organization

@@ -97,7 +97,7 @@ scopes it needs. There is no OAuth app, Connect app or browser login.
 | `workspace` | `TOIL_BITBUCKET_WORKSPACE` | no | Cloud: default workspace slug, when `--ws` isn't given |
 | `repo` | `TOIL_BITBUCKET_REPO` | no | Default repository slug, when `--repo` isn't given |
 | `targetBranch` | `TOIL_BITBUCKET_TARGET_BRANCH` | no | Data Center: default target branch for `pr create` (`main` when unset) |
-| `writes` | `TOIL_BITBUCKET_WRITES` | no | `true` lets write commands run (with `--allow-write`) |
+| `writes` | `TOIL_BITBUCKET_WRITES` | no | `true` or `1` lets write commands run (with `--allow-write`) |
 
 **CI fallback:** in Bitbucket Pipelines, a Cloud default connection takes `workspace` from
 `BITBUCKET_WORKSPACE` and `repo` from `BITBUCKET_REPO_SLUG`, which Pipelines sets on

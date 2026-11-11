@@ -36,7 +36,7 @@ or browser login.
 | `baseUrl` | `TOIL_ALATION_BASE_URL` | yes | Alation instance root, e.g. `https://alation.imagile.dev` (keep any context path) |
 | `refreshToken` | `TOIL_ALATION_REFRESH_TOKEN` | yes | Refresh token |
 | `userId` | `TOIL_ALATION_USER_ID` | yes | Numeric ID of the token's user; a number or a string of digits, anything else is `CONFIG_INVALID` |
-| `writes` | `TOIL_ALATION_WRITES` | no | `true` lets `document create` and `document update` run (with `--allow-write`) |
+| `writes` | `TOIL_ALATION_WRITES` | no | `true` or `1` lets `document create` and `document update` run (with `--allow-write`) |
 
 Environment variables (CI, or a one-off shell):
 

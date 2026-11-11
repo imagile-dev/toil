@@ -68,7 +68,7 @@ GitHub's refusal, reported as `AUTH`.
 | `owner` | `TOIL_GITHUB_OWNER` | no | Default owner (user or org) |
 | `repo` | `TOIL_GITHUB_REPO` | no | Default repository name |
 | `targetBranch` | `TOIL_GITHUB_TARGET_BRANCH` | no | Default base branch for `pr create` (`main` when unset) |
-| `writes` | `TOIL_GITHUB_WRITES` | no | `true` lets write commands run (with `--allow-write`) |
+| `writes` | `TOIL_GITHUB_WRITES` | no | `true` or `1` lets write commands run (with `--allow-write`) |
 
 **CI fallbacks:** in GitHub Actions, the default connection takes its token from
 `GITHUB_TOKEN` when `TOIL_GITHUB_TOKEN` isn't set, and its base URL from

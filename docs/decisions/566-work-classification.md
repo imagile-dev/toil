@@ -410,9 +410,14 @@ agent made where the proposal was silent, or where it couldn't be built as writt
   is the same as naming it on the command line. The connection's `writes` still
   decides.
 
-- **A live run found three things, all fixed.** A `writes` variable set to a value
-  toil can't read as on or off (`1`) left writes off without a word; it now warns and
-  names the variable, and is still off, since a write gate isn't guessed open. A pivot
+- **A live run found three things, all fixed.** A `writes` variable set to `1` left
+  writes off without a word. The maintainer then decided (11 November 2026) that every
+  boolean read from an environment variable takes `1` or `true` for on and `0` or
+  `false` for off, in any letter case; anything else is still unreadable, leaves
+  `writes` off and warns, naming the variable. One value changes meaning: `0` or
+  `false` on the welcome screen's `TOIL_REDUCED_MOTION`, `TOIL_NO_ANIMATION` and
+  `TOIL_ASCII`, which used to count as set, now mean off. Flags and the config file
+  keep their own forms. Where: `src/core/env-boolean.ts`. A pivot
   by `iteration` showed an Azure DevOps project's root path as a sprint. And a GitHub
   label's description was cut after a dangling "and".
 - **The test projects gain seven issues each for classification,** seeded by
