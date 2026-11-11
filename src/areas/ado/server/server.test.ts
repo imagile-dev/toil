@@ -302,7 +302,11 @@ describe('work items', () => {
     const { calls } = await run('work-item tag', { ...W, id: '42', tags: 'UI; urgent,Backend' });
     expect(calls.map((c) => c.method)).toEqual(['GET', 'PATCH']);
     expect(body(calls[1]!)).toEqual([{ op: 'add', path: '/fields/System.Tags', value: 'ui; backend; urgent' }]);
-    expect(body((await run('work-item untag', { ...W, id: '42', tags: 'UI' })).calls[1]!)).toEqual([{ op: 'add', path: '/fields/System.Tags', value: 'backend' }]);
+    // `add` on System.Tags only adds (confirmed live on Services, a recorded bug now fixed): untag replaces the list.
+    expect(body((await run('work-item untag', { ...W, id: '42', tags: 'UI' })).calls[1]!)).toEqual([{ op: 'replace', path: '/fields/System.Tags', value: 'backend' }]);
+    // The last tag off clears the field; a tag the item lacks sends what it already had.
+    expect(body((await run('work-item untag', { ...W, id: '42', tags: 'ui, backend' })).calls[1]!)).toEqual([{ op: 'remove', path: '/fields/System.Tags' }]);
+    expect(body((await run('work-item untag', { ...W, id: '42', tags: 'nope' })).calls[1]!)).toEqual([{ op: 'add', path: '/fields/System.Tags', value: 'ui; backend' }]);
   });
 
   it('work-item search posts the WIQL; comments uses 7.1-preview.4 and reads comments', async () => {

@@ -996,7 +996,13 @@ callers who rely on the recorded result.
   `suspected-bug` (`Suspected bugs to verify: <name> (`<area>`)`). The integration appends
   anything new it finds there, with where, what, why, confidence, the observable
   change if fixed, and a live check. Tests pin the recorded behavior and say it's
-  a suspected bug.
+  a suspected bug. The one exception so far (the maintainer's call, 2026-11-11):
+  `ado work-item untag` sent a JSON Patch `add` for the tags that remain, which
+  Azure DevOps reads as "add these", so it removed nothing. The same fault was
+  confirmed live on Azure DevOps Services through `ado work-item categorize`, so
+  `untag` was fixed to send `replace` without waiting for a live Azure DevOps Server,
+  and it is listed as a divergence saying so. An exception like it needs the
+  maintainer's say and the same fault seen live on the product's other deployment.
 - **A divergence is a documented difference from the contract.** Each one is an
   entry in `docs/divergences/<area>.json`: what the contract records (`old`), what
   toil does instead (`toil`), why, and the principle that requires it.

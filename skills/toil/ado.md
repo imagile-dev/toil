@@ -271,7 +271,9 @@ Work items (`<id>` is the work item id):
   reads the first page only on Server; on Services it returns every comment, following
   continuation tokens, or with `--limit` at most that many and `meta.page.nextCursor`.
 - `work-item tag <id>`, `work-item untag <id>` (Server): `--tags a;b` or `a,b`, matched
-  ignoring case. The tag list is read and written back, with no revision check.
+  ignoring case. The tag list is read and written back, with no revision check. `tag`
+  adds to the list; `untag` replaces it with the tags that remain (`add` would keep the
+  removed one), and clears the field when the last tag comes off.
 - `work-item categorize` (`--from <file>`): Apply a classification plan: tag work items with
   their category, and set a field when the plan names one. See **Categorizing work items**.
 - `work-item attachments <id>` (Server): The attached files (id, name, url, size, dates).

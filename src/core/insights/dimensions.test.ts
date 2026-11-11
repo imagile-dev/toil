@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { bucketLabel, bucketStart, bucketsBetween, DIMENSION_MENU, parseDimension, projectOf, valuesOf } from './dimensions.js';
 import { AS_OF, ctx, history, item, move, points } from './testkit.js';
+import type { WorkItem } from '../owi/types.js';
 
 const vals = (spec: string, i = item('PAY-1'), c = ctx()) => valuesOf(i, parseDimension(spec), c);
 const labels = (spec: string, i = item('PAY-1'), c = ctx()) => {
@@ -45,6 +46,14 @@ describe('iteration on Azure DevOps', () => {
     expect(vals('iteration', ado('Toil Sandbox', 'Toil Sandbox'))).toEqual({ unread: false, values: [] });
     expect(labels('iteration', ado('Toil Sandbox', 'Toil Sandbox'))).toEqual([]);
     expect(labels('iteration', ado('Toil Sandbox\\Sprint 1', 'Sprint 1'))).toEqual(['Sprint 1']);
+  });
+  it('planned and carried read the root node as no sprint, like an item with no iteration', () => {
+    const moved = (...to: string[]) => ({ transitions: [], iterations: to.map((t) => ({ from: [], to: [t], at: '2026-10-28T00:00:00Z', by: null })) });
+    const at = (path: string, name: string, h: WorkItem['history'] = history()) => ({ ...ado(path, name), history: h });
+    expect(labels('planned', at('Toil Sandbox', 'Toil Sandbox'))).toEqual([]);
+    expect(labels('planned', at('Toil Sandbox\\Sprint 1', 'Sprint 1'))).toEqual(['Planned']);
+    expect(labels('planned', at('Toil Sandbox', 'Toil Sandbox', moved('Toil Sandbox')))).toEqual([]);
+    expect(labels('carried', at('Toil Sandbox', 'Toil Sandbox', moved('Toil Sandbox', 'Sprint 1')))).toEqual([]);
   });
 });
 

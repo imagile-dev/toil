@@ -288,15 +288,22 @@ function sizeValues(item: WorkItem): DimensionValues {
   return one(`size-${e.unit}-${i}`, buckets[i]![1], `${unitRank}-${rank(i)}`);
 }
 
-/** The sprint names an item's history moved it into, with when. */
+/** An Azure DevOps path with no backslash is the project's root node, where an item sits when it is in no sprint. */
+function atAdoRoot(item: WorkItem): boolean {
+  const it = item.iteration;
+  return !!it && OWI_SOURCES[item.source.area]?.family === 'ado' && !(it.path ?? it.name).includes('\\');
+}
+
+/** The sprint names an item's history moved it into, with when. An item now at the Azure DevOps root was moved back to no sprint, so that name is not one. */
 function sprintAdds(item: WorkItem): Array<{ name: string; at: string }> {
-  return (item.history?.iterations ?? []).flatMap((c) => c.to.filter((n) => !c.from.includes(n)).map((name) => ({ name, at: c.at })));
+  const root = atAdoRoot(item) ? item.iteration!.name : null;
+  return (item.history?.iterations ?? []).flatMap((c) => c.to.filter((n) => !c.from.includes(n) && n !== root).map((name) => ({ name, at: c.at })));
 }
 
 function plannedValues(item: WorkItem): DimensionValues {
   if (item.type === 'INCIDENT') return one('unplanned', 'Unplanned', '1');
   if (item.history === null) return unread(); // Without the sprint history nobody can say when it was added.
-  const sprints = item.sprints ?? (item.iteration ? [item.iteration] : []);
+  const sprints = item.sprints ?? (item.iteration && !atAdoRoot(item) ? [item.iteration] : []);
   const adds = sprintAdds(item);
   if (sprints.length === 0 && adds.length === 0) return read([]);
   const late = adds.some((a) => {
@@ -314,11 +321,11 @@ function carriedValues(item: WorkItem): DimensionValues {
   return count > 1 ? one('carried', 'Carried over') : read([]);
 }
 
-/** An Azure DevOps path with no backslash is the project's root node, where an item sits when it is in no sprint, so it reads as none (as OWI's sprints do). */
+/** The project's root node is no sprint, so it reads as none (as OWI's sprints do). */
 function iterationValues(item: WorkItem): DimensionValues {
   const it = item.iteration;
   if (!it) return read([]);
-  if (OWI_SOURCES[item.source.area]?.family === 'ado' && !(it.path ?? it.name).includes('\\')) return read([]);
+  if (atAdoRoot(item)) return read([]);
   return one(it.id ?? it.name, it.name);
 }
 
