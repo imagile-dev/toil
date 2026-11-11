@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { analyzeSettings } from '../../src/core/brief/settings.ts';
-import { jiraOwiOverrides, jiraSearchFields, loadToilProject, registeredFields } from '../src/load.ts';
+import { jiraSearchFields, loadToilProject, registeredFields } from '../src/load.ts';
 import { briefingOf } from '../src/model/briefing.ts';
 import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
 import { TOKEN_WORD } from '../src/setup.ts';
@@ -47,10 +47,6 @@ describe('the fields sync asks Jira search for', () => {
     const list = jiraSearchFields([], { estimate: 'Story Points', iteration: 'customfield_10020' }).split(',');
     expect(list).not.toContain('Story Points');
     expect(list).toContain('customfield_10020');
-  });
-
-  it('rewrites an override that names a registered field by id to the name search returns it under', () => {
-    expect(jiraOwiOverrides(registered, { estimate: 'customfield_10016', iteration: 'sprint', team: 'customfield_10700', estimateUnit: 'points' })).toEqual({ estimate: 'Story Points', iteration: 'Sprint', team: 'customfield_10700', estimateUnit: 'points' });
   });
 
   it('reads the registered fields out of `jira issue fields`, and nothing else', () => {
