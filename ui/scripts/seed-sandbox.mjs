@@ -72,6 +72,11 @@ const LABELS = [
   ['points: 5', 'c5def5', 'Estimate'],
   ['points: 8', 'c5def5', 'Estimate'],
   ['blocked', '000000', 'Waiting on another issue'],
+  // What work classification's built-in signals read, and one category label already in place.
+  ['security', 'b60205', 'A security fix'],
+  ['dependencies', '0366d6', 'A dependency update'],
+  ['compliance', '5319e7', 'Audit and compliance paperwork'],
+  ['feature', 'a2eeef', 'New work, already sorted'],
 ];
 const haveLabels = new Set(gh('GET', `${R}/labels?per_page=100`, null, { paginate: true }).map((l) => l.name));
 for (const [name, color, description] of LABELS) {
@@ -131,6 +136,15 @@ const ISSUES = [
   { key: 'apple-pay', title: 'Support Apple Pay on the hosted checkout page', type: 'feature', priority: 'medium', stale: true, body: 'Merchants have asked for this. Not estimated: needs a spike on domain verification.' },
   { key: 'ach-returns', title: 'Handle ACH return codes R01 to R10 automatically', type: 'feature', priority: 'low', points: 5, stale: true, body: 'Each return code should map to a merchant notification and, where it applies, a retry.' },
   { key: 'log-pii', title: 'Card expiry dates appear in debug logs', type: 'bug', priority: 'high', points: 1, stale: true, body: 'The request logger prints the whole payment method object at debug level, including the expiry date.' },
+
+  // For work classification: items the built-in signals can tell apart, one already labelled, one whose title misleads, one nothing settles.
+  { key: 'cls-bump', title: 'Bump express from 4.19.2 to 4.21.1', type: 'chore', priority: 'low', points: 1, labels: ['dependencies'], body: 'The patch release fixes a header parsing bug. No behaviour change is expected.' },
+  { key: 'cls-cve', title: 'Patch CVE-2026-31337 in the JWT verification library', type: 'bug', priority: 'high', points: 2, labels: ['security'], body: 'The library accepts a token whose signature algorithm is "none". Upgrade to the fixed release and add a test for it.' },
+  { key: 'cls-upgrade', title: 'Upgrade the payments service to Node 24 before 22 leaves support', type: 'chore', priority: 'medium', points: 3, body: 'Support for the current runtime ends next quarter. Nothing a merchant sees changes.' },
+  { key: 'cls-audit', title: 'Quarterly PCI audit evidence for the card vault', type: 'chore', priority: 'medium', points: 2, labels: ['compliance'], body: 'Collect the access reviews and key rotation logs the auditor asks for each quarter.' },
+  { key: 'cls-feature', title: 'Let merchants choose a weekly payout schedule', type: 'feature', priority: 'medium', points: 5, labels: ['feature'], body: 'Merchants can pick daily or weekly payouts on their settings page. Already labelled as new work.' },
+  { key: 'cls-ambiguous', title: 'Upgrade the search cluster to enable typo tolerance', type: 'feature', priority: 'low', points: 5, body: 'The title opens with "Upgrade", so a title signal reads it as upkeep, but it exists to ship a new capability. A person should correct it.' },
+  { key: 'cls-unsure', title: 'Show the settlement currency on the payout page', type: 'feature', priority: 'low', body: 'Nothing here says whether this is new work or upkeep: no label, no parent and no telling title.' },
 ];
 
 const existing = new Map(
@@ -139,7 +153,7 @@ const existing = new Map(
     .map((i) => [i.title, i]),
 );
 const numbers = new Map();
-const labelsFor = (i) => [`type: ${i.type}`, `priority: ${i.priority}`, ...(i.points ? [`points: ${i.points}`] : []), ...(i.blockedBy ? ['blocked'] : [])];
+const labelsFor = (i) => [`type: ${i.type}`, `priority: ${i.priority}`, ...(i.points ? [`points: ${i.points}`] : []), ...(i.blockedBy ? ['blocked'] : []), ...(i.labels ?? [])];
 
 for (const i of ISSUES) {
   let issue = existing.get(i.title);

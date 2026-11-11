@@ -1128,7 +1128,7 @@ verify:ui`. They are the only places a live run may write.
 
 | Tracker | Test project | toil connection | Seeded by |
 |---|---|---|---|
-| Jira Cloud | project `SCRUM` | `jira` | issues labelled `toil-seed`, each with a `seed:<key>` label |
+| Jira Cloud | project `SCRUM` | `jira` | `ui/scripts/jira-seed.mjs`, through toil: labels `toil-seed` and `seed:<key>` |
 | Azure DevOps Services | project `Toil Sandbox` | `ado` | `ui/scripts/ado-seed/`: tag `toil-seed` and a `seed:<key>` tag |
 | GitHub | repository `imagile-dev/toil-sandbox` | `github` | `ui/scripts/seed-sandbox.mjs`, through `gh` |
 

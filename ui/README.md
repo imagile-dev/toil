@@ -1566,6 +1566,19 @@ over, delete the repository (`gh repo delete <owner>/toil-sandbox`, which needs 
 board, which needs the `project` scope on the token, and no deployments, which
 toil's `github` area doesn't read.
 
+The sandbox also holds seven issues for work classification (a dependency bump, a
+security patch, an upgrade, audit paperwork, one already labelled `feature`, one whose
+title misleads the built-in signals, and one nothing settles), so a live
+`toil classify run` has something to tell apart. A Jira test project gets the same
+seven from `ui/scripts/jira-seed.mjs`, which writes through toil's own
+`jira issue create --allow-write`, names the project on the command line, and leaves
+alone any issue that already carries its `seed:<key>` label:
+
+```bash
+node ui/scripts/jira-seed.mjs --project <key> --dry-run   # what it would create; sends no write
+node ui/scripts/jira-seed.mjs --project <key>             # creates what's missing
+```
+
 ### An Azure DevOps Services board
 
 `--source ado` runs the same way against an Azure DevOps Services project, through

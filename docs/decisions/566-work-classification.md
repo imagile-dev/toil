@@ -410,6 +410,32 @@ agent made where the proposal was silent, or where it couldn't be built as writt
   is the same as naming it on the command line. The connection's `writes` still
   decides.
 
-**Not verified:** no command here has been run against a real Jira, GitHub or Azure
-DevOps. Every request is checked against canned responses shaped from the vendors'
-documentation, and each fixture says so.
+- **A live run found three things, all fixed.** A `writes` variable set to a value
+  toil can't read as on or off (`1`) left writes off without a word; it now warns and
+  names the variable, and is still off, since a write gate isn't guessed open. A pivot
+  by `iteration` showed an Azure DevOps project's root path as a sprint. And a GitHub
+  label's description was cut after a dangling "and".
+- **The test projects gain seven issues each for classification,** seeded by
+  `ui/scripts/seed-sandbox.mjs` (GitHub) and the new `ui/scripts/jira-seed.mjs` (Jira,
+  through toil's own `jira issue create`). Without them a live `classify run` on
+  either said "unsure" for every item.
+
+**Verified live, on 11 November 2026**, against the test projects `CLAUDE.md` names
+(**Test Projects**), with toil built from this branch:
+
+- **GitHub** (`imagile-dev/toil-sandbox`) and **Jira Cloud** (project `SCRUM`): `classify
+  run` planned the five seeded upkeep items; `categorize` without `--allow-write` was
+  refused; with it, five labels were written (GitHub created the missing `ktlo` label
+  with its description, one `POST` per issue; Jira sent one `PUT` per issue); a second
+  run changed nothing; and after `classify correct` on the item whose title misleads the
+  signals, the next plan removed `ktlo` and added `feature`, which GitHub applied with
+  one `PUT` and Jira with one `PUT`. `classify run --record` and `classify stats` read
+  the result back.
+- **Reads on all three**, Azure DevOps Services included: the value lists, `jira issue
+  search --more-fields`, the mapper's dimension fields, `projects pivot` and `classify
+  run`.
+
+**Not verified:** `ado work-item categorize` against a real Azure DevOps (the
+connection's writes were off), a category *field* on any tracker (none of the three
+test projects has one), Jira Data Center, Azure DevOps Server, and `categorize` from
+Toil UI's Apply.

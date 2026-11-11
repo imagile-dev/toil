@@ -7,8 +7,9 @@ items, learns from their corrections, and analyses the mix in toil and Toil UI (
 Slices 1 to 3 are built: the scheme, `classify run | prompt | correct | stats | tune |
 mix`, `categorize` in all three trackers, the ledger, the MCP prompts `classify` and
 `classify-tune`, and in Toil UI the Work mix tile and page, the category chip, the
-Classify view and the Classification editor. Slices 4 and 5 are not built. Nothing has
-met a live tracker. Where the build departs from this text,
+Classify view and the Classification editor. Slices 4 and 5 are not built. Labels were written for real on the GitHub and Jira Cloud
+test projects on 11 November 2026; a category field, Azure DevOps writes, Jira Data
+Center and Azure DevOps Server have not met a live tracker. Where the build departs from this text,
 `docs/decisions/566-work-classification.md` says so. The maintainer settled its open
 decisions on 9 November 2026; they're listed at the end, with the defaults this
 proposal picked.
@@ -608,7 +609,8 @@ KTLO work that repeats is the work worth automating.
      descriptions;
    - the workflow page, skill docs, contract entries (as built: new commands take no
      contract entries), fixtures and the parity suite;
-   - a live run on one sandbox per tracker, each with a field set up (not done yet).
+   - a live run on one sandbox per tracker, each with a field set up (labels done on
+     GitHub and Jira Cloud; no field, and no Azure DevOps write, yet).
 2. **Reclassify and learn (CLI and MCP):** the ledger, `classify correct | stats | tune`
    with `--backtest`, corrections read from the tracker, the MCP prompt
    `classify-tune`, and the workflow page's tuning steps.
