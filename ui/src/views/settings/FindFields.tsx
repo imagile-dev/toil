@@ -34,7 +34,7 @@ export interface Discovered {
 const OWI_WORD: Record<OwiGuess['field'], string> = { estimate: 'Story points', iteration: 'Sprint', team: 'Team', dueDate: 'Due date', priority: 'Priority', type: 'Type' };
 const ALIAS = /^[a-z][A-Za-z0-9]*$/;
 
-type Reading = { kind: 'idle' } | { kind: 'reading' } | { kind: 'read'; data: Discovered; warnings: string[] } | { kind: 'failed'; outcome: Outcome };
+type Reading = { kind: 'idle' } | { kind: 'reading' } | { kind: 'read'; data: Discovered; warnings: string[]; key: string } | { kind: 'failed'; outcome: Outcome };
 /** One call the save runs: a name for a field (`projects field`), or the Jira project key the person typed (`projects link`). */
 type Planned = { command: 'projects field' | 'projects link'; input: Record<string, unknown>; line: string };
 type Result = { line: string; /** What the person sees for it: the name being given. */ label: string; ok: boolean; message: string; fix: string | null };
@@ -117,7 +117,7 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
       // Only what toil is sure of starts ticked; the rest is the person's call.
       setTicked(Object.fromEntries(data.fields.map((f) => [f.id, f.owi?.confidence === 'high'])));
       setAliases(Object.fromEntries(data.fields.map((f) => [f.id, f.alias])));
-      setReading({ kind: 'read', data, warnings: (e.meta.warnings ?? []).map((w) => w.message) });
+      setReading({ kind: 'read', data, warnings: (e.meta.warnings ?? []).map((w) => w.message), key: how === 'auto' ? jiraProject.trim() : '' });
     } catch (err) {
       setReading({ kind: 'failed', outcome: failedOutcome(err) });
     }
@@ -126,8 +126,8 @@ export function FindFields({ config, toilProjects, toilProject, connections, con
   const data = reading.kind === 'read' ? reading.data : null;
   const picks: FieldPick[] = useMemo(() => (data ? data.fields.filter((f) => ticked[f.id]).map((f) => ({ id: f.id, alias: aliases[f.id] ?? f.alias, ...(f.owi ? { owi: f.owi.field } : {}) })) : []), [data, ticked, aliases]);
   const badAlias = picks.find((p) => !ALIAS.test(p.alias));
-  // A key typed here to sample from is saved too, but only where the Toil project names none: a key it already has is never changed from here.
-  const typedKey = how === 'auto' ? jiraProject.trim() : '';
+  // The key the sample was read from is saved too (never one edited after the read), but only where the Toil project names none: a key it already has is never changed from here.
+  const typedKey = reading.kind === 'read' ? reading.key : '';
   const saveKey = project !== '' && typedKey !== '' && named === null;
   const commands: Planned[] = project
     ? [

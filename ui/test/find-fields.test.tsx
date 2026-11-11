@@ -160,6 +160,16 @@ describe('Find the fields', () => {
     expect(screen.getByRole('list', { name: 'What happened to each name' }).textContent).toContain('Jira project key: saved');
   });
 
+  it('saves the key the sample was read from, not one edited into the box after the read', async () => {
+    const { config, calls } = machine();
+    mount(config);
+    await read('PAY');
+    await userEvent.type(screen.getByLabelText(/^Jira project key/), 'X');
+    await press('Name these fields');
+    await screen.findByText(/5 of 5 saved/);
+    expect(keySaves(calls)).toEqual([{ toilProject: 'payments', area: 'jira', set: ['project=PAY'] }]);
+  });
+
   it('leaves the key alone when the Toil project already names one, and says nothing about it', async () => {
     const { config, calls } = machine([], 'PAY');
     mount(config);
