@@ -260,13 +260,44 @@ function covered() {
   return findings;
 }
 
-/** Waits until the view has its heading and nothing is still loading. */
+/**
+ * Resolves true once the layout has held still for two frames in a row and no animation that has an end is still
+ * running, or false after `ms`. "Still" is a signature that costs a few microseconds a frame: how many elements the
+ * page has (a menu opening, a drawer mounting or leaving, a route rendering all change it), the document's and
+ * <main>'s size (a resize reflowing, a <details> opening), and how many finite animations are running (a dialog
+ * fading in or out). It stands in for the fixed sleeps that used to guess how long all of that takes, the way a
+ * change advisory board guesses how long a change will take: generously, and the same every time. An animation
+ * loop (a drifting grid, a loader's motif) is left running on purpose.
+ */
+const STABLE = (ms = 3000) => `(async () => {
+  const sig = () => {
+    const m = document.querySelector('main')?.getBoundingClientRect();
+    const de = document.documentElement;
+    const running = document.getAnimations().filter((a) => a.playState !== 'finished' && a.effect?.getComputedTiming().iterations !== Infinity).length;
+    return [document.body.getElementsByTagName('*').length, de.scrollWidth, de.scrollHeight, m ? Math.round(m.width) + 'x' + Math.round(m.height) : '', running].join('|');
+  };
+  // A frame, or 100ms if the page isn't painting (a hidden tab pauses rAF), so the deadline is always reached.
+  const frame = () => new Promise((r) => { requestAnimationFrame(r); setTimeout(r, 100); });
+  const deadline = Date.now() + ${ms};
+  let last = sig();
+  let same = 0;
+  while (Date.now() < deadline) {
+    await frame();
+    const now = sig();
+    same = now === last ? same + 1 : 0;
+    last = now;
+    if (same >= 2 && now.endsWith('|0')) return true;
+  }
+  return false;
+})()`;
+
+/** Waits until the view has its heading and nothing is still loading, its fonts are in, and its layout has settled. */
 const SETTLED = `new Promise((resolve) => {
   const started = Date.now();
   const done = () => document.querySelector('main h1') && !document.querySelector('main .skin-loading, main [data-loading]') && !/Drawing the graph|Reading /.test(document.querySelector('main')?.textContent ?? '');
-  const tick = () => (done() || Date.now() - started > 15000 ? document.fonts.ready.then(() => setTimeout(resolve, 250)) : setTimeout(tick, 100));
+  const tick = () => (done() || Date.now() - started > 15000 ? document.fonts.ready.then(() => resolve()) : setTimeout(tick, 50));
   tick();
-})`;
+}).then(() => ${STABLE()})`;
 
 /**
  * Clicks every shown element matching the selector (and text, a regex
@@ -373,7 +404,7 @@ function states(route, width, sample = true) {
     const openFold = `(async () => { const f = document.querySelector('[data-guide-fold] summary'); if (f && !f.parentElement.open) f.click(); return 1; })()`;
     const back = `(async () => { await ${clickAll('[data-setup-back]')}; await ${clickAll('[data-setup-back]')}; return 1; })()`;
     out.push({ name: 'guide', setup: `(async () => { const n = await ${toTools}; if (n !== 1) return n; await ${openFold}; return n; })()`, undoJs: back });
-    out.push({ name: 'guide-answered', setup: `(async () => { const n = await ${toTools}; if (n !== 1) return n; await ${openFold}; await ${clickAll('[data-guide-starter]', null, 5000)}; const deadline = Date.now() + 5000; while (!document.querySelector('[data-guide-log] .guide__turn p:not(.guide__question):not([role=status])') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('[data-guide-log] .guide__turn') ? 1 : 'the guide showed no answer'; })()`, undoJs: back });
+    out.push({ name: 'guide-answered', setup: `(async () => { const n = await ${toTools}; if (n !== 1) return n; await ${openFold}; await ${clickAll('[data-guide-starter]', null, 5000)}; const deadline = Date.now() + 5000; while (!(document.querySelector('[data-guide-log] .guide__turn p:not(.guide__question):not([role=status])') && !document.querySelector('[data-guide-log] .guide__turn [role=status]')) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('[data-guide-log] .guide__turn') ? 1 : 'the guide showed no answer'; })()`, undoJs: back });
     const token = ['gh', 'p_', '0'.repeat(34), 'AB'].join('');
     out.push({ name: 'guide-refused', setup: `(async () => { const n = await ${toTools}; if (n !== 1) return n; await ${openFold}; const t = document.querySelector('[data-guide-input]'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(t, 'my token is ${token}'); t.dispatchEvent(new Event('input', { bubbles: true })); await new Promise((r) => setTimeout(r, 100)); await ${clickAll('.guide__ask button[type=submit]')}; return document.querySelector('[data-guide-refused]') ? 1 : 'no refusal notice'; })()`, undoJs: back });
   }
@@ -602,7 +633,13 @@ async function axeRun(page, source) {
   return page.evaluate(`axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, rules: { 'label-content-name-mismatch': { enabled: true } }, resultTypes: ['violations'] }).then((r) => r.violations.map((v) => ({ id: v.id, impact: v.impact, nodes: v.nodes.map((n) => n.target.join(' ')) })))`);
 }
 
-/** How many theme schemes run at once, each in its own Chrome: LAYOUT_WORKERS, or one per core. */
+/**
+ * How many theme schemes run at once, each in its own Chrome: LAYOUT_WORKERS, or one per core. One per core stays the
+ * default on purpose. With the fixed sleeps gone (STABLE) a scheme is CPU-bound, not waiting, and oversubscribing
+ * does not pay: eight schemes on a 4-core affinity ran 8 workers in 122s against 149s for 4, but starved the
+ * "answered" state's 15s wait for a streamed answer in every scheme, which is a failed run. Faster and red is
+ * what a status report calls "on time, off scope". Set LAYOUT_WORKERS to try other numbers.
+ */
 export function layoutWorkers(runs) {
   const asked = Number(process.env.LAYOUT_WORKERS);
   const want = Number.isInteger(asked) && asked > 0 ? asked : availableParallelism();
@@ -619,11 +656,12 @@ export function layoutWorkers(runs) {
  * Each scheme's findings are kept apart and joined in scheme order, so the
  * report reads the same however many workers ran.
  *
+ * `shotsFor(run)` says which schemes are shot into `shots` (all, unless set), so a caller can mix strict and other schemes in one call.
  * `sample` (on unless set false) says the data is the sample's, whose states always have something to open; real data may not (see `states`).
  * `headerFits` (on unless set false) fails a header folded into its Menu at
  * 1440px or wider; it's for the sample data, whose rows are known to fit.
  */
-export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES, widths = WIDTHS, shots = null, motion = 'reduce', log = () => {}, workers = layoutWorkers(runs), headerFits = true, sample = true }) {
+export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES, widths = WIDTHS, shots = null, shotsFor = () => true, motion = 'reduce', log = () => {}, workers = layoutWorkers(runs), headerFits = true, sample = true }) {
   const chrome = findChrome();
   if (!chrome) throw new Error('The layout check needs Chrome, Edge or Chromium, and found none. Install one, or set CHROME_PATH to it.');
   const axeSource = readFileSync(createRequire(join(ui, 'package.json')).resolve('axe-core/axe.min.js'), 'utf8');
@@ -640,7 +678,7 @@ export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES,
       await browser.page.media([{ name: 'prefers-reduced-motion', value: motion }]);
       while (!failed && next < runs.length) {
         const i = next++;
-        results[i] = await checkRun({ page: browser.page, run: runs[i], urlFor, routes, widths, shots, axeSource, log, headerFits, sample });
+        results[i] = await checkRun({ page: browser.page, run: runs[i], urlFor, routes, widths, shots: shotsFor(runs[i]) ? shots : null, axeSource, log, headerFits, sample });
       }
     } catch (e) {
       failed ??= e;
@@ -667,14 +705,15 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
   for (const route of routes) {
     await page.size(widths[0]);
     await page.goto(urlFor(run.theme, run.scheme, route));
-    await page.evaluate(SETTLED);
+    if (!(await page.evaluate(SETTLED))) problems.push(`${label} ${route}: the layout was still changing 3s after the view had its heading`);
     const applied = await page.evaluate('document.documentElement.dataset.theme');
     if (applied !== run.theme) problems.push(`${label} ${route}: the page showed the ${applied} theme instead`);
     for (const width of widths) {
       await page.size(width);
-      await page.evaluate(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 150))))`);
-      await page.evaluate(ANIMATIONS_DONE);
       const where = `${label} ${route} at ${width}px`;
+      // The resize has reflowed, and whatever the app does on a resize has rendered, once the layout holds still.
+      if (!(await page.evaluate(STABLE()))) problems.push(`${where}: the layout was still changing 3s after the window was resized`);
+      await page.evaluate(ANIMATIONS_DONE);
       const slug = `${run.theme}-${run.scheme}__${route.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'home'}__${width}`;
       const record = (state, findings) => {
         for (const f of findings) problems.push(`${where}${state ? ` (${state})` : ''}: ${f.kind} at ${f.at}: ${f.detail}`);
@@ -682,7 +721,7 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
       await shoot(slug);
       // Every <details> open, since long values hide inside them.
       await page.evaluate(`document.querySelectorAll('details').forEach((d) => (d.open = true))`);
-      await page.evaluate(`new Promise((r) => setTimeout(r, 100))`);
+      if (!(await page.evaluate(STABLE()))) problems.push(`${where}: the layout was still changing 3s after every <details> was opened`);
       record('', await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)}, ${headerFits})`));
       record('', await page.evaluate(`(${covered})()`));
       checked++;
@@ -716,7 +755,7 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
         else if (!opened) problems.push(`${where} (${state.name}): nothing to open; no element matching the selector showed within 5s`);
         // A state may say why it opened nothing, as text, rather than leave the generic line.
         else if (typeof opened === 'string') problems.push(`${where} (${state.name}): ${opened}`);
-        await page.evaluate(`new Promise((r) => setTimeout(r, 300))`);
+        if (!(await page.evaluate(STABLE()))) problems.push(`${where} (${state.name}): the layout was still changing 3s after the state opened`);
         await page.evaluate(ANIMATIONS_DONE);
         await shoot(`${slug}__${state.name}`);
         record(state.name, await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)}, ${headerFits})`));
@@ -727,7 +766,7 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
         checked++;
         if (state.undo) await page.key(state.undo);
         if (state.undoJs) await page.evaluate(state.undoJs);
-        await page.evaluate(`new Promise((r) => setTimeout(r, 200))`);
+        if (!(await page.evaluate(STABLE()))) problems.push(`${where} (${state.name}): the layout was still changing 3s after the state was undone`);
       }
       if (page.errors.length) problems.push(`${where}: the page threw ${page.errors.splice(0).join('; ')}`);
     }
