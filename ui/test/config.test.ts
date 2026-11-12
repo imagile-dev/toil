@@ -10,11 +10,8 @@ import { fakeStore } from '../../test/harness/fake-store.ts';
 import { clearConnectionEnv } from '../../test/harness/hermetic-env.ts';
 import { DEFAULT_TIMEOUT_MS as TOIL_DEFAULT_TIMEOUT_MS } from '../../src/core/run.ts';
 import { areas as toilAreas } from '../../src/registry.ts';
-import { STANDARD_SEARCH_FIELDS as CLOUD_STANDARD } from '../../src/areas/jira/cloud/client.ts';
-import { STANDARD_SEARCH_FIELDS as SERVER_STANDARD } from '../../src/areas/jira/server/client.ts';
 import { CONFIG_CHANGES, CONFIG_COMMANDS, CONFIG_READS, DEFAULT_TIMEOUT_MS, connectionEnvVar, type ConnectionRow } from '../src/config.ts';
 import { guideStateOf } from '../src/guide.ts';
-import { JIRA_STANDARD_FIELDS } from '../src/load.ts';
 import { tokenStateOf } from '../src/setup.ts';
 import { guideContext } from '../server/agents/guide.ts';
 import { connectionEnvName } from '../../src/core/config.ts';
@@ -482,11 +479,6 @@ describe('connectionEnvVar', () => {
 describe('what Toil UI reads from toil for the setup fixes (#573)', () => {
   const areas = areasFrom(registry);
   const row = (area: string, values: Record<string, string>): ConnectionRow => ({ name: 'local-db', area, isDefault: true, host: null, writes: false, values: values as ConnectionRow['values'] });
-
-  it('holds the standard Jira search fields to what toil searches without a list, on both deployments', () => {
-    expect(CLOUD_STANDARD).toEqual(SERVER_STANDARD);
-    expect([...JIRA_STANDARD_FIELDS].sort()).toEqual([...CLOUD_STANDARD].sort());
-  });
 
   it('says a SQLite connection needs no secret, and an engine that signs in still does', () => {
     const db = areas.find((a) => a.name === 'db')!;

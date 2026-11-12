@@ -35,8 +35,9 @@ import { LoginForm, NewConnectionForm } from './settings/Connections.tsx';
 import { FieldsStep } from './settings/FindFields.tsx';
 import { testSentence, type ConnectionTestData } from '../connection-test.ts';
 import { ChangeForm, ChoiceRadios, OutcomeLine, SelectField, TextField, failedOutcome, outcomeOf, type Outcome } from './settings/parts.tsx';
-import { addRepos, linkTools, type RepoResult } from './project-create.ts';
+import { addRepos, linkTools, withJiraKey, type RepoResult } from './project-create.ts';
 import { LookAround } from '../sample-mode.tsx';
+import { JiraKeyField, NamedJiraLine, useNamedJira } from './jira-key.tsx';
 import './setup.css';
 
 /** Where the wizard lives, and what opens it from the first run, the palette and Settings. */

@@ -209,16 +209,9 @@ export function owiFields(fields: unknown): Record<string, string> {
 }
 
 /**
- * What `jira issue search` returns when it is given no `fields`
- * (`STANDARD_SEARCH_FIELDS` in src/areas/jira/{cloud,server}/client.ts), which
- * a search that names any field no longer adds on its own. ui/test holds this
- * list to both of them, so a field toil starts returning is not lost here.
- */
-export const JIRA_STANDARD_FIELDS = ['summary', 'status', 'priority', 'assignee', 'issuetype', 'project', 'created', 'updated', 'labels', 'reporter'];
-
-/**
  * What `mapOwi` reads from a Jira issue (src/core/owi/jira.ts) by a standard
- * field name and a search does not return by itself: the description (the
+ * field name and a search does not return by itself (it is sent as
+ * `moreFields`, with the split and pointer fields, by `jiraMoreFields`): the description (the
  * readiness check reads it), how and when it was resolved, the due date, the
  * original estimate (the hours fallback when no points field is registered),
  * and the parent, sub-tasks and links that the Board, the Graph and the
@@ -226,11 +219,6 @@ export const JIRA_STANDARD_FIELDS = ['summary', 'status', 'priority', 'assignee'
  * registered field.
  */
 export const JIRA_OWI_FIELDS = ['description', 'resolution', 'resolutiondate', 'duedate', 'timeoriginalestimate', 'parent', 'subtasks', 'issuelinks'];
-
-/** The OWI keys whose value is the name or id of a Jira field (the others are units, labels and day counts). */
-const JIRA_FIELD_KEYS = ['estimate', 'iteration', 'team', 'dueDate', 'priority', 'type'] as const;
-/** The section's `fields` the readiness check reads from the issue too: the field acceptance criteria are kept in. */
-const JIRA_READ_FIELDS = [...JIRA_FIELD_KEYS, 'acceptanceCriteria'] as const;
 
 /** A custom field a Jira connection registers, as `jira issue fields` lists it. */
 export interface RegisteredField {
@@ -245,24 +233,6 @@ export function registeredFields(data: unknown): RegisteredField[] {
 
 /** The registered field an OWI override names, by its id or its name in any case. */
 const registeredBy = (registered: readonly RegisteredField[], value: string) => registered.find((f) => f.id === value) ?? registered.find((f) => f.name.toLowerCase() === value.toLowerCase());
-
-/**
- * The `fields` a Jira search is asked for: the standard ones, what `mapOwi`
- * reads, every custom field the connection registers, and the field each of
- * the Toil project's `fields` name (an OWI override, or where acceptance
- * criteria are kept), as the id search resolves it. A name that is neither
- * registered nor one word could not be resolved (search refuses it, and with it
- * the whole read), so it is left out and `mapOwi` says the field is missing.
- */
-export function jiraSearchFields(registered: readonly RegisteredField[], section: Record<string, unknown>): string {
-  const named = JIRA_READ_FIELDS.flatMap((k) => {
-    const v = section[k];
-    if (typeof v !== 'string' || v.trim() === '') return [];
-    const def = registeredBy(registered, v.trim());
-    return def ? [def.id] : /\s/.test(v.trim()) ? [] : [v.trim()];
-  });
-  return [...new Set([...JIRA_STANDARD_FIELDS, ...JIRA_OWI_FIELDS, ...registered.map((f) => f.id), ...named])].join(',');
-}
 
 /**
  * Jira search returns a registered custom field under the name the connection
@@ -355,15 +325,17 @@ const JIRA_FIELD_ID = /^(customfield_\d+|[a-z][a-z0-9]*)$/i;
  * (through the section's `fields` when it names an alias). Each once, in the
  * order they were found.
  */
-export function jiraMoreFields(toilProject: Rec, section: Rec): string[] {
+export function jiraMoreFields(toilProject: Rec, section: Rec, registered: readonly RegisteredField[] = []): string[] {
   const fields = isRec(section.fields) ? section.fields : {};
-  const asked: string[] = [...JIRA_SPLIT_FIELDS];
-  for (const [name, value] of Object.entries(fields)) if (!JIRA_OWI_NOT_FIELDS.has(name) && typeof value === 'string') asked.push(value);
+  // A pointer that names a registered field, by id or by name in any case, is asked for by its id; search would resolve the name too, but a name with spaces is only safe to send once the connection is known to register it.
+  const idOf = (value: string) => registeredBy(registered, value.trim())?.id ?? value.trim();
+  const asked: string[] = [...JIRA_OWI_FIELDS, ...JIRA_SPLIT_FIELDS];
+  for (const [name, value] of Object.entries(fields)) if (!JIRA_OWI_NOT_FIELDS.has(name) && typeof value === 'string') asked.push(idOf(value));
   const dimensions = isRec(toilProject.dimensions) ? toilProject.dimensions : {};
-  for (const dimension of Object.values(dimensions)) if (isRec(dimension) && typeof dimension.jira === 'string') asked.push(dimension.jira);
+  for (const dimension of Object.values(dimensions)) if (isRec(dimension) && typeof dimension.jira === 'string') asked.push(idOf(dimension.jira));
   const classify = isRec(toilProject.classify) ? toilProject.classify : {};
   const target = isRec(classify.targets) && isRec(classify.targets.jira) ? classify.targets.jira : {};
-  if (typeof target.field === 'string') asked.push(typeof fields[target.field] === 'string' ? (fields[target.field] as string) : target.field);
+  if (typeof target.field === 'string') asked.push(idOf(typeof fields[target.field] === 'string' ? (fields[target.field] as string) : target.field));
   return [...new Set(asked.filter((f) => JIRA_FIELD_ID.test(f)))];
 }
 
@@ -513,13 +485,13 @@ export async function loadToilProject(execute: Execute, name: string, options: L
     // `issue fields` lists what the connection holds and asks Jira nothing.
     const listed = projects.length ? await run('work', `${jira} issue fields`, { ...base }) : null;
     registered[jira] = registeredFields(listed?.data);
-    // A list that failed is unknown, not empty: the search is then asked for no `fields`, as before #573, and returns what it returns by itself.
-    const fields = listed ? jiraSearchFields(registered[jira], isRec(section(jira).fields) ? (section(jira).fields as Rec) : {}) : undefined;
+    // The search sends `moreFields`, never `fields`: toil adds them to the standard fields and the connection's registered custom fields, so those still come back whether or not this list could be read (a list that failed is unknown, not empty).
+    const moreFields = jiraMoreFields(toilProject, section(jira), registered[jira]).join(',');
     for (const project of projects) {
       tasks.push((async () => {
         const state = track(jira, projects.length > 1 ? project : '');
         // The search brings each issue's history with it (toil's --changelog); only an issue whose changelog came back short is read with a call of its own.
-        const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(project, options.windowDays), changelog: true, moreFields: jiraMoreFields(toilProject, section(jira)).join(',') });
+        const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(project, options.windowDays), changelog: true, moreFields });
         if (!asked) return markUnread(state, 'work');
         const { search, histories: inline, incomplete } = splitChangelogs(asked, `${jira} issue history`);
         work[jira].push(withFieldIds(search, registered[jira] ?? []));

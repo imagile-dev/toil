@@ -100,9 +100,8 @@ export function stubToil(): StubToil {
 
     if (command === 'jira issue search') {
       // The ids-only listing (fields: 'key') carries no changelog, and is answered from the one canned search the dashboard asks.
-      // A search that names its fields (the loader's, for the split-by fields) must name the ones the canned call does; the ids-only listing names just the key and is answered from that same canned search.
-      const withoutFields = (i: Rec) => Object.fromEntries(Object.entries(i).filter(([k]) => k !== 'fields'));
-      const hit = canned.find((c) => c.command === command && inputKey(withoutFields(c.input)) === inputKey(fields === 'key' ? { ...rest, changelog: true } : rest) && (fields === 'key' || c.input.fields === fields));
+      // The loader's search names the fields it adds (`moreFields`, part of the canned input); the ids-only listing names none and is answered from that same canned search whatever they were.
+      const hit = fields === 'key' ? canned.find((c) => c.command === command && c.input.toilProject === rest.toilProject && c.input.jql === rest.jql) : find(command, { ...rest, ...(fields === undefined ? {} : { fields }) });
       if (!hit) return fail(command, 'INVALID_INPUT', `No canned ${command}.`, 'Add it.');
       // fields: 'key' is the sync's ids-only listing (#493): the key and nothing else.
       const all = (hit.data as { issues: Array<{ key: string; fields: Rec }> }).issues.filter((i) => since === null || Date.parse(String(i.fields.updated)) >= since).map((i) => (fields === 'key' ? ({ key: i.key } as { key: string; fields: Rec }) : i));

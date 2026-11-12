@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JIRA_SPLIT_FIELDS, jiraMoreFields } from '../src/load.ts';
+import { JIRA_OWI_FIELDS, JIRA_SPLIT_FIELDS, jiraMoreFields } from '../src/load.ts';
 import { TOIL_PROJECTS } from '../src/fixtures/toil-projects.ts';
 import { loaded } from './harness.ts';
 
@@ -40,10 +40,10 @@ describe('sample-team', () => {
 });
 
 describe("the fields a Jira search asks for beyond toil's default", () => {
-  it('are, for sample-team, the split ones, then its own pointers and dimension, once each', () => {
+  it('are, for sample-team, what mapOwi reads, the split ones, then its own pointers and dimension, once each', () => {
     const file = TOIL_PROJECTS.find((d) => d.name === 'sample-team')!;
     expect(jiraMoreFields(file, file.jira as Record<string, unknown>)).toEqual([
-      ...JIRA_SPLIT_FIELDS,
+      ...new Set([...JIRA_OWI_FIELDS, ...JIRA_SPLIT_FIELDS]),
       'customfield_10016', // estimate
       'customfield_10020', // iteration
       'customfield_10014', // epic link
@@ -53,7 +53,12 @@ describe("the fields a Jira search asks for beyond toil's default", () => {
 
   it('are, for a toil project with only an alias, the alias too, and never a name with spaces or a label pattern', () => {
     const base = { jira: { fields: { estimate: 'Story Points', estimateLabel: 'points: {n}', estimateUnit: 'points', acceptanceCriteria: 'customfield_10500' } } };
-    expect(jiraMoreFields(base, base.jira)).toEqual([...JIRA_SPLIT_FIELDS, 'customfield_10500']);
+    expect(jiraMoreFields(base, base.jira)).toEqual([...new Set([...JIRA_OWI_FIELDS, ...JIRA_SPLIT_FIELDS]), 'customfield_10500']);
+  });
+
+  it('name a registered field by its id, so a name with spaces is asked for once the connection registers it', () => {
+    const base = { jira: { fields: { estimate: 'Story Points' } } };
+    expect(jiraMoreFields(base, base.jira, [{ id: 'customfield_10016', name: 'Story Points' }])).toContain('customfield_10016');
   });
 
   it("add the classify target's field, through the section's alias when it is one", () => {

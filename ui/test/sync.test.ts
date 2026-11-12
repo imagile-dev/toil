@@ -11,7 +11,7 @@ import { SKEW_MS, SyncBusy, SyncService, joinPages } from '../server/sync.ts';
 import { TOIL_PROJECTS } from '../src/fixtures/toil-projects.ts';
 import { JIRA_CUT_SHORT } from '../src/fixtures/work.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import { JQL, jiraMoreFields, loadToilProject } from '../src/load.ts';
+import { loadToilProject } from '../src/load.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
 import { cardSearch } from './harness.ts';
 import { JIRA_PAGE, stubToil, type StubToil } from './toil-stub.ts';
@@ -26,7 +26,6 @@ import { JIRA_PAGE, stubToil, type StubToil } from './toil-stub.ts';
 
 const ctx: RequestContext = { viewer: { id: 'local', name: 'you', via: 'loopback' }, signal: new AbortController().signal };
 const TOIL = { version: '0.1.0-alpha.2', contractVersion: 1 };
-const CARD = TOIL_PROJECTS.find((d) => d.name === 'card-payments')!;
 const folders: string[] = [];
 const caches: Cache[] = [];
 
@@ -81,7 +80,7 @@ describe('a full sync', () => {
     expect(named(toil, 'jira issue history').map((c) => c.input.key)).toEqual(JIRA_CUT_SHORT);
     // jira issue search came in pages of JIRA_PAGE, every one followed.
     const pages = named(toil, 'jira issue search').filter((c) => c.input.toilProject === 'card-payments');
-    const issues = (await fixtureExecute().execute('jira issue search', { toilProject: 'card-payments', jql: JQL('PAY'), changelog: true, moreFields: jiraMoreFields(CARD, CARD.jira as Record<string, unknown>).join(',') }, { readOnly: true })).data as { issues: unknown[] };
+    const issues = (await fixtureExecute().execute('jira issue search', cardSearch(), { readOnly: true })).data as { issues: unknown[] };
     expect(pages.length).toBe(Math.ceil(issues.issues.length / JIRA_PAGE));
     expect(pages.slice(1).map((p) => p.input.cursor)).toEqual(pages.slice(1).map((_, i) => String((i + 1) * JIRA_PAGE)));
     // OWI items, transitions and change refs are stored.

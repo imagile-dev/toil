@@ -149,6 +149,16 @@ Windows 11 with Node 24.22.1. Nothing here has met a real Jira, GitHub or Azure 
 - **Not built from the proposal:** pinning a value from a legend, highlighting a cited
   cell, sortable-by-any-column beyond the drill drawer's table, the sync fetching
   missing ancestors, and the read-further-back setting.
+- **Toil UI's Jira search sends `moreFields` only, which replaces #573's copied list.**
+  `main` (#576) had the page send `fields`, built from a copy of toil's standard search
+  fields plus the connection's registered ones. Brought together with this branch, the
+  page sends `moreFields` alone: toil's default set (the standard fields and the
+  connection's registered custom fields) still applies, and the page adds what a
+  briefing and a split need and the toil project's own pointers, each by its id where
+  the connection registers it. So the standard list is no longer copied into the page,
+  and `docs/decisions/573-toil-ui-setup-fixes.md`'s entry on where that copy lives no
+  longer describes the code. `jira issue fields` is still read, to copy registered
+  fields back under their ids. Where: `jiraMoreFields` in `ui/src/load.ts`.
 
 **Still the maintainer's to take**
 

@@ -28,7 +28,7 @@ import { categoryHint } from '../components/category-chip.tsx';
 import { Unread } from '../components/unread.tsx';
 import { useWorkInsights } from '../insights-data.ts';
 import { mixOverview, mixSentence, nextRelease, periodWords, releaseSentence } from '../model/work-insights.ts';
-import { analysesHref, analysisHref, boardHref, chartsHref, classifyHref, dependenciesHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, worklogHref } from '../format.ts';
+import { analysesHref, analysisHref, boardHref, chartsHref, classifyHref, dependenciesHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, toilProjectEditHref, worklogHref } from '../format.ts';
 import { Empty, TrackerAction } from '../components/empty.tsx';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput } from '../model/flow.ts';
