@@ -22,6 +22,7 @@ import { useWorkInsights } from '../insights-data.ts';
 import { commandLine } from '../proposal.ts';
 import { useShell } from './proposal.tsx';
 import { sourceLabel } from '../format.ts';
+import { useWords } from '../skins.tsx';
 import type { WorkItem } from '../toil.ts';
 
 /** Why a connection's changes can't be applied yet, in words, with where to put it right. */
@@ -94,9 +95,12 @@ export function ApplyCard({ connection, work, onClose }: { connection: string; w
   const ins = useWorkInsights();
   const { api, applied } = useClassify();
   const shell = useShell();
+  const words = useWords();
   const [plan, setPlan] = useState<ApplyPlan | { error: string } | null>(null);
   const [result, setResult] = useState<ApplyResult | { error: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  // Bumped by "Check again": a plan is good for one Apply, so checking again makes a fresh plan.
+  const [round, setRound] = useState(0);
   useEffect(() => {
     let live = true;
     if (!api) return;
@@ -107,8 +111,13 @@ export function ApplyCard({ connection, work, onClose }: { connection: string; w
     return () => {
       live = false;
     };
-    // The plan is read once per card: the items it is about don't change while it is open.
-  }, [api, toilProject.name]);
+    // The plan is read once per card, and again on Check again: the items it is about don't change while it is open.
+  }, [api, toilProject.name, round]);
+  const checkAgain = () => {
+    setResult(null);
+    setPlan(null);
+    setRound((n) => n + 1);
+  };
   const press = async () => {
     if (!api) return;
     setBusy(true);
@@ -148,7 +157,7 @@ export function ApplyCard({ connection, work, onClose }: { connection: string; w
         return (
           <div key={`${g.area}:${g.connection}`} className="apply__group">
             <p className="note">
-              {g.changes.length} {g.changes.length === 1 ? 'item' : 'items'} in {sourceLabel(g.area)}. Nothing is written until you press Apply.
+              {g.changes.length} {g.changes.length === 1 ? 'item' : 'items'} in {sourceLabel(g.area)}.{result ? '' : ' Nothing is written until you press Apply.'}
             </p>
             <ul className="plain apply__changes">
               {g.changes.map((c) => (
@@ -189,9 +198,15 @@ export function ApplyCard({ connection, work, onClose }: { connection: string; w
         </p>
       )}
       <div className="apply__actions">
-        <Button className="btn btn--accent" onPress={press} isDisabled={busy || !plan || !('groups' in plan) || groups.length === 0 || Boolean(disabled) || writesOff} data-apply-press="">
-          {busy ? 'Applying…' : result && 'outcomes' in result ? 'Apply again' : `Apply ${groups.reduce((n, g) => n + g.changes.length, 0) || ''} ${groups.reduce((n, g) => n + g.changes.length, 0) === 1 ? 'change' : 'changes'}`.replace(/\s+/g, ' ')}
-        </Button>
+        {result && 'outcomes' in result ? (
+          <Button className="btn btn--accent" onPress={checkAgain} isDisabled={busy} data-check-again="">
+            {words('classify.checkAgain')}
+          </Button>
+        ) : (
+          <Button className="btn btn--accent" onPress={press} isDisabled={busy || !plan || !('groups' in plan) || groups.length === 0 || Boolean(disabled) || writesOff} data-apply-press="">
+            {busy ? 'Applying…' : `Apply ${groups.reduce((n, g) => n + g.changes.length, 0) || ''} ${groups.reduce((n, g) => n + g.changes.length, 0) === 1 ? 'change' : 'changes'}`.replace(/\s+/g, ' ')}
+          </Button>
+        )}
         <Button className="btn btn--quiet" onPress={onClose}>
           Close
         </Button>

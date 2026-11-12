@@ -67,28 +67,34 @@ function Why({ row, follow }: { row: NeedsRow; follow: number }) {
   );
 }
 
+/** A radio is an <input> but takes no typing: a mouse pick leaves focus on it, and the row's keys still work there. */
+const isRadio = (t: EventTarget) => t instanceof HTMLInputElement && t.type === 'radio';
+
 function Row({ row, picked, onPick, onConfirm, busy, follow }: { row: NeedsRow; picked: string | undefined; onPick: (value: string) => void; onConfirm: () => void; busy: boolean; follow: number }) {
   const ins = useWorkInsights();
   const { proposals, accept, dismiss } = useClassify();
   const choices = choicesOf(ins.scheme);
   const proposal = proposals.get(row.item.id);
   const onKeyDown = (e: KeyboardEvent<HTMLLIElement>) => {
-    if (typingIn(e.target)) return;
+    if (typingIn(e.target) && !isRadio(e.target)) return;
     const key = pickKey(e);
     const choice = key ? choiceForKey(choices, key) : undefined;
     if (choice) {
       e.preventDefault();
       onPick(choice.id ?? 'unsure');
-      return;
-    }
-    // Enter on one of the row's own buttons presses that button; anywhere else in the row it confirms the pick.
-    if (matches('classifyConfirm', e) && !(e.target instanceof HTMLElement && e.target.closest('button, a'))) {
-      e.preventDefault();
-      onConfirm();
     }
   };
+  // Enter is read on the way down, because the radios and buttons inside the row stop the key from rising to the row.
+  // On one of the row's own buttons it presses that button and on a link it follows the link; anywhere else in the row,
+  // a radio the mouse just picked included, it confirms the pick. A text field keeps its own Enter.
+  const onEnter = (e: KeyboardEvent<HTMLLIElement>) => {
+    if (!matches('classifyConfirm', e) || (typingIn(e.target) && !isRadio(e.target))) return;
+    if (e.target instanceof HTMLElement && e.target.closest('button, a')) return;
+    e.preventDefault();
+    onConfirm();
+  };
   return (
-    <li className="sortrow" data-row={row.item.id} data-kind={row.kind} tabIndex={0} onKeyDown={onKeyDown} aria-label={`${row.item.source.key} ${row.item.title}`}>
+    <li className="sortrow" data-row={row.item.id} data-kind={row.kind} tabIndex={0} onKeyDown={onKeyDown} onKeyDownCapture={onEnter} aria-label={`${row.item.source.key} ${row.item.title}`}>
       <p className="sortrow__head">
         <ItemLink id={row.item.id} withTitle />
       </p>
@@ -332,7 +338,7 @@ export function Classify() {
       {(pending.length > 0 || cards) && (
         <section className="classify__pending" aria-label="Changes waiting for the tracker" data-pending="">
           <h2>{pending.length === 0 ? 'Nothing is waiting for the tracker' : `${plural(pending.length, 'change')} waiting for the tracker`}</h2>
-          <p className="note">Decided here, not yet written to the tracker. Nothing is written until you press Apply.</p>
+          {pending.length > 0 ? <p className="note">Decided here, not yet written to the tracker. Nothing is written until you press Apply.</p> : cards && <p className="note">{words('classify.allWritten')}</p>}
           {!cards ? (
             <Button className="btn btn--accent" onPress={review} data-review-apply="">
               Review and apply

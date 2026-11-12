@@ -41,6 +41,9 @@ export const FUNCTIONAL = {
   // Plain words turn "agent" into "AI agent", so the key says "Ask your agent" and the button reads "Ask your AI agent".
   'classify.ask': 'Ask your agent',
   // A Toil project whose work was never read has nothing to sort, which is not the same as everything being sorted (principle 12).
+  // After an Apply (#566): what is true once the tracker has been written, and the press that reads it again (a plan is good for one Apply).
+  'classify.allWritten': 'Everything decided here has been written to the tracker.',
+  'classify.checkAgain': 'Check again',
   'classify.unread': 'Not read yet',
   'classify.unread.body': "This Toil project's work hasn't been read, so there is nothing to sort yet.",
   // The chat (#343): the Ask bar's placeholder, and the status line's words, which a tool's name follows. Where a figure was read from is a fact (principle 4).

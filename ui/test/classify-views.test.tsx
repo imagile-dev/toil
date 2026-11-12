@@ -104,6 +104,27 @@ describe('the Classify view', () => {
     await waitFor(() => expect(rows().length).toBe(before));
   });
 
+  it('confirms with Enter after a mouse pick leaves focus on the radio, but never on a link or the Confirm button', async () => {
+    open(`${TEAM}/board/classify`);
+    await waitFor(() => expect(rows().length).toBeGreaterThan(5));
+    const all = rows();
+    const row = all[all.length - 1]!;
+    const id = row.dataset.row!;
+    const before = all.length;
+    const radio = within(row).getByRole('radio', { name: /Feature/ }) as HTMLInputElement;
+    await userEvent.click(radio.closest('label')!);
+    expect(radio.checked).toBe(true);
+    const link = row.querySelector('a')!;
+    expect(fireEvent.keyDown(link, { key: 'Enter' })).toBe(true);
+    // The Confirm button handles its own Enter (a press), so the row's handler must not confirm a second time.
+    const confirmButton = within(row).getByRole('button', { name: 'Confirm' });
+    fireEvent.keyDown(confirmButton, { key: 'Enter' });
+    expect(rows().length).toBe(before);
+    await act(async () => void fireEvent.keyDown(radio, { key: 'Enter' }));
+    await waitFor(() => expect(document.querySelector(`[data-row="${CSS.escape(id)}"]`)).toBeNull());
+    expect(rows().length).toBe(before - 1);
+  });
+
   it("does not take a key typed in a text field, and does not confirm a row with no pick", async () => {
     open(`${TEAM}/board/classify`);
     await waitFor(() => expect(rows().length).toBeGreaterThan(5));
@@ -296,7 +317,44 @@ describe('Apply', () => {
     expect(done.textContent).toMatch(/SHOP-999 failed: Jira said no\./);
     // Decided and written: nothing waits for the tracker any more.
     await waitFor(() => expect(document.querySelector('[data-pending] h2')!.textContent).toBe('Nothing is waiting for the tracker'));
-    expect(screen.getByRole('button', { name: 'Apply again' })).toBeTruthy();
+    // Nothing says "nothing is written" beside a result that says something was.
+    expect(card.textContent).not.toMatch(/Nothing is written/);
+    expect(document.querySelector('[data-pending]')!.textContent).not.toMatch(/Decided here, not yet written|Nothing is written/);
+    // Failures stay pending, so the page does not claim everything was written.
+    expect(screen.queryByRole('button', { name: 'Apply again' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Check again' })).toBeTruthy();
+  });
+
+  it('says everything decided was written when nothing is waiting, and Check again makes a fresh plan instead of spending the old id', async () => {
+    const api = fixtureClassify();
+    let planned: WorkItem[] = [];
+    let plans = 0;
+    const apply = vi.fn(async (_p: string, planId: string) => {
+      expect(planId).toBe('plan-1');
+      return { outcomes: [{ connection: 'sample-jira', changed: planned.map((i) => ({ key: i.source.key, text: 'added feature' })), unchanged: [], failed: [], refused: null }], recorded: { ok: true as const } };
+    });
+    await accepted({
+      ...api,
+      disabled: null,
+      apply: apply as unknown as ClassifyApi['apply'],
+      plan: async (p, w) => {
+        planned = w.items;
+        plans += 1;
+        return { id: `plan-${plans}`, groups: (await api.plan(p, w)).groups.map((g) => ({ ...g, writes: true })), notes: [] };
+      },
+    });
+    const card = await until<HTMLElement>('[data-apply]');
+    await waitFor(() => expect(card.querySelectorAll('[data-change]').length).toBeGreaterThan(3));
+    await act(async () => void fireEvent.click(within(card).getByRole('button', { name: /^Apply \d+ changes$/ })));
+    await until('[data-outcome="done"]');
+    await waitFor(() => expect(document.querySelector('[data-pending] h2')!.textContent).toBe('Nothing is waiting for the tracker'));
+    const section = document.querySelector('[data-pending]')!;
+    expect(section.textContent).toMatch(/Everything decided here has been written to the tracker\./);
+    expect(section.textContent).not.toMatch(/Decided here, not yet written|Nothing is written/);
+    await press('Check again');
+    await waitFor(() => expect(plans).toBe(2));
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[data-outcome]')).toBeNull();
   });
 });
 
