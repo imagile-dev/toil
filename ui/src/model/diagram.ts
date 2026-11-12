@@ -81,8 +81,10 @@ export function overLimit(view: ComputedView): string | null {
 
 /** How a thing is known, in a sentence: what it was read from, why it is believed, or that the diagram doesn't say. */
 export function knownText(x: { how?: How | undefined; source?: string | undefined; reason?: string | undefined }): string {
-  if (x.how === 'observed') return x.source ? `Observed, read from ${x.source}.` : 'Observed, but the diagram does not say where it was read.';
-  if (x.how === 'inferred') return x.reason ? `Inferred: ${x.reason}.` : 'Inferred, but the diagram does not say why.';
+  // Said beside the word Observed or Inferred, so it doesn't repeat it; and a reason that already ends its sentence isn't given a second full stop.
+  const stop = (text: string) => (/[.!?]$/.test(text.trim()) ? text.trim() : `${text.trim()}.`);
+  if (x.how === 'observed') return x.source ? stop(`Read from ${x.source}`) : 'The diagram does not say where it was read.';
+  if (x.how === 'inferred') return x.reason ? stop(`Why: ${x.reason}`) : 'The diagram does not say why.';
   return 'The diagram does not say how this is known.';
 }
 

@@ -125,8 +125,8 @@ describe('the limits', () => {
 
 describe('the words', () => {
   it('say how each thing is known, and that a diagram which says nothing says nothing', () => {
-    expect(knownText({ how: 'observed', source: 'pom.xml:14' })).toBe('Observed, read from pom.xml:14.');
-    expect(knownText({ how: 'inferred', reason: 'the worker reads a topic' })).toBe('Inferred: the worker reads a topic.');
+    expect(knownText({ how: 'observed', source: 'pom.xml:14' })).toBe('Read from pom.xml:14.');
+    expect(knownText({ how: 'inferred', reason: 'the worker reads a topic' })).toBe('Why: the worker reads a topic.');
     expect(knownText({ how: 'observed' })).toContain('does not say where');
     expect(knownText({})).toBe('The diagram does not say how this is known.');
     expect(countsText({ elements: 5, relationships: 4, observed: 6, inferred: 2, unmarked: 1 })).toBe('9 things: 6 observed, 2 inferred, 1 not said');
@@ -202,13 +202,13 @@ describe('the page', () => {
     await userEvent.click(document.querySelector('[data-c4-box="db"]')!);
     const detail = await screen.findByRole('complementary', { name: 'Detail' });
     expect(detail.textContent).toContain('Payments database');
-    expect(detail.textContent).toContain('Observed, read from payments-core/src/main/resources/application.yml:22.');
+    expect(detail.textContent).toContain('Read from payments-core/src/main/resources/application.yml:22.');
     expect(detail.querySelector('a')).toBeNull();
     await userEvent.click(document.querySelector('[data-c4-box="worker"]')!);
-    expect((await screen.findByRole('complementary', { name: 'Detail' })).textContent).toContain('Inferred: its main class reads the settlements topic');
+    expect((await screen.findByRole('complementary', { name: 'Detail' })).textContent).toContain('Why: its main class reads the settlements topic');
     const inferred = view('card-payments', 'containers').edges.findIndex((e) => e.how === 'inferred');
     await userEvent.click(document.querySelector(`[data-c4-edge="${inferred}"]`)!);
-    expect((await screen.findByRole('complementary', { name: 'Detail' })).textContent).toMatch(/Inferred: /);
+    expect((await screen.findByRole('complementary', { name: 'Detail' })).textContent).toMatch(/Why: /);
     await userEvent.click(screen.getByRole('button', { name: 'Close detail' }));
     expect(document.querySelector('[data-diagram-detail]')).toBeNull();
   });
@@ -221,7 +221,7 @@ describe('the page', () => {
     const v = view('settlement', 'containers');
     expect(within(list).getByRole('list', { name: 'Boxes' }).querySelectorAll('li')).toHaveLength(v.inside.length + v.outside.length);
     expect(within(list).getByRole('list', { name: 'Arrows' }).querySelectorAll('li')).toHaveLength(v.edges.length);
-    expect(list.textContent).toContain('Observed, read from settlement/Settlement.Batch/DayWriter.cs:40.');
+    expect(list.textContent).toContain('Read from settlement/Settlement.Batch/DayWriter.cs:40.');
   });
 
   it('offers the job that draws one, as its action, when there is no diagram', async () => {
