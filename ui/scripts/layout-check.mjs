@@ -278,7 +278,7 @@ const STABLE = (ms = 3000, quiet = 0) => `(async () => {
   const sig = () => {
     const m = document.querySelector('main')?.getBoundingClientRect();
     const de = document.documentElement;
-    const running = document.getAnimations().filter((a) => a.playState !== 'finished' && a.effect?.getComputedTiming().iterations !== Infinity).length;
+    const running = document.getAnimations().filter((a) => a.playState === 'running' && a.effect?.getComputedTiming().iterations !== Infinity).length;
     return [document.body.getElementsByTagName('*').length, de.scrollWidth, de.scrollHeight, m ? Math.round(m.width) + 'x' + Math.round(m.height) : '', running].join('|');
   };
   // A frame, or 100ms if the page isn't painting (a hidden tab pauses rAF), so the deadline is always reached.
@@ -365,7 +365,7 @@ const inMenu = (selector) => `(async () => {
  * Resolves once every animation with an end has ended (up to 2s), so a check with motion on never reads a
  * colour or a box halfway through a fade (#419). Loops (a drifting grid, a loader's motif) are left running.
  */
-const ANIMATIONS_DONE = `Promise.race([Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))), new Promise((r) => setTimeout(r, 2000))])`;
+const ANIMATIONS_DONE = `Promise.race([Promise.all(document.getAnimations().filter((a) => a.playState === 'running' && a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))), new Promise((r) => setTimeout(r, 2000))])`;
 
 /** Polls `expression` in the page every 50ms until it is truthy or `ms` pass; resolves with its last value. */
 const until = (page, expression, ms = 5000) =>
