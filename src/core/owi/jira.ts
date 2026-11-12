@@ -1,3 +1,4 @@
+import { jiraComments } from './comment.js';
 import { blank, current, dimensionsFor, idFor, instant, isRecord, num, overrideUnit, person, releasesOf, setDay, setDim, setInstant, str, text, textsOf, typeOf, unknownState, unmapped, type MapState, type OwiDocument } from './common.js';
 import type { History, Iteration, Link, Person, StatusCategory, WorkItem } from './types.js';
 
@@ -131,6 +132,11 @@ export function jiraItem(doc: OwiDocument, issue: Issue, state: MapState, catego
     const key = fieldKey(issue, pointer);
     if (key === undefined) unmapped(item, `dims.${name}`, `the record has no field "${pointer}" (dimensions ${name}): ask for it with --fields`);
     else setDim(item, name, textsOf(f[key]));
+  }
+
+  if ('comment' in f) {
+    const comments = jiraComments(f.comment, item.url);
+    if (comments) item.comments = comments;
   }
 
   estimate(item, issue, state);

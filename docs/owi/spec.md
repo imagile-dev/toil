@@ -67,6 +67,7 @@ work item alone can't show it.
 | `area` | `{ path }` or null, optional | Azure DevOps' `System.AreaPath`, whole, so a split can cut it at any depth. Jira and GitHub have none |
 | `sprints` | Iteration[], optional | Every sprint or iteration the item has been in, in the shape of `iteration`, which stays the current one. Jira: every value of the Sprint field. Azure DevOps and GitHub: the iterations the attached history names, in order, then the current `iteration` if the history never named it; absent without a history. Azure DevOps' root path (no `\`) means no sprint and is left out |
 | `dims` | object, optional | `{ <dimension>: string[] }` for each dimension a toil project's `dimensions` names (below). A value is always a list, since a field can hold several |
+| `comments` | Comment[], optional | `{ id, author, at, text, url }`, oldest first, the newest 20 at most: `author` is a Person or null, `text` is plain text on one line (markup taken out, at most 500 characters), `url` links to the comment where the source gives one. Jira only, from the `comment` field a search is asked for; absent means not read, `[]` means read and none |
 | `ancestors` | Ancestor[], optional | `{ id, type, typeName, title }` for the parent, then its parent and so on, nearest first, taken from the other items mapped together |
 
 **Read, or not read.** Every optional field above has two empty states that mean
@@ -139,6 +140,7 @@ below). Any other command's output is refused.
 - `issue search` returns the fields it asks for (`--fields`), and only the custom fields
   the connection registers; `issue get` returns every field. A field missing from
   the record is listed in `unmapped`.
+- **Comments**: `comments` from the `comment` field's `comments`, when the record holds it (a search sent `moreFields` of `comment`): each one's id, its author as a Person, `created` as `at`, the body flattened to plain text (Data Center's wiki markup or Cloud's ADF, links, mentions and code blocks reduced to their words), and a `?focusedCommentId=` link on the item's page. The newest 20 are kept.
 - **Releases, affected versions, components and sprints**: `releases` from
   `fixVersions`, `affects` from `versions` (each version's `id`, `name`, `released`
   and `releaseDate`), `components` from `components`' names, and `sprints` from every
@@ -491,6 +493,7 @@ and OSLC's configuration management domain has no pull request either.
 | `dueDate` | No equivalent |
 | `releases`, `affects`, `components`, `area`, `dims` | No equivalent |
 | `sprints` | `oslc_cm:affectsPlanItem`, one per sprint, as for `iteration` |
+| `comments` | `oslc:comment` is a link to a collection, not text: no property of its own |
 | `ancestors` | Derived from `oslc_cm:parent` up the chain; no property of its own |
 
 ## Finding likely duplicates

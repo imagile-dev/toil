@@ -153,6 +153,18 @@ export interface Body {
   content: string | Record<string, unknown>;
 }
 
+/** One comment on a work item, as a stand-up reads it: who wrote it, when, and its text as plain text on one line. */
+export interface Comment {
+  id: string;
+  author: Person | null;
+  /** UTC, as `toISOString` writes it. */
+  at: string;
+  /** Plain text, markup taken out, capped; never HTML. */
+  text: string;
+  /** A link to the comment where the tracker gives one, else null. */
+  url: string | null;
+}
+
 export interface WorkItem {
   owi: typeof OWI_VERSION;
   id: string;
@@ -202,6 +214,8 @@ export interface WorkItem {
   dims?: Record<string, string[]>;
   /** The parent chain among the records mapped together, nearest first. It ends where a parent isn't in the input. */
   ancestors?: Ancestor[];
+  /** The comments the read returned, oldest first, the newest 20 at most. Absent: not read (a Jira search that didn't ask for `comment`). []: read, none. */
+  comments?: Comment[];
 }
 
 /** A history mapped for an item that wasn't in the same input. */

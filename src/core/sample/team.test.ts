@@ -4,6 +4,7 @@ import { checkAgainstSchema } from '../../areas/util/owi/run.js';
 import { areas } from '../../registry.js';
 import { builtinScheme } from '../classify/builtin.js';
 import { classify } from '../classify/engine.js';
+import { outstandingQuestions } from '../owi/comment.js';
 import { pivot, releaseScope } from '../insights/index.js';
 import { findSecrets } from '../secret-shapes.js';
 import { validateToilProject } from '../toil-project.js';
@@ -241,5 +242,38 @@ describe('its figures', () => {
     const open = changes.filter((c) => c.state === 'OPEN');
     expect(open.some((c) => c.checks === 'FAILING')).toBe(true);
     expect(changes.some((c) => c.authorKind === 'AGENT')).toBe(true);
+  });
+});
+
+describe('the comments', () => {
+  const day = (iso: string) => iso.slice(0, 10);
+  const today = AS_OF.slice(0, 10);
+  const withComments = items.filter((i) => (i.comments?.length ?? 0) > 0);
+
+  it('are read for every item, none or some, and counted in the facts', () => {
+    expect(items.every((i) => Array.isArray(i.comments))).toBe(true);
+    expect(facts.comments).toEqual({ total: 14, items: withComments.length, outstandingQuestions: 2 });
+  });
+
+  it('leave two questions open, one from days ago and one from yesterday, and one answered', () => {
+    const open = items.flatMap((i) => outstandingQuestions(i.comments ?? []).map((c) => ({ item: i.source.key, who: c.author!.name, day: day(c.at) })));
+    expect(open.map((o) => o.who).sort()).toEqual(['A. Chen', 'D. Okafor']);
+    const asked = (who: string) => Date.parse(`${today}T00:00:00Z`) - Date.parse(`${open.find((o) => o.who === who)!.day}T00:00:00Z`);
+    expect(asked('D. Okafor') / DAYS).toBeGreaterThanOrEqual(2);
+    expect(asked('A. Chen') / DAYS).toBe(1);
+    // R. Patel's question about the postcode has J. Smith's answer under it.
+    const answered = items.find((i) => i.title === 'Checkout fails for postcodes with a trailing space')!;
+    expect(answered.comments!.map((c) => c.author!.name)).toEqual(['R. Patel', 'J. Smith']);
+    expect(outstandingQuestions(answered.comments!)).toEqual([]);
+  });
+
+  it('include one person with several comments and one from the AI agent, as plain text with a link', () => {
+    const by = (name: string) => items.flatMap((i) => (i.comments ?? []).filter((c) => c.author?.name === name));
+    expect(by('K. Nakamura').length).toBeGreaterThan(3);
+    expect(by('Copilot').length).toBeGreaterThan(0);
+    for (const c of items.flatMap((i) => i.comments ?? [])) {
+      expect(c.text).not.toMatch(/[<>]/);
+      expect(c.url).toMatch(/^https:\/\/jira\.imagile\.dev\/browse\/SHOP-\d+\?focusedCommentId=\d+$/);
+    }
   });
 });

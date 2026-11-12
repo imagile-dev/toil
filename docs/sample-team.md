@@ -48,6 +48,7 @@ to exist.
 | Flow | Every started item has a status history (To Do, In Progress, In Review, Done); median cycle time 4.9 days; 2 items reopened; 2 in progress for more than 15 days; 6 blocks links, 2 items blocked now; 3 unassigned in the current sprint; S. Garcia has 4 in progress; 6 items have no estimate; 4 incidents, each added to its sprint after the sprint started |
 | Customers | `customfield_10500`, a dimension named `customer`: Acme, Globex or Initech on 29 items |
 | Pull requests | 16 in `imagile/shop`: 9 merged, 7 open (1 draft); 6 open ones await review for an afternoon up to six working days; 1 has failing checks for more than a day (SHOP-124); 2 from a dependency bot and 1 from the AI agent |
+| Comments | 14 on Jira issues, read with the search (`comment`), written by hand in `src/core/sample/comments.ts` and placed by item title and working day: 2 questions nobody has answered (D. Okafor's from Friday, A. Chen's from yesterday), 1 that was answered (R. Patel's, by J. Smith), K. Nakamura with five comments (so the stand-up folds), one from Copilot, and most of the team with none. `facts.comments` has the totals. Comments on pull requests are not in the sample |
 
 ### Classified with the built-in `ktlo-feature` scheme
 

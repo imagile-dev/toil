@@ -1,5 +1,6 @@
 import { BLOCKS, type Row, type RowState } from './backlog.js';
 import { at, between, dayAt, jiraTime, offsetOf, pick, rngFor } from './kit.js';
+import { commentFields } from './comments.js';
 import { byKey, PEOPLE, PLATFORM, RENOVATE, STOREFRONT, type Person } from './people.js';
 
 /**
@@ -156,6 +157,7 @@ export function buildJira(base: number): JiraSample {
     }
   }
 
+  const comments = commentFields(base, placed);
   const issues = placed.map((p) => {
     const { row } = p;
     const next = rngFor(p.num);
@@ -194,6 +196,7 @@ export function buildJira(base: number): JiraSample {
       duedate: row.due === undefined ? null : dayAt(base, row.due),
       timeoriginalestimate: null,
       issuelinks: link.get(p.num) ?? [],
+      comment: comments.get(p.key),
       subtasks: subtasks.map(stub),
       ...(row.type === 'Sub-task' ? { parent: { key: keyFor(ref(row.parent!)), fields: {} } } : {}),
       ...(row.type === 'Epic' && row.epic !== undefined ? { parent: { key: keyFor(ref(row.epic)), fields: {} } } : {}),

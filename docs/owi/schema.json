@@ -34,6 +34,19 @@
         "email": { "description": "The email address, when the source sent one.", "type": ["string", "null"] }
       }
     },
+    "Comment": {
+      "description": "One comment on a work item: who wrote it, when, and its text as plain text.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "author", "at", "text", "url"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "author": { "anyOf": [{ "$ref": "#/$defs/Person" }, { "type": "null" }] },
+        "at": { "$ref": "#/$defs/Instant" },
+        "text": { "description": "Plain text on one line, markup taken out, at most 500 characters.", "type": "string", "maxLength": 500 },
+        "url": { "description": "A link to the comment where the tracker gives one.", "type": ["string", "null"] }
+      }
+    },
     "Estimate": {
       "type": "object",
       "additionalProperties": false,
@@ -295,7 +308,8 @@
         "area": { "description": "Optional. Azure DevOps' area path, kept whole. Absent: not read. null: read, the record carries none.", "anyOf": [{ "type": "object", "additionalProperties": false, "required": ["path"], "properties": { "path": { "type": "string", "minLength": 1 } } }, { "type": "null" }] },
         "sprints": { "description": "Optional. Every sprint or iteration the item has been in, where the source lists them (Jira's Sprint field; the history for Azure DevOps and GitHub). iteration stays the current one. Absent: not read. []: read, none.", "type": "array", "items": { "$ref": "#/$defs/Iteration" } },
         "dims": { "description": "Optional. The values of each dimension a toil project names (dimensions), by dimension name, each a list. A dimension absent from dims was not read for this item; [] means it was read and is empty.", "type": "object", "propertyNames": { "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }, "additionalProperties": { "type": "array", "items": { "type": "string" } } },
-        "ancestors": { "description": "Optional. The parent chain among the items mapped together, nearest first; it ends where a parent isn't in the input. Absent: the parent was not read. []: it has no parent, or its parent isn't in the input.", "type": "array", "items": { "$ref": "#/$defs/Ancestor" } }
+        "ancestors": { "description": "Optional. The parent chain among the items mapped together, nearest first; it ends where a parent isn't in the input. Absent: the parent was not read. []: it has no parent, or its parent isn't in the input.", "type": "array", "items": { "$ref": "#/$defs/Ancestor" } },
+        "comments": { "description": "Optional. The comments the read returned, oldest first, the newest 20 at most. Absent: not read (a Jira search that didn't ask for comment). []: read, none.", "type": "array", "items": { "$ref": "#/$defs/Comment" } }
       }
     }
   }

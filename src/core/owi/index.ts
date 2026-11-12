@@ -5,7 +5,8 @@
  * reorganised without telling anyone, as is customary.
  */
 export { AUTHOR_KINDS, OWI_VERSION, OWI_AREAS, OWI_SOURCES, OVERRIDABLE } from './types.js';
-export type { Ancestor, AreaPath, AuthorKind, AuthorKindSource, Body, Change, ChangeSize, ChangeState, ChecksState, DimensionMap, Estimate, KeyPattern, Review, Reviewer, ReviewerState, ReviewState, EstimateUnit, FieldOverrides, History, Iteration, IterationChange, Link, LinkType, OrphanHistory, OwiArea, OwiFamily, OwiSource, Person, Release, StatusCategory, Transition, Unmapped, WorkItem, WorkItemType } from './types.js';
+export { MAX_COMMENTS, MAX_COMMENT_TEXT, isQuestion, outstandingQuestions, plainText } from './comment.js';
+export type { Ancestor, AreaPath, AuthorKind, AuthorKindSource, Body, Change, ChangeSize, Comment, ChangeState, ChecksState, DimensionMap, Estimate, KeyPattern, Review, Reviewer, ReviewerState, ReviewState, EstimateUnit, FieldOverrides, History, Iteration, IterationChange, Link, LinkType, OrphanHistory, OwiArea, OwiFamily, OwiSource, Person, Release, StatusCategory, Transition, Unmapped, WorkItem, WorkItemType } from './types.js';
 export type { OwiDocument } from './common.js';
 export { MAX_ITEMS, OWI_COMMANDS, dimensionMap, documentsFrom, fieldOverrides, inputValues, mapOwi, parseOwiInput, type DocumentOptions, type MapOptions, type OwiResult, type OwiSkipped } from './map.js';
 export { AGENT_ACCOUNTS, AGENT_BRANCH_PREFIXES, authorKinds, keyPatterns } from './change.js';

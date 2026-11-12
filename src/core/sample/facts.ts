@@ -1,5 +1,6 @@
 import { builtinScheme } from '../classify/builtin.js';
 import { classify } from '../classify/engine.js';
+import { outstandingQuestions } from '../owi/comment.js';
 import type { Change, WorkItem } from '../owi/types.js';
 import type { JiraSample } from './jira.js';
 import { DAYS } from './kit.js';
@@ -79,6 +80,8 @@ export interface SampleFacts {
   components: Record<string, number>;
   people: { total: number; teams: number; agents: number };
   pullRequests: { total: number; open: number; merged: number; draft: number; bots: number; agents: number; failingMoreThanADay: number; waitingOnReview: number };
+  /** Comments on the items: how many, how many items carry any, and the questions nobody else has answered. */
+  comments: { total: number; items: number; outstandingQuestions: number };
   classification: { scheme: string; byCategory: Record<string, number>; bySource: Record<string, number>; unsure: number; unsureShare: number };
 }
 
@@ -211,6 +214,11 @@ export function buildFacts(input: Input): SampleFacts {
       agents: changes.filter((c) => c.authorKind === 'AGENT').length,
       failingMoreThanADay: open.filter((c) => c.checks === 'FAILING' && c.checksAt !== null && now - Date.parse(c.checksAt) > DAYS).length,
       waitingOnReview: open.filter((c) => c.state === 'OPEN' && c.approvedAt === null).length,
+    },
+    comments: {
+      total: items.reduce((n, i) => n + (i.comments?.length ?? 0), 0),
+      items: items.filter((i) => (i.comments?.length ?? 0) > 0).length,
+      outstandingQuestions: items.reduce((n, i) => n + outstandingQuestions(i.comments ?? []).length, 0),
     },
     classification: {
       scheme: classified.scheme.name,
