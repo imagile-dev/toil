@@ -31,7 +31,7 @@ import { parseRoute } from '../App.tsx';
 import { Help } from '../components/help.tsx';
 import { Cited, PrLink } from '../components/items.tsx';
 import { useData, useDerived } from '../data.ts';
-import { analysesHref, analysisHref, boardHref, dependenciesHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, toilProjectEditHref, worklogHref } from '../format.ts';
+import { analysesHref, analysisHref, boardHref, dependenciesHref, diagramHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, toilProjectEditHref, worklogHref } from '../format.ts';
 import { Empty, TrackerAction } from '../components/empty.tsx';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput } from '../model/flow.ts';
@@ -235,6 +235,7 @@ export function Overview() {
         <span className="briefing__label">Go to</span>
         <a href={boardHref(toilProject.name)}>Board</a>
         <a href={dependenciesHref(toilProject.name)} title={plain.title('Dependencies')}>{plain.pw('Dependencies', 'What blocks what')}</a>
+        <a href={diagramHref(toilProject.name)} data-diagram-link="">Architecture</a>
         <a href={prsHref(toilProject.name)} title={plain.title('Pull requests')}>{plain.pw('Pull requests', 'Code reviews')}</a>
         <a href={peopleHref(toilProject.name)}>People</a>
         {worklog && <a href={standupHref(toilProject.name)}>Stand-up</a>}

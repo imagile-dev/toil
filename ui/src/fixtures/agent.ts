@@ -8,7 +8,7 @@
  * say.
  */
 
-import type { AdapterList, Agent, Answer, AnswerPart, AskExtra, AskStyle, Starter } from '../agent.ts';
+import type { AdapterList, Agent, Answer, AnswerPart, AskExtra, AskStyle, DraftDiagram, Starter } from '../agent.ts';
 import { ANALYZE, SCRIPTED_LABEL, citationsOf } from '../agent.ts';
 import { GUIDE_REFUSAL, looksLikeSecret, type GuideRequest } from '../guide.ts';
 import type { ChatTurn } from '../model-usage.ts';
@@ -17,6 +17,8 @@ import { plainify } from '../plainify.ts';
 import { sampleAnswerUsage } from './model-usage.ts';
 import { jobLabel, parseJobPrompt } from '../model/jobs.ts';
 import { chartContextParts, sampleTeamBriefing, sampleTeamScripts, SAMPLE_TEAM_STARTERS } from './sample-team-script.ts';
+import { countsText } from '../model/diagram.ts';
+import { SAMPLE_DIAGRAMS, countsOf, diagramShow } from './diagrams.ts';
 
 const J = (n: number) => `[[corp-jira:PAY-${n}]]`;
 const A = (n: number) => `[[corp-ado:${n}]]`;
@@ -455,11 +457,12 @@ export function analyzeParts(toilProject: string): string[] {
  * pull request proposes the one comment a review ends on, as a card to press.
  * Invented, not captured, and labelled as the preview's everywhere it shows.
  */
-export function scriptedJob(prompt: string): Answer | null {
+export function scriptedJob(prompt: string, toilProject?: string): Answer | null {
   const job = parseJobPrompt(prompt);
   if (!job) return null;
   const { id, target } = job;
   const gh = /^github:([^/]+)\/([^#]+)#(\d+)$/.exec(target);
+  const sample = toilProject ? SAMPLE_DIAGRAMS[toilProject] : undefined;
   const text: Record<typeof id, string[]> = {
     review: [
       `Review of ${P(target)}, as the scripted preview would read it: its description and reviewers (pr_get), the files it changes and its diff (pr_files, pr_diff), then its checks. A real agent reads each of those and cites the command behind every finding.`,
@@ -474,8 +477,11 @@ export function scriptedJob(prompt: string): Answer | null {
       'Nothing was read here, so no category below is checked. Each label is drafted as a change you approve, one at a time; Toil UI applies none of them.',
     ],
     'map-codebase': [
-      `Architecture of ${target || 'the Toil project'}, as the scripted preview would draw it: containers from the Toil project's repositories, components from the folders the pull requests touch, each element marked observed (read from a command) or inferred (with the reason).`,
-      ['```mermaid', 'C4Container', '  title Preview only, nothing read', '  Person(user, "User")', '  Container(app, "App", "TypeScript", "inferred")', '  Rel(user, app, "uses")', '```'].join(String.fromCharCode(10)),
+      `Architecture of ${target || 'the Toil project'}, as the scripted preview would answer it: containers from the Toil project's repositories, each marked observed (read from a file or a command) or inferred (with the reason), and what was left out on purpose.`,
+      sample
+        ? `It shows ${countsText(countsOf(sample.model))}. Nothing was read here: this is the sample's own diagram. A real agent builds its model from its tools and checks it with projects_diagram_check, and the Save below keeps that model, exactly as checked.`
+        : 'Nothing was read here, so there is no sample diagram for this Toil project to offer.',
+      'Three questions for you: which inferred box or arrow would you check first? Is anything missing from the picture? Which part should be drawn in more detail next?',
     ],
   };
   const parts: AnswerPart[] = text[id].map((t) => ({ text: t }));
@@ -483,7 +489,9 @@ export function scriptedJob(prompt: string): Answer | null {
     id === 'review' && gh
       ? [{ id: `job-review-${target}`, from: 'agent', item: target, title: `Comment on ${gh[2]}#${gh[3]}`, reason: `The review's summary, for the author to read. ${P(target)}`, command: 'github pr comment', input: { owner: gh[1], repo: gh[2], number: gh[3], body: 'Reviewed in Toil UI (scripted preview): no findings, nothing was checked.' }, note: 'Preview only: a real review drafts findings from the diff.' }]
       : [];
-  return { prompt: jobLabel(id, target), parts, citations: citationsOf(parts), by: 'scripted', adapter: 'scripted', model: null, proposals, ...(id === 'ship' ? { warnings: [`Round 1 of 3. After round 3 it stops and the pull request is for a person.`] } : {}) };
+  // Diagram ends in a draft to Save (#582): the sample's own model, as a real run offers the model its last check passed.
+  const diagram: DraftDiagram | null | undefined = id === 'map-codebase' ? (sample ? { text: JSON.stringify(sample.model), notMapped: sample.notMapped, title: sample.model.title, views: diagramShow(toilProject!).views, counts: countsOf(sample.model) } : null) : undefined;
+  return { prompt: jobLabel(id, target), parts, citations: citationsOf(parts), by: 'scripted', adapter: 'scripted', model: null, proposals, ...(id === 'ship' ? { warnings: [`Round 1 of 3. After round 3 it stops and the pull request is for a person.`] } : {}), ...(diagram !== undefined ? { diagram } : {}) };
 }
 
 /** What the preview's guide says: canned, plain and short, and about the step it was asked on. It reads no docs and calls no model; it says so. */
@@ -506,7 +514,7 @@ function scriptedGuide(request: GuideRequest): Answer {
 
 export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
   const answer = (toilProject: string, prompt: string, style?: AskStyle, chat?: ChatTurn, extra?: AskExtra): Answer => {
-    const job = scriptedJob(prompt);
+    const job = scriptedJob(prompt, toilProject);
     if (job) return job;
     // A chart is attached (#567): the answer is built from its own figures, whatever was typed, so Ask about this chart works in the preview.
     if (extra?.context && prompt !== ANALYZE) {

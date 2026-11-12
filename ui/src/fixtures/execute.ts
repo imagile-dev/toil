@@ -19,6 +19,7 @@ import { CODEOWNERS_PATHS, JQL, PR_INCLUDE, WIQL, jiraMoreFields } from '../load
 import type { Call, Envelope, Execute, ExecuteOptions } from '../toil.ts';
 import { ADO_CI_RUNS, ADO_DEPLOY_RUNS, ADO_PR_GETS, ADO_PRS, BITBUCKET_CLOUD_PR_GETS, BITBUCKET_CLOUD_PRS, BITBUCKET_PR_GETS, BITBUCKET_PRS, GITHUB_CODEOWNERS, GITHUB_PR_GETS, GITHUB_PRS, JENKINS_RUNS, OPENSHIFT } from './delivery.ts';
 import { SAMPLE_AS_OF, SAMPLE_CODEOWNERS, SAMPLE_GITHUB, SAMPLE_JIRA_SEARCH, SAMPLE_PR_GETS, SAMPLE_PR_LIST } from './sample-team.ts';
+import { SAMPLE_DIAGRAMS, diagramShow } from './diagrams.ts';
 import { TOIL_PROJECTS, archivedListData, fileOf, listData, showData, type ToilProjectFile } from './toil-projects.ts';
 import {
   ADO_BATCH, ADO_FEED, ADO_FEED_GAPS, ADO_IDS, ADO_ITERATIONS, ADO_REVISIONS, ADO_WIQL, GITHUB_EVENTS, GITHUB_ISSUES, GITHUB_NUMBERS, GITHUB_PROJECT_ITEMS,
@@ -66,10 +67,20 @@ const at = (toilProject: string, area: string, env?: string, deployment?: string
 const gets = (toilProject: string, area: string, field: string, byNumber: Record<number, unknown>, deployment?: string, scope: Record<string, unknown> = {}): Canned[] =>
   Object.entries(byNumber).map(([n, data]) => ({ command: `${area} pr get`, input: { toilProject, ...scope, [field]: Number(n), include: PR_INCLUDE }, data, ...at(toilProject, area, undefined, deployment) }));
 
+/** `projects diagram show` for each sample diagram, with no view and with each of its views. */
+function diagramReads(): Canned[] {
+  return Object.entries(SAMPLE_DIAGRAMS).flatMap(([name, d]) => [
+    { command: 'projects diagram show', input: { toilProject: name }, data: diagramShow(name) },
+    ...d.model.views.map((v) => ({ command: 'projects diagram show', input: { toilProject: name, view: v.key }, data: diagramShow(name, v.key) })),
+  ]);
+}
+
 export const CANNED: Canned[] = [
   { command: 'projects list', input: {}, data: listData() },
   { command: 'projects list', input: { archived: true }, data: archivedListData() },
   ...TOIL_PROJECTS.map((d) => ({ command: 'projects show', input: { toilProject: d.name }, data: showData(d) })),
+  // The stored architecture diagram (#582), read live by its own page: with no view for the first look, and with each view for its picture.
+  ...diagramReads(),
 
   // card-payments
   // The search carries each issue's history (toil's --changelog); the sample cuts one short, and that issue is read with its own call.

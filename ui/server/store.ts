@@ -87,7 +87,7 @@ export function toilStore(execute: Execute): Store {
 }
 
 /** The commands a cache answers by passing them to toil: the toil projects are toil's own config on this machine, read fresh, and the readiness gate's workflow reads are live by design. */
-const LIVE_COMMANDS = new Set<string>(['projects list', 'projects show', ...WORKFLOW_READS]);
+const LIVE_COMMANDS = new Set<string>(['projects list', 'projects show', 'projects diagram show', ...WORKFLOW_READS]);
 
 /**
  * The SQLite cache (#250): the views' calls answered from what the last sync

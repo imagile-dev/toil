@@ -1,6 +1,14 @@
 import { Validator } from '@cfworker/json-schema';
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { execute, mapOwi as apiMapOwi, registry } from '../../src/api.ts';
+import { VIEW_LIMITS, computeView, pickView } from '../../src/areas/util/c4/model.ts';
+import { countsOf as toilCountsOf, createDiagramCatalog, loadStorable, viewsOf } from '../../src/core/diagrams.ts';
+import { SAMPLE_DIAGRAMS, countsOf, diagramShow } from '../src/fixtures/diagrams.ts';
+import { SAMPLE_VIEWS } from '../src/fixtures/diagram-views.ts';
+import { DRAW_LIMITS } from '../src/model/diagram.ts';
 import { CANNED, callKey, fixtureExecute } from '../src/fixtures/execute.ts';
 import { loadToilProject, loadToilProjects } from '../src/load.ts';
 import { workflowRead } from '../src/model/readiness.ts';
@@ -59,7 +67,8 @@ describe('the dashboards', () => {
     expect([...options]).toEqual([JSON.stringify({ readOnly: true, caller: 'toil-ui' })]);
     const asked = new Set(fixture.calls.map((c) => callKey(c.command, c.input)));
     // The readiness gate's workflow reads (#307) are made on a person's press, never by a load.
-    const onPress = (command: string) => (WORKFLOW_READS as readonly string[]).includes(command);
+    // The stored diagram (#582) is read by its own page, not by a load.
+    const onPress = (command: string) => (WORKFLOW_READS as readonly string[]).includes(command) || command === 'projects diagram show';
     for (const c of CANNED.filter((x) => !onPress(x.command))) expect(asked.has(callKey(c.command, c.input)), `${c.command} ${JSON.stringify(c.input)} is never asked for`).toBe(true);
     expect(fixture.calls.filter((c) => onPress(c.command))).toEqual([]);
   });
@@ -239,5 +248,65 @@ describe("the Board's drop (ui/server/board.ts) against the real registry", () =
     expect(p.then?.command).toBe('github project status');
     expect(valid(p.command!, { ...p.input!, allowWrite: true })).toEqual([]);
     expect(valid(p.then!.command, { ...p.then!.input, allowWrite: true })).toEqual([]);
+  });
+});
+
+describe('the sample architecture diagrams (#582)', () => {
+  const homes: string[] = [];
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    for (const h of homes.splice(0)) rmSync(h, { recursive: true, force: true });
+  });
+  /** A temp home holding the sample diagram as toil would have stored it, so the real `projects diagram show` reads it. */
+  const keep = (name: string) => {
+    const home = mkdtempSync(join(tmpdir(), 'toil-ui-diagram-'));
+    homes.push(home);
+    vi.stubEnv('HOME', home);
+    vi.stubEnv('USERPROFILE', home);
+    const d = SAMPLE_DIAGRAMS[name]!;
+    const model = loadStorable(JSON.stringify(d.model), name, d.notMapped);
+    createDiagramCatalog({ home, protect: [] }).save(name, { model, notMapped: d.notMapped, toilVersion: 'test', mode: 'create' });
+    return model;
+  };
+
+  it.each(Object.keys(SAMPLE_DIAGRAMS))('%s passes the stored-diagram checks, and its counts and views are what toil counts', (name) => {
+    const model = keep(name);
+    expect(countsOf(SAMPLE_DIAGRAMS[name]!.model)).toEqual(toilCountsOf(model));
+    expect(diagramShow(name).views).toEqual(viewsOf(model));
+  });
+
+  it("holds every computed view to what toil's own projects diagram show prints, view by view", async () => {
+    const computed: Record<string, Record<string, unknown>> = {};
+    for (const name of Object.keys(SAMPLE_DIAGRAMS)) {
+      const model = keep(name);
+      computed[name] = {};
+      for (const v of model.views) {
+        const real = await execute('projects diagram show', { toilProject: name, view: v.key }, { readOnly: true, caller: 'toil-ui-test' });
+        expect(real.ok, JSON.stringify(real.error)).toBe(true);
+        const data = real.data as { model: unknown; views: unknown; counts: unknown; view: unknown; notMapped: unknown };
+        const shown = diagramShow(name, v.key);
+        expect(data.model, name).toEqual(JSON.parse(JSON.stringify(shown.model)));
+        expect(data.notMapped).toEqual(shown.notMapped);
+        expect(data.views).toEqual(shown.views);
+        expect(data.counts).toEqual(shown.counts);
+        computed[name]![v.key] = data.view;
+        // And toil's own function, with no warning: a relationship the view cannot draw would be a hole in the picture.
+        const warnings: unknown[] = [];
+        expect(computeView(model, pickView(model, v.key), (w) => warnings.push(w))).toEqual(data.view);
+        expect(warnings).toEqual([]);
+      }
+    }
+    // A model changed without its views refreshed fails here: UPDATE_DIAGRAM_VIEWS=1 rewrites the file from what toil printed.
+    if (process.env.UPDATE_DIAGRAM_VIEWS === '1') {
+      const file = join(import.meta.dirname, '..', 'src', 'fixtures', 'diagram-views.ts');
+      const { readFileSync } = await import('node:fs');
+      const text = readFileSync(file, 'utf8');
+      writeFileSync(file, text.slice(0, text.indexOf('= {') + 2) + JSON.stringify(computed) + ';\n');
+    }
+    expect(JSON.parse(JSON.stringify(SAMPLE_VIEWS))).toEqual(JSON.parse(JSON.stringify(computed)));
+  });
+
+  it("draws no more than toil's own drawer does: the page's limits are VIEW_LIMITS", () => {
+    expect(DRAW_LIMITS).toEqual(VIEW_LIMITS);
   });
 });

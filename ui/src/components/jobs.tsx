@@ -17,7 +17,8 @@ import { sendCommand } from '../commands.ts';
 import type { ConfigApi, ConnectionRow, ConnectionsData } from '../config.ts';
 import { useData } from '../data.ts';
 import { useChatScope } from './ask.tsx';
-import { prName, toilProjectHref } from '../format.ts';
+import { useStoredDiagram } from '../diagram-saved.ts';
+import { diagramHref, prName, toilProjectHref } from '../format.ts';
 import { FACE, availability, jobOf, jobPrompt, jobLabel, type Availability, type Face, type JobId } from '../model/jobs.ts';
 import type { Change } from '../toil.ts';
 import { MoreIcon } from './icons.tsx';
@@ -127,14 +128,26 @@ export function PullRequestActions({ change, info, plain }: { change: Change; in
 /** The repositories a Toil project's pull requests name, for Diagram's target. */
 export const repositoriesOf = (prs: readonly Change[]): string[] => [...new Set(prs.map((c) => c.repo))].sort();
 
-/** A link to Diagram on a Toil project's overview: one line, since the page it opens says the rest. */
+/**
+ * A link on a Toil project's overview: the picture when a diagram is kept
+ * (Architecture), the job that draws one when none is, and, while that is
+ * unread or can't be told, the job, whose page says the rest. One line.
+ */
 export function DiagramLink() {
   const { toilProject } = useData();
+  const stored = useStoredDiagram();
+  const kept = stored.known && stored.kept;
   return (
     <p className="note jobs-link">
-      <a href={jobHref(toilProject.name, 'map-codebase')} data-job-link="map-codebase" className="nowrap">
-        Draw its architecture
-      </a>
+      {kept ? (
+        <a href={diagramHref(toilProject.name)} data-diagram-link="" className="nowrap">
+          Architecture
+        </a>
+      ) : (
+        <a href={jobHref(toilProject.name, 'map-codebase')} data-job-link="map-codebase" className="nowrap">
+          Draw its architecture
+        </a>
+      )}
     </p>
   );
 }

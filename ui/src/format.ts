@@ -52,6 +52,8 @@ export const itemHref = (toilProject: string, id: string) => `${toilProjectHref(
 export const peekHref = (page: string, id: string) => withQuery(page, (q) => q.set('item', id));
 /** The page you're on with the item drawer closed, whatever else it holds (a filter, the list the item was opened from) left as it was. */
 export const unpeekHref = (page: string) => withQuery(page, (q) => q.delete('item'));
+/** The architecture diagram (#582), one step in from the Summary: its first view, or the view named. */
+export const diagramHref = (toilProject: string, view?: string) => `${toilProjectHref(toilProject)}/summary/diagram${view ? `/${encodeURIComponent(view)}` : ''}`;
 export const prsHref = (toilProject: string) => `${toilProjectHref(toilProject)}/prs`;
 export const peopleHref = (toilProject: string) => `${toilProjectHref(toilProject)}/people`;
 /** A chart's full page, under the Summary (#567): `…/summary/<dashboard>`. With no dashboard it is the Summary itself, where the charts are items. The old `…/charts/…` addresses are rewritten to these (App.tsx, upgradeHash). */

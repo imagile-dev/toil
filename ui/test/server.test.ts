@@ -917,6 +917,25 @@ describe('the Stores', () => {
     expect([...READ_COMMANDS].sort()).toEqual([...new Set([...CANNED.map((c) => c.command), ...noSampleToilProject])].sort());
   });
 
+  it('reads a stored architecture diagram live, never from the cache, so a Toil project that was never synced still has its own (#582)', async () => {
+    const calls: unknown[] = [];
+    const execute: Execute = async (command, input, options) => (calls.push([command, input, options]), { ok: true, data: { revision: 1 }, error: null, meta: { command, durationMs: 0, version: 'x', contractVersion: 1 } } as Envelope);
+    const dir = mkdtempSync(join(tmpdir(), 'toil-ui-diagram-live-'));
+    const cache = await Cache.open(dir, { retentionDays: 30 });
+    try {
+      const store = sqliteStore(() => cache, execute, { version: 'x', contractVersion: 1 });
+      const ctx: RequestContext = { viewer: { id: 'local', name: 'you', via: 'loopback' }, signal: new AbortController().signal };
+      const reply = await store.execute(ctx, 'projects diagram show', { toilProject: 'never-synced', view: 'containers' }, 'read');
+      expect(reply).toMatchObject({ ok: true, data: { revision: 1 } });
+      expect(calls).toEqual([['projects diagram show', { toilProject: 'never-synced', view: 'containers' }, { readOnly: true, caller: CALLER, signal: ctx.signal }]]);
+      // Any other command that the cache never stored is still the cache's refusal, so the live list is no loophole.
+      expect(await store.execute(ctx, 'jira issue search', { toilProject: 'never-synced' }, 'read')).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } });
+    } finally {
+      cache.close();
+      rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+    }
+  });
+
   it("toil's own execute() gets every read read-only, and every call named toil-ui", async () => {
     const calls: unknown[] = [];
     const execute: Execute = async (command, input, options) => (calls.push([command, input, options]), { ok: true, data: null, error: null, meta: { command, durationMs: 0, version: 'x', contractVersion: 1 } } as Envelope);

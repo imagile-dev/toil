@@ -70,7 +70,7 @@ describe('the help topics', () => {
   });
 
   it("gives every view the header's Help opens a topic", () => {
-    const views: HelpView[] = ['toilProjects', 'dashboard', 'prs', 'people', 'command-center', 'worklog', 'standup', 'item', 'assignment', 'settings'];
+    const views: HelpView[] = ['toilProjects', 'dashboard', 'prs', 'people', 'command-center', 'worklog', 'standup', 'item', 'assignment', 'job', 'diagram', 'settings'];
     for (const v of views) expect(viewHelpHref(v)).toMatch(new RegExp(`^${DOCS_SITE}/docs/[a-z-]+/#[a-z0-9-]+$`));
     expect(viewHelpHref('settings', 'agent')).toBe(helpHref(HELP.agent));
   });

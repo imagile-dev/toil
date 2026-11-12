@@ -20,6 +20,8 @@ export const WORKFLOW_READS = ['jira issue transitions', 'ado work-item states']
 export const READ_COMMANDS: ReadonlySet<string> = new Set([
   'projects list',
   'projects show',
+  // A toil project's stored architecture diagram (#582): a local file, read live on its own page, never synced.
+  'projects diagram show',
   'jira issue search',
   'jira issue fields',
   'jira issue history',

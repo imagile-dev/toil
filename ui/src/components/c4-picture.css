@@ -1,0 +1,47 @@
+/* The architecture picture (#582): toil's C4 layout drawn as SVG. The C4 fills keep their palette and their paired text
+   colours; the canvas, arrows, labels and boundary are the theme's tokens, so each follows light and dark. */
+.c4-figure { display: grid; gap: 0.75rem; min-width: 0; }
+.c4-picture { display: block; width: 100%; height: auto; background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius, 6px); }
+.c4-canvas { fill: transparent; }
+.c4-title { fill: var(--ink); }
+.c4-boundary rect { stroke: var(--muted); }
+.c4-boundary-text { fill: var(--muted); }
+.c4-line { stroke: var(--muted); stroke-linecap: round; }
+.c4-line--on { stroke: var(--focus); }
+.c4-arrowhead { fill: var(--muted); }
+.c4-hit { stroke: transparent; stroke-width: 16; pointer-events: stroke; }
+.c4-label { fill: var(--ink); }
+.c4-label-bg { fill: var(--raised); fill-opacity: 0.88; }
+.c4-inferred { stroke: var(--ink); stroke-width: 2; }
+.c4-selected { stroke: var(--focus); stroke-width: 3; }
+.c4-press, .c4-hit, .c4-label-bg { cursor: pointer; outline: none; }
+/* A box shows focus as an outline round it; an arrow, which has no box, as a thicker line in the focus colour. */
+.c4-press:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.c4-edge:has(.c4-hit:focus-visible) .c4-line { stroke: var(--focus); stroke-width: 3.5; }
+.c4-edge:hover .c4-line { stroke: var(--ink); }
+
+/* Beside the picture on a wide screen, below it on a narrow one. */
+.c4-layout { display: grid; gap: 1rem; min-width: 0; }
+@media (min-width: 70rem) { .c4-layout--detail { grid-template-columns: minmax(0, 1fr) 20rem; align-items: start; } }
+.c4-main { display: grid; gap: 0.75rem; min-width: 0; }
+.c4-detail { border: 1px solid var(--line); border-radius: var(--radius, 6px); background: var(--surface); padding: 0.75rem 1rem; display: grid; gap: 0.4rem; min-width: 0; overflow-wrap: anywhere; }
+.c4-detail h2, .c4-detail h3 { margin: 0; font-size: 1.05rem; }
+.c4-detail p { margin: 0; }
+.c4-detail__how { font-weight: 600; }
+.c4-detail__close { justify-self: start; }
+
+/* The legend: three kinds of line, with how many of each. */
+.c4-legend { display: flex; flex-wrap: wrap; gap: 0.35rem 1.25rem; list-style: none; margin: 0; padding: 0; align-items: center; font-size: 0.9rem; }
+.c4-legend li { display: inline-flex; align-items: center; gap: 0.4rem; }
+.c4-legend svg { flex: none; }
+.c4-legend rect, .c4-legend path { stroke: var(--ink); fill: none; stroke-width: 1.5; }
+
+.c4-switch { display: flex; flex-wrap: wrap; gap: 0.35rem 0.5rem; list-style: none; margin: 0; padding: 0; }
+.c4-switch a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 0.75rem; border: 1px solid var(--line); border-radius: var(--radius, 6px); text-decoration: none; color: var(--ink); background: var(--surface); }
+.c4-switch a[aria-current='page'] { border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); font-weight: 600; }
+
+.c4-crumbs { margin: 0; font-size: 0.9rem; }
+.c4-list { display: grid; gap: 0.25rem; }
+.c4-list ul { margin: 0.25rem 0 0.75rem; padding-left: 1.1rem; display: grid; gap: 0.2rem; }
+.c4-list li { overflow-wrap: anywhere; }
+.c4-prov { margin: 0; }

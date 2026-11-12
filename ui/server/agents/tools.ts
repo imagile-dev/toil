@@ -27,6 +27,7 @@
  */
 
 import type { Cache, ChangeRow, TransitionRow } from '../cache.ts';
+import type { DraftDiagram } from '../../src/agent.ts';
 import type { AuthorKind, Change, Envelope, Execute, WorkItem } from '../../src/toil.ts';
 import { flagsOf, KINDS, linked, PR_FLAG_LABEL, prMetrics, sizeOf, waitOf, workingDays, type Sample, type WaitingOn } from '../../src/model/prs.ts';
 import { people, readPeople, type Card } from '../../src/model/people.ts';
@@ -172,6 +173,8 @@ export const LIVE_COMMANDS: readonly string[] = [
   'openshift deployment list',
   // The workflow jobs (#532): a review reads a pull request's files and diff, and Diagram draws its model, local and read-only.
   'util c4 mermaid',
+  // Diagram's model is checked exactly as a Save would check it (#582); the agent passes it as text, and a file on this machine is never its to name.
+  'projects diagram check',
 ];
 
 /** Fields a live tool never offers: the toilProject is fixed, and a file or folder on this machine is not the agent's to name. */
@@ -190,6 +193,11 @@ export class Ledger {
   readonly ids = new Set<string>();
   /** The chart cells a pivot or a view context holds, each `<column>/<row>` by the keys the pivot gives: what `[[cell:<column>/<row>]]` is checked against. */
   readonly cells = new Set<string>();
+  /**
+   * The model of the last `projects diagram check` that passed (#582), as it was given, or null. A check that fails leaves the
+   * one before it, since that one did pass; the Diagram job's answer offers to save this and nothing the agent retyped.
+   */
+  diagram: DraftDiagram | null = null;
   readonly calls: Array<{ tool: string; input: Record<string, unknown> }> = [];
   add(id: string | null | undefined) {
     if (id) this.ids.add(id);
@@ -778,6 +786,22 @@ export function cacheTools(toilProject: string, data: AgentData, ledger: Ledger,
 /** True when a registry entry can never change anything, whatever its input. */
 export const neverWrites = (c: Pick<ReadCommand, 'writes' | 'writesLocal' | 'writesDependOnInput'>) => !c.writes && !c.writesLocal && !c.writesDependOnInput;
 
+/** The draft a passing `projects diagram check` makes: the model text it was given, and the title, views and counts toil reported. Null when it wasn't given text. */
+export function draftOf(input: Record<string, unknown>, data: unknown): DraftDiagram | null {
+  const d = (typeof data === 'object' && data !== null ? data : {}) as { title?: unknown; views?: unknown; counts?: unknown };
+  if (typeof input.text !== 'string' || !Array.isArray(d.views) || typeof d.counts !== 'object' || d.counts === null) return null;
+  const c = d.counts as Record<string, unknown>;
+  const num = (k: string) => (typeof c[k] === 'number' ? c[k] : 0);
+  const notMapped = Array.isArray(input.notMapped) ? input.notMapped.filter((p): p is string => typeof p === 'string') : [];
+  return {
+    text: input.text,
+    ...(notMapped.length ? { notMapped } : {}),
+    title: typeof d.title === 'string' ? d.title : null,
+    views: d.views.flatMap((v) => (typeof v === 'object' && v !== null && typeof (v as { key?: unknown }).key === 'string' ? [{ key: String((v as { key: string }).key), type: String((v as { type?: unknown }).type ?? ''), title: String((v as { title?: unknown }).title ?? (v as { key: string }).key) }] : [])),
+    counts: { elements: num('elements'), relationships: num('relationships'), observed: num('observed'), inferred: num('inferred'), unmarked: num('unmarked') },
+  };
+}
+
 /** The ids an envelope's work items map to, through toil's own OWI mappers. Nothing when it doesn't map. */
 export type MapIds = (envelope: Envelope) => string[];
 
@@ -803,6 +827,7 @@ export function liveTools(toilProject: string, registry: readonly ReadCommand[],
         const clean = Object.fromEntries(Object.entries(input).filter(([k]) => k in properties));
         const envelope = await execute(command.name, { ...clean, ...('toilProject' in (schema.properties ?? {}) ? { toilProject } : {}) }, { readOnly: true, caller: CALLER, ...(signal ? { signal } : {}) });
         if (envelope.ok) for (const id of mapIds(envelope)) ledger.add(id);
+        if (envelope.ok && command.name === 'projects diagram check') ledger.diagram = draftOf(clean, envelope.data);
         const text = JSON.stringify(envelope.ok ? { data: envelope.data, warnings: envelope.meta.warnings ?? [] } : { error: envelope.error });
         return text.length > MAX_LIVE_CHARS ? { cut: `The result was ${text.length} characters, cut to ${MAX_LIVE_CHARS}; ask for fewer with limit or a narrower query.`, json: text.slice(0, MAX_LIVE_CHARS) } : JSON.parse(text);
       },

@@ -49,7 +49,14 @@ export interface Finish {
   ledger: Ledger;
   /** toil's write commands, by name: a proposal may name only one of these. */
   writes: ReadonlyMap<string, WriteCommand>;
+  /** A job's answer (#582): a fenced block is folded, not run into the prose. */
+  fold?: boolean;
+  /** The Diagram job's (#582): the answer carries the draft diagram from the ledger's last passing check, or says there is none. */
+  drafts?: boolean;
 }
+
+/** What the Diagram job's answer says when the agent never passed a check: plain, and with no Save to offer. */
+export const NO_DRAFT = "The agent did not finish a model that passes toil's checks, so there is nothing to save.";
 
 const FENCE = /```proposal[^\n]*\n([\s\S]*?)```/g;
 const OPEN_FENCE = /```proposal[\s\S]*$/;
@@ -58,8 +65,33 @@ const TRACKER_KEY = /(?<![\w:/-])([A-Z][A-Z0-9]{1,9}-\d+)\b/g;
 /** At most this many proposals per answer are kept (Bounds); the rest are listed as dropped. */
 export const MAX_PROPOSALS = 10;
 
-/** The paragraphs of a text, with any half-written citation at its end held back. */
-export function partsOf(text: string): AnswerPart[] {
+/** A fenced block, closed or still open at the end of the text (an answer that is streaming, or one that forgot to close it). */
+const ANY_FENCE = /```([\w+-]*)[^\n]*\n([\s\S]*?)(?:```|$)/g;
+
+/**
+ * The parts of a text: its paragraphs, with any half-written citation at its
+ * end held back. With `fold` (a job's answer, #582) a fenced block is lifted
+ * out before the text is split at blank lines, so code with blank lines in it
+ * is one part, carrying its language as `fence`, and the pane can fold it
+ * instead of laying it out as a paragraph of run-together text.
+ */
+export function partsOf(text: string, fold = false): AnswerPart[] {
+  if (!fold) return paragraphs(text);
+  const parts: AnswerPart[] = [];
+  let last = 0;
+  const unix = text.replace(/\r\n/g, '\n');
+  for (const m of unix.matchAll(ANY_FENCE)) {
+    parts.push(...paragraphs(unix.slice(last, m.index)));
+    const body = m[2]!.replace(/\s+$/, '');
+    if (body.trim()) parts.push({ text: body, fence: m[1]! });
+    last = m.index + m[0].length;
+  }
+  parts.push(...paragraphs(unix.slice(last)));
+  return parts;
+}
+
+/** The paragraphs of a prose text, with Markdown emphasis taken off and any half-written citation at its end held back. */
+function paragraphs(text: string): AnswerPart[] {
   // The pane shows plain text, so Markdown emphasis the model adds anyway is taken off rather than shown as asterisks.
   const tidy = text
     .replace(/\[\[[^\]]*$/, '')
@@ -74,9 +106,9 @@ export function partsOf(text: string): AnswerPart[] {
 }
 
 /** The answer so far, while it streams: proposal blocks (whole or half-written) are held back until the end. */
-export function partial(text: string, base: Pick<Answer, 'prompt' | 'by'>): Answer {
+export function partial(text: string, base: Pick<Answer, 'prompt' | 'by'>, fold = false): Answer {
   const prose = text.replace(FENCE, '').replace(OPEN_FENCE, '');
-  const parts = partsOf(prose);
+  const parts = partsOf(prose, fold);
   return { prompt: base.prompt, by: base.by, parts, citations: citationsOf(parts), proposals: [] };
 }
 
@@ -142,7 +174,7 @@ export function finish(raw: string, f: Finish): Answer {
   // Analyze's briefing block (#494) is data for the page, not text for the pane: it's lifted out, and its ids are checked with the rest.
   const read = stripped.includes('```briefing') ? readBriefing(stripped) : null;
   const prose = read ? read.rest : stripped;
-  const parts = partsOf(prose);
+  const parts = partsOf(prose, f.fold);
   const warnings: string[] = [];
   const proposals: Proposal[] = [];
   for (const [i, block] of blocks.entries()) {
@@ -162,7 +194,7 @@ export function finish(raw: string, f: Finish): Answer {
   // Every field of the briefing the page shows with citations: its ids and its sentences alike.
   const b = read?.briefing;
   const briefed = b ? [b.recommendation, b.onTrack ?? '', ...b.changed, ...b.reasons.flatMap((r) => [r.line, r.text ?? '', ...r.items.flatMap((i) => [i.id, i.why, i.next ?? ''])]), ...b.leftOut.flatMap((l) => [l.id, l.why])] : [];
-  const all = [...parts.map((p) => p.text), ...proposals.map((p) => p.reason), ...briefed].join('\n\n');
+  const all = [...parts.filter((p) => p.fence === undefined).map((p) => p.text), ...proposals.map((p) => p.reason), ...briefed].join('\n\n');
   const { cited, bare, keys } = named(all, connections);
   for (const id of [...cited, ...bare, ...proposals.map((p) => p.item)]) if (!ledgerIds.has(id)) unverified.add(id);
   // A chart cell cited as [[cell:<column>/<row>]] must be one the view the person attached, or a pivot this answer ran, holds (#567).
@@ -180,7 +212,11 @@ export function finish(raw: string, f: Finish): Answer {
   if (unknownIds.length) warnings.unshift(`This answer names ${unknownIds.length === 1 ? 'an item' : `${unknownIds.length} items`} its tools never returned: ${unknownIds.join(', ')}. Treat ${unknownIds.length === 1 ? 'it' : 'them'} as unverified.`);
   if (read?.problems.length) warnings.push(...read.problems.map((p) => `The briefing: ${p}`));
   if (parts.length && !citations.length && !cells.length && !read?.briefing && ledgerIds.size) warnings.push('This answer cites none of the items its tools read, so nothing in it is traced to a source.');
-  if (parts.length && !ledgerIds.size) warnings.push("The agent's tools returned no work items, so this answer rests on none.");
+  // A Diagram answer rests on a model, not on work items, so the absence of items is no news there (#582).
+  if (parts.length && !ledgerIds.size && !f.drafts) warnings.push("The agent's tools returned no work items, so this answer rests on none.");
 
-  return { prompt: f.prompt, by: f.by, parts, citations, proposals, unverified: [...unverified], warnings, ...(read ? { briefing: read.briefing, briefingProblems: read.problems } : {}) };
+  // The Diagram job's draft is the model of its last passing check (#582), never anything in the text; none says so, in the checks above the answer.
+  const draft = f.drafts ? f.ledger.diagram : undefined;
+  if (f.drafts && !draft) warnings.push(NO_DRAFT);
+  return { prompt: f.prompt, by: f.by, parts, citations, proposals, unverified: [...unverified], warnings, ...(f.drafts ? { diagram: draft ?? null } : {}), ...(read ? { briefing: read.briefing, briefingProblems: read.problems } : {}) };
 }

@@ -88,6 +88,7 @@ export const HELP = {
   'analyze-settings': { title: 'how Analyze briefs a Toil project', text: "Each Toil project sets its goal, its reader, its lenses in order with their thresholds, and what to watch for or leave out, while toil's rules and the answer's shape stay fixed. Toil UI can't clear a setting yet.", page: '/docs/ui/', anchor: 'tuning-analyze' },
   insights: { title: 'flagged cards and insights', text: 'A flagged card needs action now or a look: it is blocked, its build fails, it is aging or stale. An insight is something about an item that deserves a look, weightiest first, and each names the field or history it rests on.', page: '/docs/ui/', anchor: 'insights' },
   prs: { title: 'pull requests', text: "Read from every code host the Toil project names, the open ones ranked by how long each has waited and on what. Flow figures are the team's, never one person's.", page: '/docs/ui/', anchor: 'pull-requests' },
+  diagram: { title: 'the architecture diagram', text: 'A C4 picture of what the Diagram job drew and you saved, kept in your own folder. A dashed outline or a dotted arrow is a conclusion, not a reading; press a box or an arrow to see what it was read from, or why it is believed.', page: '/docs/ui/', anchor: 'the-architecture-diagram' },
   jobs: { title: 'jobs', text: 'A workflow page from toil, run by the agent: it reads through toil and turns every write into a proposal for you.', page: '/docs/ui/', anchor: 'pull-requests' },
   people: { title: 'the People view', text: "What is on each person's plate, from the Toil project's people section and the same items and pull requests as the dashboard. It never ranks or scores anyone.", page: '/docs/ui/', anchor: 'people' },
   'people-mix': { title: 'the mix of open work', text: "One bar per person: the share of their open work in each value of the chosen dimension. It shows what kind of work is on a plate, never how anyone is doing, and cards stay in name order.", page: '/docs/ui/', anchor: 'the-mix-of-open-work' },
@@ -157,7 +158,7 @@ export type HelpTopicId = keyof typeof HELP;
 export const helpHref = (topic: HelpTopic): string => `${DOCS_SITE}${topic.page}#${topic.anchor}`;
 
 /** The header's Help entry: the docs section for the view in front of you. */
-export type HelpView = 'toilProjects' | 'dashboard' | 'prs' | 'people' | 'charts' | 'command-center' | 'classify' | 'worklog' | 'standup' | 'briefings' | 'item' | 'assignment' | 'job' | 'settings' | 'setup' | 'newProject';
+export type HelpView = 'toilProjects' | 'dashboard' | 'prs' | 'people' | 'charts' | 'command-center' | 'classify' | 'worklog' | 'standup' | 'briefings' | 'item' | 'assignment' | 'job' | 'diagram' | 'settings' | 'setup' | 'newProject';
 const VIEW_TOPIC: Record<HelpView, HelpTopicId> = {
   toilProjects: 'toilProjects',
   dashboard: 'dashboard',
@@ -172,6 +173,7 @@ const VIEW_TOPIC: Record<HelpView, HelpTopicId> = {
   item: 'readiness',
   assignment: 'assignments',
   job: 'jobs',
+  diagram: 'diagram',
   settings: 'settings',
   setup: 'setup',
   newProject: 'toil-project-setup',

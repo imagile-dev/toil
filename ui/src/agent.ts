@@ -20,6 +20,27 @@ import type { ViewContext } from './view-context.ts';
 export interface AnswerPart {
   /** Text with each cited item written as `[[<owi id>]]`, which the UI renders as a link. */
   text: string;
+  /**
+   * Set when this part is a fenced block the agent pasted into a job's answer (#582), and the text is its source, without the
+   * fence: the language it named, which may be empty. The pane shows it folded, so code never reads as run-together prose.
+   */
+  fence?: string;
+}
+
+/**
+ * The architecture diagram the Diagram job drafted (#582): the model exactly as
+ * the agent's last passing `projects diagram check` was given it, and what
+ * toil reported of it, so a person's Save keeps what toil checked and not
+ * something retyped. Held on the finished answer only.
+ */
+export interface DraftDiagram {
+  /** The model's JSON, as it went to `projects diagram check` and `save` as `text`. */
+  text: string;
+  /** The paths the agent left out on purpose. */
+  notMapped?: string[];
+  title: string | null;
+  views: Array<{ key: string; type: string; title: string }>;
+  counts: { elements: number; relationships: number; observed: number; inferred: number; unmarked: number };
 }
 
 export interface Answer {
@@ -55,6 +76,11 @@ export interface Answer {
   session?: ChatSession;
   /** The id the history of analyses keeps an Analyze answer under (#395), on its finished answer only. */
   analysis?: string;
+  /**
+   * The Diagram job's draft (#582), on its finished answer only: the model its last passing check was given, to Save. `null` is a
+   * Diagram run that passed no check, so there is nothing to save; absent is every other answer.
+   */
+  diagram?: DraftDiagram | null;
 }
 
 /**

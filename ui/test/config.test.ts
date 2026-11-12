@@ -18,7 +18,7 @@ import { connectionEnvName } from '../../src/core/config.ts';
 import { CONFIG_CANNED, FIXTURE_AREAS, FIXTURE_CONNECTIONS, PROBES } from '../src/fixtures/config.ts';
 import { noAgent } from '../server/agent.ts';
 import { areasFrom, personFrom, settingsFrom } from '../server/config.ts';
-import { createUiServer, type UiServerOptions } from '../server/server.ts';
+import { MAX_BODY, MAX_CONFIG_BODY, createUiServer, type UiServerOptions } from '../server/server.ts';
 import { toilStore } from '../server/store.ts';
 
 // toil's API builds its own credential store: here it is an in-memory one, so no test reaches the OS keychain.
@@ -157,7 +157,7 @@ describe('the allowlist', () => {
   it('is exactly the config commands the pages need, each one toil has, the changes local writes only', () => {
     const served = new Map([...registry.commands, ...registry.personCommands].map((c) => [c.name, c]));
     expect([...CONFIG_COMMANDS].sort()).toEqual(
-      ['audit list', 'audit stats', 'classify correct', 'classify scheme list', 'classify scheme show', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'jira field discover', 'projects add-repo', 'projects analyze set', 'projects archive', 'projects check', 'projects classify set', 'projects describe', 'projects field', 'projects init', 'projects link', 'projects list', 'projects onboard', 'projects people save', 'projects person', 'projects show', 'projects unarchive', 'projects view set', 'projects wip-limit', 'theme list', 'theme set'],
+      ['audit list', 'audit stats', 'classify correct', 'classify scheme list', 'classify scheme show', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'jira field discover', 'projects add-repo', 'projects analyze set', 'projects archive', 'projects check', 'projects classify set', 'projects describe', 'projects diagram save', 'projects field', 'projects init', 'projects link', 'projects list', 'projects onboard', 'projects people save', 'projects person', 'projects show', 'projects unarchive', 'projects view set', 'projects wip-limit', 'theme list', 'theme set'],
     );
     for (const name of CONFIG_READS) expect(served.get(name), name).toMatchObject({ writes: false, writesLocal: false, writesDependOnInput: false });
     // A change writes only toil's own config on this machine, never a service.
@@ -495,5 +495,53 @@ describe('what Toil UI reads from toil for the setup fixes (#573)', () => {
     expect(context).toContain('local-db: Database');
     expect(context).toContain('token not needed');
     expect(context).not.toContain('token missing');
+  });
+});
+
+describe('keeping the Diagram job’s architecture diagram (#582)', () => {
+  /** A model with one system and enough text to be well past the 256 KB every other route reads: many containers, each with a long description. */
+  const bigModel = () => {
+    const containers = Array.from({ length: 400 }, (_, i) => ({ id: `c${i}`, name: `Container ${i}`, description: 'x'.repeat(1000), how: 'inferred', reason: 'a long reason '.repeat(10) }));
+    return JSON.stringify({ title: 'Big', systems: [{ id: 's', name: 'System', containers }], views: [{ key: 'v', type: 'container', scope: 's', title: 'All of it' }] });
+  };
+
+  it('saves through the settings path with no allowWrite, takes a model past the small body limit, and a reader reads it back', async () => {
+    const { config, origin, headers } = await serve();
+    await config('projects init', { name: 'payments' });
+    const text = bigModel();
+    expect(text.length).toBeGreaterThan(256 * 1024);
+    const saved = await config('projects diagram save', { toilProject: 'payments', text, notMapped: ['dist/'] });
+    expect(saved.status).toBe(200);
+    expectEnvelope(saved).toMatchObject({ ok: true, data: { toilProject: 'payments', revision: 1, counts: { elements: 401, inferred: 400 } } });
+    expect(existsSync(join(home, '.toil', 'diagrams', 'payments.json'))).toBe(true);
+    // The audit line says what was called and hashes the model; it never holds it.
+    const line = audit().find((l) => l.command === 'projects diagram save')!;
+    expect(line.caller).toBe('toil-ui');
+    expect(JSON.stringify(line)).not.toContain('Container 7');
+    // The page reads it back through the read path, which runs `projects diagram show`.
+    const read = await send(origin, '/api/execute', { method: 'POST', body: JSON.stringify({ command: 'projects diagram show', input: { toilProject: 'payments', view: 'v' } }), headers });
+    expect(JSON.parse(read.body)).toMatchObject({ ok: true, data: { revision: 1, notMapped: ['dist/'], view: { key: 'v' } } });
+    // A second save needs replace, as toil says, and then counts the revision up.
+    expectEnvelope(await config('projects diagram save', { toilProject: 'payments', text })).toMatchObject({ ok: false, error: { code: expect.any(String) } });
+    expectEnvelope(await config('projects diagram save', { toilProject: 'payments', text, replace: true })).toMatchObject({ ok: true, data: { revision: 2 } });
+  });
+
+  it('refuses a model with an address in it, naming where, and keeps nothing', async () => {
+    const { config } = await serve();
+    await config('projects init', { name: 'payments' });
+    const text = JSON.stringify({ systems: [{ id: 's', name: 'See https://host.imagile.dev/x', containers: [] }], views: [{ key: 'v', type: 'systemContext', scope: 's' }] });
+    const refused = await config('projects diagram save', { toilProject: 'payments', text });
+    expectEnvelope(refused).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
+    expect(refused.envelope.error.message).toContain('systems[0].name');
+    expect(existsSync(join(home, '.toil', 'diagrams', 'payments.json'))).toBe(false);
+  });
+
+  it('keeps the small limit on the read path and every other route, and has a limit of its own on this one', async () => {
+    const { origin, headers } = await serve();
+    const pad = (n: number) => JSON.stringify({ command: 'projects diagram save', input: { toilProject: 'payments', text: 'x'.repeat(n) } });
+    expect((await send(origin, '/api/execute', { method: 'POST', body: pad(MAX_BODY), headers })).status).toBe(413);
+    expect((await send(origin, '/api/config', { method: 'POST', body: pad(MAX_CONFIG_BODY), headers })).status).toBe(413);
+    // The read path never runs a save, whatever the body: it is not a read.
+    expect((await send(origin, '/api/execute', { method: 'POST', body: pad(10), headers })).status).toBe(403);
   });
 });

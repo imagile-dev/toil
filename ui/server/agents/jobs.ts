@@ -17,6 +17,8 @@ import { AgentError } from './cli.ts';
 import { pullRequestsOf } from './tools.ts';
 
 export interface JobQuestion {
+  /** Which job it is: the Diagram job's answer carries a draft to save (#582). */
+  job: JobId;
   label: string;
   text: string;
   /** What to tell the person above the answer, such as which round this is. */
@@ -28,7 +30,7 @@ export interface JobQuestion {
 /** What Toil UI's agent can't do that a page assumes: said once, ahead of the page. */
 const HERE = [
   'You are running inside Toil UI, not a terminal. That changes how the steps below are followed:',
-  '- Where a step names a toil line, call the tool of that name: `github pr diff` is github_pr_diff, `util c4 mermaid` is util_c4_mermaid. A step whose command has no tool here was not checked: say so in the answer, never fill it in from memory.',
+  '- Where a step names a toil line, call the tool of that name: `github pr diff` is github_pr_diff, `projects diagram check` is projects_diagram_check. A step whose command has no tool here was not checked: say so in the answer, never fill it in from memory.',
   "- You have no shell, no files and no working tree. A step that needs one (the repository's own gate, editing files, git commit, git push, util size on a folder) is left for the person's terminal: name it, and say what it would have to do.",
   '- Every write a page names is a proposal, written as rule 3 says, with proposal_fields called first. The page\'s own "writes" list is the only commands you may propose. Never say a write was made.',
   '- Never approve or merge a pull request yourself: a write is only ever proposed. Every finding names the tool call it came from, and everything you could not check is listed as unchecked.',
@@ -37,7 +39,14 @@ const HERE = [
 function target(job: Job, id: JobId, subject: string, toilProject: string): string {
   if (FACE[id].on === 'toil project') return `The backlog is the Toil project "${toilProject}"'s work items. Read them with projects_show and the tracker read tools you have; the page says which scheme sorts them and which writes it may propose.`;
   if (FACE[id].on === 'pull request') return `The pull request is ${subject}: cite it as [[${subject}]]. pr_get gives it from the cache; its code host's own read tools take the repository and number inside that id.`;
-  return `The repository is ${subject || `the Toil project "${toilProject}"'s repositories`}. Read the Toil project's repositories with projects_show. Build the model from what your tools return (the pull requests and their files, the items, the deployments), mark every element observed or inferred as the page says, and draw it with util_c4_mermaid, putting the Mermaid text in your answer.`;
+  return [
+    `The repository is ${subject || `the Toil project "${toilProject}"'s repositories`}. Read the Toil project's repositories with projects_show.`,
+    // Only the page's Map and Model steps apply here: drawing, files and Confluence are for a terminal, and Toil UI's Save press keeps the model.
+    "Of the page's steps, follow Map and Model, from what your tools return (the pull requests and their files, the items, the deployments). Rendering diagrams, writing the map file, placing it and any Confluence step are for the person's terminal: do not propose them. Toil UI keeps the model itself, on the person's Save press.",
+    'Build the C4 model as the JSON the page describes. Mark every element and every relationship how: "observed", with source (on an element) or evidence (on a relationship) naming the tool call or file it came from, or how: "inferred", with a reason. Never put a URL, a host name or a secret in the model: toil refuses them.',
+    'Check it with projects_diagram_check, passing the whole model as text and, as notMapped, the paths you left out on purpose, and fix every problem it lists until it passes. Do not draw it, and put no Mermaid, JSON or code fence in your answer: Toil UI takes the model from your last projects_diagram_check call that passed and offers the person a Save diagram button.',
+    "Answer in plain prose: what you drew, how much of it is observed and how much inferred, what you did not map, and three questions for the person. If no check passed, say that, and do not describe a diagram you could not check.",
+  ].join(' ');
 }
 
 /** What the cache holds for the Toil project: the targets a job may be asked about. */
@@ -106,7 +115,7 @@ export function jobQuestion(toilProject: string, prompt: string, rounds: (label:
     `The page, "${job.id}" (verification: ${job.verification}):`,
     job.body,
   ].join('\n');
-  return { label, text, warning, writes: job.writes };
+  return { job: asked.id, label, text, warning, writes: job.writes };
 }
 
 /** The targets the cache holds, from a Toil project's change rows. */

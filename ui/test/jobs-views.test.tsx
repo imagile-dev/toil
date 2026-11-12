@@ -91,7 +91,11 @@ describe('a job page', () => {
     expect(within(details).getAllByText(/^toil /).length).toBeGreaterThan(0);
     await userEvent.click(screen.getByRole('button', { name: /^Draw / }));
     const dialog = await screen.findByRole('dialog', { name: /Ask about card-payments/ }, { timeout: 3000 });
-    await waitFor(() => expect(dialog.textContent).toContain('C4Container'), { timeout: 3000 });
+    // The answer ends in a card to Save, not in Mermaid (#582); in the sample, which changes nothing, it says so.
+    await waitFor(() => expect(dialog.querySelector('[data-diagram-card]')).not.toBeNull(), { timeout: 3000 });
+    expect(dialog.textContent).not.toMatch(/C4Container|```/);
+    expect(dialog.querySelector('[data-diagram-off]')!.textContent).toContain('Sample data: nothing is saved here');
+    expect(dialog.querySelector('[data-diagram-save]')).toBeNull();
   });
 
   it('asks which pull request when Review is opened without one, and shows Ship’s round limit', async () => {
@@ -108,9 +112,10 @@ describe('a job page', () => {
     expect(document.querySelector<HTMLButtonElement>('[data-job-run]')!.disabled).toBe(true);
   });
 
-  it('shows Diagram on a Toil project’s overview, as a link and not another button', async () => {
+  it('shows Diagram on a Toil project’s overview, as a link and not another button: the picture when one is kept', async () => {
     await open('#/project/card-payments');
-    const link = document.querySelector<HTMLAnchorElement>('[data-job-link="map-codebase"]')!;
-    expect(link.getAttribute('href')).toBe('#/project/card-payments/job/diagram');
+    await waitFor(() => expect(document.querySelector('.jobs-link [data-diagram-link]')).not.toBeNull());
+    expect(document.querySelector('.jobs-link [data-diagram-link]')!.getAttribute('href')).toBe('#/project/card-payments/summary/diagram');
+    expect(document.querySelector('.jobs-link button')).toBeNull();
   });
 });

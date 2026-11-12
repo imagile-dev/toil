@@ -175,6 +175,12 @@ export interface UiServer {
 
 /** The largest POST body the API reads. Its calls are a command name and a few fields. */
 export const MAX_BODY = 256 * 1024;
+/**
+ * What a config change may carry (#582): a stored diagram's model goes through `projects diagram save` as text, and toil takes up to 4 MiB of it
+ * (MAX_DIAGRAM_BYTES), so this path takes that and the JSON around it, and so does the MCP route, which carries the same model as the
+ * text of a check. Reads, and every other route, keep the small limit.
+ */
+export const MAX_CONFIG_BODY = 4 * 1024 * 1024 + 64 * 1024;
 /** The longest question the agent takes, in characters. */
 export const MAX_PROMPT = 8000;
 
@@ -270,8 +276,8 @@ class HttpError extends Error {
   }
 }
 
-async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
-  const body = await readJsonValue(req);
+async function readJson(req: IncomingMessage, max = MAX_BODY): Promise<Record<string, unknown>> {
+  const body = await readJsonValue(req, max);
   if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new HttpError(400, 'The request body must be a JSON object.', 'Send a JSON object.');
   return body as Record<string, unknown>;
 }
@@ -350,12 +356,12 @@ function checkedStyle(body: Record<string, unknown>): StyleChoice | null {
   }
 }
 
-async function readJsonValue(req: IncomingMessage): Promise<unknown> {
+async function readJsonValue(req: IncomingMessage, max = MAX_BODY): Promise<unknown> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req as AsyncIterable<Buffer>) {
     size += chunk.length;
-    if (size > MAX_BODY) throw new HttpError(413, `The request body is over ${MAX_BODY / 1024} KB.`, 'Send one toil call per request.');
+    if (size > max) throw new HttpError(413, `The request body is over ${max / 1024} KB.`, 'Send one toil call per request.');
     chunks.push(chunk);
   }
   let body: unknown;
@@ -459,7 +465,8 @@ export function createUiServer(options: UiServerOptions): UiServer {
     const tools = mcp.tools(req.headers.authorization);
     if (!tools) throw new HttpError(401, "That isn't the token of a running agent question.", 'The endpoint serves an agent CLI for the length of one question only.');
     if (!/^application\/json(\s*;|$)/i.test(req.headers['content-type'] ?? '')) throw new HttpError(415, 'The MCP endpoint takes JSON only.', 'Send Content-Type: application/json.');
-    const body = await readJsonValue(req);
+    // A model goes through here too, as the text of projects_diagram_check, for the agents that reach their tools only by MCP (#582).
+    const body = await readJsonValue(req, MAX_CONFIG_BODY);
     const out = await answerMcp(body, tools, options.version, ctx.signal);
     if (out === null) return send(res, 202, 'text/plain; charset=utf-8', '');
     json(res, 200, out);
@@ -506,7 +513,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
   };
 
   const run = async (req: IncomingMessage, res: ServerResponse, ctx: RequestContext, access: Access) => {
-    const body = await readJson(req);
+    const body = await readJson(req, access === 'config' ? MAX_CONFIG_BODY : MAX_BODY);
     const command = body.command;
     const input = body.input ?? {};
     if (typeof command !== 'string') throw new HttpError(400, 'The call needs a command name.', 'Send { "command": "projects list", "input": {} }.');

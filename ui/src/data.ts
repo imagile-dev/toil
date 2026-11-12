@@ -50,6 +50,8 @@ export interface Data {
   now: string;
   /** The moment the age of that data is read against (#552): absent, the wall clock. The preview's data stands still, so it sets a fixed one. */
   viewedAt?: string;
+  /** True on sample data, in the preview and under `toil-ui --sample`: nothing here changes anything, whatever the config path says (#582). */
+  preview?: boolean;
   /** toil's config commands, for a change a person approves on a view (the People view's suggested matches); absent where there are none. */
   config?: ConfigApi;
   /** Reads the toil project again, after a person changed it from a view; absent where nothing can change. */

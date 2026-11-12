@@ -22,7 +22,7 @@ import type { Route } from '../App.tsx';
 import { sendCommand, type UiCommand } from '../commands.ts';
 import { useCurrentChart } from '../current-chart.ts';
 import type { ViewContext } from '../view-context.ts';
-import { analysesHref, analysisHref, chartsHref, dateTime, toilProjectHref, itemHref, shortKey, standupHref, STATUS_CATEGORY_LABEL, toilProjectEditHref } from '../format.ts';
+import { analysesHref, analysisHref, chartsHref, dateTime, diagramHref, toilProjectHref, itemHref, shortKey, standupHref, STATUS_CATEGORY_LABEL, toilProjectEditHref } from '../format.ts';
 import { DASHBOARDS } from '../views/charts/index.ts';
 import { exploreHref, viewSpec } from '../model/explore.ts';
 import { fuzzyRank } from '../fuzzy.ts';
@@ -131,6 +131,7 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
     // The workflow jobs (#532): each opens its own page, which says what it needs and has the Run button.
     out.push({ id: 'cmd:job:review', group: 'commands', label: pw('Review a pull request', 'Check a code change'), detail: FACE.review.gist, text: 'review pull request code review job', go: { href: jobHref(here, 'review') } });
     out.push({ id: 'cmd:job:ship', group: 'commands', label: pw('Ship: answer a review', 'Answer the review of my code change'), detail: FACE.ship.gist, text: 'ship answer review pull request job author', go: { href: jobHref(here, 'ship') } });
+    out.push({ id: 'cmd:diagram', group: 'commands', label: `Architecture diagram of ${here}`, detail: 'The saved C4 diagram, drawn', text: 'architecture diagram c4 picture saved system containers', go: { href: diagramHref(here) } });
     out.push({ id: 'cmd:job:diagram', group: 'commands', label: pw(`Diagram ${here}`, `Draw the architecture of ${here}`), detail: FACE['map-codebase'].gist, text: 'diagram draw architecture c4 map codebase job', go: { href: jobHref(here, 'map-codebase') } });
     out.push({ id: 'cmd:job:classify', group: 'commands', label: pw(`Sort the work in ${here} into categories`, `Sort the work in ${here} into categories`), detail: FACE.classify.gist, text: 'classify sort categories ktlo keep the lights on feature label work job', go: { href: jobHref(here, 'classify') } });
     const item = x.focused ? current.value.items.find((i) => i.id === x.focused) : undefined;

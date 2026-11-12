@@ -48,6 +48,7 @@ import { Analyses } from './views/Analyses.tsx';
 import { parseFilters, type Filters } from './filters.ts';
 import { PullRequests } from './views/PullRequests.tsx';
 import { JobPage } from './components/jobs.tsx';
+import { Diagram } from './views/Diagram.tsx';
 import { jobForSegment, type JobId } from './model/jobs.ts';
 import { Settings } from './views/Settings.tsx';
 import { Standup } from './views/Standup.tsx';
@@ -121,6 +122,8 @@ type RouteOf =
   | { view: 'item'; toilProject: string; id: string }
   /** A workflow job's own page (#532): `#/project/<name>/job/<review|ship|diagram>?target=<change id or repository>`. */
   | { view: 'job'; toilProject: string; job: JobId; target: string | null }
+  /** The architecture diagram (#582), one step in from the Summary: `#/project/<name>/summary/diagram[/<view>]`. */
+  | { view: 'diagram'; toilProject: string; key: string | null }
   /** One agent assignment (#293). */
   | { view: 'assignment'; toilProject: string; id: string };
 
@@ -163,6 +166,15 @@ export function parseRoute(rawHash: string): Route {
   return { ...route, ...(peek ? { peek } : {}), ...(items ? { items } : {}), ...(filters && (filters.where.length > 0 || filters.from || filters.to) ? { filters } : {}) };
 }
 
+/** A path part, decoded; a malformed escape is kept as typed, so the page says it found nothing by that name. */
+const decodeKept = (part: string): string => {
+  try {
+    return decodeURIComponent(part);
+  } catch {
+    return part;
+  }
+};
+
 function parsePath(hash: string): RouteOf {
   const parts = hash.replace(/^#\/?/, '').split('/');
   if (parts[0] === 'setup') return { view: 'setup' };
@@ -190,6 +202,7 @@ function parsePath(hash: string): RouteOf {
     if (parts[2] === 'item' && parts[3]) return { view: 'item', toilProject, id: decodeURIComponent(parts.slice(3).join('/')) };
     if (parts[2] === 'assignment' && parts[3]) return { view: 'assignment', toilProject, id: decodeURIComponent(parts[3]) };
     if (parts[2] === 'job' && parts[3] && jobForSegment(parts[3])) return { view: 'job', toilProject, job: jobForSegment(parts[3])!, target: null };
+    if (parts[2] === 'summary' && parts[3] === 'diagram') return { view: 'diagram', toilProject, key: parts[4] ? decodeKept(parts[4]) : null };
     if (parts[2] === 'prs') return { view: 'prs', toilProject };
     if (parts[2] === 'people') return { view: 'people', toilProject };
     if (parts[2] === 'summary' && parts[3] === 'briefings') return parts[4] ? { view: 'briefings', toilProject, id: decodeURIComponent(parts.slice(4).join('/')) } : { view: 'briefings', toilProject };
@@ -222,6 +235,9 @@ export function tabOf(route: Route): ToilProjectTab | null {
   switch (route.view) {
     case 'dashboard':
       return route.tab ?? 'overview';
+    // A page one step in from the Summary keeps the Summary's tab lit.
+    case 'diagram':
+      return 'overview';
     case 'prs':
       return 'prs';
     case 'people':
@@ -693,7 +709,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
           <AnalyzeAfterSync syncedAt={syncedAt ?? null} />
           <ClassifyProvider>
           <ToilProjectShell tab={tabOf(route)} peek={route.peek ?? null} items={route.items ?? null} heading={route.view === 'dashboard'} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'classify' ? { boardView: 'classify' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
-            {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'job' ? <JobPage id={route.job} target={route.target} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'charts' ? <Charts dashboard={route.dashboard ?? null} /> : route.view === 'briefings' ? <Analyses {...(route.id ? { open: route.id } : {})} /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : route.view === 'classify' ? <Classify /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} />}
+            {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'job' ? <JobPage id={route.job} target={route.target} /> : route.view === 'diagram' ? <Diagram viewKey={route.key} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'charts' ? <Charts dashboard={route.dashboard ?? null} /> : route.view === 'briefings' ? <Analyses {...(route.id ? { open: route.id } : {})} /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : route.view === 'classify' ? <Classify /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} />}
           </ToilProjectShell>
           </ClassifyProvider>
         </ChatScope>

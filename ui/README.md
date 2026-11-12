@@ -219,7 +219,7 @@ The app's header carries a project picker right after the brand, before the view
 
 A Toil project opens on its **Overview**, the briefing, in a frame all of its pages share:
 
-- **The top row:** on the Overview, a **Diagram** link (`#/project/<name>/job/diagram`) draws the Toil project's repositories as a C4 diagram in Mermaid; the steps that need a folder on disk (`util size`, `git log`, `deps scan`) are reported unchecked. Its name; the sprint and its day; its description, cut to one
+- **The top row:** on the Overview, an **Architecture** link (`#/project/<name>/summary/diagram`, which says **Draw its architecture** and leads to the job, `#/project/<name>/job/diagram`, until a diagram is kept) opens the Toil project's saved C4 diagram (The architecture diagram, below); the job's steps that need a folder on disk (`util size`, `git log`, `deps scan`) are reported unchecked. Its name; the sprint and its day; its description, cut to one
   line with the whole of it in its tooltip, its sources and a quiet **Edit** link at the end of that line (on a phone, a **Details** button beside the name opens them, the link with them); and the Ask bar, with the
   **AI agents** button beside it (The agent, below). Moving to another Toil project is the picker in the app's header, right after the brand, on every page (see below).
 - **The tabs**, one address each, one tab and one page: **Overview** (the Summary, `#/project/<name>`), **Board**
@@ -457,6 +457,13 @@ old** open a chart, and **Split by** cuts it by category, component, team, fix v
 by week, Time to finish as a median with its 85th percentile for each value, Work getting old as the median and the 85th percentile
 side by side. Unsplit, each chart is what it always was. Each segment opens the items behind it, and **Open the full chart** carries the
 same split to Explore. A split by team is in name order, never sorted by speed.
+### The architecture diagram
+
+`#/project/<name>/summary/diagram`, and `/<view>` for one of its views, draws the Toil project's architecture as a C4 diagram. It is a page one step in from the Summary, not a tab: a line at its top (Summary / Diagram) leads back, and the Summary's **Go to** row, the Architecture link in the top row and the command palette's **Architecture diagram of <Toil project>** lead in. It reads the diagram live from toil (`toil projects diagram show`, the file `~/.toil/diagrams/<name>.json`; the cache never holds one) and draws it with toil's own layout as SVG, with no drawing library. The views are one switch, each with its own address.
+
+How sure the diagram is stays on the screen: an inferred box has a dashed outline and an inferred arrow is dotted, a legend counts what is observed, inferred and not said, and a line under the picture says when it was saved, its revision, the file it came from, and what was left out on purpose. What a box or an arrow was read from (or why it is believed) is one press in: boxes and arrows take the keyboard (Enter or Space), and the detail opens beside the picture, or below it on a narrow screen, as plain text, since a diagram holds no address. **List** says the same in text for a screen reader. A view past 100 boxes or 250 arrows (toil's own drawing limits) is not drawn, and the page says so. With no diagram the page offers **Draw its architecture**; a toil too old to have the command is told to update.
+
+The **Diagram** job (`#/project/<name>/job/diagram`) ends in a **Save diagram** press, never in Mermaid pasted into the answer. The agent builds the model from what its tools return, marking each element and relationship observed (with its source) or inferred (with its reason), and checks it with `projects diagram check` until it passes. Toil UI keeps the model from the last check that passed, exactly as toil checked it, and the answer ends in a card with its counts and **Save diagram** (**Replace the saved diagram** when one is kept), which runs `toil projects diagram save` on the settings pages' path: a local write to your own folder, with no `--allow-write`, pressed by you. An answer whose run never passed a check says so and has nothing to save. With `--sample` nothing is saved: the card says so and links the sample's own diagram.
 
 ## Insights
 
@@ -916,7 +923,7 @@ until you call it up.
   Pull requests, People, Stand-up, Worklog), a chart or the earlier briefings (typed by name), a saved analysis, a settings page, or a
   theme.
 - **Run** Sync now (where Toil UI keeps a cache), and on a Toil project's page Ask (it
-  focuses the Ask bar), Analyze, **Review a pull request**, **Ship: answer a review** and **Diagram <Toil project>** (each opens its job's page), **Open the Agents panel** (**Open the AI agents panel** in plain words), the agent that answers this chat, and Assign the
+  focuses the Ask bar), Analyze, **Review a pull request**, **Ship: answer a review** and **Diagram <Toil project>** (each opens its job's page) and **Architecture diagram of <Toil project>** (the saved picture), **Open the Agents panel** (**Open the AI agents panel** in plain words), the agent that answers this chat, and Assign the
   item you were on to an agent: the board card that had focus, or the item whose
   page is open.
 - Matching is fuzzy and ignores case: `pay12` finds `PAY-12`, and each word you

@@ -37,7 +37,7 @@ describe('the jobs are the skill workflow pages', () => {
   });
 
   it('gives the agent a read tool for every read command the review page calls on its three hosts', () => {
-    for (const c of ['github pr files', 'github pr diff', 'bitbucket pr files', 'bitbucket pr diff', 'ado pr files', 'ado pr diff', 'util c4 mermaid']) {
+    for (const c of ['github pr files', 'github pr diff', 'bitbucket pr files', 'bitbucket pr diff', 'ado pr files', 'ado pr diff', 'util c4 mermaid', 'projects diagram check']) {
       expect(LIVE_COMMANDS, c).toContain(c);
       expect(neverWrites(real.get(c)!), c).toBe(true);
     }
@@ -179,8 +179,15 @@ describe('the preview scripted jobs', () => {
     expect(commandLine(p!, 'posix').line).toContain('--allow-write');
     expect(scriptedJob('analyze')).toBeNull();
   });
-  it('shows the Ship round and draws Diagram as Mermaid', () => {
+  it('shows the Ship round, and ends Diagram in a draft to save, never Mermaid', () => {
     expect(scriptedJob(jobPrompt('ship', 'github:imagile/payments-web#43'))!.warnings![0]).toContain('Round 1 of 3');
-    expect(scriptedJob(jobPrompt('map-codebase', ''))!.parts.map((p) => p.text).join('\n')).toContain('C4Container');
+    const a = scriptedJob(jobPrompt('map-codebase', ''), 'card-payments')!;
+    expect(a.parts.map((p) => p.text).join('\n')).not.toMatch(/C4Container|mermaid|```/);
+    expect(a.parts.some((p) => p.fence !== undefined)).toBe(false);
+    expect(a.diagram).toMatchObject({ title: 'Card payments', counts: { elements: 10 } });
+    expect(JSON.parse(a.diagram!.text).systems[0].id).toBe('payments');
+    // A toil project with no sample diagram has nothing to save, and the answer says so rather than offering one.
+    expect(scriptedJob(jobPrompt('map-codebase', ''), 'nothing-here')!.diagram).toBeNull();
+    expect(scriptedJob(jobPrompt('review', 'github:imagile/payments-web#43'))!.diagram).toBeUndefined();
   });
 });

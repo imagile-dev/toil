@@ -291,6 +291,10 @@ export class AgentHost implements Agent {
       const ledger = new Ledger();
       const asking = prompt === 'analyze' ? await analyzeQuestion(this.o.execute, toilProject) : (jobQuestion(toilProject, prompt, (l) => this.o.rounds?.(toilProject, l, record) ?? 0, knownTargets(data.changes())) ?? { ...promptFor(toilProject, prompt), warning: null });
       const { label, text: question } = asking;
+      // Diagram's model is checked with a toil command; one that predates it can't, and saying so beats an answer that blames the agent for a check that was never possible (#582).
+      if ('job' in asking && asking.job === 'map-codebase' && !this.o.registry.some((c) => c.name === 'projects diagram check')) {
+        throw new AgentError('The toil this Toil UI runs has no projects diagram check command, so Diagram has no way to check a model before it is saved.', 'Update toil and Toil UI together; the Diagram job needs a newer toil.');
+      }
       // The chat so far goes before the question, so a follow-up or a switched adapter continues from it (#344).
       const history = withHistory(question, extra.history);
       const { carried } = history;
@@ -305,7 +309,8 @@ export class AgentHost implements Agent {
       const out = new Latest<Answer>();
       // The status line (#343): every partial answer says what the agent is doing, whichever adapter it is.
       let sofar = '';
-      const doing = (activity: AnswerActivity) => out.push({ ...partial(sofar, { prompt: label, by }), ...who, activity });
+      const jobAnswer = 'job' in asking;
+      const doing = (activity: AnswerActivity) => out.push({ ...partial(sofar, { prompt: label, by }, jobAnswer), ...who, activity });
       doing({ phase: 'thinking' });
       const watched = this.tools(toilProject, data, ledger).map((t): ToolSpec => ({
         ...t,
@@ -335,7 +340,7 @@ export class AgentHost implements Agent {
           // A job's proposals may name only the writes its page lists; anything else drops like any invalid one.
           const only = 'writes' in asking ? (asking.writes as readonly string[]) : undefined;
           const allowed = only ? new Map([...this.writes].filter(([name]) => only.includes(name))) : this.writes;
-          const done = finish(final, { toilProject, prompt: label, by, ledger, writes: allowed });
+          const done = finish(final, { toilProject, prompt: label, by, ledger, writes: allowed, fold: jobAnswer, drafts: 'job' in asking && asking.job === 'map-codebase' });
           if (asking.warning) done.warnings = [...(done.warnings ?? []), asking.warning];
           out.push({ ...done, ...who, usage, ...(session ? { session } : {}) });
           out.end();

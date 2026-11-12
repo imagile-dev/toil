@@ -50,6 +50,7 @@ import { usePlain } from '../plain-words.ts';
 import { STANDARD_THINKING, thinkingPhrase } from '../thinking.ts';
 import { ThinkingIcon, useNow, useThinkingPhrases } from './thinking.tsx';
 import { AnswerChecks, GuidedStart, PHONE } from './guided.tsx';
+import { DiagramCard, FoldedCode } from './diagram-card.tsx';
 import { GROUPS, QUESTIONS, type GuidedQuestion } from '../guided-questions.ts';
 
 /** A new chat's id: one per toil project's conversation, so the server can add up the chat (#295). */
@@ -610,12 +611,18 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                         {e.analyze ? (
                           <AnalysisBody parts={e.answer.parts} briefing={e.answer.briefing} done={e.done} />
                         ) : (
-                          e.answer.parts.map((p, i) => (
-                            <p key={i}>
-                              <Cited text={p.text} chips cells={e.context} />
-                            </p>
-                          ))
+                          e.answer.parts.map((p, i) =>
+                            p.fence !== undefined ? (
+                              <FoldedCode key={i} part={p} />
+                            ) : (
+                              <p key={i}>
+                                <Cited text={p.text} chips cells={e.context} />
+                              </p>
+                            ),
+                          )
                         )}
+                        {/* The Diagram job's draft (#582): the model its last passing check was given, one press from kept, straight under what it says about it. */}
+                        {e.done && !e.stopped && e.answer.diagram && <DiagramCard draft={e.answer.diagram} />}
                         {e.done && !e.stopped && <AnswerChecks answer={e.answer} prompt={e.prompt} {...(e.analyze ? { analyze: true } : {})} {...(e.ms !== undefined ? { ms: e.ms } : {})} safe={e.id === firstAnswered} />}
                         {/* Who answered is the header's to say; this line is for what is different about this answer. */}
                         {e.done && (e.stopped || (e.answer.unverified && e.answer.unverified.length > 0) || labelOf(e.answer) !== answering || e.answer.carried || e.answer.analysis) && (

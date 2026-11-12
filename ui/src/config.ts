@@ -56,6 +56,8 @@ export const CONFIG_CHANGES = [
   'classify correct',
   // Which scheme a toil project sorts its work by, and the field it writes the category to in each tracker (#566): the toil project's own `classify` key, which can't select a connection or turn writes on.
   'projects classify set',
+  // Keeping the architecture diagram the Diagram job drew (#582): toil's own storage, a local write with no allowWrite, on the person's press.
+  'projects diagram save',
   // The theme a person picks, as toil's own setting, which the welcome menu follows too (#427).
   'theme set',
 ] as const;

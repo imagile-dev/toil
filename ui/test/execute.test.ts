@@ -58,7 +58,8 @@ describe('what it serves', () => {
     const urls = text.flatMap((s) => [...s.matchAll(/https?:\/\/[^\s"'<>)]+/g)].map((m) => m[0]));
     expect(urls.length).toBeGreaterThan(50);
     for (const url of urls) expect(new URL(url).hostname, url).toMatch(/\.imagile\.dev$/);
-    const images = text.filter((s) => /^[\w.-]+\/[\w./-]+:[\w.-]+$/.test(s));
+    // A stored diagram says where a fact was read from as `path:line` (#582), which is not an image reference.
+    const images = CANNED.filter((c) => c.command !== 'projects diagram show').flatMap((c) => strings(c.data)).filter((s) => /^[\w.-]+\/[\w./-]+:[\w.-]+$/.test(s));
     expect(images.length).toBeGreaterThan(0);
     for (const image of images) expect(image).toMatch(/^artifactory\.imagile\.dev\//);
   });

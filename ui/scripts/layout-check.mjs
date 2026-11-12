@@ -132,6 +132,9 @@ export const ROUTES = [
   '#/project/card-payments/job/review?target=github%3Aimagile%2Fpayments-web%2343',
   '#/project/card-payments/job/ship',
   '#/project/card-payments/job/diagram',
+  // The saved architecture diagram (#582), one step in from the Summary: its first view, and the containers view, drawn with a box opened for what it was read from.
+  '#/project/card-payments/summary/diagram',
+  '#/project/card-payments/summary/diagram/containers',
   // The People view (#292): mapped people with a suggested match, people plus agents and an unmapped account, a toilProject listing nobody, and the board filtered to one person.
   '#/project/card-payments/people',
   '#/project/checkout-web/people',
@@ -583,6 +586,8 @@ function states(route, width, sample = true) {
     const chip = `[...document.querySelectorAll('main .cite-link')].find((c) => c.getClientRects().length)`;
     out.push({ name: 'cite-tooltip', clearOverlays: true, key: 'Tab', setup: `(async () => { const c = ${chip}; if (!c) return 0; c.scrollIntoView({ block: 'center' }); for (let i = 0; i < 3; i++) { c.blur(); c.focus(); const deadline = Date.now() + 2000; while (!document.querySelector('.cite-tooltip') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); if (document.querySelector('.cite-tooltip')) return 1; } return 'no tooltip after three focuses on the first citation chip'; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
   }
+  // A box pressed, which opens its detail beside the picture or below it: what it was read from, as plain text.
+  if (/\/card-payments\/summary\/diagram\/containers$/.test(route)) out.push({ name: 'box-detail', undoJs: 'window.scrollTo(0, 0)', setup: `(async () => { const deadline = Date.now() + 5000; while (!document.querySelector('[data-c4-box="worker"]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const b = document.querySelector('[data-c4-box="worker"]'); if (!b) return 0; b.dispatchEvent(new MouseEvent('click', { bubbles: true })); await new Promise((r) => setTimeout(r, 50)); return document.querySelector('[data-diagram-detail]') ? 1 : 0; })()` });
   if (route === '#/project/card-payments/board') out.push({ name: 'attention-only', setup: clickAll('[data-attention-only]'), undoJs: clickAll('[data-attention-only]') });
   // A failing command's recent audit lines, opened under it on the Usage page (#309).
   // Real data may genuinely have no failed command, and a state that opens nothing is a problem, so only the sample (which always has some) is held to it.
