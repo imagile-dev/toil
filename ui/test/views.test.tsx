@@ -25,7 +25,7 @@ import { fixtureAnalyses } from '../src/fixtures/analyses.ts';
  */
 
 const item = (toilProject: string, id: string) => `#/project/${toilProject}/item/${encodeURIComponent(id)}`;
-const ROUTES = ['#/', '#/project/sample-team', '#/project/sample-team/board', '#/project/sample-team/dependencies', '#/project/sample-team/prs', '#/project/sample-team/people', '#/project/sample-team/command-center', '#/project/sample-team/job/classify', '#/project/card-payments', '#/project/card-payments/board', '#/project/card-payments/dependencies', '#/project/card-payments/analyses', '#/project/card-payments/analyses/sample-analysis-2', '#/project/settlement', '#/project/checkout-web', '#/project/checkout-web/prs', '#/project/card-payments/prs', '#/project/checkout-web/people', '#/project/card-payments/people', '#/project/settlement/people', '#/project/card-payments/board/person%3AJ.%20Smith', '#/project/card-payments/worklog', '#/project/checkout-web/worklog/2026-10-12', item('card-payments', 'corp-jira:PAY-101'), '#/project/card-payments/command-center', '#/project/settlement/command-center', '#/settings', '#/settings/projects', '#/settings/general', '#/settings/usage', '#/settings/agent'];
+const ROUTES = ['#/', '#/project/sample-team', '#/project/sample-team/board', '#/project/sample-team/dependencies', '#/project/sample-team/prs', '#/project/sample-team/people', '#/project/sample-team/command-center', '#/project/sample-team/board/classify', '#/project/sample-team/job/classify', '#/project/card-payments', '#/project/card-payments/board', '#/project/card-payments/dependencies', '#/project/card-payments/analyses', '#/project/card-payments/analyses/sample-analysis-2', '#/project/settlement', '#/project/checkout-web', '#/project/checkout-web/prs', '#/project/card-payments/prs', '#/project/checkout-web/people', '#/project/card-payments/people', '#/project/settlement/people', '#/project/card-payments/board/person%3AJ.%20Smith', '#/project/card-payments/worklog', '#/project/checkout-web/worklog/2026-10-12', item('card-payments', 'corp-jira:PAY-101'), '#/project/card-payments/command-center', '#/project/settlement/command-center', '#/settings', '#/settings/projects', '#/settings/general', '#/settings/usage', '#/settings/agent'];
 
 async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent(), config = fixtureConfig(), agentSettings, worklog = fixtureWorklog(), analyses = fixtureAnalyses() }: { preview?: boolean; execute?: Execute; agent?: Agent; config?: ConfigApi; agentSettings?: AgentSettingsPanelProps; worklog?: WorklogApi | null; analyses?: AnalysesApi | null } = {}) {
   window.location.hash = hash;
@@ -67,6 +67,9 @@ beforeEach(() => {
 describe('every view', () => {
   it.each(ROUTES)('%s carries the preview banner, the views and when the data was read', async (hash) => {
     await open(hash);
+    // One page: a second shell left behind a remount would show as a second main and header.
+    expect(document.querySelectorAll('main')).toHaveLength(1);
+    expect(document.querySelectorAll('header.app-header')).toHaveLength(1);
     expect(screen.getByRole('note')?.textContent).toContain('Toil UI beta, showing sample data.');
     const nav = screen.getByRole('navigation', { name: 'Views' });
     expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(['Settings']);

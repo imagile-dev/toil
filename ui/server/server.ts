@@ -67,7 +67,6 @@ import { readViewContext } from '../src/view-context.ts';
 import { GUIDE_MAX, GUIDE_REFUSAL, GUIDE_REFUSAL_FIX, looksLikeSecret, readGuideState, type GuideRequest } from '../src/guide.ts';
 import { isWhole, type AnalysisKeeper } from './analyses.ts';
 import type { Envelope, ExecutePerson, WorkItem } from '../src/toil.ts';
-import type { AgentVerdict } from '../../src/core/classify/types.ts';
 import type { AreaInfo, SettingsInfo } from '../src/config.ts';
 import type { Agent } from './agent.ts';
 import { AnswersError, CONFIG_COMMANDS, isConfigRead, personFrom, settingsFrom } from './config.ts';
@@ -594,11 +593,6 @@ export function createUiServer(options: UiServerOptions): UiServer {
       if (!Array.isArray(v) || v.length > MAX_ITEMS || v.some((i) => typeof i !== 'object' || i === null || typeof (i as { id?: unknown }).id !== 'string')) throw new HttpError(400, `items is a list of up to ${MAX_ITEMS} work items.`, shape);
       return v as WorkItem[];
     };
-    const acceptedOf = (v: unknown): AgentVerdict[] => {
-      if (v === undefined) return [];
-      if (!Array.isArray(v) || v.length > MAX_ITEMS || v.some((a) => typeof a !== 'object' || a === null || typeof (a as AgentVerdict).id !== 'string' || typeof (a as AgentVerdict).category !== 'string' || typeof (a as AgentVerdict).reason !== 'string')) throw new HttpError(400, 'accepted is a list of { id, category, reason }.', shape);
-      return (v as AgentVerdict[]).map((a) => ({ id: a.id, category: a.category, reason: a.reason }));
-    };
     const adapterOf = (v: unknown): string | undefined => {
       if (v === undefined) return undefined;
       if (typeof v !== 'string' || !/^[a-z]{2,20}$/.test(v)) throw new HttpError(400, 'adapter names an AI agent.', 'Send adapter as claude, copilot or codex, or leave it out.');
@@ -632,7 +626,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
           json(res, 200, await service.ask(toilProjectOf(body.toilProject), itemsOf(body.items), adapterOf(body.adapter), ctx.signal));
           return;
         case 'POST classify/plan':
-          json(res, 200, await service.plan(toilProjectOf(body.toilProject), { items: itemsOf(body.items), accepted: acceptedOf(body.accepted) }));
+          json(res, 200, await service.plan(toilProjectOf(body.toilProject), { items: itemsOf(body.items) }));
           return;
         case 'POST classify/apply':
           if (typeof body.plan !== 'string' || !body.plan) throw new HttpError(400, 'Name the plan by its id.', 'Send { "toilProject": "<name>", "plan": "<id from classify/plan>" }.');

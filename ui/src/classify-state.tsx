@@ -1,12 +1,15 @@
 /**
  * What the page holds while someone sorts work into categories (#566): the
  * ledger as it was last read (kept in the App, so every view classifies by it),
- * the AI agent's answers waiting to be accepted, the ones accepted and not yet
- * applied, and the one line that says what the last change was and offers to
- * take it back. A decision is never held here as a promise to write: a person's
- * word is recorded in their ledger at once (a local write, on a press), and what
- * is waiting for the tracker is worked out each time from the tracker's own
- * labels (model/classify.ts), so a reload loses nothing and Apply can't forget.
+ * the AI agent's answers waiting to be accepted, and the one line that says what
+ * the last change was and offers to take it back. A decision is never held here
+ * as a promise to write: a person's word is recorded in their ledger at once (a
+ * local write, on a press), and what is waiting for the tracker is worked out
+ * each time from the tracker's own labels (model/classify.ts), so a reload loses
+ * nothing and Apply can't forget. Accepting the AI agent's suggestion is a
+ * person's word like any pick: it is recorded as a correction, with the agent's
+ * reason in it, and the item then stands, waits for the tracker and stays
+ * settled after Apply exactly as a pick made by hand does.
  *
  * The undo is one more correction, because the ledger is append-only: changing
  * back is recorded as what the item stood at before, and says so ("Changed
@@ -16,11 +19,15 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { AgentVerdict } from '../../src/core/classify/types.ts';
+import { LEDGER_TEXT_MAX } from '../../src/core/classify/ledger-types.ts';
 import type { AgentAnswers, ClassifyApi } from './classify-api.ts';
 import { useData } from './data.ts';
 import { useWorkInsights } from './insights-data.ts';
 import { needsAPerson, pendingChanges, type NeedsRow, type PendingRow, type Say } from './model/classify.ts';
 import type { WorkItem } from './toil.ts';
+
+/** How a ledger line for an accepted suggestion begins; the agent's reason follows. */
+export const ACCEPTED_REASON = "Accepted the AI agent's suggestion: ";
 
 /** What the line under the tabs says about the last change. */
 export type ClassifyNotice =
@@ -39,17 +46,16 @@ export interface ClassifyContext {
   pending: PendingRow[];
   /** The AI agent's answers, not yet accepted, by item id. */
   proposals: ReadonlyMap<string, AgentVerdict>;
-  /** The AI agent's answers a person accepted, by item id. */
-  accepted: ReadonlyMap<string, AgentVerdict>;
   setProposals(answers: AgentAnswers['answers']): void;
-  accept(ids: string[]): void;
+  /** Records the person's yes to these suggestions, one correction each (the same route a pick takes), stopping at the first that fails; a failure is the notice and the rest stay suggestions. */
+  accept(ids: string[]): Promise<void>;
   dismiss(ids: string[]): void;
   /** Records a person's word on an item, then reads the ledger again. Throws with the reason when it can't. */
   reclassify(item: WorkItem, to: string | null, reason: string): Promise<void>;
   notice: ClassifyNotice | null;
   setNotice(notice: ClassifyNotice | null): void;
   undo(): Promise<void>;
-  /** Called after an Apply: the tracker now says these, so they are no longer waiting and the agent's accepted answers are spent. */
+  /** Called after an Apply: the tracker now says these, so they are no longer waiting. */
   applied(done: ReadonlyArray<{ id: string; category: string }>): void;
 }
 
@@ -62,9 +68,8 @@ const NONE: ClassifyContext = {
   needs: [],
   pending: [],
   proposals: new Map(),
-  accepted: new Map(),
   setProposals: () => undefined,
-  accept: () => undefined,
+  accept: async () => undefined,
   dismiss: () => undefined,
   reclassify: async () => {
     throw new Error('This view has no ledger to record in.');
@@ -99,7 +104,6 @@ export function ClassifyProvider({ children }: { children: ReactNode }) {
   const standing = useMemo(() => classification?.view?.standing ?? {}, [classification]);
   const scheme = classification?.view?.scheme ?? null;
   const [proposed, setProposed] = useState<ReadonlyMap<string, AgentVerdict>>(new Map());
-  const [accepted, setAccepted] = useState<ReadonlyMap<string, AgentVerdict>>(new Map());
   // Items an undo returned to the list: their ledger line says "unsure", which would otherwise read as answered.
   const [reopened, setReopened] = useState<ReadonlySet<string>>(new Set());
   const [notice, setNotice] = useState<ClassifyNotice | null>(null);
@@ -107,8 +111,8 @@ export function ClassifyProvider({ children }: { children: ReactNode }) {
   const [writtenNow, setWrittenNow] = useState<ReadonlyMap<string, string>>(new Map());
 
   const answered = useMemo(() => Object.fromEntries(Object.entries(standing).filter(([id]) => !reopened.has(id))), [standing, reopened]);
-  const needs = useMemo(() => (scheme ? needsAPerson(ins.items, scheme, answered).filter((r) => !accepted.has(r.item.id)) : []), [ins.items, scheme, answered, accepted]);
-  const pending = useMemo(() => (scheme ? pendingChanges(ins.items, scheme, standing, accepted, {}, writtenNow) : []), [ins.items, scheme, standing, accepted, writtenNow]);
+  const needs = useMemo(() => (scheme ? needsAPerson(ins.items, scheme, answered) : []), [ins.items, scheme, answered]);
+  const pending = useMemo(() => (scheme ? pendingChanges(ins.items, scheme, standing, {}, writtenNow) : []), [ins.items, scheme, standing, writtenNow]);
 
   const reload = classification?.reload;
   const write = useCallback(
@@ -135,6 +139,19 @@ export function ClassifyProvider({ children }: { children: ReactNode }) {
     },
     [standing, write],
   );
+  // Accepting is the person's yes, recorded as their word the way a pick is (and so with its Undo line), one item at a time: the ledger takes one
+  // correction per request, and a batch route would be a second way to write to it. The reason says whose idea it was and carries the agent's own.
+  const accept = useCallback(
+    async (ids: string[]) => {
+      for (const id of ids) {
+        const proposal = proposed.get(id);
+        const item = ins.items.find((i) => i.id === id);
+        if (!proposal || !item) continue;
+        await reclassify(item, proposal.category === 'unsure' ? null : proposal.category, `${ACCEPTED_REASON}${proposal.reason}`.slice(0, LEDGER_TEXT_MAX));
+      }
+    },
+    [proposed, ins.items, reclassify],
+  );
   const undo = useCallback(async () => {
     if (notice?.kind !== 'changed') return;
     const item = byId.get(notice.id);
@@ -157,12 +174,8 @@ export function ClassifyProvider({ children }: { children: ReactNode }) {
       needs,
       pending,
       proposals: proposed,
-      accepted,
       setProposals: (answers) => setProposed(new Map(answers.filter((a) => a.category !== 'unsure').map((a) => [a.id, a]))),
-      accept: (ids) => {
-        setAccepted((cur) => new Map([...cur, ...ids.flatMap((id) => (proposed.get(id) ? [[id, proposed.get(id)!] as const] : []))]));
-        setProposed((cur) => new Map([...cur].filter(([id]) => !ids.includes(id))));
-      },
+      accept,
       dismiss: (ids) => setProposed((cur) => new Map([...cur].filter(([id]) => !ids.includes(id)))),
       reclassify,
       notice,
@@ -170,10 +183,9 @@ export function ClassifyProvider({ children }: { children: ReactNode }) {
       undo,
       applied: (done) => {
         setWrittenNow((cur) => new Map([...cur, ...done.map((d) => [d.id, d.category] as const)]));
-        setAccepted((cur) => new Map([...cur].filter(([id]) => !done.some((d) => d.id === id))));
       },
     }),
-    [api, classification, standing, needs, pending, proposed, accepted, reclassify, notice, undo],
+    [api, classification, standing, needs, pending, proposed, accept, reclassify, notice, undo],
   );
   return <Ctx value={value}>{children}</Ctx>;
 }

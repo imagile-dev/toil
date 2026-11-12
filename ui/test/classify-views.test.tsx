@@ -46,6 +46,8 @@ const until = <T extends Element>(selector: string) =>
     return el;
   });
 const rows = () => [...document.querySelectorAll<HTMLElement>('[data-row]')];
+/** A suggestion for an item nothing in the list sits under: an answer on an epic is its tasks' answer too, which would empty the list. */
+const leafProposal = () => [...document.querySelectorAll<HTMLElement>('[data-proposal]')].find((p) => !/follows? its answer/.test(p.closest('[data-row]')!.textContent!))!;
 const press = async (name: string | RegExp) => act(async () => void fireEvent.click(await screen.findByRole('button', { name })));
 
 describe('the Classify view', () => {
@@ -215,6 +217,7 @@ describe('the AI agent on the Classify view', () => {
   it('shows its answers as suggestions with its badge and reason, accepts them one by one or all at once, and applies nothing', async () => {
     const api = fixtureClassify();
     const apply = vi.spyOn(api, 'apply');
+    const correct = vi.spyOn(api, 'correct');
     open(`${TEAM}/board/classify`, api);
     await waitFor(() => expect(rows().length).toBeGreaterThan(5));
     await press('Ask your AI agent');
@@ -228,15 +231,57 @@ describe('the AI agent on the Classify view', () => {
     const waiting = () => Number(/(\d+) changes? waiting for the tracker/.exec(document.querySelector('[data-pending] h2')!.textContent!)![1]);
     const already = waiting();
 
-    await act(async () => void fireEvent.click(within(proposals[0]!).getByRole('button', { name: 'Accept' })));
+    const one = leafProposal();
+    const first = one.closest<HTMLElement>('[data-row]')!.dataset.row!;
+    const reason = one.querySelector('p')!.textContent!.replace(/^.*suggests .+?: /, '');
+    await act(async () => void fireEvent.click(within(one).getByRole('button', { name: 'Accept' })));
     await waitFor(() => expect(rows().length).toBe(total - 1));
     expect(waiting()).toBe(already + 1);
+    // Accepting is the person's word, recorded as a pick is: with the agent's reason in it, and the same line offering to take it back.
+    expect(correct).toHaveBeenCalledTimes(1);
+    expect(correct.mock.calls[0]![1]).toMatchObject({ item: expect.objectContaining({ id: first }), reason: `Accepted the AI agent's suggestion: ${reason}` });
+    expect((await until<HTMLElement>('[data-classify-notice="changed"]')).textContent).toMatch(/is now (Feature|Keep the lights on). It is saved in your own record/);
 
     const all = await screen.findByRole('button', { name: /Accept all \d+/ });
     const n = Number(/(\d+)/.exec(all.textContent!)![1]);
     await act(async () => void fireEvent.click(all));
     await waitFor(() => expect(waiting()).toBe(already + 1 + n));
+    // Accept all is one correction per suggestion, by the route a pick takes: no route of its own.
+    expect(correct).toHaveBeenCalledTimes(1 + n);
     expect(apply).not.toHaveBeenCalled();
+  });
+
+  it('keeps an accepted suggestion settled after Apply: the item is not asked about again and the count does not go back up', async () => {
+    const api = fixtureClassify();
+    let planned: WorkItem[] = [];
+    const apply = vi.fn(async () => ({ outcomes: [{ connection: 'sample-jira', changed: planned.map((i) => ({ key: i.source.key, text: 'added label' })), unchanged: [], failed: [], refused: null }], recorded: { ok: true as const } }));
+    open(`${TEAM}/board/classify`, {
+      ...api,
+      disabled: null,
+      apply: apply as unknown as ClassifyApi['apply'],
+      plan: async (p, w) => {
+        planned = w.items;
+        return { id: 'plan-1', groups: (await api.plan(p, w)).groups.map((g) => ({ ...g, writes: true })), notes: [] };
+      },
+    });
+    await waitFor(() => expect(rows().length).toBeGreaterThan(5));
+    const total = rows().length;
+    await press('Ask your AI agent');
+    await until('[data-asked]');
+    const proposal = leafProposal();
+    const id = proposal.closest<HTMLElement>('[data-row]')!.dataset.row!;
+    await act(async () => void fireEvent.click(within(proposal).getByRole('button', { name: 'Accept' })));
+    await waitFor(() => expect(rows().length).toBe(total - 1));
+    await press('Review and apply');
+    const card = await until<HTMLElement>('[data-apply]');
+    await waitFor(() => expect(card.querySelectorAll('[data-change]').length).toBeGreaterThan(0));
+    await act(async () => void fireEvent.click(within(card).getByRole('button', { name: /^Apply \d+ changes?$/ })));
+    await until('[data-outcome="done"]');
+    await waitFor(() => expect(document.querySelector('[data-pending] h2')!.textContent).toBe('Nothing is waiting for the tracker'));
+    // The tracker's label is not read back until the next sync, but the ledger holds the person's say, so the item stays answered.
+    expect(rows().length).toBe(total - 1);
+    expect(document.querySelector(`[data-row="${CSS.escape(id)}"]`)).toBeNull();
+    expect(document.querySelector('#needs-head')!.textContent).toBe(`${total - 1} items need an answer`);
   });
 
   it('says when no AI agent is set up, and leaves the rows to be sorted by hand', async () => {
@@ -263,8 +308,16 @@ describe('Apply', () => {
     await waitFor(() => expect(rows().length).toBeGreaterThan(5));
     await press('Ask your AI agent');
     await until('[data-asked]');
-    await press(/Accept all \d+/);
-    await press('Review and apply');
+    // Each suggestion is recorded one at a time, and one on an epic takes its tasks' rows away before theirs are recorded: wait for every one.
+    const correct = vi.spyOn(api, 'correct');
+    const all = await screen.findByRole('button', { name: /Accept all \d+/ });
+    const n = Number(/(\d+)/.exec(all.textContent!)![1]);
+    await act(async () => void fireEvent.click(all));
+    await waitFor(() => expect(correct).toHaveBeenCalledTimes(n));
+    await waitFor(() => expect(document.querySelector('[data-proposal]')).toBeNull());
+    // Accepting everything empties the list, whose empty state offers the same press as the pending section does; both wait until the last is recorded.
+    await waitFor(() => expect((screen.getAllByRole('button', { name: 'Review and apply' })[0] as HTMLButtonElement).disabled).toBe(false));
+    await act(async () => void fireEvent.click(screen.getAllByRole('button', { name: 'Review and apply' })[0]!));
   };
 
   it("shows every change before anything is written: the item, the label from and to, and the command, and says a sample can't write", async () => {
@@ -281,7 +334,7 @@ describe('Apply', () => {
 
   it('says in plain words that changes are switched off for the connection, and where to switch them on', async () => {
     const api = fixtureClassify();
-    const base = await api.plan('sample-team', { items: [], accepted: [] });
+    const base = await api.plan('sample-team', { items: [] });
     await accepted({ ...api, disabled: null, plan: async (p, w) => ({ ...base, groups: (await api.plan(p, w)).groups.map((g) => ({ ...g, writes: false })) }) });
     const off = await until<HTMLElement>('[data-writes-off]');
     expect(off.textContent).toMatch(/Changes to sample-jira are switched off, so nothing can be written there yet\. Turn them on for sample-jira under Settings, Connections/);

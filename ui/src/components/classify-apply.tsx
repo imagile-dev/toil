@@ -88,7 +88,7 @@ function Outcome({ o }: { o: ApplyOutcome }) {
 
 /**
  * The card for one connection: its decided items, the plan toil makes of them, and the press that applies it. `work` is
- * only this connection's items and the agent answers accepted for them.
+ * only this connection's items.
  */
 export function ApplyCard({ connection, work, onClose }: { connection: string; work: ApplyWork; onClose: () => void }) {
   const { toilProject } = useData();

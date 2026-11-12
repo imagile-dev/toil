@@ -61,22 +61,21 @@ describe('what needs a person', () => {
 describe('what is waiting for the tracker', () => {
   it("is each decided item whose tracker says something else or nothing, and shrinks as the tracker catches up", () => {
     const d = disagreeing();
-    const rows = pendingChanges([d], scheme, { [d.id]: { category: 'ktlo', reason: null } }, new Map());
-    expect(rows).toEqual([expect.objectContaining({ category: 'ktlo', by: 'person', tracker: 'feature' })]);
+    const rows = pendingChanges([d], scheme, { [d.id]: { category: 'ktlo', reason: null } });
+    expect(rows).toEqual([expect.objectContaining({ category: 'ktlo', tracker: 'feature' })]);
     // The tracker already says it, or an Apply wrote it this session: nothing waits.
-    expect(pendingChanges([{ ...d, labels: ['ktlo'] }], scheme, { [d.id]: { category: 'ktlo', reason: null } }, new Map())).toEqual([]);
-    expect(pendingChanges([d], scheme, { [d.id]: { category: 'ktlo', reason: null } }, new Map(), {}, new Map([[d.id, 'ktlo']]))).toEqual([]);
+    expect(pendingChanges([{ ...d, labels: ['ktlo'] }], scheme, { [d.id]: { category: 'ktlo', reason: null } })).toEqual([]);
+    expect(pendingChanges([d], scheme, { [d.id]: { category: 'ktlo', reason: null } }, {}, new Map([[d.id, 'ktlo']]))).toEqual([]);
   });
 
-  it("takes an accepted agent answer, but never over a person's own word, and never for an unsure answer or a tracker toil can't write to", () => {
+  it("waits for an accepted AI agent suggestion as it does for a pick, being the person's word: a reason is kept, an unsure word waits for nothing, and a tracker toil can't write to is left out", () => {
     const unsure = classify({ scheme, items }).result.verdicts.filter((v) => v.category === null).map((v) => v.id);
     const [a, b] = unsure as [string, string];
-    const accepted = new Map([[a, { id: a, category: 'feature', reason: 'ok' }], [b, { id: b, category: 'unsure', reason: 'no' }]]);
-    const rows = pendingChanges(items, scheme, { [a]: { category: 'ktlo', reason: null } }, accepted);
-    expect(rows.find((r) => r.item.id === a)).toMatchObject({ by: 'person', category: 'ktlo' });
+    const rows = pendingChanges(items, scheme, { [a]: { category: 'feature', reason: "Accepted the AI agent's suggestion: it adds something." }, [b]: { category: null, reason: null } });
+    expect(rows.find((r) => r.item.id === a)).toMatchObject({ category: 'feature', reason: "Accepted the AI agent's suggestion: it adds something.", tracker: null });
     expect(rows.find((r) => r.item.id === b)).toBeUndefined();
     const other = { ...item(a), source: { ...item(a).source, area: 'sonar' as never } };
-    expect(pendingChanges([other], scheme, {}, new Map([[a, { id: a, category: 'feature', reason: 'x' }]]))).toEqual([]);
+    expect(pendingChanges([other], scheme, { [a]: { category: 'feature', reason: 'x' } })).toEqual([]);
   });
 });
 
@@ -138,10 +137,11 @@ describe('the sample ledger', () => {
     expect(api.disabled).toMatch(/sample data/);
   });
 
-  it("plans what an accepted answer would change, labels only, over a person's word", async () => {
+  it("plans what an accepted suggestion would change, labels only, once it is recorded as the person's word", async () => {
     const api = fixtureClassify();
     const [row] = needsAPerson(items, scheme, standingOf(sampleLedgerLines()));
-    const plan = await api.plan('sample-team', { items: [row!.item], accepted: [{ id: row!.item.id, category: 'feature', reason: 'It adds something.' }] });
+    await api.correct('sample-team', { item: row!.item, context: [], to: 'feature', reason: "Accepted the AI agent's suggestion: It adds something." });
+    const plan = await api.plan('sample-team', { items: [row!.item] });
     expect(plan.groups).toHaveLength(1);
     expect(plan.groups[0]!.changes).toEqual([expect.objectContaining({ id: row!.item.id, category: 'feature', labelsAdd: ['feature'], labelsRemove: [] })]);
     expect(plan.groups[0]!.command.name).toBe('jira issue categorize');

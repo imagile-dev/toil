@@ -70,9 +70,9 @@ function Why({ row, follow }: { row: NeedsRow; follow: number }) {
 /** A radio is an <input> but takes no typing: a mouse pick leaves focus on it, and the row's keys still work there. */
 const isRadio = (t: EventTarget) => t instanceof HTMLInputElement && t.type === 'radio';
 
-function Row({ row, picked, onPick, onConfirm, busy, follow }: { row: NeedsRow; picked: string | undefined; onPick: (value: string) => void; onConfirm: () => void; busy: boolean; follow: number }) {
+function Row({ row, picked, onPick, onConfirm, onAccept, busy, follow }: { row: NeedsRow; picked: string | undefined; onPick: (value: string) => void; onConfirm: () => void; onAccept: () => void; busy: boolean; follow: number }) {
   const ins = useWorkInsights();
-  const { proposals, accept, dismiss } = useClassify();
+  const { proposals, dismiss } = useClassify();
   const choices = choicesOf(ins.scheme);
   const proposal = proposals.get(row.item.id);
   const onKeyDown = (e: KeyboardEvent<HTMLLIElement>) => {
@@ -105,7 +105,7 @@ function Row({ row, picked, onPick, onConfirm, busy, follow }: { row: NeedsRow; 
             <span className="badge badge--agent">Your AI agent</span> suggests <CategoryName ins={ins} id={proposal.category} />: {proposal.reason}
           </p>
           <div className="sortrow__proposal-actions">
-            <Button className="btn btn--small" onPress={() => accept([row.item.id])} data-accept="">
+            <Button className="btn btn--small" onPress={onAccept} isDisabled={busy} data-accept="">
               Accept
             </Button>
             <Button className="btn btn--small btn--quiet" onPress={() => dismiss([row.item.id])}>
@@ -206,6 +206,21 @@ export function Classify() {
     }
   };
 
+  // Accepting a suggestion records the person's yes in their ledger, so it waits like a pick and the row leaves the list; a failure is the notice.
+  const acceptThese = async (ids: string[]) => {
+    if (busy) return;
+    const at = rows.findIndex((x) => x.item.id === ids[0]);
+    focusNext.current = rows.find((x, i) => i !== at && !ids.includes(x.item.id) && i > at)?.item.id ?? rows.find((x) => !ids.includes(x.item.id))?.item.id ?? '';
+    setBusy(true);
+    try {
+      await c.accept(ids);
+    } catch {
+      focusNext.current = null;
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const ask = async () => {
     if (!c.api || asking) return;
     setAsking(true);
@@ -230,10 +245,7 @@ export function Classify() {
   const proposed = [...c.proposals.keys()].filter((id) => rows.some((r) => r.item.id === id));
   const review = () =>
     setCards(
-      byConnection(pending.map((p) => p.item)).map((g) => {
-        const ids = new Set(g.items.map((i) => i.id));
-        return { connection: g.connection, work: { items: g.items, accepted: [...c.accepted.values()].filter((a) => ids.has(a.id)) } };
-      }),
+      byConnection(pending.map((p) => p.item)).map((g) => ({ connection: g.connection, work: { items: g.items } })),
     );
 
   if (read.state === 'unread') {
@@ -329,7 +341,7 @@ export function Classify() {
           </p>
         )}
         {proposed.length > 0 && (
-          <Button className="btn btn--accent" onPress={() => c.accept(proposed)} data-accept-all="">
+          <Button className="btn btn--accent" onPress={() => void acceptThese(proposed)} isDisabled={busy} data-accept-all="">
             Accept all {proposed.length}
           </Button>
         )}
@@ -340,7 +352,7 @@ export function Classify() {
           <h2>{pending.length === 0 ? 'Nothing is waiting for the tracker' : `${plural(pending.length, 'change')} waiting for the tracker`}</h2>
           {pending.length > 0 ? <p className="note">Decided here, not yet written to the tracker. Nothing is written until you press Apply.</p> : cards && <p className="note">{words('classify.allWritten')}</p>}
           {!cards ? (
-            <Button className="btn btn--accent" onPress={review} data-review-apply="">
+            <Button className="btn btn--accent" onPress={review} isDisabled={busy} data-review-apply="">
               Review and apply
             </Button>
           ) : (
@@ -365,12 +377,12 @@ export function Classify() {
         {rows.length === 0 ? (
           <Empty
             message={allowed ? 'No item matching these filters needs an answer.' : pending.length > 0 ? 'Every item has an answer. The changes above are what is left.' : partial ? 'Nothing in what was read needs an answer.' : 'Everything is sorted. Nothing here needs you.'}
-            action={allowed ? <EmptyButton onPress={() => (window.location.hash = window.location.hash.split('?')[0]!)}>Show every item</EmptyButton> : pending.length > 0 ? <EmptyButton onPress={review}>Review and apply</EmptyButton> : <EmptyLink href={chartsHref(toilProject.name, 'mix')}>See the work mix</EmptyLink>}
+            action={allowed ? <EmptyButton onPress={() => (window.location.hash = window.location.hash.split('?')[0]!)}>Show every item</EmptyButton> : pending.length > 0 ? <EmptyButton onPress={review} disabled={busy}>Review and apply</EmptyButton> : <EmptyLink href={chartsHref(toilProject.name, 'mix')}>See the work mix</EmptyLink>}
           />
         ) : (
           <ul className="sortrows plain" ref={list}>
             {rows.map((r) => (
-              <Row key={r.item.id} row={r} follow={followers.get(r.item.id) ?? 0} picked={pickOf(r)} onPick={(v) => setPicks((cur) => ({ ...cur, [r.item.id]: v }))} onConfirm={() => void confirm(r)} busy={busy} />
+              <Row key={r.item.id} row={r} follow={followers.get(r.item.id) ?? 0} picked={pickOf(r)} onPick={(v) => setPicks((cur) => ({ ...cur, [r.item.id]: v }))} onConfirm={() => void confirm(r)} onAccept={() => void acceptThese([r.item.id])} busy={busy} />
             ))}
           </ul>
         )}

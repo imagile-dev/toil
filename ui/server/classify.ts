@@ -11,7 +11,9 @@
  *   given, on the adapter the person chose, with no tool at all. Its answer is
  *   checked by `readVerdicts` (every id one of the items, every category one
  *   of the scheme's, or unsure) exactly as `classify run --verdicts` would,
- *   and comes back as answers for a person to accept. The agent never applies
+ *   and comes back as answers for a person to accept. Accepting one is the
+ *   person's word, recorded as a correction in their ledger (`classify
+ *   correct`) by the route a pick by hand takes. The agent never applies
  *   anything: it has no tool to, and this file calls no `categorize` for it.
  * - **Plan and Apply**: `classify run` (with `recheck`, so a person's say
  *   outranks a label already on the item, over the decided items only) makes
@@ -304,19 +306,12 @@ export class ClassifyService {
 
   /**
    * What `classify run` is given for a set of decided items: always `recheck`, so a person's say wins over a label already
-   * on the item. The agent's accepted answers go in a working file, written once and listed in `files` to be removed.
+   * on the item. The AI agent's accepted suggestions need no file of their own: accepting one records it in the person's
+   * ledger like any pick, so it reaches this run as a person's say.
    */
-  private async runInput(toilProject: string, work: ApplyWork, files: string[]): Promise<Record<string, unknown>> {
+  private runInput(toilProject: string, work: ApplyWork): Record<string, unknown> {
     this.ids(work.items);
-    const ids = new Set(work.items.map((i) => i.id));
-    for (const a of work.accepted) if (!ids.has(a.id)) throw new ClassifyRefusal(`The answer for ${a.id} is for an item that isn't in this plan.`, 'Accept answers only for the items shown.');
-    const input: Record<string, unknown> = { text: this.records(work.items), toilProject, recheck: true, ...this.cwd() };
-    if (work.accepted.length > 0) {
-      const file = await this.stage('verdicts', JSON.stringify(work.accepted));
-      files.push(file);
-      input.verdicts = file;
-    }
-    return input;
+    return { text: this.records(work.items), toilProject, recheck: true, ...this.cwd() };
   }
 
   private async writesOf(connection: string): Promise<boolean | null> {
@@ -336,7 +331,7 @@ export class ClassifyService {
     const files: string[] = [];
     let kept = false;
     try {
-      const input = await this.runInput(toilProject, work, files);
+      const input = this.runInput(toilProject, work);
       const run = await this.call('classify run', input, { files: true });
       const result = asRecord(this.must(run, "toil couldn't make the plan"));
       const planFile = await this.stage('plan', JSON.stringify(result));

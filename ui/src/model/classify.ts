@@ -9,7 +9,7 @@
  *   or where a rule or a signal and a label or field already on the item
  *   disagree. The disagreement is found by running the engine twice, with and
  *   without `recheck`: a label wins the first run, the rules the second.
- * - **Waiting to be written**: items a person (or an accepted agent answer)
+ * - **Waiting to be written**: items a person (accepting the AI agent's suggestion included)
  *   decided whose tracker does not yet say so. Derived, never stored, so it is
  *   still right after a reload, and empties itself once the tracker catches up.
  *
@@ -19,8 +19,8 @@
  */
 
 import { classify } from '../../../src/core/classify/engine.ts';
-import type { AgentVerdict, ClassifyArea, PersonSay, ResolvedTarget, Scheme, Verdict } from '../../../src/core/classify/types.ts';
-import { CLASSIFY_AREAS, UNSURE } from '../../../src/core/classify/types.ts';
+import type { ClassifyArea, PersonSay, ResolvedTarget, Scheme, Verdict } from '../../../src/core/classify/types.ts';
+import { CLASSIFY_AREAS } from '../../../src/core/classify/types.ts';
 import type { WorkItem } from '../toil.ts';
 
 /** A person's last word on an item: a category, or null where they took it back to "unsure". */
@@ -77,12 +77,11 @@ export function needsAPerson(items: WorkItem[], scheme: Scheme, standing: Readon
   return rows;
 }
 
-/** The items a decision is still to reach the tracker for, with who decided and what the tracker says now. */
+/** The items a decision is still to reach the tracker for, with what was decided and what the tracker says now. */
 export interface PendingRow {
   item: WorkItem;
   /** The category decided. */
   category: string;
-  by: 'person' | 'agent';
   reason: string | null;
   /** What the item's label or field says now: null where it carries none (nothing is written yet). */
   tracker: string | null;
@@ -91,19 +90,18 @@ export interface PendingRow {
 const isWritable = (area: string): area is ClassifyArea => (CLASSIFY_AREAS as readonly string[]).includes(area);
 
 /**
- * Decided items whose tracker still says something else (or nothing). A person's standing say outranks an accepted
- * agent answer for the same item, since it is the later and the more deliberate word. An item from a tracker toil
+ * Decided items whose tracker still says something else (or nothing). Decided means a person's standing say: accepting the
+ * AI agent's suggestion is recorded as one, so it is never a second kind of decision to rank. An item from a tracker toil
  * writes no category to is left out: there is nothing to apply, and the plan would only warn.
  */
-export function pendingChanges(items: WorkItem[], scheme: Scheme, standing: Readonly<Record<string, Say>>, accepted: ReadonlyMap<string, AgentVerdict>, targets: Partial<Record<ClassifyArea, ResolvedTarget>> = {}, appliedNow: ReadonlyMap<string, string> = new Map()): PendingRow[] {
+export function pendingChanges(items: WorkItem[], scheme: Scheme, standing: Readonly<Record<string, Say>>, targets: Partial<Record<ClassifyArea, ResolvedTarget>> = {}, appliedNow: ReadonlyMap<string, string> = new Map()): PendingRow[] {
   const trackerSays = new Map(classify({ scheme, items, targets, planFields: false }).result.verdicts.map((v) => [v.id, v]));
   const rows: PendingRow[] = [];
   for (const item of items) {
     if (!isWritable(item.source.area)) continue;
     const said = standing[item.id];
-    const agent = accepted.get(item.id);
-    const decided = said?.category ? { category: said.category, by: 'person' as const, reason: said.reason } : agent && agent.category !== UNSURE ? { category: agent.category, by: 'agent' as const, reason: agent.reason } : null;
-    if (!decided) continue;
+    if (!said?.category) continue;
+    const decided = { category: said.category, reason: said.reason };
     const there = trackerSays.get(item.id);
     // What an Apply wrote this session stands for the tracker until the next sync reads it back, so a change already made isn't offered twice.
     const tracker = appliedNow.get(item.id) ?? (there && (there.source === 'label' || there.source === 'field') ? there.category : null);

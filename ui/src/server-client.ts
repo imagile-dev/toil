@@ -463,7 +463,7 @@ export function httpClassify(base = './'): ClassifyApi {
       return (await res.json()) as AgentChoice[];
     },
     ask: (toilProject, items, adapter) => post('ask', { toilProject, items: items.map((i) => slim(i, false)), ...(adapter ? { adapter } : {}) }, 'Asking your AI agent'),
-    plan: (toilProject, work) => post('plan', { toilProject, items: work.items.map((i) => slim(i, true)), accepted: work.accepted }, 'Making the plan'),
+    plan: (toilProject, work) => post('plan', { toilProject, items: work.items.map((i) => slim(i, true)) }, 'Making the plan'),
     apply: (toilProject, planId) => post('apply', { toilProject, plan: planId }, 'Applying the changes'),
     tune: (toilProject, items, adapter) => post('tune', { toilProject, items: items.map((i) => slim(i, false)), ...(adapter ? { adapter } : {}) }, 'Improving the categories'),
     applyRevision: (id) => post('revision/apply', { id }, 'Saving the revision'),

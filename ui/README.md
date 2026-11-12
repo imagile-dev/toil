@@ -571,7 +571,9 @@ a small form with an optional reason; a board card's ☰ menu has **Change its c
   back where it stood ("Changed back"): the record only ever adds.
 - **Ask your AI agent** gives the agent toil's own question for the unsure items, with no tool to change anything. Its answers come
   back as suggestions, each with its reason and the AI-agent badge, and you accept them one at a time or all at once. Every answer is checked against
-  the scheme before it is shown.
+  the scheme before it is shown. Accepting one is your word, saved in your own record exactly as a choice is (with "Accepted the AI agent's
+  suggestion" and the agent's reason as the reason, and the same **Undo**), so the item stays answered after you apply it, and **Accept all**
+  saves one per suggestion.
 - **Apply** gathers what is decided into one card per tracker connection and shows every change first: the item, the label from and to, and the
   field from and to, with the one command toil runs. One press runs the tracker's own `categorize` through toil's write rules, so the connection
   must have changes switched on; the card says when it doesn't. Each item's result is reported, and pressing again changes nothing. Then the verdicts

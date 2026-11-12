@@ -3,6 +3,7 @@
 // person would see as broken, whatever the theme:
 //
 //   - the page itself scrolling sideways;
+//   - more than one <main> or app header in the document (a page left behind by a remount);
 //   - any element whose content is wider than its box (scrollWidth more than
 //     clientWidth + 1), unless it is a declared scroller (`data-scroller`,
 //     which DataTable and the other scrollers carry with their cue and focus)
@@ -207,6 +208,12 @@ function inspect(cards, headerFits) {
   };
   const exempt = (el) => el.closest('svg, .sr-only, [aria-hidden="true"], [data-truncate] *') || hiddenBox(el);
   const clipsX = (el) => getComputedStyle(el).overflowX !== 'visible';
+
+  // One page at a time: a second shell left in the document (an App that was remounted and not replaced) is two <main>s and two headers.
+  const mains = document.querySelectorAll('main').length;
+  if (mains !== 1) add('one-page', null, `the document holds ${mains} <main> elements`);
+  const headers = document.querySelectorAll('header.app-header').length;
+  if (headers > 1) add('one-page', null, `the document holds ${headers} app headers`);
 
   const de = document.documentElement;
   if (de.scrollWidth > de.clientWidth + 1) add('page-scroll', null, `the page is ${de.scrollWidth}px wide in a ${de.clientWidth}px window`);

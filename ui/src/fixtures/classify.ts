@@ -100,7 +100,7 @@ export function fixtureClassify(): ClassifyApi {
   const lines = sampleLedgerLines();
   const view = (): LedgerView => ({ scheme, kept: 'built-in', stats: SAMPLE_SCHEME_STATS, standing: standingOf(lines), notes: [] });
   const plan = (work: ApplyWork): ApplyPlan => {
-    const run = classify({ scheme, items: work.items, targets: TARGETS, recheck: true, person: personOf(standingOf(lines)), verdicts: work.accepted }).result;
+    const run = classify({ scheme, items: work.items, targets: TARGETS, recheck: true, person: personOf(standingOf(lines)) }).result;
     const byId = new Map(work.items.map((i) => [i.id, i]));
     const groups: PlanGroupView[] = run.plan.map((g) => ({
       area: g.area,

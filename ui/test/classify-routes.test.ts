@@ -94,11 +94,11 @@ describe('the classify routes', () => {
     expect((await call('/api/classify/ask', { toilProject: 'sample-team', items: 'all of them' })).status).toBe(400);
     expect((await call('/api/classify/ask', { toilProject: 'sample-team', items: [{ title: 'no id' }] })).status).toBe(400);
     expect((await call('/api/classify/ask', { toilProject: 'sample-team', items, adapter: 'rm -rf' })).status).toBe(400);
-    expect((await call('/api/classify/plan', { toilProject: 'sample-team', items, accepted: [{ id: 1 }] })).status).toBe(400);
+    expect((await call('/api/classify/plan', { toilProject: 'sample-team', items: 'x' })).status).toBe(400);
     expect((await call('/api/classify/correct', { toilProject: 'sample-team', item: items[0], to: 'Not An Id', reason: '' })).status).toBe(400);
     expect((await call('/api/classify/correct', { toilProject: 'sample-team', item: items[0], to: null, reason: 'x'.repeat(301) })).status).toBe(400);
     expect((await call('/api/classify/revision/apply', {})).status).toBe(400);
-    expect((await call('/api/classify/apply', { toilProject: 'sample-team', items, accepted: [] })).status).toBe(400);
+    expect((await call('/api/classify/apply', { toilProject: 'sample-team', items })).status).toBe(400);
   });
 
   it('take no command, file or path from the page: anything else under classify is not in the API', async () => {

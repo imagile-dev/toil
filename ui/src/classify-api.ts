@@ -152,10 +152,9 @@ export interface ClassifyApi {
   saveScheme(toilProject: string, scheme: Scheme): Promise<SaveResult>;
 }
 
-/** The decided items an Apply reads: the items themselves, and the agent's answers a person accepted. */
+/** The decided items an Apply reads: the items themselves. What was decided is in the person's ledger, the AI agent's accepted suggestions included. */
 export interface ApplyWork {
   items: WorkItem[];
-  accepted: AgentVerdict[];
 }
 
 /** The plain refusal in a sample: it can show every step and write none. */

@@ -107,7 +107,7 @@ describe('the plan and Apply', () => {
     const { run } = wrapped(true);
     const s = service(run);
     await s.correct('team', { item, context: [], to: 'feature', reason: 'It adds a feature.' });
-    const plan = await s.plan('team', { items: [item], accepted: [] });
+    const plan = await s.plan('team', { items: [item] });
     expect(plan.groups).toHaveLength(1);
     expect(plan.groups[0]).toMatchObject({ area: 'jira', connection: 'sample-jira', writes: true, command: { name: 'jira issue categorize' } });
     expect(plan.groups[0]!.changes).toEqual([expect.objectContaining({ id: item.id, category: 'feature', labelsFrom: ['ktlo'], labelsAdd: ['feature'], labelsRemove: ['ktlo'], field: null })]);
@@ -118,7 +118,7 @@ describe('the plan and Apply', () => {
     const { run, calls } = wrapped(true);
     const s = service(run);
     await s.correct('team', { item, context: [], to: 'feature', reason: 'It adds a feature.' });
-    const { id } = await s.plan('team', { items: [item], accepted: [] });
+    const { id } = await s.plan('team', { items: [item] });
     const result = await s.apply('team', id, signal);
     expect(result.outcomes[0]).toMatchObject({ connection: 'sample-jira', refused: null, changed: [{ key: 'SHOP-1' }] });
     expect(result.recorded).toEqual({ ok: true });
@@ -145,7 +145,7 @@ describe('the plan and Apply', () => {
     const { run, calls } = wrapped(false);
     const s = service(run);
     await s.correct('team', { item, context: [], to: 'feature', reason: '' });
-    const plan = await s.plan('team', { items: [item], accepted: [] });
+    const plan = await s.plan('team', { items: [item] });
     expect(plan.groups[0]!.writes).toBe(false);
     expect(calls).toEqual([]);
   });
@@ -155,16 +155,12 @@ describe('the plan and Apply', () => {
     const { run } = wrapped(true);
     const s = service(run);
     await s.correct('team', { item, context: [], to: 'feature', reason: '' });
-    const { id } = await s.plan('team', { items: [item], accepted: [] });
+    const { id } = await s.plan('team', { items: [item] });
     const first = s.apply('team', id, signal);
     await expect(s.apply('team', id, signal)).rejects.toMatchObject({ status: 409 });
     await first;
   });
 
-  it('refuses an accepted answer for an item that is not in the plan', async () => {
-    const [item] = standalone();
-    await expect(service(execute).plan('team', { items: [item!], accepted: [{ id: 'sample-jira:NOPE-1', category: 'feature', reason: 'x' }] })).rejects.toBeInstanceOf(ClassifyRefusal);
-  });
 });
 
 /** The files this service keeps while a flow is open: every working file it writes is in this folder. */
@@ -280,7 +276,7 @@ describe('Apply runs the plan the card showed', () => {
     const { run, calls } = wrapped(true);
     const s = service(run);
     await s.correct('team', { item, context: [], to: 'feature', reason: '' });
-    const plan = await s.plan('team', { items: [item], accepted: [] });
+    const plan = await s.plan('team', { items: [item] });
     expect(plan.groups[0]!.changes[0]).toMatchObject({ category: 'feature', labelsAdd: ['feature'] });
     // Someone else (another tab, the CLI) says the opposite after the card was read.
     await service(execute).correct('team', { item, context: [], to: 'ktlo', reason: 'Changed my mind.' });
@@ -296,11 +292,11 @@ describe('Apply runs the plan the card showed', () => {
     const s = new ClassifyService({ execute: run, dataDir: data, agents: null, now: () => now, uid: (() => { let n = 0; return () => `u${++n}`; })() });
     await s.correct('team', { item, context: [], to: 'feature', reason: '' });
     await expect(s.apply('team', 'nope', signal)).rejects.toMatchObject({ status: 404 });
-    const first = await s.plan('team', { items: [item], accepted: [] });
+    const first = await s.plan('team', { items: [item] });
     await expect(s.apply('other', first.id, signal)).rejects.toMatchObject({ status: 404 });
     await s.apply('team', first.id, signal);
     await expect(s.apply('team', first.id, signal)).rejects.toMatchObject({ status: 404 });
-    const second = await s.plan('team', { items: [item], accepted: [] });
+    const second = await s.plan('team', { items: [item] });
     now += STAGED_LIFETIME_MS + 1;
     await expect(s.apply('team', second.id, signal)).rejects.toThrow(/no longer kept/);
   });
@@ -334,15 +330,14 @@ describe('working files', () => {
     const agent = answers((prompt) => (prompt.startsWith('Sharpen the classification scheme') ? JSON.stringify({ ...defaultScheme(), guidance: ['Sharper.'] }) : JSON.stringify(itemsInPrompt(prompt).map((i) => ({ id: i.id, category: 'feature', reason: 'x' })))));
     const s = service(run, agent);
     await s.correct('pinned', { item, context: [], to: 'feature', reason: '' });
-    const accepted = [{ id: item.id, category: 'feature', reason: 'accepted' }];
 
-    const plan = await s.plan('pinned', { items: [item], accepted });
-    // While the card is open, its plan and the answers behind it are kept.
-    expect(working().filter((f) => /^(plan|verdicts)-/.test(f))).toHaveLength(2);
+    const plan = await s.plan('pinned', { items: [item] });
+    // While the card is open, its plan is kept; an accepted suggestion is in the ledger and needs no file of its own.
+    expect(working().filter((f) => /^(plan|verdicts)-/.test(f))).toHaveLength(1);
     await s.apply('pinned', plan.id, signal);
     expect(working()).toEqual([]);
 
-    const abandoned = await s.plan('pinned', { items: [item], accepted: [] });
+    const abandoned = await s.plan('pinned', { items: [item] });
     expect(working()).toHaveLength(1);
     void abandoned;
 
