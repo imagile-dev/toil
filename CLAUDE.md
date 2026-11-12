@@ -1050,7 +1050,9 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   which aren't MCP tools; the suite finds them by their `kind` and proves MCP never
   serves them. Every alias is run against its command's MCP tool too. Core's own
   machinery, `--select` and `--output-format toon` with `--summary-file`, is the same
-  for every command, so each area runs those once, on its first command. The suite is
+  for every command, so each area runs those once, on its first command, and on every
+  command that dispatches another (`toil wait`), which takes its own path through
+  core (the maintainer's call on #579, 2026-11-12). The suite is
   `test/parity/suite.ts`, cut into eight files (`shard-0.test.ts` … `shard-7.test.ts`)
   that Vitest runs on different workers: each shard claims every unit of work whose
   count modulo eight is its own, so no list of areas or commands exists and a new one

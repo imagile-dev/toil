@@ -233,8 +233,9 @@ export async function defineParity(shard: number, shards: number): Promise<void>
     const ownSuite = claim();
     const ownCommand = suite.commands.map(() => (traced ? ownSuite : claim()));
     if (!ownSuite && !ownCommand.some(Boolean)) continue;
-    // --select and toon/summary are core's, the same for every command, so each area proves them once, on its first command.
-    const sampled = suite.commands[0];
+    // --select and toon/summary are core's, the same for every command, so each area proves them once, on its first command,
+    // and on any command that hands them to a command of its own (toil wait), which takes a different path through core.
+    const sampled = (def: AnyCommand): boolean => def === suite.commands[0] || def.dispatches === true;
     describe(suite.name, () => {
       // Commands whose examples logged a traced operation, filled in by the example tests below.
       const logged = new Set<string>();
@@ -362,7 +363,7 @@ export async function defineParity(shard: number, shards: number): Promise<void>
           });
         }
 
-        if (def === sampled) {
+        if (sampled(def)) {
           it(`${commandName(def)}: --select is applied the same way through both doors, and a bad one is refused before any request`, async () => {
             const example = { ...examplesOf(def, suite.fixture)[0]!, [SELECT_FIELD]: 'type(@)' };
             const cli = testContext({ config: suite.fixture.config, routes: suite.fixture.routes, files: suite.fixture.files, ...localOf(suite.fixture) });
