@@ -450,7 +450,7 @@ and in the item drawer, display-only for now.
 Three of the Summary's numbers can be split. In the full briefing's numbers, **Finished**, **Time to finish** and **Work getting
 old** open a chart, and **Split by** cuts it by category, component, team, fix version or the epic: Finished as stacked columns
 by week, Time to finish as a median with its 85th percentile for each value, Work getting old as the median and the 85th percentile
-side by side. Unsplit, each chart is what it always was. Each segment opens the items behind it, and **Open in Charts** carries the
+side by side. Unsplit, each chart is what it always was. Each segment opens the items behind it, and **Open the full chart** carries the
 same split to Explore. A split by team is in name order, never sorted by speed.
 
 ## Insights
