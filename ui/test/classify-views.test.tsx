@@ -12,6 +12,14 @@ import { defaultScheme } from '../../src/core/classify/builtin.ts';
 import { SAMPLE_TEAM } from '../src/fixtures/sample-team.ts';
 import { needsAPerson } from '../src/model/classify.ts';
 import type { WorkItem } from '../src/toil.ts';
+import { ChatScope } from '../src/components/ask.tsx';
+import { memoryAnalyses } from '../src/analyses.ts';
+import { ClassifyProvider } from '../src/classify-state.tsx';
+import { DataContext, type Data } from '../src/data.ts';
+import type { ToilProjectData } from '../src/load.ts';
+import { SkinProvider, skinsFor } from '../src/skins.tsx';
+import { Classify } from '../src/views/Classify.tsx';
+import { loaded } from './harness.ts';
 
 /**
  * Sorting work into categories on the sample team (#566): the Classify view and its keys, the agent's answers as
@@ -118,6 +126,67 @@ describe('the Classify view', () => {
     open(`${TEAM}/board/classify`, { ...api, ledger: async () => everyone });
     expect(await screen.findByText(/Everything is sorted|Every item has an answer/)).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Nothing needs an answer' })).toBeTruthy();
+  });
+});
+
+describe('the Classify view on work nobody read (principle 12)', () => {
+  const ABSENCES = /Everything is sorted|Nothing here needs you|nothing unsure left|Nothing needs an answer|How it's doing|people agreed with/;
+  const shell = async (change: (d: ToilProjectData) => ToilProjectData, sync?: () => void) => {
+    const { data } = await loaded('sample-team');
+    const toilProject = change(data);
+    const d: Data = { toilProject, byId: new Map(toilProject.items.map((i) => [i.id, i])), prById: new Map(), agent: scriptedAgent(), now: FIXTURE_NOW, analyses: memoryAnalyses(), ...(sync ? { sync } : {}) };
+    return render(
+      <SkinProvider value={skinsFor('plain')}>
+        <DataContext value={d}>
+          <ChatScope>
+            <ClassifyProvider>
+              <Classify />
+            </ClassifyProvider>
+          </ChatScope>
+        </DataContext>
+      </SkinProvider>,
+    );
+  };
+
+  it('says not read yet, with the action that reads it, and none of the absence sentences, when no items were read', async () => {
+    let synced = 0;
+    await shell((d) => ({ ...d, items: [], readTargets: [{ area: 'jira', label: 'jira', work: false, pullRequests: true }] }), () => synced++);
+    expect(await screen.findByRole('heading', { name: 'Not read yet' })).toBeTruthy();
+    expect(screen.getByText("This Toil project's work hasn't been read, so there is nothing to sort yet.")).toBeTruthy();
+    expect(screen.getByText('jira: work items not read')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Sync now' }));
+    expect(synced).toBe(1);
+    expect(document.body.textContent).not.toMatch(ABSENCES);
+    expect(screen.queryByRole('button', { name: 'Ask your AI agent' })).toBeNull();
+    expect(document.querySelector('[data-how-its-doing]')).toBeNull();
+  });
+
+  it('is also not read yet when items are empty with no failure recorded, and when every tracker failed', async () => {
+    await shell((d) => ({ ...d, items: [] }));
+    expect(await screen.findByRole('heading', { name: 'Not read yet' })).toBeTruthy();
+    cleanup();
+    await shell((d) => ({ ...d, readTargets: [{ area: 'jira', label: 'jira', work: false, pullRequests: true }] }));
+    expect(await screen.findByRole('heading', { name: 'Not read yet' })).toBeTruthy();
+  });
+
+  it('names what could not be read when only some trackers failed, and never says everything is sorted', async () => {
+    await shell((d) => ({ ...d, readTargets: [{ area: 'jira', label: 'jira', work: true, pullRequests: true }, { area: 'ado', label: 'ado web', work: false, pullRequests: true }] }));
+    expect(await screen.findByRole('heading', { name: 'Nothing in what was read needs an answer' })).toBeTruthy();
+    expect(screen.getByText('ado web: work items not read')).toBeTruthy();
+    expect(screen.getByText('Nothing in what was read needs an answer.')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Not read yet' })).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Everything is sorted|Nothing here needs you|nothing unsure left/);
+  });
+
+  it('keeps "Everything is sorted" where the work was read and nothing needs an answer', async () => {
+    const api = fixtureClassify();
+    const all = await api.ledger('sample-team');
+    const waiting = needsAPerson(SAMPLE_TEAM.owi.items as WorkItem[], defaultScheme(), all.standing).map((r) => r.item.id);
+    const everyone: LedgerView = { ...all, standing: { ...all.standing, ...Object.fromEntries(waiting.map((id) => [id, { category: 'feature', reason: null }])) } };
+    open(`${TEAM}/board/classify`, { ...api, ledger: async () => everyone });
+    expect(await screen.findByText(/Everything is sorted|Every item has an answer/)).toBeTruthy();
+    expect(screen.queryByText(/Nothing in what was read/)).toBeNull();
+    expect(document.body.textContent).not.toMatch(/work items not read/);
   });
 });
 
@@ -249,10 +318,10 @@ describe("How it's doing", () => {
     const empty: LedgerView = { ...base, stats: { ...SAMPLE_SCHEME_STATS, agreement: { ...SAMPLE_SCHEME_STATS.agreement, overall: null, checked: 0 }, sources: [{ source: 'parent', checked: 0, confirmed: 0, overruled: 0, overruledTo: {}, agreement: null }], sinceLastTune: 2 } };
     open(`${TEAM}/board/classify`, { ...api, ledger: async () => empty });
     const doing = await until<HTMLDetailsElement>('[data-how-its-doing]');
-    expect(doing.querySelector('summary')!.textContent).toBe("How it's doing: people agreed with not read yet");
+    expect(doing.querySelector('summary')!.textContent).toBe("How it's doing: nothing has been checked yet");
     expect(doing.querySelector('[data-share="agreement"]')!.textContent).toBe('—');
     expect(doing.querySelector('[data-share="source"]')!.textContent).toBe('—');
-    expect(doing.textContent).toMatch(/Nobody has checked an answer yet, so it is not read yet/);
+    expect(doing.textContent).toMatch(/Nobody has checked an answer yet, so there is no figure/);
     expect(doing.textContent).not.toMatch(/0%/);
     expect(within(doing).queryByRole('button', { name: 'Improve with your AI agent' })).toBeNull();
   });
@@ -263,6 +332,7 @@ describe("How it's doing", () => {
     open(`${TEAM}/board/classify`, { ...api, ledger: async () => ({ ...base, stats: null, notes: ["The ledger couldn't be read, so how it's doing is not read yet: nope."] }) });
     const doing = await until<HTMLDetailsElement>('[data-how-its-doing]');
     expect(doing.querySelector('[data-share="agreement"]')!.textContent).toBe('—');
+    expect(doing.querySelector('summary')!.textContent).toBe("How it's doing: not read yet");
     expect(doing.textContent).toMatch(/The record could not be read, so this is not read yet/);
     expect(doing.querySelector('[data-since-tune]')!.textContent).toMatch(/not read yet/);
   });

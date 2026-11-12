@@ -75,13 +75,16 @@ export function HowItsDoing({ agents, adapter }: { agents: AgentChoice[]; adapte
   return (
     <details className="doing" data-how-its-doing="">
       <summary>
-        How it's doing: people agreed with {stats ? shareWords(stats.agreement.overall) : 'not read yet'}
-        {stats && stats.agreement.checked > 0 ? ` of ${stats.agreement.checked} checked` : ''}
+        {stats
+          ? stats.agreement.overall === null || stats.agreement.checked === 0
+            ? "How it's doing: nothing has been checked yet"
+            : `How it's doing: people agreed with ${shareWords(stats.agreement.overall)} of ${stats.agreement.checked} checked`
+          : "How it's doing: not read yet"}
       </summary>
       <div className="doing__body">
         <p>
           Agreement: <strong data-share="agreement">{stats ? shareText(stats.agreement.overall) : '—'}</strong>
-          {stats ? (stats.agreement.checked > 0 ? <> of {stats.agreement.checked} answers people checked.</> : <>. Nobody has checked an answer yet, so it is not read yet.</>) : <>. The record could not be read, so this is not read yet.</>}{' '}
+          {stats ? (stats.agreement.checked > 0 ? <> of {stats.agreement.checked} answers people checked.</> : <>. Nobody has checked an answer yet, so there is no figure.</>) : <>. The record could not be read, so this is not read yet.</>}{' '}
           <Help topic="classify-doing" />
         </p>
         {overrule && <p data-overruled="">{overrule}</p>}

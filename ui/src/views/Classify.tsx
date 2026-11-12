@@ -22,7 +22,7 @@ import type { AgentChoice, ApplyWork } from '../classify-api.ts';
 import { ApplyCard, byConnection } from '../components/classify-apply.tsx';
 import { HowItsDoing } from '../components/classify-doing.tsx';
 import { CategoryName } from '../components/category-chip.tsx';
-import { Empty, EmptyButton, EmptyLink } from '../components/empty.tsx';
+import { Empty, EmptyButton, EmptyLink, TrackerAction } from '../components/empty.tsx';
 import { FilterBar } from '../components/filter-bar.tsx';
 import { Help } from '../components/help.tsx';
 import { ItemLink } from '../components/items.tsx';
@@ -31,7 +31,7 @@ import { useData } from '../data.ts';
 import { toWhere } from '../filters.ts';
 import { chartsHref, toilProjectHref } from '../format.ts';
 import { useAddress, useWorkInsights } from '../insights-data.ts';
-import { choiceForKey, choicesOf, sourcePhrase, type NeedsRow } from '../model/classify.ts';
+import { choiceForKey, choicesOf, sourcePhrase, workRead, type NeedsRow } from '../model/classify.ts';
 import { usePlain } from '../plain-words.ts';
 import { matches, matchesAny, typingIn } from '../shortcuts.ts';
 import { useWords } from '../skins.tsx';
@@ -125,7 +125,7 @@ function Row({ row, picked, onPick, onConfirm, busy, follow }: { row: NeedsRow; 
 }
 
 export function Classify() {
-  const { toilProject, now } = useData();
+  const { toilProject, now, sync } = useData();
   const plain = usePlain();
   const words = useWords();
   const ins = useWorkInsights();
@@ -217,6 +217,9 @@ export function Classify() {
     }
   };
 
+  // A project whose work was never read has nothing to sort, which is not "everything is sorted" (principle 12).
+  const read = workRead(ins.items, toilProject.readTargets);
+  const partial = read.state === 'partial';
   const ready = agents.filter((a) => a.ready);
   const proposed = [...c.proposals.keys()].filter((id) => rows.some((r) => r.item.id === id));
   const review = () =>
@@ -226,6 +229,30 @@ export function Classify() {
         return { connection: g.connection, work: { items: g.items, accepted: [...c.accepted.values()].filter((a) => ids.has(a.id)) } };
       }),
     );
+
+  if (read.state === 'unread') {
+    return (
+      <>
+        <div className="view-head">
+          <p className="eyebrow">
+            <a href={toilProjectHref(toilProject.name)}>{toilProject.name}</a>
+          </p>
+          <h1 tabIndex={-1} title={plain.title('Classify')}>
+            {words('classify.title')}
+          </h1>
+        </div>
+        <section aria-labelledby="needs-head" className="classify__rows" data-classify-unread="">
+          <h2 id="needs-head">{words('classify.unread')}</h2>
+          {read.failed.map((label) => (
+            <p key={label} className="note">
+              {label}: work items not read
+            </p>
+          ))}
+          <Empty message={words('classify.unread.body')} action={<TrackerAction toilProject={toilProject.name} sync={sync} />} />
+        </section>
+      </>
+    );
+  }
 
   return (
     <>
@@ -275,7 +302,9 @@ export function Classify() {
           {ready.length === 0
             ? 'No AI agent is set up yet. Choose one under Settings, AI agent. You can sort these by hand.'
             : unsure.length === 0
-              ? 'There is nothing unsure left to ask about.'
+              ? partial
+                ? 'Nothing unsure in what was read to ask about.'
+                : 'There is nothing unsure left to ask about.'
               : `It reads ${plural(Math.min(unsure.length, ASK_AT_MOST), 'unsure item')} and suggests a category for each. It can't change anything: you accept or ignore every answer.`}
         </p>
         {asked && (
@@ -319,11 +348,17 @@ export function Classify() {
       )}
 
       <section aria-labelledby="needs-head" className="classify__rows">
-        <h2 id="needs-head">{rows.length === 0 ? 'Nothing needs an answer' : `${plural(rows.length, 'item')} ${rows.length === 1 ? 'needs' : 'need'} an answer`}</h2>
+        <h2 id="needs-head">{rows.length === 0 ? (partial ? 'Nothing in what was read needs an answer' : 'Nothing needs an answer') : `${plural(rows.length, 'item')} ${rows.length === 1 ? 'needs' : 'need'} an answer`}</h2>
+        {partial &&
+          read.failed.map((label) => (
+            <p key={label} className="note" data-classify-partial="">
+              {label}: work items not read
+            </p>
+          ))}
         {rows.length > 0 && <p className="note">Pick a category for each row, then Confirm. On a row, K, F and U pick, and Enter confirms and moves to the next.</p>}
         {rows.length === 0 ? (
           <Empty
-            message={allowed ? 'No item matching these filters needs an answer.' : pending.length > 0 ? 'Every item has an answer. The changes above are what is left.' : 'Everything is sorted. Nothing here needs you.'}
+            message={allowed ? 'No item matching these filters needs an answer.' : pending.length > 0 ? 'Every item has an answer. The changes above are what is left.' : partial ? 'Nothing in what was read needs an answer.' : 'Everything is sorted. Nothing here needs you.'}
             action={allowed ? <EmptyButton onPress={() => (window.location.hash = window.location.hash.split('?')[0]!)}>Show every item</EmptyButton> : pending.length > 0 ? <EmptyButton onPress={review}>Review and apply</EmptyButton> : <EmptyLink href={chartsHref(toilProject.name, 'mix')}>See the work mix</EmptyLink>}
           />
         ) : (

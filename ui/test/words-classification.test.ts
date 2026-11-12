@@ -34,6 +34,8 @@ const FUNCTIONAL_LIST = [
   'charts.splitBy',
   'classify.ask',
   'classify.title',
+  'classify.unread',
+  'classify.unread.body',
   'explore.title',
   'filter.add',
   'filter.dates',

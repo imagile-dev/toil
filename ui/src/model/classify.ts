@@ -184,3 +184,15 @@ export const shareText = (share: number | null | undefined): string => (share ==
 
 /** What a plain-words sentence says about a share: a figure, or that it is not read yet. */
 export const shareWords = (share: number | null | undefined): string => (share === null || share === undefined ? 'not read yet' : `${Math.round(share * 100)}%`);
+
+/**
+ * Whether this toil project's work items were read (principle 12): `unread` when none came back (nothing synced, or
+ * every tracker's work-item read failed), `partial` when some trackers were read and others failed, `read` otherwise.
+ * `failed` names the places whose work items couldn't be read. The same signal the Charts list ("no items were read")
+ * and the Board's "work items not read" line stand on.
+ */
+export function workRead(items: ReadonlyArray<unknown>, targets: ReadonlyArray<{ label: string; work: boolean }> | undefined): { state: 'read' | 'partial' | 'unread'; failed: string[] } {
+  const failed = (targets ?? []).filter((t) => !t.work).map((t) => t.label);
+  if (items.length === 0 || (targets && targets.length > 0 && failed.length === targets.length)) return { state: 'unread', failed };
+  return { state: failed.length > 0 ? 'partial' : 'read', failed };
+}
