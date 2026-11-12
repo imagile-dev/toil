@@ -369,3 +369,87 @@ describe('util c4 commands', () => {
     expect(envelope.error?.message).toContain('views[0].type');
   });
 });
+
+describe('how each thing is known', () => {
+  const marked = (): C4Model => {
+    const model = bookshop();
+    const web = model.systems[0]!.containers![0]!;
+    web.how = 'observed';
+    web.source = 'docker-compose.yml:4';
+    const db = model.systems[0]!.containers!.find((c) => c.database)!;
+    db.how = 'inferred';
+    db.reason = 'the ORM config names one';
+    model.relationships!.push({ source: web.id, destination: db.id, description: 'Guessed at', how: 'inferred', reason: 'same network' });
+    model.relationships!.push({ source: web.id, destination: 'payments', description: 'Seen', how: 'observed', evidence: 'web/src/pay.ts:9' });
+    return model;
+  };
+
+  it('accepts how, source and reason on every kind of element and on relationships, and refuses a value that is neither', () => {
+    expect(checkModel(loadModel(JSON.stringify(marked()), 'm'))).toEqual([]);
+    const bad = marked();
+    (bad.systems[0] as { how?: string }).how = 'guessed';
+    expect(() => loadModel(JSON.stringify(bad), 'm')).toThrow(/systems\[0\]\.how/);
+  });
+
+  it('carries them onto elements and onto the arrows drawn for a relationship, implied ones included', () => {
+    const model = marked();
+    const containers = view(model, 'containers');
+    const db = containers.inside.find((e) => e.database)!;
+    expect(db).toMatchObject({ how: 'inferred', reason: 'the ORM config names one' });
+    expect(containers.inside.find((e) => e.how === 'observed')?.source).toBe('docker-compose.yml:4');
+    expect(containers.edges.filter((e) => e.how === 'inferred').map((e) => e.reason)).toEqual(['same network']);
+    expect(containers.edges.find((e) => e.how === 'observed')?.source).toBe('web/src/pay.ts:9');
+    const implied = computeView(
+      { ...model, relationships: [{ source: 'web', destination: 'payments', description: 'Calls', how: 'inferred' }] },
+      model.views.find((v) => v.key === 'context')!,
+    );
+    expect(implied.edges.find((e) => e.to === 'payments')?.how).toBe('inferred');
+  });
+
+  it('does not fold an inferred relationship into an observed one that reads the same', () => {
+    const model = bookshop();
+    const rel = model.relationships![0]!;
+    model.relationships!.push({ ...rel, how: 'inferred' });
+    const v = view(model, 'context');
+    expect(v.edges.filter((e) => e.from === rel.source || e.to === rel.destination).length).toBeGreaterThan(1);
+    expect(v.edges.some((e) => e.how === 'inferred')).toBe(true);
+  });
+
+  it('draws an inferred box dashed and an inferred arrow dotted, and nothing else differently', () => {
+    const plain = toSvg(layoutView(view(bookshop(), 'containers')));
+    expect(plain).not.toContain('stroke-dasharray="5 3"');
+    expect(plain).not.toContain('1.5 4');
+    const svg = toSvg(layoutView(view(marked(), 'containers')));
+    expect(svg).toMatch(/<g id="db"[^>]*><path [^>]*stroke-dasharray="5 3"/);
+    expect(svg).toContain('stroke-dasharray="1.5 4"');
+    expect(svg.match(/stroke-dasharray="6 4"/g)!.length).toBeGreaterThan(0);
+  });
+
+  it('prefixes an inferred description with (inferred) in Mermaid and D2, once', () => {
+    const model = marked();
+    const db = model.systems[0]!.containers!.find((c) => c.database)!;
+    db.description = '(inferred) Already said';
+    const computed = view(model, 'containers');
+    for (const text of [toMermaid(computed), toD2(computed)]) {
+      expect(text).toContain('(inferred) Already said');
+      expect(text).not.toContain('(inferred) (inferred)');
+      expect(text).toContain('(inferred) Guessed at');
+    }
+    expect(toMermaid(view(bookshop(), 'containers'))).not.toContain('(inferred)');
+  });
+});
+
+describe('a model piped from another toil command', () => {
+  it('is read from the data of the envelope, so projects diagram show --select model feeds render, mermaid and d2', async () => {
+    const piped = JSON.stringify({ ok: true, data: EXAMPLE_MODEL, error: null, meta: { command: 'projects diagram show' } });
+    const envelope = await execute(c4MermaidCommand, { text: piped }, testContext().context);
+    expect(envelope.ok, JSON.stringify(envelope.error)).toBe(true);
+    expect((envelope.data as { text: string }).text).toContain('C4Context');
+  });
+
+  it('says so when the piped command failed, instead of listing the model fields it lacks', async () => {
+    const piped = JSON.stringify({ ok: false, data: null, error: { code: 'NOT_FOUND', message: 'x' }, meta: { command: 'projects diagram show' } });
+    const envelope = await execute(c4D2Command, { text: piped }, testContext().context);
+    expect(envelope.error?.message).toContain('a toil command that failed');
+  });
+});

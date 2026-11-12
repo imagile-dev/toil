@@ -63,6 +63,8 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | `classify.write` | `files.workspace` | `src/core/classify/catalog.ts` | The `toil classify scheme` commands writing a scheme to your own folder (`~/.toil/classify/`), to `.toil/classify/` at the root of a git working tree (`export --repo`), or, for `set` on a scheme that lives there, beside the toil project that names it. Anywhere else, the file must be inside the workspace. |
 | `classify.replace` | `files.no-overwrite` | `src/core/classify/catalog.ts` | Rewriting a scheme: `set` rewrites the file the scheme was read from, and `export` and `import` with `--replace` replace one. Only a file that is already a valid scheme is ever replaced. |
 | `classify.ledger` | `files.own` | `src/core/classify/ledger.ts` | `toil classify run`, `stats`, `tune` and `mix` and `toil projects pivot` reading the classification ledger, and `classify run --record` and `classify correct` appending to it, `~/.toil/classify/<scheme>.jsonl`, inside toil's own folder, which the file service refuses. Only that one file per scheme, named for it, and nothing outside the folder after realpath. Bounded below. |
+| `diagrams.write` | `files.workspace` | `src/core/diagrams.ts` | The `toil projects diagram save` command writing a toil project's architecture diagram to `~/.toil/diagrams/<toil-project>.json`, in your own folder and nowhere else, whatever the workspace is. |
+| `diagrams.replace` | `files.no-overwrite` | `src/core/diagrams.ts` | `save --replace` replacing that file, and `toil projects diagram remove` deleting it. Only a file that is already a valid diagram is ever replaced or deleted. |
 | `connections.import` | `files.workspace` | `src/connections/import-command.ts` | `toil connections import` reading one other tool's connection list (DBeaver's `data-sources.json`, a `.regsrvr`, `servers.json`, `pg_service.conf`, ...) from that tool's default location on this OS, or from a path the person names, outside the workspace. Bounded below. |
 | `db.tls-ca-file` | `files.workspace` | `src/core/db/tls.ts` | A `db` connection's `tlsCaFile` (with `"ssl": true`) reading one PEM file of CA certificates, named by an absolute path in the connection's own settings (config or env), never by a command's input, so it may sit outside the workspace. The person sets it, or an agent proposes it through `connections add --set` and the person approves it (principle 2). Bounded below. |
 | `feedback.send` | `commands.read-only` | `src/feedback/command.ts`, `src/api.ts` | `toil feedback` sending one report to Imagile's feedback endpoint, which files it as a public GitHub issue, with no connection holding `writes: true` and no `--allow-write`. Its gate is the approval of that exact report instead, and it is the one request toil makes to a host the user didn't configure. Bounded below. |
@@ -227,6 +229,13 @@ and for a correction who made it, through which door and why: never an item's bo
 and reasons are cut to 300 characters, lose control characters, and have anything shaped like a credential replaced
 with `[redacted]` before they are written. A ledger over 32 MiB is refused with the way to start a new one (rename
 the old file). The ledger stays on the machine and is never sent anywhere.
+`diagrams.write` and `diagrams.replace` write only diagrams, in the JSON toil itself reads back, to the one place a diagram
+lives, `~/.toil/diagrams/`, named for a toil project (`<name>.json`, the same name rule as a connection). The folder and
+every file are resolved through realpath, so a link that leads out of `~/.toil/diagrams/` is refused, and so is anything
+on toil's own files, `/proc` or `/sys`. A diagram is validated before it's written (the C4 model's checks, and no string
+in it may hold a URL or anything shaped like a secret), written alongside the old file, then renamed into place. A file
+that isn't already a valid diagram is never replaced or deleted, and an existing one needs `--replace`. Files are
+written as user-only (`0600`, in a `0700` folder). A diagram holds no host and no secret, and writing one contacts nothing.
 
 `projects.read` is read only, and only of toil project files: JSON that toil validates as a
 toil project before using or showing any of it. A toil project holds no secret and can't add a

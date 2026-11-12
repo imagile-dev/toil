@@ -6,6 +6,7 @@ import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
 import { createSchemeCatalog } from './core/classify/catalog.js';
 import { Ledger } from './core/classify/ledger.js';
+import { createDiagramCatalog } from './core/diagrams.js';
 import { createToilProjectCatalog } from './core/toil-project.js';
 import { alreadyExists, nodeFiles, resolveWorkspace } from './core/files.js';
 import { createGitRunner } from './core/git.js';
@@ -171,6 +172,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
             protect: ownFiles(o.home, o.cwd, o.globals.config),
             git: gitAt,
           }),
+          diagrams: createDiagramCatalog({ home: o.home, protect: ownFiles(o.home, o.cwd, o.globals.config) }),
         }),
     ownFiles: ownFiles(o.home, o.cwd, o.globals.config),
     // The OS certificate store and HTTPS_PROXY / NO_PROXY, set up on the first request.

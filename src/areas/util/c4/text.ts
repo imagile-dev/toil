@@ -13,19 +13,26 @@ import { typeLine, type ComputedView, type Element, type ViewType } from './view
 const MERMAID_HEADER: Record<ViewType, string> = { systemContext: 'C4Context', container: 'C4Container', component: 'C4Component' };
 
 /** A Mermaid C4 string argument. Mermaid has no escape for `"` inside one, so it becomes `'`; a line break becomes a space. */
+/** The description of something inferred says so in words, for the two text formats, which have no dashes; what is observed or unmarked reads as it always did. */
+const said = (description: string | undefined, how: 'observed' | 'inferred' | undefined): string | undefined => {
+  if (how !== 'inferred') return description;
+  if (description === undefined || description === '') return '(inferred)';
+  return description.startsWith('(inferred)') ? description : `(inferred) ${description}`;
+};
+
 const m = (text: string | undefined) => `"${(text ?? '').replace(/"/g, "'").replace(/\s*\r?\n\s*/g, ' ')}"`;
 
 function mermaidElement(el: Element): string {
   const ext = el.external ? '_Ext' : '';
   switch (el.kind) {
     case 'person':
-      return `Person${ext}(${el.id}, ${m(el.name)}, ${m(el.description)})`;
+      return `Person${ext}(${el.id}, ${m(el.name)}, ${m(said(el.description, el.how))})`;
     case 'system':
-      return `System${ext}(${el.id}, ${m(el.name)}, ${m(el.description)})`;
+      return `System${ext}(${el.id}, ${m(el.name)}, ${m(said(el.description, el.how))})`;
     case 'container':
-      return `Container${el.database ? 'Db' : ''}${ext}(${el.id}, ${m(el.name)}, ${m(el.technology)}, ${m(el.description)})`;
+      return `Container${el.database ? 'Db' : ''}${ext}(${el.id}, ${m(el.name)}, ${m(el.technology)}, ${m(said(el.description, el.how))})`;
     case 'component':
-      return `Component${ext}(${el.id}, ${m(el.name)}, ${m(el.technology)}, ${m(el.description)})`;
+      return `Component${ext}(${el.id}, ${m(el.name)}, ${m(el.technology)}, ${m(said(el.description, el.how))})`;
   }
 }
 
@@ -37,7 +44,7 @@ export function toMermaid(view: ComputedView): string {
     const kind = view.boundary.kind === 'system' ? 'System_Boundary' : 'Container_Boundary';
     lines.push('', `${kind}(${view.boundary.id}, ${m(view.boundary.name)}) {`, ...view.inside.map((el) => `  ${mermaidElement(el)}`), '}');
   }
-  lines.push('', ...view.edges.map((e) => (e.technology ? `Rel(${e.from}, ${e.to}, ${m(e.description)}, ${m(e.technology)})` : `Rel(${e.from}, ${e.to}, ${m(e.description)})`)));
+  lines.push('', ...view.edges.map((e) => (e.technology ? `Rel(${e.from}, ${e.to}, ${m(said(e.description, e.how))}, ${m(e.technology)})` : `Rel(${e.from}, ${e.to}, ${m(said(e.description, e.how))})`)));
   return `${lines.join('\n')}\n`;
 }
 
@@ -81,7 +88,7 @@ export function toD2(view: ComputedView): string {
   const ref = (elId: string) => (view.boundary && insideIds.has(elId) ? `${key(view.boundary.id)}.${key(elId)}` : key(elId));
   lines.push('');
   for (const e of view.edges) {
-    const label = [e.description ?? '', ...(e.technology ? [`[${e.technology}]`] : [])].filter(Boolean).join('\n');
+    const label = [said(e.description, e.how) ?? '', ...(e.technology ? [`[${e.technology}]`] : [])].filter(Boolean).join('\n');
     lines.push(`${ref(e.from)} -> ${ref(e.to)}${label ? `: ${d(label)}` : ''} { style: { stroke: "#707070"; stroke-dash: 3 } }`);
   }
   return `${lines.join('\n')}\n`;

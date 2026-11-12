@@ -7,6 +7,7 @@ import { classifyProjectCommands } from './classify/project-commands.js';
 import { classifyRunCommands } from './classify/run.js';
 import { classifySchemeCommands } from './classify/scheme-commands.js';
 import { toilProjectBuildCommands } from './projects/build.js';
+import { diagramCommands } from './projects/diagram.js';
 import { toilProjectOnboardCommands } from './projects/onboard.js';
 import { toilProjectBriefCommands } from './projects/brief.js';
 import { toilProjectPivotCommands } from './projects/pivot.js';
@@ -54,7 +55,7 @@ const withRetiredToilProjectPaths = (list: AnyCommand[]): AnyCommand[] =>
     return def;
   });
 
-export const commands: AnyCommand[] = withRetiredToilProjectPaths(withCoreAliases([...modules.flatMap((m) => m.commands), ...connectionsCommands(areas), ...toilProjectsCommands(areas), ...toilProjectMigrateCommands(), ...toilProjectBriefCommands(), ...toilProjectPivotCommands(), ...toilProjectViewCommands(), ...toilProjectBuildCommands(areas), ...toilProjectOnboardCommands(areas), ...classifySchemeCommands(), ...classifyProjectCommands(), ...classifyRunCommands(), ...classifyLedgerCommands(), ...classifyMixCommands(), ...reposCommands(), ...sampleCommands(), ...skillsConfigCommands(), ...skillCommands(areas), ...setupCommands(), ...auditCommands(() => commands), ...themeCommands(), ...feedbackCommands(), waitCommand], areas));
+export const commands: AnyCommand[] = withRetiredToilProjectPaths(withCoreAliases([...modules.flatMap((m) => m.commands), ...connectionsCommands(areas), ...toilProjectsCommands(areas), ...toilProjectMigrateCommands(), ...toilProjectBriefCommands(), ...toilProjectPivotCommands(), ...toilProjectViewCommands(), ...toilProjectBuildCommands(areas), ...diagramCommands(), ...toilProjectOnboardCommands(areas), ...classifySchemeCommands(), ...classifyProjectCommands(), ...classifyRunCommands(), ...classifyLedgerCommands(), ...classifyMixCommands(), ...reposCommands(), ...sampleCommands(), ...skillsConfigCommands(), ...skillCommands(areas), ...setupCommands(), ...auditCommands(() => commands), ...themeCommands(), ...feedbackCommands(), waitCommand], areas));
 
 // An alias in another group (`deps outdated` for `artifactory package outdated`) can
 // collide with a command there; better a failed start than a silent winner.

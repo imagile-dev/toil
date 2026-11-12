@@ -11,6 +11,12 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
 - `toil projects list | show | check | context`, which read
 - `toil projects init | add-repo | link | env | field | person | people suggest | people save | wip-limit | describe | archive | unarchive | export | import | unlink | remove`, which
   build and share (`src/core/toil-project.ts`, `src/projects/`)
+- `toil projects diagram check | save | show | list | remove`, the architecture diagram a toil project
+  keeps in your own folder, `~/.toil/diagrams/<toil-project>.json` (#582, `src/projects/diagram.ts`,
+  `src/core/diagrams.ts`): a C4 model whose elements and relationships say how they are known
+  (`how`, `source`, `reason`), holding no host and no secret. `check` runs every check `save` runs;
+  `save` is a local write, served over MCP, `--replace` raising the revision; `remove` is CLI only.
+  `toil projects remove` keeps a toil project's diagram and says so (`DIAGRAM_KEPT`)
 - `toil projects migrate`, which moves your own `~/.toil/dossiers/*.json` to `~/.toil/projects/` (#555, `src/projects/migrate.ts`)
 - `toil projects onboard`, which sets a reader up for a repository's toil project (#333,
   `src/projects/onboard.ts`)

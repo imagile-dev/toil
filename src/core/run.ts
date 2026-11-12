@@ -343,7 +343,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     // enforced rather than requested in a policy nobody reads.
     // The credential store and the prompter go only to commands that manage
     // connections, which get them through ctx.manage.
-    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'toilProjects' | 'schemes' | 'ledger' | 'toilProject' | 'gitRemote' | 'adopted' | 'repo' | 'audit' | 'skillUpkeep' | 'progress'> & {
+    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'toilProjects' | 'schemes' | 'ledger' | 'diagrams' | 'toilProject' | 'gitRemote' | 'adopted' | 'repo' | 'audit' | 'skillUpkeep' | 'progress'> & {
       progress?: unknown;
       skillUpkeep?: unknown;
       audit?: unknown;
@@ -351,6 +351,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       toilProjects?: unknown;
       schemes?: unknown;
       ledger?: unknown;
+      diagrams?: unknown;
       config?: unknown;
       env?: unknown;
       secrets?: unknown;
@@ -366,6 +367,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     delete rest.toilProjects;
     delete rest.schemes;
     delete rest.ledger;
+    delete rest.diagrams;
     delete rest.toilProject;
     delete rest.gitRemote;
     delete rest.adopted;
@@ -385,7 +387,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
         if (!def.area || !call) throw new Error(`${commandName(def)} has no context inputs to supply.`);
         return supplyContext(def.area, def, context, resolved, name, value, source);
       },
-      ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt, toilProjects: ctx.toilProjects, schemes: ctx.schemes, ledger: ctx.ledger, env: ctx.env, via, audit: ctx.audit } } : {}),
+      ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt, toilProjects: ctx.toilProjects, schemes: ctx.schemes, ledger: ctx.ledger, diagrams: ctx.diagrams, env: ctx.env, via, audit: ctx.audit } } : {}),
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
       // For a server-side cancel or a session close after the signal fired: logged, but not bound to it.

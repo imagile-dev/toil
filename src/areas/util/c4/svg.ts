@@ -49,7 +49,8 @@ function nodeSvg(box: NodeBox): string {
   const el = box.element;
   const colour = el.external ? (el.kind === 'person' ? EXTERNAL_PERSON : EXTERNAL) : FILL[el.kind];
   const { x, y, width: w, height: h } = box;
-  const paint = `fill="${colour.fill}" stroke="${colour.stroke}" stroke-width="1.5"`;
+  // A box that is a conclusion, not a reading, is outlined in dashes; one that says nothing is drawn as it always was.
+  const paint = `fill="${colour.fill}" stroke="${colour.stroke}" stroke-width="1.5"${el.how === 'inferred' ? ' stroke-dasharray="5 3"' : ''}`;
   let shape: string;
   let textTop = y + (h - linesHeight(box.lines)) / 2;
   if (el.database) {
@@ -95,7 +96,8 @@ export function toSvg(layout: Layout): string {
     );
   }
   parts.push('<g class="c4-relationships">');
-  for (const e of layout.edges) parts.push(`<path d="${pathData(e.points)}" fill="none" stroke="${EDGE}" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>`);
+  // An inferred arrow is dotted, which the standard 6 4 dashes are not.
+  for (const e of layout.edges) parts.push(`<path d="${pathData(e.points)}" fill="none" stroke="${EDGE}" stroke-width="1.5" stroke-dasharray="${e.how === 'inferred' ? '1.5 4' : '6 4'}" marker-end="url(#arrow)"/>`);
   parts.push('</g>', ...layout.nodes.map(nodeSvg), '<g class="c4-labels">');
   for (const e of layout.edges) {
     if (!e.label) continue;

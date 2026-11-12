@@ -1300,6 +1300,8 @@ toil util c4 mermaid docs/c4/bookshop.c4.json --view context
 cat model.json | toil util c4 d2 - --view components
 ```
 
+A model can also come from another toil command, read from the `data` of its envelope: `toil projects diagram show payments --select model | toil util c4 render - --view containers`.
+
 | Flag | Meaning |
 |------|---------|
 | `[file]` | A JSON file holding the model, inside the workspace, or `-` (or nothing) for stdin |
@@ -1338,6 +1340,14 @@ The model:
   underscores, and are unique across the whole model.
 - **Relationships** join any two elements, at any level: `source`, `destination`,
   and optionally `description` and `technology`.
+- **How each thing is known.** Every person, system, container, component and
+  relationship may carry `how` (`observed` or `inferred`), `source` (for an observed
+  one: the file and line, or the command, it was read from; a relationship's is
+  `evidence`, since its `source` is the element it starts from) and `reason` (for an
+  inferred one: why). `render` outlines an inferred box in dashes and draws an inferred
+  arrow dotted; `mermaid` and `d2` start its description with `(inferred)`. A model
+  that says nothing is drawn as before. An arrow implied between ancestors keeps its
+  relationship's own marks.
 - **Views** have a `key`, a `type` (`systemContext`, `container` or `component`), a
   `scope` (a system for the first two, a container for `component`), an optional
   `title`, and an optional `include` list of ids. `"*"` in it stands for the default

@@ -645,6 +645,11 @@ export function toilProjectBuildCommands(areas: readonly AnyArea[]): AnyCommand[
       const mine = catalog.scan().files.find((f) => f.source === 'user' && (f.toilProject?.name === input.name || (!f.toilProject && basename(f.file).replace(/\.json$/i, '') === input.name)));
       if (!mine) throw new ToilError('INVALID_INPUT', `You have no toil project named "${input.name}" in ${forwardSlashes(catalog.places().user)}.`, { fix: 'Run toil projects list to see the names. Only your own toil projects can be removed here.' });
       rmSync(mine.file);
+      // A diagram outlives its toil project on purpose; the person is told, and decides.
+      const diagram = ctx.manage?.diagrams;
+      if (diagram && existsSync(diagram.fileFor(input.name))) {
+        ctx.warn({ code: 'DIAGRAM_KEPT', message: `Toil project ${input.name} had a stored diagram (${diagram.fileFor(input.name)}), and it was kept. To delete it too: toil projects diagram remove ${input.name}.` });
+      }
       return { name: input.name, file: forwardSlashes(mine.file), deleted: true };
     },
   });

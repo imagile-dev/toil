@@ -85,6 +85,8 @@ export const CORE_SAFETY = [
   'keychain', 'secret-input', 'secret-shapes', 'prompt', 'token',
   // Files, local paths and git.
   'files', 'local-path', 'gitignore', 'git', 'git-repo', 'git-config', 'git-remote',
+  // The stored architecture diagrams: where they live, the link checks, and what may be written into one (#582).
+  'diagrams',
   // The network: which hosts, which credentials, which requests.
   'network', 'rest', 'api', 'api-path', 'http', 'passthrough', 'multipart', 'progress',
   // Limits, the audit log and config on disk.
