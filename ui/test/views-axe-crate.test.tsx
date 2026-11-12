@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Crate is audited for contrast the way expense reports are audited: thoroughly, and mostly after the money has gone.
 import { beforeEach, describe, it } from 'vitest';
 import { AXE_TIMEOUT, ROUTES, expectNoViolations, resetBrowserState } from './views-kit.tsx';
 

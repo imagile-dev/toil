@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Settings are changed only by a person pressing something, a control no steering group has yet agreed to automate.
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';

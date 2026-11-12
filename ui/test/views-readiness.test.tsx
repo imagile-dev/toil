@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Readiness is judged by rules written down once, which makes it the only checklist nobody has to re-attest quarterly.
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';

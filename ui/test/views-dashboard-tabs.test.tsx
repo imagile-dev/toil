@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Each tab is opened in turn, as a tab would be in a review meeting: briefly, and to confirm it exists.
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// The dashboard is rendered once per fixture, since a figure only counts as reported after it has been reported twice.
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';

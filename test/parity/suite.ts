@@ -54,6 +54,13 @@ import { recordOperations } from '../harness/operations.js';
  */
 export const PARITY_SHARDS = 8;
 
+/** The shard a file is, from its own name (shard-3.test.ts is shard 3), so the index is written once. */
+export function shardOf(fileUrl: string): number {
+  const match = /shard-(\d+)\.test\.ts$/.exec(fileUrl);
+  if (!match) throw new Error(`${fileUrl} is not a test/parity/shard-N.test.ts file`);
+  return Number(match[1]);
+}
+
 export async function defineParity(shard: number, shards: number): Promise<void> {
   const bothDoors = servedOverMcp;
 
@@ -191,6 +198,13 @@ export async function defineParity(shard: number, shards: number): Promise<void>
   }
 
   if (claim()) describe('coverage', () => {
+    it('has exactly one shard file for each of the PARITY_SHARDS slices', () => {
+      // A shard file nobody wrote leaves its units unrun, and nothing else would say so.
+      const files = readdirSync(import.meta.dirname).filter((f) => /^shard-\d+\.test\.ts$/.test(f)).sort();
+      const wanted = Array.from({ length: PARITY_SHARDS }, (_, i) => `shard-${i}.test.ts`).sort();
+      expect(files, 'test/parity/shard-N.test.ts for N in 0 ... PARITY_SHARDS - 1').toEqual(wanted);
+    });
+
     it('every registered area that needs config has a fixture', () => {
       const covered = new Set(fixtures.map((f) => f.area));
       const missing = [...new Set(commands.filter((def) => def.area).map(areaOf))].filter((a) => !covered.has(a));

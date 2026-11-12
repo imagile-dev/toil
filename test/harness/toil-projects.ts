@@ -40,14 +40,14 @@ export function toilProjectDisk(files: Record<string, unknown> = {}): ToilProjec
   const workspace = join(root, 'work');
   mkdirSync(join(home, '.toil', 'projects'), { recursive: true });
   mkdirSync(workspace, { recursive: true });
+  // How a file's content is written: a string as it is, anything else as JSON with a final newline.
+  const text = (content: unknown) => (typeof content === 'string' ? content : `${JSON.stringify(content, null, 2)}\n`);
   const write = (path: string, content: unknown) => {
     const full = join(root, path);
     mkdirSync(dirname(full), { recursive: true });
-    writeFileSync(full, typeof content === 'string' ? content : `${JSON.stringify(content, null, 2)}\n`);
+    writeFileSync(full, text(content));
     return full;
   };
-  const text = (content: unknown) => (typeof content === 'string' ? content : `${JSON.stringify(content, null, 2)}
-`);
   // Every seeded file and the folders above it, as full paths: what a reset leaves alone.
   const seeded = new Map(Object.entries(files).map(([path, content]) => [join(root, path), text(content)] as const));
   const kept = new Set<string>([home, workspace, join(home, '.toil'), join(home, '.toil', 'projects')]);

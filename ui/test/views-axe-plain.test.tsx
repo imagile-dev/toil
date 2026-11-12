@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Plain is held to WCAG 2.2 AA, a standard with more revisions than most org charts and, unusually, a reason for each.
 import { beforeEach, describe, it } from 'vitest';
 import { AXE_TIMEOUT, ROUTES, expectNoViolations, resetBrowserState } from './views-kit.tsx';
 

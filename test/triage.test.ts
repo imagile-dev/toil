@@ -283,7 +283,7 @@ describe('the path check', () => {
   });
 
   it.each([
-    'ui/src/load.ts', 'ui/src/components/panel.tsx', 'ui/server/server.ts', 'ui/server/agents/env.ts', 'ui/server/agents/tested.ts', 'ui/test/registry.test.ts', 'ui/test/views.test.tsx', 'ui/docs/themes.md', 'ui/themes/plain/theme.json',
+    'ui/src/load.ts', 'ui/src/components/panel.tsx', 'ui/server/server.ts', 'ui/server/agents/env.ts', 'ui/server/agents/tested.ts', 'ui/test/registry.test.ts', 'ui/test/views-list.test.tsx', 'ui/docs/themes.md', 'ui/themes/plain/theme.json',
   ])('allows %s as Toil UI', (path) => {
     expect(isUi(path)).toBe(true);
     expect(check([{ path, newMode: '100644' }], known)).toMatchObject({ ok: true, areas: [], ui: true, refused: [] });
@@ -354,7 +354,7 @@ describe('the path check', () => {
     // The folder is flagged whole, so a file added later is too; so are theme.json and the suites that check Toil UI's own rules.
     const flagged = ['ui/server/main.ts', 'ui/server/agents/mcp.ts', 'ui/server/assign/runner.ts', 'ui/server/brand-new.ts', 'ui/themes/plain/theme.json', 'ui/test/registry.test.ts', 'ui/src/config.ts'];
     expect(flagged.every((p) => isSafetyLayer(p) && isUi(p))).toBe(true);
-    expect(['ui/src/load.ts', 'ui/test/views.test.tsx', 'ui/themes/plain/theme.css', 'ui/docs/themes.md'].some(isSafetyLayer)).toBe(false);
+    expect(['ui/src/load.ts', 'ui/test/views-list.test.tsx', 'ui/themes/plain/theme.css', 'ui/docs/themes.md'].some(isSafetyLayer)).toBe(false);
   });
 
   it("flags edits to toil's own safety files the same way, tests beside them included", () => {

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// People appear here as names on a card, a courtesy their calendars have rarely extended to this page.
 import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';

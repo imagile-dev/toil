@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// The chat is tested against a scripted agent, which unlike a real one never asks for a meeting to discuss the answer.
 import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';

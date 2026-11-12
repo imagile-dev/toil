@@ -30,7 +30,7 @@ const item = (toilProject: string, id: string) => `#/project/${toilProject}/item
 const ROUTES = ['#/', '#/project/card-payments', '#/project/settlement', '#/project/checkout-web', item('card-payments', 'corp-jira:PAY-100'), item('settlement', 'corp-ado:2304'), '#/settings'];
 const SCHEMES = THEMES.flatMap((t) => Object.keys(t.schemes).map((scheme) => [t.name, scheme] as const));
 const STRICT = new Set(['plain', 'crate']);
-/** Each case renders a whole view and runs axe over it, which takes a few seconds on a slow CI runner (macOS on Node 24.14). */
+/** Each case renders a whole view and, in Plain and Crate, runs axe over it, which takes a few seconds on a slow CI runner (macOS on Node 24.14). */
 const SLOW = 30_000;
 
 async function open(hash: string, theme: string, scheme: string) {
@@ -86,7 +86,7 @@ describe('every theme', { timeout: SLOW }, () => {
     await open('#/', 'plain', 'light');
     screen.getByRole('button', { name: /Theme/ }).click();
     const options = await screen.findAllByRole('option');
-    expect(options.map((o) => o.textContent)).toEqual(THEMES.map((t) => t.label));
+    expect(options.map((o) => o.textContent)).toEqual(['Plain', 'Crate', 'Harvest', 'Starship', 'Realm', 'Sprawl', 'Frontier', 'Overworld']);
   });
 
   it('ships skins for the named slots only, and only as a built-in theme', () => {

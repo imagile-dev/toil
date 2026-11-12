@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// The list views are checked row by row, since a spreadsheet of record is only as good as its last unreviewed row.
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';

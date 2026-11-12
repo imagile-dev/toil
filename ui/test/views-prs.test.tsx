@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Code reviews are counted and aged here; the ones awaiting a second approver are marked, with some sympathy.
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';

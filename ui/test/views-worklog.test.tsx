@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// The worklog is rebuilt from the cache on request, a convenience timesheets have never offered.
 import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// Every theme speaks for the agent in its own voice, and each voice was approved by a committee that has since been dissolved.
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
