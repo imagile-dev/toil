@@ -468,11 +468,11 @@ function states(route, width, sample = true) {
   if (route === '#/project/sample-team/board/classify') {
     const until = (sel) => `(async () => { const deadline = Date.now() + 8000; while (!document.querySelector(${JSON.stringify(sel)}) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector(${JSON.stringify(sel)}) ? 1 : 'no ' + ${JSON.stringify(sel)}; })()`;
     const openDoing = `(async () => { const deadline = Date.now() + 8000; while (!document.querySelector('[data-how-its-doing]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const d = document.querySelector('[data-how-its-doing]'); if (!d) return 0; d.open = true; return 1; })()`;
-    // The page stays open from one width to the next, so at the second width the answers may already have been accepted: the line saying it asked is then what shows.
+    // Asking changes nothing in the ledger, so every width and theme can ask again. Accepting does (a pick is recorded in the person's ledger, which the sample server keeps for its whole run), so no state accepts: a later width would find nothing left to ask about. The card shows the changes the sample's ledger already has waiting.
     const asked = `(async () => { if (!document.querySelector('[data-proposal], [data-asked]')) { if (!(await ${clickAll('[data-ask-agent]:not([disabled])', null, 8000)})) return 'the Ask button never came on'; } return await ${until('[data-proposal], [data-asked]')}; })()`;
     out.push({ clearOverlays: true, name: 'doing-open', setup: openDoing, undoJs: `(() => { const d = document.querySelector('[data-how-its-doing]'); if (d) d.open = false; })()` });
     out.push({ clearOverlays: true, name: 'agent-answers', setup: asked });
-    out.push({ clearOverlays: true, name: 'apply-card', setup: `(async () => { const n = await ${asked}; if (n !== 1) return n; await ${clickAll('[data-accept-all]', null, 500)}; await ${clickAll('[data-review-apply]', null, 2000)}; return await ${until('[data-apply] [data-change]')}; })()` });
+    out.push({ clearOverlays: true, name: 'apply-card', setup: `(async () => { const n = await ${asked}; if (n !== 1) return n; if (document.querySelector('[data-apply] [data-change]')) return 1; if (!(await ${clickAll('[data-review-apply]:not([disabled])', null, 5000)})) return 'the Review and apply button never came on'; return await ${until('[data-apply] [data-change]')}; })()` });
     out.push({ clearOverlays: true, name: 'tune-result', setup: `(async () => { await ${openDoing}; if (!(await ${clickAll('[data-improve]')})) return 'no Improve button'; return await ${until('[data-tune]')}; })()` });
   }
   // The reclassify form from an item's chip, and the editor's parts open with a blank rule added.
