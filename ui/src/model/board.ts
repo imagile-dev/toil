@@ -1,16 +1,21 @@
 /**
  * The board (#252): one column per OWI status category, so items from any
  * tracker sit side by side under the same headings, each still showing its
- * source's own status word. A move on the board changes nothing. It becomes a
- * proposal (src/proposal.ts) naming the toil write command that would make
- * it, with the status word taken from items the toil project already shows in that
- * column, since each workflow names its statuses its own way. Where that name
+ * source's own status word. A move on the board is a proposal
+ * (src/proposal.ts) naming the toil write command that would make it, with
+ * the column's intent (`--to start`), which toil resolves against that
+ * item's own workflow; a GitHub project's Status word is taken from items the
+ * toil project already shows in that column. It is a
+ * proposal when a person has turned applying moves off, and wherever the
+ * server can't apply it (see `appliesItself`); otherwise the server makes the
+ * move itself (ui/server/board.ts) and this file's command is only the fallback. Where that name
  * isn't known, or the item isn't where its status can be set (a GitHub issue
  * that isn't on a project board), the proposal says so instead of guessing.
  * A kanban board where nothing moves until somebody signs.
  */
 
 import { STATUS_CATEGORY_LABEL, shortKey } from '../format.ts';
+import { MOVE_INTENT, type MoveColumn } from '../board-api.ts';
 import type { Proposal } from '../proposal.ts';
 import type { StatusCategory, WorkItem } from '../toil.ts';
 import { flows } from './flow.ts';
@@ -85,6 +90,14 @@ export function canMove(item: WorkItem): CanMove {
   return { ok: false, reason: `Can't be moved here: toil has no status change for ${item.source.area} items.` };
 }
 
+/**
+ * Whether Toil UI can apply this item's move itself: Jira and Azure DevOps, whose
+ * toil commands resolve a column's intent against the item's own workflow. A GitHub
+ * project's Status options carry no category to choose by, so a GitHub move stays a
+ * proposal, with its command.
+ */
+export const appliesItself = (item: WorkItem): boolean => ['jira', 'ado'].includes(family(item));
+
 /** What moving an item to another column would take; null when it's already there. */
 export function proposeMove(item: WorkItem, to: StatusCategory, items: WorkItem[], toilProject: string): Proposal | null {
   if (to === item.statusCategory || to === 'UNKNOWN') return null;
@@ -109,17 +122,15 @@ export function proposeMove(item: WorkItem, to: StatusCategory, items: WorkItem[
     return { ...base, command: 'github project status', input: { toilProject, item: boardId, to: status }, note: `"${status}" is the Status other ${label} items use; the project may name its columns differently, and an unknown one is refused with the real options.`, ...(options ? { hint: options } : {}) };
   }
   // Each Jira and Azure DevOps pair (Data Center or Server, and Cloud) names its commands alike, so the item's own area fills the path.
+  // The command takes the column's intent, the one the server sends: toil resolves it against this item's own workflow and, when no single move fits, lists the ones it has.
   const transitions = { text: 'List the transitions the workflow offers:', command: `${item.source.area} issue transitions`, input: { toilProject, key: item.source.key } };
   const states = { text: 'List the states the work item type has:', command: `${item.source.area} work-item states`, input: { toilProject, type: item.typeName ?? 'User Story' } };
-  if (!status) {
-    const hint = fam === 'jira' ? transitions : states;
-    return { ...base, command: null, input: null, note: `No ${label} item in this Toil project shows which status to use.`, hint };
-  }
+  const note = `toil picks the ${label} move from this item's own workflow, and lists the moves it has when none fits.`;
   if (fam === 'jira') {
-    return { ...base, command: `${item.source.area} issue transition`, input: { toilProject, key: item.source.key, transition: status }, note: `"${status}" is the status other ${label} items use; the workflow may name the transition differently.`, hint: transitions };
+    return { ...base, command: `${item.source.area} issue transition`, input: { toilProject, key: item.source.key, to: MOVE_INTENT[to as MoveColumn] }, note, hint: transitions };
   }
   if (fam === 'ado') {
-    return { ...base, command: `${item.source.area} work-item transition`, input: { toilProject, id: Number(item.source.key), state: status }, note: null };
+    return { ...base, command: `${item.source.area} work-item transition`, input: { toilProject, id: Number(item.source.key), to: MOVE_INTENT[to as MoveColumn] }, note, hint: states };
   }
   return { ...base, command: null, input: null, note: `toil has no status change for ${item.source.area} items.` };
 }

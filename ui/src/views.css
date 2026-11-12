@@ -148,6 +148,22 @@
 .proposal h3 { margin: 0; }
 .command { margin: 0; padding: 0.5rem 0.6rem; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
 .proposal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+/* The tidy card (the Board's): the line, one primary action, and the command a step further in. */
+.proposal-why { margin: 0; }
+/* A quiet action alone in the row lines up with the text above it, not inset by its own padding. */
+.proposal--tidy .proposal-actions > .btn--quiet:first-child { margin-left: -0.75rem; }
+.proposal--tidy { gap: 0.55rem; }
+.proposal-command { border-top: 1px solid var(--line); padding-top: 0.4rem; }
+.proposal-command > summary { cursor: pointer; color: var(--link); font-size: 0.9375rem; }
+.proposal-command[open] > summary { margin-bottom: 0.5rem; }
+.proposal-command > * + * { margin-top: 0.5rem; }
+/* A drop being applied: the card is already in its new column, and says so quietly until the tracker answers. */
+.card--moving { opacity: 0.8; }
+.card-moving { margin: 0; padding: 0 0.6rem 0.5rem; font-size: 0.8125rem; color: var(--muted); }
+/* What the last drop did, kept in view while the board is: a confirmation with its Undo, or a refusal that stays until dismissed. */
+.board-notice { position: sticky; top: 0.5rem; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; margin: 0 0 0.75rem; padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--radius); background: var(--raised); }
+.board-notice--failed { border-left-color: var(--danger); }
+.board-notice > p { margin: 0; flex: 1 1 16rem; }
 
 /* Aging. */
 .aging { list-style: none; padding: 0; display: grid; gap: 0.85rem; }
@@ -362,21 +378,6 @@
 .worklog-note .field-text, .worklog-export .field-text { width: 100%; }
 .worklog-md pre { margin: 0; max-height: 28rem; overflow: auto; padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); color: var(--ink); font-family: var(--font-mono); font-size: 0.8125rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .worklog-md pre:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-/* The stand-up (#345): the range, the summary, then a card per person; each line numbered for the write-up. */
-.standup { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; min-width: 0; }
-.standup-range { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem 1rem; margin-top: 0.5rem; }
-.standup-range .field-text { flex: 1 1 10rem; min-width: 0; }
-.standup-summary { display: grid; gap: 0.75rem; min-width: 0; }
-.standup-summary h2 { margin: 0; overflow-wrap: anywhere; }
-.standup-buckets { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
-@media (min-width: 1024px) { .standup-buckets { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.standup-line { grid-template-columns: 2.5rem minmax(0, 1fr); }
-.standup-fact { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.standup-line[data-cited] { box-shadow: inset 4px 0 0 var(--accent); }
-.standup-line[data-cited] .standup-fact { color: var(--ink); font-weight: 700; padding-left: 0.4rem; }
-.standup-writeup { border-left: 4px solid var(--accent); padding-left: 0.75rem; display: grid; gap: 0.5rem; min-width: 0; overflow-wrap: anywhere; }
-.standup-writeup h3 { margin: 0; font-size: 1rem; }
-.standup-writeup .btn--small { margin: 0 0.15rem; }
 
 /* The usage lines (#552): one readable line, the breakdown behind a fold. */
 .usage-details summary, .chat-usage summary { cursor: pointer; }

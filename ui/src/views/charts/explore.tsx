@@ -86,7 +86,7 @@ function SaveToCharts({ spec, chart }: { spec: PivotSpec; chart: SavedView['char
     try {
       const env = await config.run('projects view set', saveViewInput(toilProject.name, name, title, spec, chart, replace));
       if (env.ok) {
-        setOutcome({ ok: true, message: `Saved. It is on the Charts list under "Saved by your team".` });
+        setOutcome({ ok: true, message: `Saved. Find it by typing its name in the command palette.` });
         markSaved();
       } else if (/already set/.test(env.error.message)) setOutcome({ ok: false, message: `A saved view called "${title.trim()}" already exists.`, exists: true });
       else setOutcome({ ok: false, message: env.error.message, fix: env.error.fix ?? null });
@@ -99,12 +99,12 @@ function SaveToCharts({ spec, chart }: { spec: PivotSpec; chart: SavedView['char
   return (
     <div className="explore-save" data-explore-save="">
       <button type="button" className="btn btn--small" aria-expanded={open} aria-disabled={off ? true : undefined} onClick={() => setOpen((o) => !o)}>
-        Save to Charts
+        Save this view
       </button>
       {open &&
         (off ? (
           <p className="note" role="status" data-explore-save-off="">
-            {off === config?.disabled ? 'This is sample data, so nothing can be saved here. In Toil UI on your own machine, Save to Charts keeps the view in your Toil project for everyone.' : off}
+            {off === config?.disabled ? 'This is sample data, so nothing can be saved here. In Toil UI on your own machine, Saving a view keeps it in your Toil project for everyone.' : off}
           </p>
         ) : (
           <form
@@ -115,7 +115,7 @@ function SaveToCharts({ spec, chart }: { spec: PivotSpec; chart: SavedView['char
               void save(false);
             }}
           >
-            <p className="note">Keeps this view in your Toil project, so everyone opens the same chart from the Charts list.</p>
+            <p className="note">Keeps this view in your Toil project, so everyone opens the same chart by typing its name in the command palette.</p>
             <label>
               Name this view
               <input className="edit-field" value={title} maxLength={80} autoComplete="off" onChange={(e) => setTitle(e.target.value)} />

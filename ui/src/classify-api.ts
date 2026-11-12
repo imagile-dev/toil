@@ -19,6 +19,7 @@ import type { AgentVerdict, ClassifyArea, Scheme } from '../../src/core/classify
 import type { ClassifyStats } from '../../src/core/classify/ledger-types.ts';
 import type { WorkItem } from './toil.ts';
 import type { Say } from './model/classify.ts';
+import type { MoveColumn, MoveOutcome } from './board-api.ts';
 
 export type { ClassifyStats };
 
@@ -150,6 +151,14 @@ export interface ClassifyApi {
   tune(toilProject: string, items: WorkItem[], adapter?: string): Promise<TuneResult>;
   applyRevision(id: string): Promise<SaveResult>;
   saveScheme(toilProject: string, scheme: Scheme): Promise<SaveResult>;
+  /**
+   * The Board's drop rides on this seam, since it is the one the page already holds for changes a person makes: names an item
+   * and a column, and the server applies the move through toil's own command or says why it left it a proposal. Absent where
+   * a view has no server to ask; it throws with toil's message and fix when toil refuses.
+   */
+  moveItem?(toilProject: string, item: string, to: MoveColumn): Promise<MoveOutcome>;
+  /** Why a drop can't be applied here (the sample), or null; checked before the card moves, so the sample never looks as if it wrote. */
+  readonly movesDisabled?: string | null;
 }
 
 /** The decided items an Apply reads: the items themselves. What was decided is in the person's ledger, the AI agent's accepted suggestions included. */

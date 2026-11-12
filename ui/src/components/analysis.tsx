@@ -25,8 +25,8 @@ export function whoText(a: { adapter: string | null; model: string | null; by: s
 const ADAPTER_LABEL: Record<string, string> = { claude: 'Claude', copilot: 'GitHub Copilot', codex: 'Codex' };
 
 /** `level`: the heading level of its labels, one below the heading it sits under. `done` false: still streaming, so a missing label is not yet a slip. */
-export function AnalysisBody({ parts, briefing, open = false, level = 4, done = true }: { parts: readonly AnswerPart[]; briefing?: Briefing | null; open?: boolean; level?: 3 | 4; done?: boolean }) {
-  const H = level === 3 ? 'h3' : 'h4';
+export function AnalysisBody({ parts, briefing, open = false, level = 4, done = true }: { parts: readonly AnswerPart[]; briefing?: Briefing | null; open?: boolean; level?: 2 | 3 | 4; done?: boolean }) {
+  const H = `h${level}` as 'h2' | 'h3' | 'h4';
   const words = useWords();
   const text = textOfParts(parts);
   // A briefing (#494) the server lifted out, or one still in the text (the preview's scripted agent, or mid-stream).
@@ -87,7 +87,7 @@ export function AnalysisBody({ parts, briefing, open = false, level = 4, done = 
 }
 
 /** Analyze's briefing (#494), top-down: the recommendation, each reason with its items, why and the next step, then the rest of the answer as evidence, folded. */
-function BriefingBody({ briefing: b, evidence, open, H }: { briefing: Briefing; evidence: string; open: boolean; H: 'h3' | 'h4' }) {
+function BriefingBody({ briefing: b, evidence, open, H }: { briefing: Briefing; evidence: string; open: boolean; H: 'h2' | 'h3' | 'h4' }) {
   const paragraphs = evidence.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
   return (
     <div className="analysis-body">

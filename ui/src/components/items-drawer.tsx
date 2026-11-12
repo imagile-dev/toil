@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { currentQuery, withQuery } from '../address.ts';
 import { useData } from '../data.ts';
-import { estimateText, peekHref, personText, shortKey, sourceLabel, STATUS_CATEGORY_LABEL } from '../format.ts';
+import { peekHref, personText, shortKey, sourceLabel, STATUS_CATEGORY_LABEL } from '../format.ts';
 import { useWorkInsights } from '../insights-data.ts';
 import { decodeDrill, resolveDrill } from '../model/drill.ts';
 import { labelOfDimension } from '../model/work-insights.ts';
@@ -25,6 +25,12 @@ import { DataTable, type Column } from './layout.tsx';
 import './items-drawer.css';
 
 type SortKey = 'key' | 'title' | 'status' | 'assignee' | 'estimate' | 'category' | `dim:${string}`;
+
+/** An estimate in a few characters, for a narrow column: "3 pts", "4 h", "2 d". */
+const estimateShort = (item: WorkItem): string => {
+  const e = item.estimate!;
+  return `${e.value} ${e.unit === 'points' ? 'pts' : e.unit === 'hours' ? 'h' : 'd'}`;
+};
 
 const tie = (a: WorkItem, b: WorkItem) => a.id.localeCompare(b.id, undefined, { numeric: true });
 
@@ -89,17 +95,30 @@ export function ItemsDrawer({ spec }: { spec: string }) {
     const c = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true });
     return (sort.down ? -c : c) || tie(a, b);
   });
+  // The sort header is quiet: plain header text and a small arrow on the sorted column; the table's own headings say which is sorted (aria-sort).
   const header = (label: string, by: SortKey): ReactNode => (
-    <button type="button" className="drill-sort" aria-label={`Sort by ${label}`} aria-pressed={sort.by === by} onClick={() => setSort((s) => ({ by, down: s.by === by ? !s.down : false }))} data-sort={by}>
+    <button type="button" className="drill-sort" aria-label={`Sort by ${label}`} onClick={() => setSort((s) => ({ by, down: s.by === by ? !s.down : false }))} data-sort={by}>
       {label}
-      {sort.by === by && <span aria-hidden="true">{sort.down ? ' ↓' : ' ↑'}</span>}
+      <span className="drill-sort__arrow" aria-hidden="true">
+        {sort.by === by ? (sort.down ? '↓' : '↑') : ''}
+      </span>
     </button>
   );
+  const sortOf = (by: SortKey): Column<WorkItem>['sort'] => (sort.by === by ? (sort.down ? 'descending' : 'ascending') : 'none');
+  // A column is shown only if it says something: none with no estimate or nobody assigned, and a split's column only where its value differs from row to row
+  // (a list opened from one cell of a split repeats that cell's own value in it). Category stays, first, whatever it says.
+  const varies = (by: SortKey) => new Set(items.map((i) => String(text(i, by)))).size > 1;
+  const shownDims = dims.filter((d) => varies(`dim:${d}`));
+  const hasEstimate = items.some((i) => i.estimate);
+  const hasAssignee = items.some((i) => i.assignee);
   const columns: Array<Column<WorkItem>> = [
+    { header: header('Category', 'category'), label: 'Category', className: 'drill-col drill-col--category', sort: sortOf('category'), cell: (i) => <ReclassifyChip item={i} /> },
     {
       header: header('Item', 'key'),
       label: 'Item',
       rowHeader: true,
+      className: 'drill-col drill-col--key',
+      sort: sortOf('key'),
       cell: (i) => (
         <a className="item-link" href={peekHref(here, i.id)} data-row={i.id}>
           <span className="key">
@@ -108,23 +127,22 @@ export function ItemsDrawer({ spec }: { spec: string }) {
         </a>
       ),
     },
-    { header: header('Title', 'title'), label: 'Title', cell: (i) => i.title },
-    { header: header('Status', 'status'), label: 'Status', cell: (i) => <StatusChip category={i.statusCategory} status={i.status} /> },
-    { header: header('Assignee', 'assignee'), label: 'Assignee', cell: (i) => personText(i.assignee) },
-    { header: header('Estimate', 'estimate'), label: 'Estimate', cell: (i) => estimateText(i) },
-    { header: header('Category', 'category'), label: 'Category', cell: (i) => <ReclassifyChip item={i} /> },
-    ...dims.map(
-      (d): Column<WorkItem> => ({ header: header(labelOfDimension(d), `dim:${d}`), label: labelOfDimension(d), cell: (i) => ins.valueText(i, d) ?? <span aria-label="not read yet">–</span> }),
+    { header: header('Title', 'title'), label: 'Title', className: 'drill-col drill-col--title', sort: sortOf('title'), cell: (i) => <span className="drill-title" title={i.title}>{i.title}</span> },
+    { header: header('Status', 'status'), label: 'Status', className: 'drill-col drill-col--status', sort: sortOf('status'), cell: (i) => <StatusChip category={i.statusCategory} status={i.status} /> },
+    ...(hasAssignee ? [{ header: header('Assignee', 'assignee'), label: 'Assignee', className: 'drill-col drill-col--assignee', sort: sortOf('assignee'), cell: (i: WorkItem) => personText(i.assignee) } satisfies Column<WorkItem>] : []),
+    ...(hasEstimate ? [{ header: header('Estimate', 'estimate'), label: 'Estimate', className: 'drill-col drill-col--estimate', sort: sortOf('estimate'), cell: (i: WorkItem) => (i.estimate ? estimateShort(i) : <span aria-label="no estimate">–</span>) } satisfies Column<WorkItem>] : []),
+    ...shownDims.map(
+      (d): Column<WorkItem> => ({ header: header(labelOfDimension(d), `dim:${d}`), label: labelOfDimension(d), className: 'drill-col drill-col--dim', sort: sortOf(`dim:${d}`), cell: (i) => ins.valueText(i, d) ?? <span aria-label="not read yet">–</span> }),
     ),
   ];
   const sortOptions = [
+    { id: 'category', label: 'Category' },
     { id: 'key', label: 'Item' },
     { id: 'title', label: 'Title' },
     { id: 'status', label: 'Status' },
-    { id: 'assignee', label: 'Assignee' },
-    { id: 'estimate', label: 'Estimate' },
-    { id: 'category', label: 'Category' },
-    ...dims.map((d) => ({ id: `dim:${d}`, label: labelOfDimension(d) })),
+    ...(hasAssignee ? [{ id: 'assignee', label: 'Assignee' }] : []),
+    ...(hasEstimate ? [{ id: 'estimate', label: 'Estimate' }] : []),
+    ...shownDims.map((d) => ({ id: `dim:${d}`, label: labelOfDimension(d) })),
   ];
   return (
     <aside className="item-drawer drill-drawer" aria-labelledby="drill-title" data-drill={list.ids.length}>
@@ -143,7 +161,7 @@ export function ItemsDrawer({ spec }: { spec: string }) {
           <div className="drill-sortmenu">
             <Choice label="Sort by" value={sort.by} options={sortOptions} onChange={(id) => setSort({ by: id as SortKey, down: false })} />
           </div>
-          <DataTable label="Items" caption={`${list.title}, ${items.length} items`} columns={columns} rows={sorted} rowKey={(i) => i.id} wide />
+          <DataTable label="Items" caption={`${list.title}, ${items.length} items`} columns={columns} rows={sorted} rowKey={(i) => i.id} wide className={`drill-table drill-table--dims-${Math.min(shownDims.length, 2)}`} />
         </>
       )}
     </aside>

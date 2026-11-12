@@ -35,6 +35,12 @@ export function flowHeadline(ins: WorkInsights): Headline {
   return { text, note: f.cycleDays === null ? "how long they took wasn't read: no status history" : `last 90 days, over ${f.weeks} complete weeks` };
 }
 
+/** What the Summary's small Flow chart draws: what was finished each week, by category, over the default period. The full page's first chart before any split or filter. */
+export function flowThroughput(ins: WorkInsights): PivotResult {
+  const period = periodOf(ins.today);
+  return ins.run({ measure: 'throughput', split: 'category', across: 'resolved:week', top: 4, from: period.from, to: period.to });
+}
+
 const W = 560;
 
 /**

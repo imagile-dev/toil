@@ -183,16 +183,16 @@ describe('the board', () => {
     expect(columns([item({ id: 'c:U-1', statusCategory: 'UNKNOWN' })]).map((c) => c.category)).toEqual(['TODO', 'IN_PROGRESS', 'DONE', 'UNKNOWN']);
   });
 
-  it("proposes the tracker's own write command, with the status word its items use, and never one for no move", async () => {
+  it("proposes the tracker's own write command, with the column's intent, and never one for no move", async () => {
     const { data, byId } = await healthOf('card-payments');
     const pay102 = byId.get('corp-jira:PAY-102')!;
     expect(proposeMove(pay102, 'TODO', data.items, 'card-payments')).toBeNull();
     const p = proposeMove(pay102, 'IN_PROGRESS', data.items, 'card-payments')!;
-    expect(p).toMatchObject({ from: 'board', item: 'corp-jira:PAY-102', title: 'Move PAY-102 to In progress', command: 'jira issue transition', input: { toilProject: 'card-payments', key: 'PAY-102', transition: 'In Progress' } });
-    expect(commandLine(p, 'posix').line).toBe("toil jira issue transition 'PAY-102' --toil-project 'card-payments' --transition 'In Progress' --allow-write");
-    expect(commandLine(p, 'powershell').line).toBe("toil jira issue transition 'PAY-102' --toil-project 'card-payments' --transition 'In Progress' --allow-write");
+    expect(p).toMatchObject({ from: 'board', item: 'corp-jira:PAY-102', title: 'Move PAY-102 to In progress', command: 'jira issue transition', input: { toilProject: 'card-payments', key: 'PAY-102', to: 'start' } });
+    expect(commandLine(p, 'posix').line).toBe("toil jira issue transition 'PAY-102' --toil-project 'card-payments' --to 'start' --allow-write");
+    expect(commandLine(p, 'powershell').line).toBe("toil jira issue transition 'PAY-102' --toil-project 'card-payments' --to 'start' --allow-write");
     const settle = await healthOf('settlement');
-    expect(commandLine(proposeMove(settle.byId.get('corp-ado:2303')!, 'IN_PROGRESS', settle.data.items, 'settlement')!, 'posix').line).toBe("toil ado work-item transition '2303' --toil-project 'settlement' --state 'Active' --allow-write");
+    expect(commandLine(proposeMove(settle.byId.get('corp-ado:2303')!, 'IN_PROGRESS', settle.data.items, 'settlement')!, 'posix').line).toBe("toil ado work-item transition '2303' --toil-project 'settlement' --to 'start' --allow-write");
   });
 
   it("proposes a GitHub board item's move with github project status, naming the item and the project's own status word", async () => {
@@ -234,7 +234,8 @@ describe('the board', () => {
     const lone = item({ id: 'c:L-1' });
     expect(statusFor(lone, 'DONE', [lone])).toBeNull();
     const p2 = proposeMove(lone, 'DONE', [lone], 'd')!;
-    expect(p2.note).toBe('No Done item in this Toil project shows which status to use.');
+    // A Jira move names the column's intent, so no peer item has to show a status word; toil lists the moves when none fits.
+    expect(p2).toMatchObject({ command: 'jira issue transition', input: { toilProject: 'd', key: 'L-1', to: 'done' } });
     expect(readLine(p2.hint!, 'posix').line).toBe("toil jira issue transitions 'L-1' --toil-project 'd'");
   });
 
@@ -242,7 +243,7 @@ describe('the board', () => {
     const todo = item({ id: 'cloud-jira:PAY-1', source: { area: 'jira', connection: 'cloud-jira', key: 'PAY-1', command: 'jira issue search', deployment: 'cloud' }, statusCategory: 'TODO', status: 'To Do' });
     const wip = item({ id: 'cloud-jira:PAY-2', source: { area: 'jira', connection: 'cloud-jira', key: 'PAY-2', command: 'jira issue search', deployment: 'cloud' }, statusCategory: 'IN_PROGRESS', status: 'In Progress' });
     const p = proposeMove(todo, 'IN_PROGRESS', [todo, wip], 'd')!;
-    expect(p).toMatchObject({ command: 'jira issue transition', input: { toilProject: 'd', key: 'PAY-1', transition: 'In Progress' }, hint: { command: 'jira issue transitions', input: { toilProject: 'd', key: 'PAY-1' } } });
+    expect(p).toMatchObject({ command: 'jira issue transition', input: { toilProject: 'd', key: 'PAY-1', to: 'start' }, hint: { command: 'jira issue transitions', input: { toilProject: 'd', key: 'PAY-1' } } });
     expect(proposeMove(todo, 'DONE', [todo], 'd')!.hint).toMatchObject({ command: 'jira issue transitions' });
   });
 
@@ -367,11 +368,9 @@ describe('a proposal', () => {
     expect(commandLine({ command: 'jira issue update', input }, 'posix').line === null).toBe(c === '\n' || c === '\r');
   });
 
-  it('advises only what the command accepts: a board move to "Code Review & QA" in PowerShell', () => {
-    const qa = item({ id: 'corp-jira:QA-2', status: 'Code Review & QA', statusCategory: 'IN_PROGRESS' });
-    const todo = item({ id: 'corp-jira:QA-1', status: 'To Do' });
-    const p = proposeMove(todo, 'IN_PROGRESS', [todo, qa], 'card-payments')!;
-    expect(p.input).toEqual({ toilProject: 'card-payments', key: 'QA-1', transition: 'Code Review & QA' });
+  it('advises only what the command accepts: a transition named "Code Review & QA" in PowerShell', () => {
+    // A board move now names an intent, so a status word with an & arrives only when a person types one into `--transition`.
+    const p = { command: 'jira issue transition', input: { toilProject: 'card-payments', key: 'QA-1', transition: 'Code Review & QA' } };
     const ps = commandLine(p, 'powershell');
     expect(ps.line).toBeNull();
     // transition-issue has no --input-file, so the advice never names it: bash/zsh or MCP instead.

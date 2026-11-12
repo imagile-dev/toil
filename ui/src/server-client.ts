@@ -21,7 +21,8 @@ import type { Envelope, Execute } from './toil.ts';
 import type { ChatSession, ServerStatus } from './fingerprint.ts';
 import type { AnalysesApi } from './analyses.ts';
 import type { AnalysisSummary, AnalysisView } from './model/analysis.ts';
-import type { AgentChoice, ClassifyApi, LedgerView } from './classify-api.ts';
+import { SAMPLE_CANNOT_WRITE, type AgentChoice, type ClassifyApi, type LedgerView } from './classify-api.ts';
+import type { MoveOutcome } from './board-api.ts';
 import type { WorkItem } from './toil.ts';
 import { WORKLOG_SAMPLE_DISABLED, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth, type WorklogRebuilt, type WorklogStandup } from './worklog.ts';
 
@@ -434,7 +435,7 @@ export function httpAnalyses(base = './'): AnalysesApi {
  * command or a path, and each throws with the server's own message and fix. A body is one request, so a call that would carry
  * more than the server takes is refused here, in words, rather than cut off there.
  */
-export function httpClassify(base = './'): ClassifyApi {
+export function httpClassify(base = './', { sample = false }: { sample?: boolean } = {}): ClassifyApi {
   // An item without its history, which no classification reads, and (for the question to an AI agent) without the raw record it keeps beside it.
   const slim = (item: WorkItem, keepNative: boolean): WorkItem => {
     const rest: Record<string, unknown> = { ...item };
@@ -468,5 +469,12 @@ export function httpClassify(base = './'): ClassifyApi {
     tune: (toilProject, items, adapter) => post('tune', { toilProject, items: items.map((i) => slim(i, false)), ...(adapter ? { adapter } : {}) }, 'Improving the categories'),
     applyRevision: (id) => post('revision/apply', { id }, 'Saving the revision'),
     saveScheme: (toilProject, scheme) => post('scheme/save', { toilProject, scheme }, 'Saving the categories'),
+    // The Board's drop: a Toil project, an item's id and a column, and nothing else.
+    movesDisabled: sample ? SAMPLE_CANNOT_WRITE : null,
+    moveItem: async (toilProject, item, to) => {
+      const res = await call(base, 'api/board/move', { body: { toilProject, item, to } });
+      if (!res.ok) throw await failure(res, 'Moving the card');
+      return (await res.json()) as MoveOutcome;
+    },
   };
 }

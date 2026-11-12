@@ -141,9 +141,11 @@ describe('the palette entries', () => {
     const found = paletteResults(entries, shortKey(one), null);
     expect(found[0]!.group).toBe('items');
     expect(found[0]!.entries[0]!.id).toBe(hit.id);
-    // Tabs: every toil project's eight, the one on screen's alone with nothing typed.
-    expect(entries.filter((e) => e.group === 'tabs')).toHaveLength(16);
-    expect(paletteResults(entries, '', 'settlement').find((g) => g.group === 'tabs')!.entries.map((e) => e.label)).toEqual(['Summary', 'Board', 'What blocks what', 'Code reviews', 'People', 'Charts', 'What happened', 'Past briefings']);
+    // Tabs: every toil project's seven, the one on screen's alone with nothing typed. Its charts and earlier briefings are found by typing, never listed (#567).
+    expect(entries.filter((e) => e.group === 'tabs' && !e.typed)).toHaveLength(14);
+    expect(entries.filter((e) => e.typed && e.id.startsWith('chart:settlement:')).map((e) => e.label)).toEqual(['Work mix', 'Releases', 'Sprints', "Where we're working", 'Flow', 'Explore']);
+    expect(paletteResults(entries, 'Releases', 'settlement').flatMap((g) => g.entries).some((e) => e.id === 'chart:settlement:releases')).toBe(true);
+    expect(paletteResults(entries, '', 'settlement').find((g) => g.group === 'tabs')!.entries.map((e) => e.label)).toEqual(['Summary', 'Board', 'What blocks what', 'Code reviews', 'People', 'Stand-up', 'What happened']);
   });
 
   it('offers Ask, Analyze, Assign and the agents only on a Toil project page, and Sync only where there is a cache', async () => {
@@ -173,7 +175,7 @@ describe('the palette entries', () => {
     const x = { route: { view: 'dashboard' as const, toilProject: 'card-payments' }, toilProjects: ['card-payments'], loaded: { 'card-payments': { ok: true as const, value: card } } };
     const withLog = paletteEntries(base({ ...x, hasWorklog: true })).find((e) => e.id === 'cmd:standup');
     expect(withLog!.label).toBe('Open the stand-up');
-    expect(withLog!.go).toEqual({ href: '#/project/card-payments/worklog/standup' });
+    expect(withLog!.go).toEqual({ href: '#/project/card-payments/standup' });
     expect(paletteEntries(base(x)).some((e) => e.id === 'cmd:standup')).toBe(false);
   });
 });

@@ -186,3 +186,25 @@ describe("the worklog's two calls to toil beyond the reads (#308)", () => {
     expect(new Validator(def.inputSchema as object, '2020-12', false).validate({ scheme: 'base64', decode: true, text: 'IyBXb3JrbG9n', out: 'worklog-card-payments-2026-10-12.md' }).errors).toEqual([]);
   });
 });
+
+describe("the Board's drop (ui/server/board.ts) against the real registry", () => {
+  const valid = (command: string, input: Record<string, unknown>) => new Validator(byName.get(command)!.inputSchema as object, '2020-12', false).validate(input).errors;
+
+  it('reads the item and connections with read-only commands, and writes with one transition command per tracker', () => {
+    for (const read of ['projects list', 'connections list', 'jira issue get', 'ado work-item get']) {
+      const def = byName.get(read);
+      expect(def, read).toBeDefined();
+      expect(def!.writes || def!.writesLocal, read).toBe(false);
+    }
+    for (const write of ['jira issue transition', 'ado work-item transition']) expect(byName.get(write)!.writes, write).toBe(true);
+  });
+
+  it('sends input those commands accept, the column as the intent toil resolves', () => {
+    for (const to of ['reopen', 'start', 'done']) {
+      expect(valid('jira issue transition', { toilProject: 'card-payments', key: 'PAY-102', to, allowWrite: true })).toEqual([]);
+      expect(valid('ado work-item transition', { toilProject: 'card-payments', id: 2304, to, allowWrite: true })).toEqual([]);
+    }
+    expect(valid('jira issue get', { toilProject: 'card-payments', key: 'PAY-102' })).toEqual([]);
+    expect(valid('ado work-item get', { toilProject: 'card-payments', id: 2304 })).toEqual([]);
+  });
+});

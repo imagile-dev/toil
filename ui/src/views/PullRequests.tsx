@@ -16,7 +16,6 @@ import { ThroughputSpark } from '../components/charts.tsx';
 import { Cited, ItemLink, PrLink } from '../components/items.tsx';
 import { DataTable, type Column } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
-import { Help } from '../components/help.tsx';
 import { useData } from '../data.ts';
 import { dateTime, toilProjectEditHref, toilProjectHref, personText } from '../format.ts';
 import { Empty, EmptyLink, SyncOr } from '../components/empty.tsx';
@@ -238,11 +237,8 @@ export function PullRequests() {
         <p className="eyebrow">
           <a href={toilProjectHref(toilProject.name)}>{toilProject.name}</a>
         </p>
-        <h1 tabIndex={-1} title={plain.title('Pull requests')}>
-          {plain.pw('Pull requests', 'Code reviews')}
-        </h1>
         <p className="lede">
-          {queue.length} open across {new Set(prs.map((c) => c.repo)).size} {new Set(prs.map((c) => c.repo)).size === 1 ? 'repository' : 'repositories'}, {prs.length - queue.length} merged or closed. Read {dateTime(now)}. <Help topic="prs" />
+          {queue.length} open across {new Set(prs.map((c) => c.repo)).size} {new Set(prs.map((c) => c.repo)).size === 1 ? 'repository' : 'repositories'}, {prs.length - queue.length} merged or closed. Read {dateTime(now)}.
         </p>
         {(toilProject.readTargets ?? []).filter((t) => !t.pullRequests).map((t) => (
           <p key={t.label} className="note">

@@ -31,6 +31,7 @@
  * meeting could have been this document, which is rather the point.
  */
 
+import { isQuestion, outstandingQuestions } from '../../../src/core/owi/comment.ts';
 import type { Change, Person, StatusCategory, WorkItem } from '../toil.ts';
 import { flows } from './flow.ts';
 import { agentsOf, isPerson, personKey, type Identity, type PersonEntry } from './people.ts';
@@ -41,12 +42,24 @@ import { addDays, cited, dayOf, escapeMd, isDay, link, OUTCOME_TEXT, shortDay, t
 /** The longest range one report covers, in days. */
 export const MAX_STANDUP_DAYS = 31;
 
-export type Bucket = 'done' | 'progress' | 'blocked' | 'next';
-export const BUCKETS: readonly Bucket[] = ['done', 'progress', 'blocked', 'next'];
-export const BUCKET_TITLE: Record<Bucket, string> = { done: 'Done', progress: 'In progress', blocked: 'Blocked', next: 'Next' };
-/** What an empty list says: Next names the sprint, or says there is none to take it from. */
-export const bucketNone = (b: Bucket, sprint: string | null) =>
-  b === 'done' ? 'Nothing done.' : b === 'progress' ? 'Nothing in progress.' : b === 'blocked' ? 'Nothing blocked.' : sprint ? `Nothing assigned and not started in ${sprint}.` : 'No current sprint to take it from.';
+export type Bucket = 'done' | 'progress' | 'blocked' | 'next' | 'comments';
+export const BUCKETS: readonly Bucket[] = ['done', 'progress', 'blocked', 'next', 'comments'];
+export const BUCKET_TITLE: Record<Bucket, string> = { done: 'Done', progress: 'In progress', blocked: 'Blocked', next: 'Next', comments: 'Comments' };
+/** What an empty list says in the Markdown file: Next names the sprint, or says there is none to take it from; Comments says when none were read. The page itself shows a dash. */
+export const bucketNone = (b: Bucket, sprint: string | null, commentsRead = true) =>
+  b === 'done'
+    ? 'Nothing done.'
+    : b === 'progress'
+      ? 'Nothing in progress.'
+      : b === 'blocked'
+        ? 'Nothing blocked.'
+        : b === 'comments'
+          ? commentsRead
+            ? 'No comments.'
+            : 'Comments not read yet.'
+          : sprint
+            ? `Nothing assigned and not started in ${sprint}.`
+            : 'No current sprint to take it from.';
 
 /** One line of the report: a fact from the worklog, or something as of the latest sync. */
 export interface StandupLine {
@@ -69,6 +82,8 @@ export interface StandupLine {
   refs: Record<string, WorklogRef>;
   /** Every OWI id the line names. */
   cites: string[];
+  /** On a comment line: whether it reads as a question, whether nobody else has answered it, and how many UTC days ago it was asked when so. */
+  comment?: { question: boolean; outstanding: boolean; ageDays: number | null };
 }
 
 export interface StandupGroup {
@@ -92,6 +107,10 @@ export interface StandupReport {
   asOf: string | null;
   /** The current sprint as of `asOf`, whose items Next lists; null when there is none. */
   sprint: string | null;
+  /** The sprint in one line, `Sprint 26: day 7 of 10, 7 of 25 done`; null with no sprint as of the sync. */
+  sprintLine: string | null;
+  /** The trackers whose comments were read (some item of that area came with its comments) and those whose were not: a dash on a Comments row means none for the first and not read yet for the second. */
+  comments: { read: string[]; notRead: string[] };
   /** What the worklog can't vouch for in the range, each with the days it applies to. */
   gaps: string[];
   team: StandupLine[];
@@ -152,7 +171,7 @@ const lower = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 // Names compared by code, without case, rather than through Intl, whose collation moves with each runtime's ICU data.
 const byName = (a: StandupGroup, b: StandupGroup) => (a.key === 'none' ? 1 : b.key === 'none' ? -1 : natural(a.name.toLowerCase(), b.name.toLowerCase()) || natural(a.key, b.key));
-const emptyLines = (): Record<Bucket, StandupLine[]> => ({ done: [], progress: [], blocked: [], next: [] });
+const emptyLines = (): Record<Bucket, StandupLine[]> => ({ done: [], progress: [], blocked: [], next: [], comments: [] });
 
 /** Finds or makes the group a line goes in. */
 function grouper(entries: PersonEntry[]) {
@@ -218,7 +237,12 @@ function natural(a: string, b: string): number {
   }
   return x.length - y.length;
 }
+/** UTC calendar days from `at` to `now`: a question asked yesterday afternoon is one day old this morning. */
+const daysSince = (at: string, now: string) => Math.max(0, Math.round((Date.parse(`${dayOf(now)}T00:00:00Z`) - Date.parse(`${dayOf(at)}T00:00:00Z`)) / 86_400_000));
 const order = (a: Draft, b: Draft) => (time(a) < time(b) ? -1 : time(a) > time(b) ? 1 : natural(a.key, b.key));
+
+/** Comments: the questions nobody has answered first, the longest waiting first, then the rest in time order. */
+const commentOrder = (a: Draft, b: Draft) => Number(Boolean(b.comment?.outstanding)) - Number(Boolean(a.comment?.outstanding)) || order(a, b);
 
 /** The stand-up for a range of days: a pure fold of its input. */
 export function buildStandup(input: StandupInput): StandupReport {
@@ -231,7 +255,7 @@ export function buildStandup(input: StandupInput): StandupReport {
   const team: Draft[] = [];
   const drafts = new Map<StandupGroup, Record<Bucket, Draft[]>>();
   const put = (group: StandupGroup, bucket: Bucket, line: Draft) => {
-    if (!drafts.has(group)) drafts.set(group, { done: [], progress: [], blocked: [], next: [] });
+    if (!drafts.has(group)) drafts.set(group, { done: [], progress: [], blocked: [], next: [], comments: [] });
     drafts.get(group)![bucket].push(line);
   };
 
@@ -296,6 +320,7 @@ export function buildStandup(input: StandupInput): StandupReport {
 
   // As of the latest sync: review waits, the sprint, and what is next in it.
   let sprint: ReturnType<typeof health> = null;
+  let sprintLine: string | null = null;
   if (asOf) {
     for (const c of input.pullRequests) {
       if (c.state !== 'OPEN') continue;
@@ -310,12 +335,43 @@ export function buildStandup(input: StandupInput): StandupReport {
       const { gone, total } = sprint.days;
       const left = Math.max(0, total - gone);
       const done = sprint.done.count;
+      sprintLine = `${sprint.sprint.name}: day ${Math.min(gone, total)} of ${total}, ${done} of ${sprint.items.length} done`;
       team.unshift({ key: `sprint:${sprint.sprint.name}`, at: null, day: null, subject: `sprint:${sprint.sprint.name}`, label: sprint.sprint.name, url: null, title: null, text: `${plural(left, 'working day')} left (day ${Math.min(gone, total)} of ${total}); ${done} of ${plural(sprint.items.length, 'item')} done`, refs: {}, cites: [] });
       for (const item of sprint.items) {
         if (item.statusCategory !== 'TODO' || !flows(item) || !item.assignee) continue;
         const label = item.source.key.replace(/^[^/]+\//, '');
         put(g.of(item.source.area, item.assignee), 'next', { key: `next:${item.id}`, at: null, day: null, subject: item.id, label, url: item.url, title: item.title, text: `${item.status ?? 'not started'}, in ${sprint.sprint.name}`, refs: { [item.id]: { label, url: item.url } }, cites: [item.id] });
       }
+    }
+  }
+
+  // Comments: what each person wrote in the range, and every question of theirs nobody else has answered, however old (as of the latest sync, like Next).
+  const seenAreas = new Set<string>();
+  const readAreas = new Set<string>();
+  for (const item of input.items) {
+    seenAreas.add(item.source.area);
+    if (item.comments === undefined) continue;
+    readAreas.add(item.source.area);
+    const open = new Set(outstandingQuestions(item.comments).map((c) => c.id));
+    for (const c of item.comments) {
+      const day = dayOf(c.at);
+      const outstanding = open.has(c.id);
+      if (!outstanding && (day === null || day < from || day > to)) continue;
+      const label = item.source.key.replace(/^[^/]+\//, '');
+      put(g.of(item.source.area, c.author), 'comments', {
+        key: `comment:${item.id}:${c.id}`,
+        at: c.at,
+        day,
+        subject: item.id,
+        label,
+        url: c.url ?? item.url,
+        title: item.title,
+        // Tracker text: `[[` would read as a citation, so it is spaced out.
+        text: c.text.replaceAll('[[', '[ [') || '(no text)',
+        refs: { [item.id]: { label, url: item.url } },
+        cites: [item.id],
+        comment: { question: isQuestion(c.text), outstanding, ageDays: outstanding ? daysSince(c.at, asOf ?? c.at) : null },
+      });
     }
   }
 
@@ -326,9 +382,9 @@ export function buildStandup(input: StandupInput): StandupReport {
   const groups = [...g.groups.values()].filter((x) => x.mapped || drafts.has(x)).sort(byName);
   for (const group of groups) {
     const d = drafts.get(group);
-    for (const b of BUCKETS) group.lines[b] = (d?.[b] ?? []).sort(order).map(number);
+    for (const b of BUCKETS) group.lines[b] = (d?.[b] ?? []).sort(b === 'comments' ? commentOrder : order).map(number);
   }
-  return { toilProject, from, to, timeZone: 'UTC', asOf, sprint: sprint?.sprint.name ?? null, gaps: [...(input.notes ?? []), ...gapsOf(pages)], team: teamLines, people: groups, facts: n };
+  return { toilProject, from, to, timeZone: 'UTC', asOf, sprint: sprint?.sprint.name ?? null, sprintLine, comments: { read: [...readAreas].sort(), notRead: [...seenAreas].filter((a) => !readAreas.has(a)).sort() }, gaps: [...(input.notes ?? []), ...gapsOf(pages)], team: teamLines, people: groups, facts: n };
 }
 
 function runLine(run: AgentRun): Draft {
@@ -402,32 +458,92 @@ export function standupMarkdown(r: StandupReport): string {
     for (const b of BUCKETS) {
       out.push(`**${BUCKET_TITLE[b]}**`, '');
       if (p.lines[b].length) for (const l of p.lines[b]) out.push(mdLine(r, l));
-      else out.push(bucketNone(b, r.sprint));
+      else out.push(bucketNone(b, r.sprint, r.comments.read.length > 0));
       out.push('');
     }
   }
   return out.join('\n');
 }
 
-/** `[[id]]` citations as their labels, for plain text. */
 /** Text from a tracker on one line, as a list item needs it: a title with a line break would otherwise start a line of its own. */
 const flat = (text: string) => text.replace(/\s*\r?\n\s*/g, ' ');
-const plainCited = (text: string, refs: Record<string, WorklogRef>) => flat(text.replace(/\[\[([^\]]+)\]\]/g, (_, id: string) => refs[id]?.label ?? id));
+/** `[[id]]` citations as their labels, for plain text. */
+export const plainCited = (text: string, refs: Record<string, WorklogRef>) => flat(text.replace(/\[\[([^\]]+)\]\]/g, (_, id: string) => refs[id]?.label ?? id));
 
-function plainLine(r: StandupReport, l: StandupLine): string {
-  const title = l.title ? ` ${plainCited(l.title, l.refs)}` : '';
-  return `- ${flat(l.label)}${title}: ${plainCited(l.text, l.refs)} (${whenText(r, l)})${l.url ? ` ${l.url}` : ''}`;
+/** Text cut to at most `n` characters on one line, with an ellipsis where it was cut. */
+export function shorten(text: string, n: number): string {
+  const one = text.replace(/\s+/g, ' ').trim();
+  return one.length > n ? `${one.slice(0, n - 1).trimEnd()}…` : one;
 }
 
-/** The report as plain text, for a chat that doesn't render Markdown. */
+/** How long a question has waited, in words: `4 days, no reply`, `today, no reply`. */
+export const waitText = (ageDays: number | null) => (ageDays === null ? 'no reply' : ageDays === 0 ? 'today, no reply' : `${plural(ageDays, 'day')}, no reply`);
+
+/** One thing in a bucket: the lines about one item or pull request folded into it, or one comment. */
+export interface Chip {
+  /** The first line's fact number, and so a stable key. */
+  key: string;
+  subject: string;
+  label: string;
+  /** The subject's title as plain text; null for a line that has none (an agent's assignment). */
+  title: string | null;
+  /** What happened to it, one phrase per line: `To Do → In Progress`, `opened`; for a comment, its excerpt. */
+  texts: string[];
+  url: string | null;
+  /** The latest time among its lines; null for one as of the sync. */
+  at: string | null;
+  lines: StandupLine[];
+  comment?: StandupLine['comment'];
+}
+
+/** A bucket's lines as chips: lines about the same subject fold into one chip, in order of first appearance; every comment is a chip of its own. */
+export function chipsOf(lines: StandupLine[]): Chip[] {
+  const out: Chip[] = [];
+  const bySubject = new Map<string, Chip>();
+  for (const l of lines) {
+    const title = l.title ? plainCited(l.title, l.refs) : null;
+    const text = plainCited(l.text, l.refs);
+    const known = l.comment ? undefined : bySubject.get(l.subject);
+    if (known) {
+      known.texts.push(text);
+      known.lines.push(l);
+      if (l.at && (!known.at || l.at > known.at)) known.at = l.at;
+      continue;
+    }
+    const chip: Chip = { key: l.fact, subject: l.subject, label: flat(l.label), title, texts: [text], url: l.url, at: l.at, lines: [l], ...(l.comment ? { comment: l.comment } : {}) };
+    out.push(chip);
+    if (!l.comment) bySubject.set(l.subject, chip);
+  }
+  return out;
+}
+
+/** The most items of one bucket the copied text names before it says how many more. */
+const COPY_ITEMS = 5;
+
+function chipText(c: Chip): string {
+  if (c.comment) return `${c.label} "${shorten(c.texts[0] ?? '', 60)}"${c.comment.outstanding ? ` (${waitText(c.comment.ageDays)})` : ''}`;
+  return `${c.label}${c.title ? ` ${shorten(c.title, 40)}` : ''}${c.texts.length ? ` (${c.texts.map((t) => shorten(t, 40)).join('; ')})` : ''}`;
+}
+
+/**
+ * The stand-up as text to paste into a chat, kept short: one team line, then one line per person with
+ * their buckets in a fixed order (Done, In progress, Blocked, Next, Comments), empty ones left out and
+ * long ones cut to five with a count. No Markdown, no links, no boilerplate: a stand-up is read aloud
+ * in two minutes, and a document that takes longer to read than the meeting did has missed the point
+ * twice.
+ */
 export function standupText(r: StandupReport): string {
-  const out = [standupTitle(r), '', standupLede(r), ''];
-  if (r.gaps.length) out.push('Coverage', ...r.gaps.map((gap) => `- ${flat(gap)}`), '');
-  out.push('Team', ...(r.team.length ? r.team.map((l) => plainLine(r, l)) : ['No sprint, scope changes, or builds and deployments that broke or recovered.']), '');
+  const facts = r.team.filter((l) => !l.subject.startsWith('sprint:')).map((l) => `${flat(l.label)} ${shorten(plainCited(l.text, l.refs), 50)}`);
+  const header = [r.sprintLine ?? 'Stand-up', rangeText(r), ...(facts.length ? [`Team: ${facts.slice(0, 3).join('; ')}${facts.length > 3 ? `; +${facts.length - 3} more` : ''}`] : [])].join(' · ');
+  const out = [header];
   for (const p of r.people) {
-    out.push(`${flat(groupTitle(p))}${p.mapped || p.key === 'none' ? '' : ", not in the Toil project's people"}`);
-    for (const b of BUCKETS) out.push(`${BUCKET_TITLE[b]}:`, ...(p.lines[b].length ? p.lines[b].map((l) => plainLine(r, l)) : [`- ${bucketNone(b, r.sprint)}`]));
-    out.push('');
+    const parts = BUCKETS.flatMap((b) => {
+      const chips = chipsOf(p.lines[b]);
+      if (!chips.length) return [];
+      const shown = chips.slice(0, COPY_ITEMS).map(chipText).join(', ');
+      return [`${BUCKET_TITLE[b]}: ${shown}${chips.length > COPY_ITEMS ? `, +${chips.length - COPY_ITEMS} more` : ''}`];
+    });
+    out.push(`${flat(groupTitle(p))} — ${parts.length ? parts.join('. ') : r.asOf === null ? 'not read yet' : 'nothing recorded'}`);
   }
   return out.join('\n');
 }
@@ -450,4 +566,53 @@ export function sinceText(r: Pick<StandupReport, 'from' | 'to'>, today: string):
   if (r.from === today) return 'Today';
   if (r.from === addDays(today, -1)) return 'Yesterday';
   return `Since ${WEEKDAY_NAMES[new Date(`${r.from}T00:00:00Z`).getUTCDay()]} (${shortDay(r.from)})`;
+}
+
+// Presets and the Summary's rows -------------------------------------------------------
+
+/** The days a person can pick from a menu; Custom is two dates they type. */
+export type Preset = 'default' | 'today' | 'week' | 'sprint' | 'custom';
+export const PRESETS: readonly Preset[] = ['default', 'today', 'week', 'sprint', 'custom'];
+export const PRESET_LABEL: Record<Preset, string> = { default: 'Since the last working day', today: 'Today', week: 'Last 7 days', sprint: 'This sprint', custom: 'Custom…' };
+
+/** The range a preset means, or null for Custom and for a sprint that has not started. `sprintStart` is the current sprint's first UTC day. */
+export function presetRange(preset: Preset, today: string, sprintStart: string | null): { from: string; to: string } | null {
+  if (preset === 'default') return defaultRange(today);
+  if (preset === 'today') return { from: today, to: today };
+  if (preset === 'week') return { from: addDays(today, -6), to: today };
+  if (preset === 'sprint') return sprintStart && sprintStart <= today ? { from: sprintStart > addDays(today, 1 - MAX_STANDUP_DAYS) ? sprintStart : addDays(today, 1 - MAX_STANDUP_DAYS), to: today } : null;
+  return null;
+}
+
+/** Which preset a range on the page is: no range in the address is the default; one that equals another preset's is that one; the rest is Custom. */
+export function presetOf(range: { from: string; to: string }, explicit: boolean, today: string, sprintStart: string | null): Preset {
+  if (!explicit) return 'default';
+  for (const p of ['default', 'today', 'week', 'sprint'] as const) {
+    const r = presetRange(p, today, sprintStart);
+    if (r && r.from === range.from && r.to === range.to) return p;
+  }
+  return 'custom';
+}
+
+/** A row of the report: one person's one bucket, for the Summary's short list. */
+export interface TopRow {
+  group: StandupGroup;
+  bucket: Bucket;
+  chips: Chip[];
+}
+
+/**
+ * The few rows that matter most, for a card with room for a handful: unanswered questions first,
+ * then what is blocked, then what got done, then what is in progress. Next waits for the full
+ * page. People keep the report's order within each kind.
+ */
+export function topRows(r: StandupReport, limit: number): TopRow[] {
+  const rows: TopRow[] = [];
+  for (const bucket of ['comments', 'blocked', 'done', 'progress'] as const) {
+    for (const group of r.people) {
+      const lines = bucket === 'comments' ? group.lines.comments.filter((l) => l.comment?.outstanding) : group.lines[bucket];
+      if (lines.length) rows.push({ group, bucket, chips: chipsOf(lines) });
+    }
+  }
+  return rows.slice(0, limit);
 }

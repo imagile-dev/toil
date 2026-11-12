@@ -54,7 +54,7 @@ export function Local({ session, execute, agent: firstAgent, names, status }: { 
   const [feedback] = useState(() => httpFeedback(session));
   const [worklog] = useState(() => httpWorklog(session));
   const [analyses] = useState(() => httpAnalyses());
-  const [classify] = useState(() => httpClassify());
+  const [classify] = useState(() => httpClassify('./', { sample: session.sample }));
   const [modelUsage] = useState(() => httpModelUsage());
   const [assignments] = useState(() => httpAssignments(session));
   // The server's own staleness (#305), for the header: one function for the page's life, which the header asks every minute.

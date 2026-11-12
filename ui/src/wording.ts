@@ -68,7 +68,6 @@ export const FUNCTIONAL = {
   'chart.hide': 'Hide this',
   // The Charts tab and its filter bar (#567): names a person reads to pick a dashboard, a split or a unit, so the same in every theme.
   'charts.eyebrow': 'Charts',
-  'charts.back': 'All charts',
   'charts.splitBy': 'Split by',
   'charts.measuredIn': 'Measured in',
   'charts.decided': 'How it was decided',

@@ -13,11 +13,11 @@ import { type PivotResult } from '../../../../src/core/insights/index.ts';
 import { Help } from '../../components/help.tsx';
 import { TrackerAction, Empty } from '../../components/empty.tsx';
 import { useData } from '../../data.ts';
-import { chartsHref } from '../../format.ts';
+import { toilProjectHref } from '../../format.ts';
+import { Breadcrumb } from '../../components/breadcrumb.tsx';
 import { addValue, writeFilters, type Filters } from '../../filters.ts';
 import { useAddress, useWorkInsights } from '../../insights-data.ts';
 import { encodeDrill, type Drill } from '../../model/drill.ts';
-import { useWords } from '../../theme-context.ts';
 import { ChartFrame, type CellRef, type ChartFrameProps } from '../../components/chartkit/index.ts';
 import { CardMenu, type CardMenuItem } from '../../components/card-menu.tsx';
 import { askAboutChart } from '../../commands.ts';
@@ -71,17 +71,12 @@ export function useSourceLine(category = false): string {
   return `${ins.sourceLine()}${category && ins.schemeNote ? ` ${ins.schemeNote}` : ''}`;
 }
 
-/** A dashboard's heading, with the way back to the list and its (i). */
+/** A dashboard's heading, with the breadcrumb back to the Summary it is a step in from (#567) and its (i). */
 export function DashboardHead({ title, help }: { title: string; help: HelpTopicId }) {
   const { toilProject } = useData();
-  const words = useWords();
   return (
     <header className="chart-page__head">
-      <p className="chart-page__crumb">
-        <a href={chartsHref(toilProject.name)} data-charts-back="">
-          {words('charts.back')}
-        </a>
-      </p>
+      <Breadcrumb trail={[{ label: 'Summary', href: toilProjectHref(toilProject.name) }, { label: title }]} />
       <h1 className="chart-page__title" tabIndex={-1} id="chart-page-title">
         {title} <Help topic={help} />
       </h1>

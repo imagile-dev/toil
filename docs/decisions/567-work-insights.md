@@ -160,6 +160,44 @@ Windows 11 with Node 24.22.1. Nothing here has met a real Jira, GitHub or Azure 
   longer describes the code. `jira issue fields` is still read, to copy registered
   fields back under their ids. Where: `jiraMoreFields` in `ui/src/load.ts`.
 
+**The maintainer's review of the screens, 12 November 2026**
+
+The maintainer looked at the screens and called six changes; what follows is how each
+was built, and the defaults taken where the call left a choice.
+
+- **Charts is no longer a tab; the Summary carries it** (the maintainer's call). The
+  Summary has one section, "Where the work goes", with three items: Work mix, Where
+  we're working and Flow, each its headline and one small chart, each a link to its
+  full page at `…/summary/<dashboard>` under a breadcrumb. Default taken: Releases,
+  Sprints and Explore are not items there ("we probably just need flow and where we're
+  working") but keep their addresses and their command palette entries, and Explore is
+  still where a split dialog's "Open the full chart" goes. The "Saved by your team"
+  list is gone; a saved view opens from the palette. Old `…/charts` addresses are
+  rewritten. Where: `ui/src/views/summary-charts.tsx`, `ui/src/components/breadcrumb.tsx`.
+- **No Past briefings tab** (the maintainer's call). "Get a briefing" sits on the
+  Summary and its result opens there; "Earlier briefings (N)" is a link under it. The
+  sample team's scripted briefing had no recommendation, which is why the tab looked
+  broken; it has one now, with a test.
+- **One tab, one page, no title under the tab** (the maintainer's call). Stand-up is
+  its own tab; no project page opens with a heading that repeats its tab, and a test
+  holds that for every tab. Default taken: the Dependencies panel's inner heading
+  became "Links between items", the same in every theme.
+- **The stand-up is tight, and shows comments** (the maintainer's call): person icons,
+  one row per bucket, one Copy text, and a Comments row whose unanswered questions come
+  first. **An empty bucket is a dash ("–"), by the maintainer's explicit call for this
+  screen.** Principle 12 keeps the dash for "not read yet", so the two are told apart
+  in the accessible text ("none" against "not read yet") and by the source line, which
+  names the trackers whose comments were not read. The maintainer may want principle 12
+  to say so. Defaults taken: Open Work Items gained an additive optional `comments`
+  field (absent: not read; the newest 20, plain text, capped), read for Jira through
+  the search's `comment` field at no extra request; GitHub, Azure DevOps and pull
+  request comments are not read, since toil reads them one item at a time; a question
+  is a comment with a "?" outside a link, outstanding while nobody else has commented
+  after it. Where: `src/core/owi/comment.ts`, `ui/src/model/standup.ts`,
+  `src/core/sample/comments.ts`.
+- **The items drawer** leads with the category, hides a column that is empty or the
+  same on every row, and has no sideways scroll at 1280 px and up.
+
 **Still the maintainer's to take**
 
 The proposal's decisions 1 to 7 were each taken as a default above or in the

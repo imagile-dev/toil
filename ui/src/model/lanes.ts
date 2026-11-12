@@ -155,7 +155,7 @@ export function splitSpec(measure: SplitMeasure, split: string | null, today: st
   return base;
 }
 
-/** Where "Open in Charts" goes: the Explore dashboard, with the modal's own split in its address. */
+/** Where "Open the full chart" goes: the Explore dashboard, with the modal's own split in its address. */
 export function exploreHref(toilProject: string, spec: PivotSpec): string {
   return `${chartsHref(toilProject, 'explore')}?${new URLSearchParams(specToQuery(spec)).toString()}`;
 }

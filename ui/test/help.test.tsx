@@ -156,7 +156,7 @@ describe('edit links', () => {
   const open = async (hash: string) => {
     window.location.hash = hash;
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview />);
-    await screen.findByRole('heading', { level: 1 });
+    await waitFor(() => expect(document.querySelector('h1, [data-tab-panel]')).toBeTruthy());
   };
 
   it("lands on the connection it names, and says so when there's none", async () => {
@@ -241,7 +241,7 @@ describe('learning links (#418)', () => {
   const open = async (hash: string) => {
     window.location.hash = hash;
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview />);
-    await screen.findByRole('heading', { level: 1 });
+    await waitFor(() => expect(document.querySelector('h1, [data-tab-panel]')).toBeTruthy());
   };
 
   it("puts Learn in Help's menu, after the view's docs and What's new, and takes it out once the setting is off", async () => {

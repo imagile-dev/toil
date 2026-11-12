@@ -8,14 +8,23 @@
  * toil project's focus left out or the code flagged that Analyze didn't mention.
  * The numbers wait behind a fold, and every other view is a quiet link away
  * as well as a tab. Analyze writes it when its latest answer is current;
- * otherwise code does, and the page says which (principle 4). Briefing notes,
- * with the appendix stapled to the back rather than the front.
+ * otherwise code does, and the page says which (principle 4). Get a briefing is
+ * here, beside the briefing it replaces, and the new one lands in this place
+ * (#567); earlier ones are a step in, at `…/summary/briefings`. Between the
+ * cards and the fold sit three small charts (views/summary-charts.tsx), each a
+ * link to its full page. Briefing notes, with the appendix stapled to the back
+ * rather than the front.
  */
 
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { Sparkline } from '../components/charts.tsx';
 import { briefingSource, Customize, PeekLinks, useBriefing } from '../components/briefing.tsx';
+import { useChatScope } from '../components/ask.tsx';
+import { ANALYZE } from '../agent.ts';
+import { dateTime } from '../format.ts';
+import { whoText } from '../components/analysis.tsx';
+import { SummaryCharts } from './summary-charts.tsx';
 import { setPrefs, useBriefingPrefs } from '../briefing-prefs.ts';
 import { AnswerHero, NeedsAttention } from '../components/summary.tsx';
 import { answerOf, cardsOf, contextOf } from '../model/summary.ts';
@@ -23,12 +32,7 @@ import { parseRoute } from '../App.tsx';
 import { Help } from '../components/help.tsx';
 import { Cited, PrLink } from '../components/items.tsx';
 import { useData, useDerived } from '../data.ts';
-import { MixBar } from '../components/chartkit/index.ts';
-import { categoryHint } from '../components/category-chip.tsx';
-import { Unread } from '../components/unread.tsx';
-import { useWorkInsights } from '../insights-data.ts';
-import { mixOverview, mixSentence, nextRelease, periodWords, releaseSentence } from '../model/work-insights.ts';
-import { analysesHref, analysisHref, boardHref, chartsHref, classifyHref, dependenciesHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, toilProjectEditHref, worklogHref } from '../format.ts';
+import { analysesHref, analysisHref, boardHref, dependenciesHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, toilProjectEditHref, worklogHref } from '../format.ts';
 import { Empty, TrackerAction } from '../components/empty.tsx';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput } from '../model/flow.ts';
@@ -80,6 +84,7 @@ export function Overview() {
           )}
         </span>
       </p>
+      <BriefingActions view={view} />
       {/* A briefing that didn't parse, or named items this toil project lacks, is said up here: a layout fold never hides it. */}
       {view.problems.map((p) => (
         <p key={p} className="briefing__warning" role="note">
@@ -140,6 +145,7 @@ export function Overview() {
         </div>
       )}
       {worklog && <StandupCard api={worklog} />}
+      <SummaryCharts />
       <details
         className="briefing__full"
         open={prefs.fullOpen}
@@ -203,7 +209,6 @@ export function Overview() {
             )}
           </div>
         </section>
-        <WorkLines />
         {view.changed.length > 0 && (
           <section aria-labelledby="changed-title">
             <h2 id="changed-title" className="briefing__label">
@@ -230,12 +235,83 @@ export function Overview() {
         <a href={dependenciesHref(toilProject.name)} title={plain.title('Dependencies')}>{plain.pw('Dependencies', 'What blocks what')}</a>
         <a href={prsHref(toilProject.name)} title={plain.title('Pull requests')}>{plain.pw('Pull requests', 'Code reviews')}</a>
         <a href={peopleHref(toilProject.name)}>People</a>
-        <a href={chartsHref(toilProject.name)}>Charts</a>
         {worklog && <a href={standupHref(toilProject.name)}>Stand-up</a>}
         <a href={worklogHref(toilProject.name)} title={plain.title('Worklog')}>{plain.pw('Worklog', 'What happened')}</a>
-        <a href={analysesHref(toilProject.name)} title={plain.title('Analyses')}>{plain.pw('Analyses', 'Past briefings')}</a>
       </nav>
     </section>
+  );
+}
+
+/**
+ * Get a briefing, where the briefing is (#567): the button beside the one it replaces, and the result landing here. Pressing it asks
+ * the agent (the same Analyze the Ask bar runs); when the answer is kept the briefing above is the new one, the full briefing opens
+ * on it, and one line says when it was written and by whom. A run that fails says so here, not only in the chat. Earlier ones are a
+ * quiet link a step in. One button, and no tab to look for the result in.
+ */
+function BriefingActions({ view }: { view: ReturnType<typeof useBriefing> }) {
+  const chat = useChatScope();
+  const plain = usePlain();
+  const { toilProject } = useData();
+  const list = chat?.history.list ?? null;
+  const running = chat?.turns.find((t) => t.analyze && !t.done) ?? null;
+  const [said, setSaid] = useState<{ ok: boolean; text: string } | null>(null);
+  // The analysis on screen when it was asked, so the one that replaces it is known when it arrives.
+  const asked = useRef<{ was: string | null } | null>(null);
+  const seen = useRef<string | null>(null);
+  const label = plain.pw('Analyze now', 'Get a briefing');
+  const id = view.analysis?.id ?? null;
+  useEffect(() => {
+    const ask = asked.current;
+    if (ask && id && id !== ask.was) {
+      asked.current = null;
+      setPrefs({ fullOpen: true });
+      setSaid({ ok: true, text: `New briefing written ${dateTime(view.analysis!.at)} by ${whoText(view.analysis!)}.` });
+      // The fold opens on the next paint; the briefing is then brought into view and the keyboard put on it.
+      setTimeout(() => {
+        const d = document.querySelector<HTMLElement>('[data-full-briefing]');
+        d?.scrollIntoView?.({ block: 'start' });
+        d?.querySelector<HTMLElement>('summary')?.focus({ preventScroll: true });
+      }, 50);
+    }
+    seen.current = id;
+  }, [id, view.analysis]);
+  // A run that ended in an error is said here too: the chat holds the whole message.
+  const failed = !running && asked.current ? chat?.turns.filter((t) => t.analyze && t.done && t.error).at(-1) : undefined;
+  useEffect(() => {
+    if (failed?.error) {
+      asked.current = null;
+      setSaid({ ok: false, text: failed.error });
+    }
+  }, [failed]);
+  const earlier = list ? list.length - (view.by === 'analyze' ? 1 : 0) : 0;
+  if (!chat && earlier <= 0) return null;
+  return (
+    <p className="briefing__actions" data-briefing-actions="">
+      {chat && (
+        <Button
+          className="btn btn--small"
+          isDisabled={chat.busy}
+          onPress={() => {
+            asked.current = { was: seen.current };
+            setSaid(null);
+            void chat.ask(ANALYZE, plain.pw('Analyze', 'Get a briefing'));
+          }}
+          data-get-briefing=""
+        >
+          {running ? 'Writing the briefing…' : label}
+        </Button>
+      )}
+      {earlier > 0 && (
+        <a href={analysesHref(toilProject.name)} data-earlier-briefings="">
+          {plain.pw('Earlier analyses', 'Earlier briefings')} ({earlier})
+        </a>
+      )}
+      {said && (
+        <span className={said.ok ? 'note' : 'failure'} role="status" data-briefing-said="">
+          {said.text}
+        </span>
+      )}
+    </p>
   );
 }
 
@@ -300,84 +376,6 @@ function Row({ id, here, note }: { id: string; here: string; note?: string }) {
         </p>
       )}
     </>
-  );
-}
-
-/**
- * The two lines the full briefing carries about the work itself (#567): what the last 90 days were spent on, and the release due next.
- * Each opens its dashboard. A figure nobody read is a dash with its reason, never 0 (principle 12).
- */
-function WorkLines() {
-  const { toilProject } = useData();
-  const ins = useWorkInsights();
-  const { lines, period } = mixOverview(ins);
-  const next = nextRelease(ins);
-  return (
-    <section aria-labelledby="work-lines-title" data-work-lines="">
-      <h2 id="work-lines-title" className="briefing__label">
-        The work itself
-      </h2>
-      <ul className="rows">
-        <li>
-          <a href={chartsHref(toilProject.name, 'mix')} data-line="mix">
-            Work mix:
-          </a>{' '}
-          {lines ? `${mixSentence(lines)}, ${periodWords(ins.today, period)}` : <><Unread /> nothing finished in the last 90 days to count</>}
-        </li>
-        <li>
-          <a href={chartsHref(toilProject.name, 'releases')} data-line="releases">
-            Releases:
-          </a>{' '}
-          {next ? releaseSentence(next) : ins.releasesRead ? 'none waiting to go out' : <><Unread /> fix versions weren't read</>}
-        </li>
-      </ul>
-    </section>
-  );
-}
-
-/**
- * The sixth tile (#567): what the last 90 days of finished work were, by category, in plain names with the short form and the definition on hover.
- * It opens the Work mix dashboard. A mix nobody could count is a dash that says it was not read, never 0%. The label is the link, and the mix bar
- * is its own control beside it, because a link around a control is two answers to one click.
- */
-function MixTile() {
-  const { toilProject } = useData();
-  const ins = useWorkInsights();
-  const { result, lines, period } = useMemo(() => mixOverview(ins), [ins]);
-  return (
-    <li className="metric">
-      <div className="metric__button metric__tile" data-metric="mix">
-        <a className="metric__label metric__link" href={chartsHref(toilProject.name, 'mix')}>
-          Work mix
-        </a>
-        {lines ? (
-          <>
-            <ul className="metric__mix" aria-label={`Work mix, ${periodWords(ins.today, period)}`}>
-              {lines.map((l) => (
-                <li key={l.key}>
-                  {l.id === null ? (
-                    <a className="metric__cat" href={classifyHref(toilProject.name)} title={categoryHint(ins, l.id)} data-unsure-link="">
-                      {l.name}
-                    </a>
-                  ) : (
-                    <span className="metric__cat" title={categoryHint(ins, l.id)}>
-                      {l.name}
-                    </span>
-                  )}{' '}
-                  <b>{Math.round(l.share * 100)}%</b>
-                </li>
-              ))}
-            </ul>
-            <MixBar result={result} scheme={{ categories: ins.scheme.categories }} label="Work mix" />
-            <span className="metric__unit">{periodWords(ins.today, period)}</span>
-          </>
-        ) : (
-          <span className="metric__figure">
-            <Unread className="metric__value" /> <span className="metric__unit">not read yet</span>
-          </span>
-        )}
-      </div>
-    </li>
   );
 }
 
@@ -514,7 +512,6 @@ function MetricStrip() {
             <a href={prsHref(toilProject.name)}>{pw('The Pull requests tab', 'The Code reviews tab')}</a> has the whole queue, its flags and its flow.
           </p>
         </Metric>
-        <MixTile />
       </ul>
     </section>
   );

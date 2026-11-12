@@ -1,5 +1,6 @@
 /**
- * The Analyses tab (#394, #395): every Analyze kept for the toil project, newest
+ * Earlier briefings (#394, #395), a step in from the Summary's briefing at `…/summary/briefings` (the Past briefings tab is
+ * gone, #567; the Summary holds the current one and Get a briefing): every Analyze kept for the toil project, newest
  * first, each with when it was made, the adapter and model that wrote it,
  * its one-line recommendation, and what changed since the one before (new
  * blockers, cleared ones, points moved, items newly cited or dropped),
@@ -11,21 +12,20 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Button } from 'react-aria-components';
-import { ANALYZE } from '../agent.ts';
+import { Breadcrumb } from '../components/breadcrumb.tsx';
 import { AnalysisBody, ChangesDetail, changesLine, whoText } from '../components/analysis.tsx';
 import { Cited } from '../components/items.tsx';
 import { Card } from '../components/layout.tsx';
 import { Help } from '../components/help.tsx';
-import { useChatScope } from '../components/ask.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
 import { UsageFooter } from '../components/usage.tsx';
 import { useData } from '../data.ts';
 import { analysesHref, analysisHref, dateTime, toilProjectHref } from '../format.ts';
-import { Empty, EmptyButton, EmptyLink } from '../components/empty.tsx';
+import { Empty, EmptyLink } from '../components/empty.tsx';
+import { useChatScope } from '../components/ask.tsx';
 import { unchanged, type AnalysisSummary, type AnalysisView } from '../model/analysis.ts';
 import { Loader } from '../moments/Moments.tsx';
-import { useTerm, useWords } from '../skins.tsx';
+import { useWords } from '../skins.tsx';
 import { usePlain } from '../plain-words.ts';
 
 export function Analyses({ open }: { open?: string } = {}) {
@@ -37,49 +37,30 @@ function AnalysisList() {
   const running = chat?.turns.find((t) => t.analyze && !t.done);
   const history = chat?.history;
   const list = history?.list ?? null;
-  const term = useTerm();
   const words = useWords();
   const plain = usePlain();
   const { toilProject } = useData();
   return (
     <Card as="section" className="panel analyses" aria-labelledby="analyses-title">
-      <h2 id="analyses-title" title={plain.title('Analyses')}>
-        {term('analyses', plain.pw('Analyses', 'Past briefings'))}
-      </h2>
+      <Breadcrumb trail={[{ label: 'Summary', href: toilProjectHref(toilProject.name) }, { label: plain.pw('Earlier analyses', 'Earlier briefings') }]} />
+      <h1 id="analyses-title" tabIndex={-1}>
+        {plain.pw('Earlier analyses', 'Earlier briefings')} <Help topic="analyses" />
+      </h1>
       <p className="note">
-        {plain.pw('Every Analyze kept for', 'Every briefing kept for')} {toilProject.name}, newest first. <Help topic="analyses" />
+        {plain.pw('Every Analyze kept for', 'Every briefing kept for')} {toilProject.name}, newest first. The newest is the one on the Summary.
+        {running && ' A briefing is being written now; it joins the list when its answer is whole.'}
       </p>
-      {/* With none kept yet, Analyze now is the empty list's own action (#417), so it isn't drawn twice. */}
-      {chat && (list === null || list.length > 0 || running) && (
-        <p className="analyses__actions">
-          <Button className="btn" onPress={() => void chat.ask(ANALYZE, plain.pw('Analyze', 'Get a briefing'))} isDisabled={chat.busy} data-analyze-tab="">
-            {plain.pw('Analyze now', 'Get a briefing now')}
-          </Button>
-          {running && <span className="note"> An analysis is being written now; it joins the list when its answer is whole.</span>}
-        </p>
-      )}
       {history?.error && <p className="failure">{history.error}</p>}
       {list === null ? (
         !history?.error && <Loader size="panel" message={words('loading.briefings')} />
       ) : list.length ? (
-        <ol className="analyses__list" aria-label="Analyses, newest first">
+        <ol className="analyses__list" aria-label="Briefings, newest first">
           {list.map((a) => (
             <AnalysisEntry key={a.id} a={a} />
           ))}
         </ol>
       ) : running ? null : (
-        <Empty
-          message={words('empty.briefings')}
-          action={
-            chat ? (
-              <EmptyButton onPress={() => void chat.ask(ANALYZE, plain.pw('Analyze', 'Get a briefing'))} disabled={chat.busy}>
-                {plain.pw('Analyze now', 'Get a briefing now')}
-              </EmptyButton>
-            ) : (
-              <EmptyLink href={toilProjectHref(toilProject.name)}>Open the Overview</EmptyLink>
-            )
-          }
-        />
+        <Empty message={words('empty.briefings')} action={<EmptyLink href={toilProjectHref(toilProject.name)}>{plain.pw('Open the Summary to run Analyze', 'Open the Summary to get a briefing')}</EmptyLink>} />
       )}
     </Card>
   );
@@ -114,6 +95,7 @@ function AnalysisEntry({ a }: { a: AnalysisSummary }) {
 function OpenAnalysis({ id }: { id: string }) {
   const { analyses, toilProject } = useData();
   const words = useWords();
+  const plain = usePlain();
   const [view, setView] = useState<AnalysisView | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -129,26 +111,24 @@ function OpenAnalysis({ id }: { id: string }) {
       live = false;
     };
   }, [analyses, toilProject.name, id]);
-  const back = (
-    <p className="analysis-open__back">
-      <a href={analysesHref(toilProject.name)}>All analyses</a>
-    </p>
-  );
+  const earlier = plain.pw('Earlier analyses', 'Earlier briefings');
+  const back = (title: string) => <Breadcrumb trail={[{ label: 'Summary', href: toilProjectHref(toilProject.name) }, { label: earlier, href: analysesHref(toilProject.name) }, { label: title }]} />;
   if (error || view === null) {
     return (
       <Card as="section" className="panel analyses" aria-labelledby="analysis-title">
-        {back}
-        <h2 id="analysis-title">Analysis not found</h2>
-        <p className={error ? 'failure' : undefined}>{error ?? `${toilProject.name} has no analysis by that id: it may have passed the cache's retention period, or the cache was wiped.`}</p>
+        {back('Not found')}
+        <h1 id="analysis-title" tabIndex={-1}>Briefing not found</h1>
+        <p className={error ? 'failure' : undefined}>{error ?? `${toilProject.name} has no briefing by that id: it may have passed the cache's retention period, or the cache was wiped.`}</p>
       </Card>
     );
   }
   if (!view) return <p className="note">{words('loading.analysis')}</p>;
   const { record: r, changes } = view;
+  const title = `Briefing of ${dateTime(r.at)}`;
   return (
     <Card as="section" className="panel analyses analysis-open" aria-labelledby="analysis-title">
-      {back}
-      <h2 id="analysis-title">Analysis of {dateTime(r.at)}</h2>
+      {back(title)}
+      <h1 id="analysis-title" tabIndex={-1}>{title}</h1>
       <p className="note">
         Asked {dateTime(r.startedAt)}, answered by {whoText(r)}. Cites {r.citations.length} {r.citations.length === 1 ? 'item' : 'items'}.
       </p>
@@ -161,10 +141,10 @@ function OpenAnalysis({ id }: { id: string }) {
           ))}
         </div>
       )}
-      <AnalysisBody parts={r.parts} briefing={r.briefing} level={3} />
+      <AnalysisBody parts={r.parts} briefing={r.briefing} level={2} />
       {r.proposals.length > 0 && (
         <section aria-labelledby="analysis-proposals">
-          <h3 id="analysis-proposals">Suggested changes</h3>
+          <h2 id="analysis-proposals">Suggested changes</h2>
           {r.proposals
             .filter((p) => !dismissed.has(p.id))
             .map((p) => (
@@ -173,7 +153,7 @@ function OpenAnalysis({ id }: { id: string }) {
         </section>
       )}
       <section aria-labelledby="analysis-changes">
-        <h3 id="analysis-changes">What changed since the one before</h3>
+        <h2 id="analysis-changes">What changed since the one before</h2>
         <ChangesDetail changes={changes} />
       </section>
       {r.usage && <UsageFooter usage={r.usage} />}

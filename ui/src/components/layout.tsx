@@ -122,6 +122,10 @@ export interface Column<T> {
    * row's top corner instead of under a label.
    */
   actions?: boolean;
+  /** A class on the column's heading and cells, for a table that sizes its columns (the items drawer). */
+  className?: string;
+  /** The heading's `aria-sort`, for a table sorted by its headers. */
+  sort?: 'ascending' | 'descending' | 'none';
 }
 
 /**
@@ -140,7 +144,7 @@ export function DataTable<T>({ label, caption, columns, rows, rowKey, wide = fal
           <thead role="rowgroup">
             <tr role="row">
               {columns.map((c, i) => (
-                <th key={i} role="columnheader" scope="col" className={c.actions ? 'l-table__actions' : undefined}>
+                <th key={i} role="columnheader" scope="col" className={cx(c.actions && 'l-table__actions', c.className) || undefined} {...(c.sort ? { 'aria-sort': c.sort } : {})}>
                   {c.actions ? <span className="sr-only">{c.header}</span> : c.header}
                 </th>
               ))}
@@ -152,7 +156,7 @@ export function DataTable<T>({ label, caption, columns, rows, rowKey, wide = fal
                 {columns.map((c, i) => {
                   const Cell = c.rowHeader ? 'th' : 'td';
                   return (
-                    <Cell key={i} role={c.rowHeader ? 'rowheader' : 'cell'} scope={c.rowHeader ? 'row' : undefined} className={c.actions ? 'l-table__actions' : undefined}>
+                    <Cell key={i} role={c.rowHeader ? 'rowheader' : 'cell'} scope={c.rowHeader ? 'row' : undefined} className={cx(c.actions && 'l-table__actions', c.className) || undefined}>
                       <span className="l-table__label" aria-hidden="true">
                         {c.label}
                       </span>

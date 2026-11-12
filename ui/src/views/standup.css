@@ -1,0 +1,75 @@
+/* The stand-up (#345): as little page as the facts allow. One bar, one source line, one team line,
+   then a block per person with five short rows. The Summary's card reuses the same rows. */
+
+.standup { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; min-width: 0; }
+
+.standup-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
+.standup-days { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; min-width: 0; }
+.standup-select, .standup-date { font: inherit; font-size: 0.875rem; color: var(--ink); background: var(--raised); border: 1px solid var(--line); border-radius: 0.35rem; padding: 0.3rem 0.5rem; min-height: 2rem; max-width: 100%; }
+.standup-copy { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-inline-start: auto; }
+.standup-fallback { flex: 1 1 100%; font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink); background: var(--raised); border: 1px solid var(--line); border-radius: 0.35rem; padding: 0.4rem; }
+.standup-problem { color: var(--warn); }
+
+.standup-source { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem; }
+.standup-team { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.4rem; padding: 0.35rem 0; border-block: 1px solid var(--line); min-width: 0; }
+.standup-team__sprint { font-weight: 700; margin-inline-end: 0.35rem; }
+
+.standup-gaps { font-size: 0.8125rem; color: var(--muted); }
+.standup-gaps summary { cursor: pointer; }
+.standup-gaps ul { margin: 0.25rem 0 0; padding-inline-start: 1.1rem; }
+
+/* People in columns, so a short block and a tall one sit together without gaps. */
+.standup-people { list-style: none; margin: 0; padding: 0; columns: 18rem; column-gap: 0.6rem; }
+.standup-person { break-inside: avoid; margin: 0 0 0.4rem; padding: 0.25rem 0.5rem; border: 1px solid var(--line); border-radius: 0.5rem; background: var(--surface); display: grid; gap: 0.15rem; min-width: 0; }
+.standup-person--empty { display: flex; align-items: center; gap: 0.5rem; padding-block: 0.3rem; }
+.standup-person__head { margin: 0; font-size: 0.9375rem; font-weight: 700; line-height: 1.2; }
+.standup-name { display: inline-flex; align-items: center; gap: 0.35rem; min-width: 0; }
+.standup-name__text { font-weight: 700; overflow-wrap: anywhere; }
+.person-glyph { flex: none; color: var(--muted); }
+.person-glyph--agent { color: var(--accent); }
+
+.standup-rows { display: grid; gap: 0; margin: 0; }
+.standup-row { display: grid; grid-template-columns: 5.2rem minmax(0, 1fr); gap: 0.4rem; align-items: start; }
+.standup-row dt { font-size: 0.75rem; color: var(--muted); line-height: 1.5; margin: 0; }
+.standup-row dd { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.3rem; min-width: 0; }
+.standup-row[data-bucket='comments'] dd { flex-direction: column; align-items: stretch; gap: 0.15rem; }
+.standup-dash { color: var(--muted); }
+
+.standup-chip { display: inline-flex; overflow: hidden; align-items: baseline; gap: 0.35rem; max-width: 100%; min-width: 0; padding: 0 0.4rem; border: 1px solid var(--line); border-radius: 0.35rem; background: var(--raised); font-size: 0.8125rem; line-height: 1.35; }
+.standup-key { font-weight: 600; white-space: nowrap; padding-block: 0.3rem; } /* the link is a 24px target (WCAG 2.2) inside a chip that stays one line */
+.standup-title { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.standup-why { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.standup-chip--comment { display: flex; align-items: center; }
+.standup-excerpt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 0 1 auto; color: var(--ink); }
+.standup-chip[data-outstanding] { border-color: var(--warn); }
+.standup-q { flex: none; display: inline-grid; place-items: center; width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--warn); color: var(--raised); font-size: 0.75rem; font-weight: 800; line-height: 1; }
+.standup-wait { flex: none; margin-inline-start: auto; color: var(--warn); font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+.standup-chip[data-cited] { box-shadow: inset 0 0 0 2px var(--accent); }
+.standup-fold { align-self: flex-start; font: inherit; font-size: 0.8125rem; color: var(--link, var(--accent)); background: none; border: 0; padding: 0.05rem 0.3rem; cursor: pointer; border-radius: 0.3rem; }
+.standup-fold:hover { text-decoration: underline; }
+
+.standup-more { border-top: 1px solid var(--line); padding-top: 0.5rem; }
+.standup-more > summary { cursor: pointer; font-size: 0.875rem; color: var(--muted); }
+.standup-more[open] > summary { margin-bottom: 0.5rem; }
+.standup-writeup-body, .standup-export { display: grid; gap: 0.5rem; min-width: 0; }
+.standup-writeup { border-left: 4px solid var(--accent); padding-left: 0.75rem; display: grid; gap: 0.5rem; min-width: 0; overflow-wrap: anywhere; }
+.standup-writeup h3 { margin: 0; font-size: 1rem; }
+.standup-writeup .btn--small { margin: 0 0.15rem; }
+
+/* The Summary's card: the same rows, a person's name in front of each. */
+.sum-standup__rows { display: grid; gap: 0.3rem; margin: 0; padding: 0; list-style: none; }
+.sum-standup__row { display: grid; grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr); gap: 0.4rem; align-items: start; }
+.sum-standup__row .standup-rows { display: contents; }
+.sum-standup__row .standup-row { grid-template-columns: 5.2rem minmax(0, 1fr); }
+.sum-standup__line { font-size: 0.875rem; font-weight: 600; margin: 0; }
+
+/* On a phone or a tablet a comment has room to run to two lines before it is cut (the full text stays in the chip's tooltip). */
+@media (max-width: 800px) {
+  .standup-chip--comment { align-items: flex-start; }
+  .standup-excerpt { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+}
+
+@media (max-width: 480px) {
+  .standup-copy { margin-inline-start: 0; }
+  .sum-standup__row { grid-template-columns: minmax(0, 1fr); }
+}

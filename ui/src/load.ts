@@ -218,7 +218,7 @@ export function owiFields(fields: unknown): Record<string, string> {
  * blockers are drawn from. The epic link is not here: it comes only from a
  * registered field.
  */
-export const JIRA_OWI_FIELDS = ['description', 'resolution', 'resolutiondate', 'duedate', 'timeoriginalestimate', 'parent', 'subtasks', 'issuelinks'];
+export const JIRA_OWI_FIELDS = ['description', 'resolution', 'resolutiondate', 'duedate', 'timeoriginalestimate', 'parent', 'subtasks', 'issuelinks', 'comment'];
 
 /** A custom field a Jira connection registers, as `jira issue fields` lists it. */
 export interface RegisteredField {

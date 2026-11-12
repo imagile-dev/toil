@@ -34,25 +34,30 @@ import { writeFilters } from '../filters.ts';
 import { useAddress } from '../insights-data.ts';
 import { ItemsDrawer } from '../components/items-drawer.tsx';
 import { ClassifyNoticeLine } from '../components/reclassify.tsx';
-import { analysesHref, boardHref, chartsHref, classifyHref, commandCenterHref, dependenciesHref, toilProjectEditHref, toilProjectHref, peopleHref, prsHref, worklogHref } from '../format.ts';
+import { boardHref, classifyHref, commandCenterHref, dependenciesHref, standupHref, toilProjectEditHref, toilProjectHref, peopleHref, prsHref, worklogHref } from '../format.ts';
+import { Help } from '../components/help.tsx';
+import type { HelpTopicId } from '../help.ts';
 import { needingAttention } from '../model/insights.ts';
 import { useTerm, useTheme, useWords } from '../skins.tsx';
 import { usePlain } from '../plain-words.ts';
 import { momentsOf, useEnter } from '../moments/Moments.tsx';
 import './toil-project-shell.css';
 
-export type ToilProjectTab = 'overview' | 'board' | 'dependencies' | 'prs' | 'people' | 'charts' | 'worklog' | 'analyses';
+export type ToilProjectTab = 'overview' | 'board' | 'dependencies' | 'prs' | 'people' | 'standup' | 'worklog';
 
-/** A toil project's tabs, in order: the command palette (#416) jumps to each of them in every toil project. */
-export const TOIL_PROJECT_TABS: ReadonlyArray<{ id: ToilProjectTab; label: string; plain: string; href: (toilProject: string) => string }> = [
-  { id: 'overview', label: 'Overview', plain: 'Summary', href: toilProjectHref },
-  { id: 'board', label: 'Board', plain: 'Board', href: (d) => boardHref(d) },
-  { id: 'dependencies', label: 'Dependencies', plain: 'What blocks what', href: dependenciesHref },
-  { id: 'prs', label: 'Pull requests', plain: 'Code reviews', href: prsHref },
-  { id: 'people', label: 'People', plain: 'People', href: peopleHref },
-  { id: 'charts', label: 'Charts', plain: 'Charts', href: (d) => chartsHref(d) },
-  { id: 'worklog', label: 'Worklog', plain: 'What happened', href: (d) => worklogHref(d) },
-  { id: 'analyses', label: 'Analyses', plain: 'Past briefings', href: analysesHref },
+/**
+ * A toil project's tabs, in order: the command palette (#416) jumps to each of them in every toil project. One tab is one page and the
+ * page does not repeat the tab's name as a title (#567): the tab is the title, and its (i) says what the page is. `help` is that (i).
+ * The charts and the earlier briefings are no tabs: they are steps in from the Summary (`…/summary/<chart>`, `…/summary/briefings`).
+ */
+export const TOIL_PROJECT_TABS: ReadonlyArray<{ id: ToilProjectTab; label: string; plain: string; help: HelpTopicId; href: (toilProject: string) => string }> = [
+  { id: 'overview', label: 'Overview', plain: 'Summary', help: 'briefing', href: toilProjectHref },
+  { id: 'board', label: 'Board', plain: 'Board', help: 'board', href: (d) => boardHref(d) },
+  { id: 'dependencies', label: 'Dependencies', plain: 'What blocks what', help: 'dashboard', href: dependenciesHref },
+  { id: 'prs', label: 'Pull requests', plain: 'Code reviews', help: 'prs', href: prsHref },
+  { id: 'people', label: 'People', plain: 'People', help: 'people', href: peopleHref },
+  { id: 'standup', label: 'Stand-up', plain: 'Stand-up', help: 'standup', href: (d) => standupHref(d) },
+  { id: 'worklog', label: 'Worklog', plain: 'What happened', help: 'worklog', href: (d) => worklogHref(d) },
 ];
 
 /** Below this width the Agents panel is a drawer behind a button; at 1200px and wider the button opens it beside the view. */
@@ -157,7 +162,7 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, items =
             <ul>
               {tabs.map((t) => (
                 <li key={t.id}>
-                  <a href={t.href} aria-current={t.id === tab ? 'page' : undefined} data-tab={t.id} title={t.title}>
+                  <a href={t.href} id={`tab-${t.id}`} aria-current={t.id === tab ? 'page' : undefined} data-tab={t.id} title={t.title}>
                     {t.label}
                     {t.count && t.count.n > 0 && (
                       <span className="tab-count" title={`${t.count.n} ${t.count.label}`}>
@@ -170,6 +175,12 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, items =
                   </a>
                 </li>
               ))}
+              {/* What this page is, one press away: the page itself carries no title that repeats the tab (#567). In the list, so a narrow row scrolls it with the tabs rather than squeezing them. */}
+              {tab && (
+                <li className="toil-project-tabs__help" data-tab-help={tab}>
+                  <Help topic={TOIL_PROJECT_TABS.find((t) => t.id === tab)!.help} />
+                </li>
+              )}
             </ul>
           </nav>
         </Scroller>
@@ -190,7 +201,8 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, items =
       <ClassifyNoticeLine />
       <PaletteAssign />
       <div className="toil-project-body">
-        <div className="toil-project-main" ref={view}>
+        {/* The page is labelled by its tab, so it needs no heading of its own to be named; focus lands here when a page has none (App.tsx). */}
+        <div className="toil-project-main" ref={view} data-tab-panel="" tabIndex={-1} {...(tab ? { role: 'group', 'aria-labelledby': `tab-${tab}` } : {})}>
           {children}
         </div>
         {peek ? (

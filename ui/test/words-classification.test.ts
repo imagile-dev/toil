@@ -24,7 +24,6 @@ const FUNCTIONAL_LIST = [
   'chart.showOnly',
   'chart.unread',
   'charts.across',
-  'charts.back',
   'charts.changes',
   'charts.decided',
   'charts.eyebrow',

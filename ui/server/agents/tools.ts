@@ -884,7 +884,7 @@ export function standupTool(toilProject: string, data: AgentData, ledger: Ledger
   return [
     {
       name: 'standup_report',
-      description: `The stand-up report for the Toil project "${toilProject}" over a range of UTC days, built by code from the worklog: team lines first (the sprint's working days left, scope added to or dropped from a sprint, builds and deployments that broke or recovered), then each person, agents included, with what they got done, what is in progress, what is blocked and what is next in the sprint. Every line has its fact number (F1, F2, ...) and cite, the ids to cite it by. gaps says what the worklog can't vouch for in the range. Default range: since the last working day, through today.`,
+      description: `The stand-up report for the Toil project "${toilProject}" over a range of UTC days, built by code from the worklog: team lines first (the sprint's working days left, scope added to or dropped from a sprint, builds and deployments that broke or recovered), then each person, agents included, with what they got done, what is in progress, what is blocked, what is next in the sprint, and their comments (a line with a comment field is one; its outstanding is true for a question nobody else has answered, and those come first). Every line has its fact number (F1, F2, ...) and cite, the ids to cite it by. gaps says what the worklog can't vouch for in the range. Default range: since the last working day, through today.`,
       inputSchema: {
         type: 'object',
         properties: { from: { type: 'string', description: 'The first UTC day, yyyy-mm-dd. Default: the last working day before today.' }, to: { type: 'string', description: 'The last UTC day, yyyy-mm-dd. Default: today.' } },
@@ -904,7 +904,7 @@ export function standupTool(toilProject: string, data: AgentData, ledger: Ledger
         }
         const line = (l: StandupLine) => {
           for (const id of l.cites) ledger.add(id);
-          return { fact: l.fact, when: whenText(report, l), about: l.label, title: l.title, text: l.text, cite: l.cites };
+          return { fact: l.fact, when: whenText(report, l), about: l.label, title: l.title, text: l.text, cite: l.cites, ...(l.comment ? { comment: l.comment } : {}) };
         };
         return {
           toilProject,

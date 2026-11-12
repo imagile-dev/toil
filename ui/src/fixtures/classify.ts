@@ -18,6 +18,7 @@ import type { AgentVerdict, ClassifyArea, ResolvedTarget, Scheme } from '../../.
 import { UNSURE } from '../../../src/core/classify/types.ts';
 import { SAMPLE_SCHEME_STATS } from './classify-stats.ts';
 import { SAMPLE_AS_OF, SAMPLE_TEAM } from './sample-team.ts';
+import { SAMPLE_MOVE } from '../board-api.ts';
 import { SAMPLE_CANNOT_WRITE, type AgentAnswers, type AgentChoice, type ApplyPlan, type ApplyWork, type ClassifyApi, type LedgerView, type PlanGroupView, type SaveResult, type TuneResult } from '../classify-api.ts';
 import { personOf, type Say } from '../model/classify.ts';
 import { schemeChangeLines } from '../model/scheme-edit.ts';
@@ -118,6 +119,9 @@ export function fixtureClassify(): ClassifyApi {
   const agents = async (): Promise<AgentChoice[]> => [{ name: 'scripted', label: 'The sample agent (a script, not a model)', ready: true, problem: null }];
   return {
     disabled: SAMPLE_CANNOT_WRITE,
+    // A move in the sample is a proposal, and the Board never even asks: nothing here is written.
+    movesDisabled: SAMPLE_CANNOT_WRITE,
+    moveItem: async () => SAMPLE_MOVE,
     ledger: async () => (await wait(), view()),
     record: async () => undefined,
     // The sample keeps a person's word in memory only, so reclassifying can be tried; it writes no ledger.

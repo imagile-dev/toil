@@ -20,7 +20,7 @@ const onlyJira = CONFIG_CANNED.map((a) => (a.command === 'connections list' ? { 
 async function open(hash: string, canned = CONFIG_CANNED) {
   window.location.hash = hash;
   const view = render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig(canned)} now={FIXTURE_NOW} preview />);
-  await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
+  await waitFor(() => expect(document.querySelector('h1, [data-tab-panel]')).toBeTruthy(), { timeout: 3000 });
   return view;
 }
 

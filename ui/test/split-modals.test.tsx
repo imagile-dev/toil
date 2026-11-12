@@ -73,7 +73,7 @@ describe.each(CASES)('the $id modal', ({ id, measure, split, label, title }) => 
     expect(dialog.querySelector(`[data-split="${measure}"]`)).toBeTruthy();
     expect(dialog.querySelector('figure.ck-chart')).toBeNull();
     const link = dialog.querySelector<HTMLAnchorElement>('[data-open-in-charts]')!;
-    expect(link.getAttribute('href')).toContain('/charts/explore?measure=');
+    expect(link.getAttribute('href')).toContain('/summary/explore?measure=');
     expect(specOf(link.getAttribute('href')!)).toEqual(splitSpec(measure, null, '2026-10-13'));
   });
 

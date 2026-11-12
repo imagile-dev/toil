@@ -141,26 +141,26 @@ describe('the stand-up on the Summary', () => {
     return screen.findByRole('region', { name: 'Briefing' });
   }
 
-  it('shows the default range, five lines, and Show more expands in place', async () => {
+  it('shows the default range as the same compact rows, a handful of them, with the way in to the page', async () => {
     const region = await withLog(fixtureWorklog());
     const card = await waitFor(() => {
       const c = region.querySelector('[data-standup-card]') as HTMLElement;
-      expect(c.querySelectorAll('li').length).toBeGreaterThan(0);
+      expect(c.querySelectorAll('.standup-row').length).toBeGreaterThan(0);
       return c;
     });
     expect(within(card).getByRole('heading', { name: 'Stand-up' })).toBeTruthy();
     expect(card.querySelector('[data-standup-range]')!.textContent).toBe('Yesterday');
-    expect(card.querySelectorAll('li').length).toBe(5);
-    expect(within(card).getByRole('link', { name: 'Open the full stand-up' }).getAttribute('href')).toBe('#/project/card-payments/worklog/standup');
+    // A team line, then at most five person rows, each one bucket: no F1 to F5 list, no Show more.
+    expect(card.querySelector('[data-standup-team]')!.textContent).toMatch(/^Sprint 42: day \d+ of \d+, \d+ of \d+ done$/);
+    expect(card.querySelectorAll('.sum-standup__row').length).toBeLessThanOrEqual(5);
+    expect(card.querySelector('[data-standup-more]')).toBeNull();
+    expect(within(card).getByRole('link', { name: 'Open the full stand-up' }).getAttribute('href')).toBe('#/project/card-payments/standup');
     // Right under the answer and the needs-attention cards, before the fold.
     const order = [...region.children].map((c) => c.getAttribute('data-standup-card') !== null ? 'card' : c.matches('details[data-full-briefing]') ? 'full' : '');
     expect(order.indexOf('card')).toBeGreaterThan(-1);
     expect(order.indexOf('card')).toBeLessThan(order.indexOf('full'));
-    await userEvent.click(within(card).getByRole('button', { name: /^Show more/ }));
-    expect(card.querySelectorAll('li').length).toBeGreaterThan(5);
-    expect(within(card).getByRole('button', { name: 'Show less' })).toBeTruthy();
     expect(within(region).getByRole('navigation', { name: /^More on/ }).textContent).toContain('Stand-up');
-    expect(within(region).getByRole('link', { name: 'Stand-up' }).getAttribute('href')).toBe('#/project/card-payments/worklog/standup');
+    expect(within(region).getByRole('link', { name: 'Stand-up' }).getAttribute('href')).toBe('#/project/card-payments/standup');
   });
 
   it('says not read yet, with Sync now, when no sync has read the days, and never nothing happened', async () => {

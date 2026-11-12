@@ -22,7 +22,9 @@ import type { Route } from '../App.tsx';
 import { sendCommand, type UiCommand } from '../commands.ts';
 import { useCurrentChart } from '../current-chart.ts';
 import type { ViewContext } from '../view-context.ts';
-import { analysisHref, dateTime, toilProjectHref, itemHref, shortKey, standupHref, STATUS_CATEGORY_LABEL, toilProjectEditHref } from '../format.ts';
+import { analysesHref, analysisHref, chartsHref, dateTime, toilProjectHref, itemHref, shortKey, standupHref, STATUS_CATEGORY_LABEL, toilProjectEditHref } from '../format.ts';
+import { DASHBOARDS } from '../views/charts/index.ts';
+import { exploreHref, viewSpec } from '../model/explore.ts';
 import { fuzzyRank } from '../fuzzy.ts';
 import type { ToilProjectData } from '../load.ts';
 import type { AnalysisSummary } from '../model/analysis.ts';
@@ -40,7 +42,7 @@ export type PaletteGroup = 'commands' | 'toilProjects' | 'tabs' | 'items' | 'ana
 
 const GROUP_LABEL: Record<PaletteGroup, string> = { commands: 'Commands', toilProjects: 'Toil projects', tabs: 'Tabs', items: 'Items', analyses: 'Analyses', settings: 'Settings', themes: 'Themes' };
 /** The groups plain words (src/plain-words.ts) renames. */
-const PLAIN_GROUP_LABEL: Partial<Record<PaletteGroup, string>> = { toilProjects: 'Toil projects', tabs: 'Pages', analyses: 'Past briefings' };
+const PLAIN_GROUP_LABEL: Partial<Record<PaletteGroup, string>> = { toilProjects: 'Toil projects', tabs: 'Pages', analyses: 'Earlier briefings' };
 /** The order with nothing typed. With a query, the groups go in the order of their best match. */
 const GROUP_ORDER: PaletteGroup[] = ['commands', 'toilProjects', 'tabs', 'items', 'analyses', 'settings', 'themes'];
 /** The most results a group shows for a query: enough to choose from, few enough to read. */
@@ -157,6 +159,15 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
   for (const d of x.toilProjects) {
     // With plain words on, a tab is found by either name: its plain label shows, and its own term still matches a search.
     for (const t of TOIL_PROJECT_TABS) out.push({ id: `tab:${d}:${t.id}`, group: 'tabs', label: pw(t.label, t.plain), detail: d, text: `${pw(t.label, t.plain)} ${t.label} ${d}`, go: { href: t.href(d) } });
+    // The charts are items on the Summary (#567), so each full page, the earlier briefings and the views the team saved are found by typing, not listed: one more way in to each, never a tab.
+    for (const c of DASHBOARDS) out.push({ id: `chart:${d}:${c.id}`, group: 'tabs', label: c.title, detail: `${d}, a chart`, text: `${c.title} chart dashboard ${d}`, typed: true, go: { href: chartsHref(d, c.id) } });
+    out.push({ id: `briefings:${d}`, group: 'tabs', label: pw('Earlier analyses', 'Earlier briefings'), detail: d, text: `earlier briefings analyses past ${d}`, typed: true, go: { href: analysesHref(d) } });
+    const l = x.loaded[d];
+    if (l?.ok) {
+      for (const [name, view] of Object.entries(l.value.views ?? {})) {
+        out.push({ id: `view:${d}:${name}`, group: 'tabs', label: view.title ?? name, detail: `${d}, saved by your team`, text: `saved view chart ${view.title ?? name} ${name} ${d}`, typed: true, go: { href: exploreHref(chartsHref(d, 'explore'), viewSpec(view), view.chart) } });
+      }
+    }
     // How Analyze briefs it (#494): its page in Settings, one more way in.
     out.push({ id: `settings:analyze:${d}`, group: 'settings', label: 'How Analyze briefs it', detail: d, text: `analyze settings ${d}`, go: { href: toilProjectEditHref(d, 'analyze') } });
   }

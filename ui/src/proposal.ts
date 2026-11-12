@@ -1,6 +1,8 @@
 /**
  * A proposal: a change to a tracker that the UI or the agent suggests and a
- * person applies (#206, principle 2). Toil UI never writes. A proposal names
+ * person applies (#206, principle 2). A proposal alone writes nothing; where an
+ * Apply is offered it is a person's press, run through toil's own gate
+ * (a Board drop, an assignment's proposal). A proposal names
  * the toil command that would make the change and its exact input, and shows
  * the command line to run through toil's write gate (`writes: true` on the
  * connection, `--allow-write` on the call). test/registry.test.ts holds every

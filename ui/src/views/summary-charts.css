@@ -1,0 +1,10 @@
+/* The Summary's charts (#567): three items in a responsive row, stacked below 900px, each a headline and one small chart. */
+.summary-charts { display: grid; gap: 0.5rem; }
+.summary-charts__items { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1rem 1.5rem; list-style: none; padding: 0; margin: 0; }
+.summary-chart { display: grid; gap: 0.35rem; align-content: start; min-width: 0; }
+.summary-chart__title { margin: 0; font-size: 1rem; }
+.summary-chart__headline { margin: 0; }
+.summary-chart__note { margin: 0; font-size: 0.8125rem; }
+.summary-chart__figure { margin: 0; min-width: 0; }
+.summary-chart__figure .ck-svg { width: 100%; height: auto; max-height: 11rem; }
+.briefing__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin: 0; }

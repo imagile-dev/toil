@@ -54,8 +54,8 @@ export const peekHref = (page: string, id: string) => withQuery(page, (q) => q.s
 export const unpeekHref = (page: string) => withQuery(page, (q) => q.delete('item'));
 export const prsHref = (toilProject: string) => `${toilProjectHref(toilProject)}/prs`;
 export const peopleHref = (toilProject: string) => `${toilProjectHref(toilProject)}/people`;
-/** The Charts tab (#567): its list of dashboards, or one dashboard by its id. */
-export const chartsHref = (toilProject: string, dashboard?: string) => `${toilProjectHref(toilProject)}/charts${dashboard ? `/${encodeURIComponent(dashboard)}` : ''}`;
+/** A chart's full page, under the Summary (#567): `…/summary/<dashboard>`. With no dashboard it is the Summary itself, where the charts are items. The old `…/charts/…` addresses are rewritten to these (App.tsx, upgradeHash). */
+export const chartsHref = (toilProject: string, dashboard?: string) => (dashboard ? `${toilProjectHref(toilProject)}/summary/${encodeURIComponent(dashboard)}` : toilProjectHref(toilProject));
 /** The Command Center (#307): every work item with its readiness verdict. */
 export const commandCenterHref = (toilProject: string) => `${toilProjectHref(toilProject)}/command-center`;
 /** The Board's third view (#566): sorting the items that need a person into categories. */
@@ -64,14 +64,14 @@ export const classifyHref = (toilProject: string) => `${toilProjectHref(toilProj
 export const boardHref = (toilProject: string, person?: string) => `${toilProjectHref(toilProject)}/board${person ? `/${encodeURIComponent(person)}` : ''}`;
 /** The Dependencies tab (#394). */
 export const dependenciesHref = (toilProject: string) => `${toilProjectHref(toilProject)}/dependencies`;
-/** The Analyses tab (#394): Analyze's pulse checks. */
-export const analysesHref = (toilProject: string) => `${toilProjectHref(toilProject)}/analyses`;
+/** Earlier briefings (#394), a step in from the Summary's briefing: `…/summary/briefings`. The old `…/analyses` addresses are rewritten to it. */
+export const analysesHref = (toilProject: string) => `${toilProjectHref(toilProject)}/summary/briefings`;
 /** One analysis, opened again (#395). */
 export const analysisHref = (toilProject: string, id: string) => `${analysesHref(toilProject)}/${encodeURIComponent(id)}`;
 /** The worklog (#308): its calendar, or one UTC day's page. */
 export const worklogHref = (toilProject: string, day?: string) => `${toilProjectHref(toilProject)}/worklog${day ? `/${day}` : ''}`;
 /** The stand-up (#345): since the last working day, or a range of UTC days. */
-export const standupHref = (toilProject: string, range?: { from: string; to: string }) => `${toilProjectHref(toilProject)}/worklog/standup${range ? `/${range.from}/${range.to}` : ''}`;
+export const standupHref = (toilProject: string, range?: { from: string; to: string }) => `${toilProjectHref(toilProject)}/standup${range ? `/${range.from}/${range.to}` : ''}`;
 
 /**
  * Edit links (#346): where each configurable value is set. A pencil only

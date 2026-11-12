@@ -22,6 +22,7 @@ import { Cache, CacheError, wipeCacheFiles } from './cache.ts';
 import { areasFrom, settingsFrom } from './config.ts';
 import { createUiServer, type ToilProjectRenames } from './server.ts';
 import { ClassifyService, hostAgents, sampleBackend } from './classify.ts';
+import { BoardService, sampleBoard } from './board.ts';
 import { loadMachineSecret, MachineSecretError } from './machine-secret.ts';
 import { ToilProjectAgents } from './agents/toil-project-agents.ts';
 import { parseSettings, SettingsError, themesNotice, USAGE } from './settings.ts';
@@ -270,6 +271,8 @@ async function main(): Promise<number> {
     assignments,
     // Sorting work into categories (#566): toil's own classify commands with the chosen agent, or the sample's script, which writes nothing.
     classify: cache ? new ClassifyService({ execute, dataDir: settings.dataDir, agents: host ? hostAgents(host) : null, cwd: process.cwd() }) : sampleBackend(),
+    // The Board's drop: toil's own transition command, behind the connection's writes; the sample applies nothing.
+    board: cache ? new BoardService({ execute }) : sampleBoard(),
     ...(fingerprints ? { serverStatus: () => fingerprints!.server() } : {}),
     appDir: fileURLToPath(new URL('../app/', import.meta.url)),
     version: __TOIL_UI_VERSION__,
@@ -293,7 +296,7 @@ async function main(): Promise<number> {
   process.stdout.write(
     [
       `Toil UI ${__TOIL_UI_VERSION__} (beta, local only), on toil ${toilVersion}`,
-      settings.sample ? 'Serving sample data and the scripted agent; nothing connects to a tracker.' : 'Syncing through toil, read-only, with your own connections and Toil projects. Only its Settings pages, and a Toil project\'s name and description edited in place, change anything: toil\'s own connections and Toil projects, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.',
+      settings.sample ? 'Serving sample data and the scripted agent; nothing connects to a tracker.' : 'Syncing through toil, read-only, with your own connections and Toil projects. Only its Settings pages, a Toil project\'s name and description edited in place, and a card dropped on another column of the Board (while Settings, General says to apply board moves) change anything: toil\'s own connections and Toil projects when you ask, and a status through toil\'s own transition command, behind the connection\'s writes setting. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.',
       ...(cache ? [`The cache is ${cache.paths.db}, kept ${settings.retentionDays} days after each sync; toil-ui wipe deletes it.`] : []),
       '',
       'Open this URL in your browser. It holds no secret: your browser is let in by a cookie signed with the key in the data folder, and anything running as you on this machine can reach Toil UI too:',

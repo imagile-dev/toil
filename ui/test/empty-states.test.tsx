@@ -13,6 +13,7 @@ import type { ToilProjectData } from '../src/load.ts';
 import { SkinProvider, skinsFor } from '../src/skins.tsx';
 import { CommandCenter } from '../src/views/CommandCenter.tsx';
 import { Dashboard } from '../src/views/Dashboard.tsx';
+import { Analyses } from '../src/views/Analyses.tsx';
 import { ItemView } from '../src/views/Item.tsx';
 import { People } from '../src/views/People.tsx';
 import { PullRequests } from '../src/views/PullRequests.tsx';
@@ -67,7 +68,7 @@ describe('every empty panel', () => {
   const VIEWS: Array<[string, () => ReactNode, number]> = [
     ['the Board tab', () => <Dashboard tab="board" />, 2],
     ['the Dependencies tab', () => <Dashboard tab="dependencies" />, 1],
-    ['the Analyses tab', () => <Dashboard tab="analyses" />, 1],
+    ['Earlier briefings', () => <Analyses />, 1],
     ['the Pull requests tab', () => <PullRequests />, 1],
     ['the People tab', () => <People />, 1],
     ['the Command Center', () => <CommandCenter />, 1],

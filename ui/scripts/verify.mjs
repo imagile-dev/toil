@@ -498,7 +498,7 @@ try {
       const item = await firstItemRoute(real.pageUrl, ready.toilProject);
       if (!item) problems.push(`real data: the ${ready.toilProject} Toil project page links no work item, so no item view was checked.`);
       // The settings pages come from the layout check's own list, so a page added there is checked on real data too.
-      const routes = ['#/', `#/project/${ready.toilProject}`, `#/project/${ready.toilProject}/board`, `#/project/${ready.toilProject}/dependencies`, `#/project/${ready.toilProject}/worklog`, `#/project/${ready.toilProject}/worklog/standup`, ...(item ? [item] : []), ...ROUTES.filter((r) => r.startsWith('#/settings/'))];
+      const routes = ['#/', `#/project/${ready.toilProject}`, `#/project/${ready.toilProject}/board`, `#/project/${ready.toilProject}/dependencies`, `#/project/${ready.toilProject}/worklog`, `#/project/${ready.toilProject}/standup`, ...(item ? [item] : []), ...ROUTES.filter((r) => r.startsWith('#/settings/'))];
       await layout('real', real.pageUrl, routes);
 
       if (ask) await askAgent(real.api, ready.toilProject, home, ready.env.TOIL_UI_DATA_DIR, ready.env, real.pageUrl);

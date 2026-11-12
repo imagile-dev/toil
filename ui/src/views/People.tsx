@@ -22,7 +22,7 @@ import { Empty, EmptyLink } from '../components/empty.tsx';
 import { boardHref, dateTime, toilProjectHref, sourceLabel, toilProjectEditHref } from '../format.ts';
 import { ACTIVITY_DAYS, people, type Activity, type Card as PersonCard, type Identity, type Suggestion } from '../model/people.ts';
 import { daysText, WAITING_LABEL } from '../model/prs.ts';
-import { useTerm, useTheme, useThemeChoiceContext } from '../skins.tsx';
+import { useTheme, useThemeChoiceContext } from '../skins.tsx';
 import { wordingOn } from '../theme-context.ts';
 import { rolled } from '../model/alignment.ts';
 import './people.css';
@@ -41,7 +41,6 @@ const identityText = (i: Identity) => `${sourceLabel(i.area)} ${i.name && i.name
 
 export function People() {
   const { toilProject, now } = useData();
-  const term = useTerm();
   const alignments = useAlignments();
   const view = useMemo(
     () => people({ toilProject: toilProject.name, entries: toilProject.people ?? [], wipLimit: toilProject.wipLimit ?? null, items: toilProject.items, changes: toilProject.pullRequests ?? [], now }),
@@ -63,12 +62,11 @@ export function People() {
         <p className="eyebrow">
           <a href={toilProjectHref(toilProject.name)}>{toilProject.name}</a>
         </p>
-        <h1 tabIndex={-1}>{term('people', 'People')}</h1>
         <p className="lede">
           {view.people.length
             ? `${[humans ? count(humans, 'person', 'people') : '', agents ? count(agents, 'agent') : ''].filter(Boolean).join(' and ')} from the Toil project's people, and ${count(view.unmapped.length, 'account')} it doesn't map.`
             : `This Toil project lists nobody yet, so each account its data names has a card of its own (${view.unmapped.length}).`}{' '}
-          Read {dateTime(now)}; work in progress counts work items, not the epics and features that hold them. <Help topic="people" />
+          Read {dateTime(now)}; work in progress counts work items, not the epics and features that hold them.
         </p>
         {!view.people.length && (
           <p className="note">

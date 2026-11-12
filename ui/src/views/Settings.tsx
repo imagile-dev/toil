@@ -1,6 +1,6 @@
 /**
  * Settings (#253, item 4), each page its own address under `#/settings/`:
- * General first (notifications, links to learning content, then a closed
+ * General first (notifications, applying board moves, links to learning content, then a closed
  * Advanced section), Connections, Toil projects, Appearance (the theme, light
  * or dark, the font and one Motion setting), Usage (how Toil is used, and what
  * the AI agent's models used, with the Codex rates) and AI agent. The title is just
@@ -27,6 +27,7 @@ import { Advanced, type CacheControl } from './settings/General.tsx';
 import { ChartMarksSetting } from './settings/ChartMarks.tsx';
 import { MotionSetting } from './settings/Motion.tsx';
 import { LearningSetting } from './settings/Learning.tsx';
+import { BoardMovesSetting } from './settings/BoardMoves.tsx';
 import { NotifySetting } from '../components/notify.tsx';
 import { ThemeSetting } from './settings/Theme.tsx';
 import { usePlain } from '../plain-words.ts';
@@ -41,7 +42,7 @@ export const ADD_CONNECTION_HREF = '#/settings/connections/+add';
 export const CREATE_TOIL_PROJECT_HREF = '#/new-project';
 
 export const SETTINGS_PAGES: Array<{ page: SettingsPage; label: string; plain?: { label: string; about: string }; about: string; topic: HelpTopicId }> = [
-  { page: 'general', label: 'General', about: 'Notifications, and links to learning content, in this browser. Advanced holds what few people need.', topic: 'settings' },
+  { page: 'general', label: 'General', about: 'Notifications, applying board moves, and links to learning content, in this browser. Advanced holds what few people need.', topic: 'settings' },
   { page: 'connections', label: 'Connections', plain: { label: 'Connections', about: 'Your links to tools such as Jira and GitHub: add one, check that it works, choose the main one, allow writes or make it read only, update a login, or remove it.' }, about: 'Your links to tools such as Jira and GitHub.', topic: 'connections' },
   { page: 'projects', label: 'Toil projects', plain: { label: 'Toil projects', about: 'Set up a Toil project: the repositories it covers, its tools, its field names, its people and a limit on work in progress. Create Toil projects here too.' }, about: 'Set up a repository that has a Toil project, create Toil projects, and give them repositories, areas, field names, people and a work-in-progress limit.', topic: 'toil-project-setup' },
   { page: 'appearance', label: 'Appearance', about: 'The theme, light or dark, the font and motion in this browser.', topic: 'themed-wording' },
@@ -97,6 +98,7 @@ export function Settings({ page, at = [], config, agent, modelUsage = null, cach
       ) : page === 'general' ? (
         <>
           <NotifySetting />
+          <BoardMovesSetting />
           <LearningSetting />
           <Advanced config={config} cache={cache} />
         </>

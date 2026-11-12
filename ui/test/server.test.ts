@@ -1097,7 +1097,7 @@ describe('the worklog (#308)', () => {
     expect(ok.status).toBe(200);
     const body = JSON.parse(ok.body) as { markdown: string; text: string; report: { from: string; to: string } };
     expect(body.markdown).toMatch(/^# Stand-up: card-payments, 12 Oct 2026 to 13 Oct 2026/);
-    expect(body.text).toMatch(/^Stand-up: card-payments, 12 Oct 2026 to 13 Oct 2026/);
+    expect(body.text).toMatch(/^[^\n]+ · 12 Oct 2026 to 13 Oct 2026\n/);
     expect(body.report).toMatchObject({ from: '2026-10-12', to: '2026-10-13' });
     const future = await get(origin, '/api/worklog/standup?toilProject=card-payments&from=2026-10-12&to=2026-10-14');
     expect(future.status).toBe(400);

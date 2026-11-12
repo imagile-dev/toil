@@ -145,3 +145,69 @@ export function chartContextParts(context: ViewContext): string[] {
   parts.push(context.coverage[0] ?? 'Everything in the table was read.');
   return parts;
 }
+
+/**
+ * The scripted briefing for `sample-team` (#567): the recommendation, its reasons and the items under them, worked out from the sample's own
+ * records as the starters above are, so the Summary's briefing has a recommendation and reasons that cite real items, as the other sample
+ * projects' do. Without it the scripted Analyze answered with no briefing block, and the page said "no Recommendation line".
+ */
+export function sampleTeamBriefing(): { recommendation: string; reasons: Array<{ lens: string; label: string; line: string; text: string | null; items: Array<{ id: string; why: string; next: string }> }>; onTrack: string; changed: string[]; leftOut: [] } {
+  const items = SAMPLE_TEAM.owi.items;
+  const current = items.filter((i) => i.iteration?.state === 'current');
+  const left = current.filter(open);
+  const carried = left.filter((i) => (i.sprints ?? []).length > 1);
+  const unestimated = left.filter((i) => !i.estimate);
+  const first = carried[0] ?? unestimated[0] ?? left[0] ?? null;
+  const prs = SAMPLE_TEAM.owi.changes.filter((c) => c.state === 'OPEN' && c.created).sort((a, b) => Date.parse(a.created!) - Date.parse(b.created!));
+  const asOf = Date.parse(SAMPLE_AS_OF);
+  const oldest = prs[0] ?? null;
+  const waited = oldest ? Math.floor((asOf - Date.parse(oldest.created!)) / DAY) : 0;
+  const inProgress = new Map<string, WorkItem[]>();
+  for (const i of items.filter((x) => x.statusCategory === 'IN_PROGRESS' && x.assignee)) {
+    const who = i.assignee!.name ?? i.assignee!.id;
+    inProgress.set(who, [...(inProgress.get(who) ?? []), i]);
+  }
+  const busiest = [...inProgress.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))[0] ?? null;
+  const reasons: Array<{ lens: string; label: string; line: string; text: string | null; items: Array<{ id: string; why: string; next: string }> }> = [];
+  const sprintName = current[0]?.iteration?.name ?? 'The sprint';
+  if (left.length > 0) {
+    const named = [...carried, ...unestimated.filter((i) => !carried.includes(i))].slice(0, 2);
+    reasons.push({
+      lens: 'sprint',
+      label: 'Sprint',
+      line: `${plural(left.length, 'open item')}, ${plural(carried.length, 'carried over', 'carried over')}, ${plural(unestimated.length, 'without an estimate', 'without an estimate')}`,
+      text: null,
+      items: named.map((i) => ({
+        id: i.id,
+        why: carried.includes(i) ? `It came over from an earlier sprint and is still open in ${sprintName}.` : `It has no estimate, so ${sprintName}'s points leave it out.`,
+        next: carried.includes(i) ? 'Decide whether to finish it, split it or move it out of the sprint.' : 'Estimate it, so the sprint says what is really left.',
+      })),
+    });
+  }
+  if (oldest) {
+    const unreviewed = prs.filter((c) => c.reviewers.length === 0);
+    reasons.push({
+      lens: 'waiting',
+      label: 'Waiting on review',
+      line: `${plural(prs.length, 'pull request')} open, the oldest for ${plural(waited, 'day')}`,
+      text: `The oldest, ${cite(oldest.id)}, was opened ${plural(waited, 'day')} ago.${unreviewed[0] ? ` ${cite(unreviewed[0].id)} has no reviewer asked yet.` : ''} Ask for the first review today.`,
+      items: [],
+    });
+  }
+  if (busiest) {
+    reasons.push({
+      lens: 'load',
+      label: 'Load',
+      line: `${busiest[0]} has ${plural(busiest[1].length, 'item')} in progress`,
+      text: null,
+      items: [{ id: busiest[1][0]!.id, why: `${busiest[0]} has ${plural(busiest[1].length, 'item')} in progress, the most on the team. This is load, not performance.`, next: 'Check whether something can be handed on or finished before another is started.' }],
+    });
+  }
+  return {
+    recommendation: first ? `Settle ${cite(first.id)} first: ${carried.includes(first) ? 'it came over from an earlier sprint' : 'it is open in the running sprint'}, and ${plural(left.length, 'item')} ${left.length === 1 ? 'is' : 'are'} still open in ${sprintName}${oldest ? `. Then ask for a review of ${cite(oldest.id)}, which has waited ${plural(waited, 'day')}` : ''}.` : oldest ? `Ask for a first review of ${cite(oldest.id)}: it has waited ${plural(waited, 'day')}.` : 'Nothing needs anyone right now.',
+    reasons,
+    onTrack: '',
+    changed: [],
+    leftOut: [],
+  };
+}

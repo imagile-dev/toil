@@ -16,7 +16,7 @@ import type { Proposal } from '../proposal.ts';
 import { plainify } from '../plainify.ts';
 import { sampleAnswerUsage } from './model-usage.ts';
 import { jobLabel, parseJobPrompt } from '../model/jobs.ts';
-import { chartContextParts, sampleTeamScripts, SAMPLE_TEAM_STARTERS } from './sample-team-script.ts';
+import { chartContextParts, sampleTeamBriefing, sampleTeamScripts, SAMPLE_TEAM_STARTERS } from './sample-team-script.ts';
 
 const J = (n: number) => `[[corp-jira:PAY-${n}]]`;
 const A = (n: number) => `[[corp-ado:${n}]]`;
@@ -432,9 +432,11 @@ export const ANALYZE_BRIEFING: Record<string, { recommendation: string; reasons:
 
 /** The scripted Analyze answer: the briefing block, then the evidence as plain text. */
 export function analyzeParts(toilProject: string): string[] {
-  const script = SCRIPTS[toilProject] ?? {};
+  // The sample team's answers are worked out from its records when asked for, like its starters (sample-team-script.ts).
+  const script = SCRIPTS[toilProject] ?? (toilProject === 'sample-team' ? sampleTeamScripts() : {});
   const top = ANALYZE_BRIEFING[toilProject];
   const evidence = ANALYZE_PARTS.flatMap((part) => script[part]?.parts ?? []);
+  if (toilProject === 'sample-team') return [`\`\`\`briefing\n${JSON.stringify(sampleTeamBriefing())}\n\`\`\``, ...evidence];
   if (!top) return evidence;
   const briefing = {
     recommendation: top.recommendation,
@@ -512,7 +514,7 @@ export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
       return { prompt, parts, citations: citationsOf(parts), by: 'scripted', adapter: 'scripted', model: null, proposals: [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, toilProject) } : {}) };
     }
     const script = SCRIPTS[toilProject] ?? (toilProject === 'sample-team' ? sampleTeamScripts() : {});
-    if (prompt === ANALYZE && SCRIPTS[toilProject]) {
+    if (prompt === ANALYZE && (SCRIPTS[toilProject] || toilProject === 'sample-team')) {
       const parts: AnswerPart[] = analyzeParts(toilProject).map((text) => ({ text }));
       return { prompt: 'Analyze', parts, citations: citationsOf(parts), by: 'scripted', adapter: 'scripted', model: null, proposals: script.risk?.proposals ?? [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, toilProject) } : {}) };
     }

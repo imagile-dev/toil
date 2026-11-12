@@ -91,18 +91,19 @@ export const HELP = {
   jobs: { title: 'jobs', text: 'A workflow page from toil, run by the agent: it reads through toil and turns every write into a proposal for you.', page: '/docs/ui/', anchor: 'pull-requests' },
   people: { title: 'the People view', text: "What is on each person's plate, from the Toil project's people section and the same items and pull requests as the dashboard. It never ranks or scores anyone.", page: '/docs/ui/', anchor: 'people' },
   'people-mix': { title: 'the mix of open work', text: "One bar per person: the share of their open work in each value of the chosen dimension. It shows what kind of work is on a plate, never how anyone is doing, and cards stay in name order.", page: '/docs/ui/', anchor: 'the-mix-of-open-work' },
-  'split-numbers': { title: 'splitting a number', text: "Cuts the chart by one dimension, counted by code from the items Toil UI read, so it matches the same split in Charts. A segment opens its items, and Open in Charts keeps the split.", page: '/docs/ui/', anchor: 'splitting-the-numbers' },
+  'split-numbers': { title: 'splitting a number', text: "Cuts the chart by one dimension, counted by code from the items Toil UI read, so it matches the same split on the chart's full page. A segment opens its items, and Open the full chart keeps the split.", page: '/docs/ui/', anchor: 'splitting-the-numbers' },
   readiness: { title: 'the Command Center', text: 'Each verdict is worked out from the cached records, with no model call and no live read. Only ready items are slated, in the Toil project\'s order.', page: '/docs/ui/', anchor: 'readiness-and-the-command-center' },
-  charts: { title: 'the Charts tab', text: 'Each dashboard answers one question about the work, counted by code from the items Toil UI read, and every number opens the items behind it. The period and filters are in the address, so a link shows the same chart.', page: '/docs/ui/', anchor: 'charts' },
+  charts: { title: 'the charts', text: 'Each chart answers one question about the work, counted by code from the items Toil UI read, and every number opens the items behind it; the Summary shows three, and each opens its full page.', page: '/docs/ui/', anchor: 'charts' },
   'work-mix': { title: 'how the mix is worked out', text: "Each item takes the first category that fits: a label it already has, your rules, built-in signals, then its parent's. What none of them settles is Unsure, and the mix counts what was finished in the period.", page: '/docs/ui/', anchor: 'work-mix' },
   releases: { title: 'releases', text: "Scope is every item with the release's fix version: done is what is resolved, and left is the rest. Added since it started counts items created after the release's own start date, and is a dash when the release has none.", page: '/docs/ui/', anchor: 'releases' },
   sprints: { title: 'sprint velocity', text: "Done is what was resolved by a sprint's end; committed was in it when it started, added joined after, and carried over was left undone for a later sprint. Without an item's sprint history, committed and added are unknown.", page: '/docs/ui/', anchor: 'sprints' },
   where: { title: 'where the team is working', text: "Days in progress are counted from each item's status history, by the week they fall in; a parallel stream is an epic with work in progress that week. The team is measured, never a person.", page: '/docs/ui/', anchor: 'where-were-working' },
   flow: { title: 'flow', text: 'Throughput counts what was resolved each week, cycle time the days from started to resolved with the 85th percentile marked, and age the days since an open item started. The diagram and cycle time need status history.', page: '/docs/ui/', anchor: 'flow' },
-  explore: { title: 'exploring the data', text: 'Pick what to count, what to split by and what to spread it across. The view is in the address, so a link shows the same chart, and Save to Charts keeps it for the team.', page: '/docs/ui/', anchor: 'explore' },
-  worklog: { title: 'the worklog', text: "One page a day, folded by code from the sync, the pull requests, the builds and the agent's runs: facts only, each line linked to where it came from. Days and times are UTC.", page: '/docs/ui/', anchor: 'worklog' },
-  standup: { title: 'the stand-up', text: 'Built by code from the worklog\'s days, facts only, and shown on the Summary since the last working day. Days and times are UTC.', page: '/docs/ui/', anchor: 'stand-up' },
+  explore: { title: 'exploring the data', text: 'Pick what to count, what to split by and what to spread it across. The view is in the address, so a link shows the same chart, and Save this view keeps it for the team, and the command palette opens it by name.', page: '/docs/ui/', anchor: 'explore' },
+  worklog: { title: 'the worklog', text: "One page a day of what happened, folded by code from the sync, the pull requests, the builds and the agent's runs: facts only, each line linked to where it came from. Days and times are UTC.", page: '/docs/ui/', anchor: 'worklog' },
+  standup: { title: 'the stand-up', text: "The worklog's days by person: done, in progress, blocked, next and comments, built by code from facts, each linked. A ? marks a question nobody has answered; a dash is none, or not read yet when the source line says so.", page: '/docs/ui/', anchor: 'stand-up' },
   proposal: { title: 'the write gate', text: "Nothing changes until you approve it. Even then, the connection has to allow writes, and each change is asked for by name.", page: '/docs/core/', anchor: 'writes' },
+  'board-moves': { title: 'applying board moves', text: "Dropping a card on another column makes the move through toil, if the connection allows changes. Turn this off and a drop only shows the command to run yourself.", page: '/docs/ui/', anchor: 'board-moves' },
   settings: { title: "toil's configuration", text: "Every change goes through toil's own checks, never an edit to a file, and each is recorded in toil's audit log. Nothing here writes to a tracker.", page: '/docs/ui/', anchor: 'toils-configuration' },
   connections: { title: 'connections', text: 'A connection is one instance of an area: its host, its credential and whether writes are on. A login is never shown again: it is kept in the secure store of this computer.', page: '/docs/core/', anchor: 'configuration' },
   'toil-project-setup': { title: 'Toil project setup', text: "Each form checks the file before writing it and refuses to add what's already there unless you tick Replace. A Toil project holds no secret and can't turn writes on.", page: '/docs/projects/', anchor: 'create-check-use-share' },
@@ -132,7 +133,7 @@ export const HELP = {
   'simple-marks': { title: 'simple chart marks', text: "Each series on a chart has a colour and a border style, and in the decorative themes a picture frame. With this on, charts use the plain border instead, kept in this browser only.", page: '/docs/themes/', anchor: 'chart-marks' },
   // Toil tips (#419) link here, as well as the (i) beside their settings.
   board: { title: 'the board', text: 'One column per status category, across every tracker, each card with its own status word. Drag a card to another column, or open its menu with a right-click, a long press or M, to propose a move: nothing changes until someone applies it with toil.', page: '/docs/ui/', anchor: 'the-board' },
-  analyses: { title: 'the Analyses tab', text: "Analyze asks the agent for a pulse check, top-down: a recommendation, the issues behind it, then the evidence. Each one is kept here with what changed since the one before, worked out by code from each one's snapshot.", page: '/docs/ui/', anchor: 'the-toil-project-page' },
+  analyses: { title: 'earlier briefings', text: "Analyze asks the agent for a pulse check, top-down: a recommendation, the issues behind it, then the evidence. Each one is kept here with what changed since the one before, worked out by code from each one's snapshot.", page: '/docs/ui/', anchor: 'the-toil-project-page' },
   notifications: { title: 'notifications', text: "A notice when an agent's state changes, never for a tool call. Which states notify, quiet hours and only your own are under Settings, General.", page: '/docs/ui/', anchor: 'notifications' },
   // The bell (#417).
   'notification-history': { title: 'the notification history', text: "The last 50 notices and sync results, kept in this browser and sent nowhere, each linking to what it's about. Mark all read clears the count and keeps them.", page: '/docs/ui/', anchor: 'notification-history' },
@@ -148,7 +149,7 @@ export type HelpTopicId = keyof typeof HELP;
 export const helpHref = (topic: HelpTopic): string => `${DOCS_SITE}${topic.page}#${topic.anchor}`;
 
 /** The header's Help entry: the docs section for the view in front of you. */
-export type HelpView = 'toilProjects' | 'dashboard' | 'prs' | 'people' | 'charts' | 'command-center' | 'classify' | 'worklog' | 'standup' | 'item' | 'assignment' | 'job' | 'settings' | 'setup' | 'newProject';
+export type HelpView = 'toilProjects' | 'dashboard' | 'prs' | 'people' | 'charts' | 'command-center' | 'classify' | 'worklog' | 'standup' | 'briefings' | 'item' | 'assignment' | 'job' | 'settings' | 'setup' | 'newProject';
 const VIEW_TOPIC: Record<HelpView, HelpTopicId> = {
   toilProjects: 'toilProjects',
   dashboard: 'dashboard',
@@ -159,6 +160,7 @@ const VIEW_TOPIC: Record<HelpView, HelpTopicId> = {
   classify: 'classify',
   worklog: 'worklog',
   standup: 'standup',
+  briefings: 'analyses',
   item: 'readiness',
   assignment: 'assignments',
   job: 'jobs',

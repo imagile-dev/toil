@@ -44,6 +44,7 @@ import type { AssignmentsApi } from './assign/model.ts';
 import { memoryAnalyses, type AnalysesApi } from './analyses.ts';
 import { People } from './views/People.tsx';
 import { Charts } from './views/Charts.tsx';
+import { Analyses } from './views/Analyses.tsx';
 import { parseFilters, type Filters } from './filters.ts';
 import { PullRequests } from './views/PullRequests.tsx';
 import { JobPage } from './components/jobs.tsx';
@@ -98,14 +99,15 @@ type RouteOf =
   /** `at`: where an edit link lands on the page (#346): a connection's name, a toil project and its section, or `rates`. */
   | { view: 'settings'; page: SettingsPage; at?: string[] }
   /**
-   * A toil project's own tabs (#394): the Overview when `tab` is absent, else the Board, Dependencies or Analyses.
+   * A toil project's own tabs (#394): the Summary when `tab` is absent, else the Board or Dependencies.
    * `person`: the board filtered to one person, by the People view's key for them (#292).
-   * `analysis`: one analysis opened from the Analyses tab (#395), by its id.
    */
-  | { view: 'dashboard'; toilProject: string; tab?: 'board' | 'dependencies' | 'analyses'; person?: string; analysis?: string }
+  | { view: 'dashboard'; toilProject: string; tab?: 'board' | 'dependencies'; person?: string }
+  /** Earlier briefings, a step in from the Summary's briefing (#395): `…/summary/briefings`, or one of them by its id. */
+  | { view: 'briefings'; toilProject: string; id?: string }
   | { view: 'prs'; toilProject: string }
   | { view: 'people'; toilProject: string }
-  /** The Charts tab (#567): its list of dashboards, or one by its id. */
+  /** A chart's full page, under the Summary (#567): `…/summary/<dashboard>`. */
   | { view: 'charts'; toilProject: string; dashboard?: string }
   /** Every work item with its readiness verdict (#307). */
   | { view: 'command-center'; toilProject: string }
@@ -137,6 +139,11 @@ export function upgradeHash(hash: string): string {
     .replace(/^#\/dossier(?=\/|\?|$)/, '#/project')
     .replace(/^#\/settings\/dossiers(?=\/|\?|$)/, '#/settings/projects')
     .replace(/^#\/dossiers(?=\/|\?|$)/, '#/')
+    // The Charts and Past briefings tabs went into the Summary (#567): a shared link to either still lands, on its new address.
+    .replace(/^(#\/project\/[^/?]+)\/charts(?=\/|\?|$)/, '$1/summary')
+    // The stand-up is a tab of its own: its old address under the worklog redirects, days and all.
+    .replace(/^(#\/project\/[^/?]+)\/worklog\/standup(?=\/|\?|$)/, '$1/standup')
+    .replace(/^(#\/project\/[^/?]+)\/analyses(?=\/|\?|$)/, '$1/summary/briefings')
     // Creating a Toil project has its own short wizard; the two addresses that used to open the first-run wizard's project step go there.
     .replace(/^#\/setup\/project(?=\/|\?|$)/, '#/new-project')
     .replace(/^#\/settings\/projects\/\+new(?=\/|\?|$)/, '#/new-project');
@@ -184,16 +191,16 @@ function parsePath(hash: string): RouteOf {
     if (parts[2] === 'job' && parts[3] && jobForSegment(parts[3])) return { view: 'job', toilProject, job: jobForSegment(parts[3])!, target: null };
     if (parts[2] === 'prs') return { view: 'prs', toilProject };
     if (parts[2] === 'people') return { view: 'people', toilProject };
-    if (parts[2] === 'charts') return parts[3] ? { view: 'charts', toilProject, dashboard: decodeURIComponent(parts[3]) } : { view: 'charts', toilProject };
+    if (parts[2] === 'summary' && parts[3] === 'briefings') return parts[4] ? { view: 'briefings', toilProject, id: decodeURIComponent(parts.slice(4).join('/')) } : { view: 'briefings', toilProject };
+    if (parts[2] === 'summary' && parts[3]) return { view: 'charts', toilProject, dashboard: decodeURIComponent(parts[3]) };
     if (parts[2] === 'command-center') return { view: 'command-center', toilProject };
     // `board/classify` is a view of the Board, not a person's name, so it is read before the person filter is.
     if (parts[2] === 'classify' || (parts[2] === 'board' && parts[3] === 'classify' && parts.length === 4)) return { view: 'classify', toilProject };
     if (parts[2] === 'board') return parts[3] ? { view: 'dashboard', toilProject, tab: 'board', person: decodeURIComponent(parts.slice(3).join('/')) } : { view: 'dashboard', toilProject, tab: 'board' };
-    if (parts[2] === 'analyses' && parts[3]) return { view: 'dashboard', toilProject, tab: 'analyses', analysis: decodeURIComponent(parts.slice(3).join('/')) };
-    if (parts[2] === 'dependencies' || parts[2] === 'analyses') return { view: 'dashboard', toilProject, tab: parts[2] };
-    if (parts[2] === 'worklog' && parts[3] === 'standup') {
+    if (parts[2] === 'dependencies') return { view: 'dashboard', toilProject, tab: 'dependencies' };
+    if (parts[2] === 'standup') {
       // One day names a one-day stand-up; anything that isn't a day is named on the page, which shows the default range instead.
-      const [from, to] = [parts[4], parts[5]].map((p) => (p ? decodeURIComponent(p) : undefined));
+      const [from, to] = [parts[3], parts[4]].map((p) => (p ? decodeURIComponent(p) : undefined));
       const bad = [from, to].filter((p): p is string => p !== undefined && p !== '' && !isDay(p));
       if (bad.length || (!from && to)) return { view: 'standup', toilProject, from: null, to: null, ignored: bad.join(', ') || to! };
       return { view: 'standup', toilProject, from: from ?? null, to: to || from || null };
@@ -207,7 +214,7 @@ function parsePath(hash: string): RouteOf {
 /**
  * Which of a toil project's tabs a route shows (#394). The old addresses keep
  * working on the tab they belong to: the Command Center is the Board's
- * readiness view, the stand-up is the Worklog's, and an item lands on the
+ * readiness view, and an item lands on the
  * Board it came from. An assignment belongs to no tab: the Agents sidebar is its home.
  */
 export function tabOf(route: Route): ToilProjectTab | null {
@@ -218,11 +225,14 @@ export function tabOf(route: Route): ToilProjectTab | null {
       return 'prs';
     case 'people':
       return 'people';
+    // The charts' full pages and the earlier briefings are steps in from the Summary, so the Summary stays selected.
     case 'charts':
-      return 'charts';
+    case 'briefings':
+      return 'overview';
     case 'worklog':
-    case 'standup':
       return 'worklog';
+    case 'standup':
+      return 'standup';
     case 'command-center':
     case 'classify':
     case 'item':
@@ -577,7 +587,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
 
   // A new view moves focus to its heading, so a screen reader hears where it
   // landed and the next Tab starts from the top of the content. A dashboard
-  // still loading has no heading yet, so the move waits until it renders one.
+  // still loading has no heading yet, so the move waits until it renders one. A tab's page carries no title that repeats the tab (#567), so where it has no heading the focus lands on the page itself, which its tab names.
   const routeKey = JSON.stringify(route);
   const pending = useRef(false);
   // An edit link's target (#346) is focused by its own page once it has loaded (useLandOn), so the heading doesn't take it first.
@@ -592,7 +602,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   useEffect(() => {
     // A board filtered to one person (#292) takes focus at the filter's line instead, which is what the link was for.
     if (game.open) return;
-    const h1 = pending.current ? (main.current?.querySelector<HTMLElement>('#board-filter') ?? main.current?.querySelector<HTMLElement>('h1')) : null;
+    const h1 = pending.current ? (main.current?.querySelector<HTMLElement>('#board-filter') ?? main.current?.querySelector<HTMLElement>('h1') ?? main.current?.querySelector<HTMLElement>('[data-tab-panel]')) : null;
     if (h1) {
       pending.current = false;
       h1.focus({ preventScroll: h1.id === 'board-filter' });
@@ -601,7 +611,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
 
   const skip = (e: MouseEvent) => {
     e.preventDefault();
-    main.current?.querySelector<HTMLElement>('h1')?.focus();
+    (main.current?.querySelector<HTMLElement>('h1') ?? main.current?.querySelector<HTMLElement>('[data-tab-panel]'))?.focus();
   };
 
   const skins = skinsFor(theme.name);
@@ -682,7 +692,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
           <AnalyzeAfterSync syncedAt={syncedAt ?? null} />
           <ClassifyProvider>
           <ToilProjectShell tab={tabOf(route)} peek={route.peek ?? null} items={route.items ?? null} heading={route.view === 'dashboard'} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'classify' ? { boardView: 'classify' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
-            {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'job' ? <JobPage id={route.job} target={route.target} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'charts' ? <Charts dashboard={route.dashboard ?? null} /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : route.view === 'classify' ? <Classify /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} {...(route.analysis ? { analysis: route.analysis } : {})} />}
+            {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'job' ? <JobPage id={route.job} target={route.target} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'charts' ? <Charts dashboard={route.dashboard ?? null} /> : route.view === 'briefings' ? <Analyses {...(route.id ? { open: route.id } : {})} /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : route.view === 'classify' ? <Classify /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} />}
           </ToilProjectShell>
           </ClassifyProvider>
         </ChatScope>

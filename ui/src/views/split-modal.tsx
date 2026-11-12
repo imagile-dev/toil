@@ -140,7 +140,7 @@ export function Splittable({ measure, children, onNavigate }: { measure: SplitMe
       <div className="split__tools">
         <DimensionPicker label="Split by" value={split} options={SPLIT_DIMENSIONS} none="No split" ins={ins} onChange={setSplit} />
         <a className="btn btn--small" href={exploreHref(toilProject.name, spec)} data-open-in-charts="">
-          Open in Charts
+          Open the full chart
         </a>
         <Help topic="split-numbers" />
       </div>

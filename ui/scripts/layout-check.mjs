@@ -92,39 +92,40 @@ export const ROUTES = [
   '#/project/sample-team/board/classify',
   item('sample-team', 'sample-jira:SHOP-26'),
   '#/settings/projects/sample-team/classification',
-  // The Charts tab (#567): its list, Work mix by month and split by team, Releases, a drill list open over a chart (the 8 items added to 2.4 after it started), and a filtered view.
-  '#/project/sample-team/charts',
-  '#/project/sample-team/charts/mix',
-  '#/project/sample-team/charts/mix?split=team',
-  '#/project/sample-team/charts/releases',
-  '#/project/sample-team/charts/releases?items=release%7Cadded%7C2.4%7C-%7Cmeasure%3Ditems',
-  '#/project/sample-team/charts/mix?release=2.4&category=ktlo',
+  // The charts are items on the Summary (#567), each a full page under it with a breadcrumb: Work mix by month and split by team, Releases, a drill list open over a chart, and a filtered view.
+  '#/project/sample-team/summary/mix',
+  '#/project/sample-team/summary/mix?split=team',
+  '#/project/sample-team/summary/releases',
+  '#/project/sample-team/summary/releases?items=release%7Cadded%7C2.4%7C-%7Cmeasure%3Ditems',
+  '#/project/sample-team/summary/mix?release=2.4&category=ktlo',
   // The four more dashboards: Sprints (by what became of the work, then split by category), Where we're working, Flow and Explore (the default, a heatmap, small multiples), and a sprint's added items over its chart.
-  '#/project/sample-team/charts/sprints',
-  '#/project/sample-team/charts/sprints?split=category',
-  '#/project/sample-team/charts/sprints?items=sprint%7Cadded%7CSprint%2025%7C-%7C-',
-  '#/project/sample-team/charts/where',
-  '#/project/sample-team/charts/flow',
-  '#/project/sample-team/charts/explore',
-  '#/project/sample-team/charts/explore?measure=items&split=label&across=component&top=0',
-  '#/project/sample-team/charts/explore?measure=items&split=component&across=resolved%3Amonth&top=0&multiples=1',
+  '#/project/sample-team/summary/sprints',
+  '#/project/sample-team/summary/sprints?split=category',
+  '#/project/sample-team/summary/sprints?items=sprint%7Cadded%7CSprint%2025%7C-%7C-',
+  '#/project/sample-team/summary/where',
+  '#/project/sample-team/summary/flow',
+  '#/project/sample-team/summary/explore',
+  '#/project/sample-team/summary/explore?measure=items&split=label&across=component&top=0',
+  '#/project/sample-team/summary/explore?measure=items&split=component&across=resolved%3Amonth&top=0&multiples=1',
   // A project that never read fix versions: the Releases dashboard says so rather than drawing zeros.
-  '#/project/card-payments/charts',
+  '#/project/card-payments/summary/releases',
+  '#/project/card-payments/summary/where',
+  '#/project/card-payments/summary/mix',
   // An item's drawer (#494): beside the briefing from 1200px, over it below that, and over the Board, whose card key opens it.
   '#/project/card-payments?item=corp-jira%3APAY-101',
   '#/project/card-payments/board?item=corp-jira%3APAY-104',
   // How Analyze briefs a toil project (#494), with its prompt preview open among the details.
   '#/settings/projects/card-payments/analyze',
-  // The toil project's own tabs (#394): the Board with its needs-attention flags, the longest titles' board, Dependencies, and Analyses.
+  // The toil project's own tabs (#394): the Board with its needs-attention flags, the longest titles' board, Dependencies, and the earlier briefings a step in from the Summary.
   // Dependencies carries the blocker Gantt and its table (#396): a three-item chain with failing checks, a one-link Azure DevOps chain, and a toil project with no blocker.
   '#/project/card-payments/board',
   '#/project/checkout-web/board',
   '#/project/card-payments/dependencies',
   '#/project/settlement/dependencies',
   '#/project/checkout-web/dependencies',
-  '#/project/card-payments/analyses',
+  '#/project/card-payments/summary/briefings',
   // The history of analyses (#395): one opened again, top-down, with its evidence folded and what changed since the one before.
-  '#/project/card-payments/analyses/sample-analysis-2',
+  '#/project/card-payments/summary/briefings/sample-analysis-2',
   '#/project/checkout-web/prs',
   '#/project/card-payments/prs',
   '#/project/card-payments/job/review?target=github%3Aimagile%2Fpayments-web%2343',
@@ -144,9 +145,10 @@ export const ROUTES = [
   '#/project/card-payments/worklog/2026-10-12',
   '#/project/checkout-web/worklog/2026-10-11',
   // The stand-up (#345): since the last working day, with people, agents and unmapped accounts, and one day of another toil project named by one day in the URL, and a URL that names no day.
-  '#/project/card-payments/worklog/standup',
-  '#/project/settlement/worklog/standup/2026-10-12',
-  '#/project/checkout-web/worklog/standup/yesterday',
+  '#/project/sample-team/standup',
+  '#/project/card-payments/standup',
+  '#/project/settlement/standup/2026-10-12',
+  '#/project/checkout-web/standup/yesterday',
   item('card-payments', 'corp-jira:PAY-100'),
   item('settlement', 'corp-ado:2304'),
   // Agent assignments (#293): one that needs you (a report, a question, proposals with diffs), one that failed at its time limit, one working.
@@ -422,8 +424,9 @@ function states(route, width, sample = true) {
   }
   // Show and Hide are items in each card's menu now, not buttons on the card.
   // A chart's menu open (Ask, Copy for AI, Export), and Explore's Save to Charts form open (#567).
-  if (/\/charts\/(mix|releases|sprints|where|flow|explore)/.test(route) && !route.includes('items=')) out.push({ name: 'chart-menu', setup: `(async () => { const t = document.querySelector('[data-chart-panel] .card-menu__trigger'); if (!t) return 0; t.click(); const deadline = Date.now() + 5000; while (!document.querySelector('[role="menu"]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('[role="menu"]') ? 1 : 'the chart menu did not open'; })()`, undo: 'Escape' });
-  if (/\/charts\/explore$/.test(route)) out.push({ name: 'save-open', setup: clickAll('[data-explore-save] > button'), undoJs: clickAll('[data-explore-save] > button', null, 0) });
+  // card-payments has no releases, so its Releases page is the empty state and has no chart menu to open.
+  if (/\/summary\/(mix|releases|sprints|where|flow|explore)/.test(route) && !route.includes('items=') && route !== '#/project/card-payments/summary/releases') out.push({ name: 'chart-menu', setup: `(async () => { const t = document.querySelector('[data-chart-panel] .card-menu__trigger'); if (!t) return 0; t.click(); const deadline = Date.now() + 5000; while (!document.querySelector('[role="menu"]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('[role="menu"]') ? 1 : 'the chart menu did not open'; })()`, undo: 'Escape' });
+  if (/\/summary\/explore$/.test(route)) out.push({ name: 'save-open', setup: clickAll('[data-explore-save] > button'), undoJs: clickAll('[data-explore-save] > button', null, 0) });
   const menuItem = (label) => `(async () => { const deadline = Date.now() + 5000; let n = 0; for (const t of [...document.querySelectorAll('.conn-card .card-menu__trigger')].filter((b) => b.getClientRects().length)) { t.click(); let item; while (!(item = [...document.querySelectorAll('[role="menuitem"]')].find((i) => (i.textContent ?? '').trim() === ${JSON.stringify(label)})) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); if (item) { item.click(); n++; } else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); while (document.querySelector('[role="menu"]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); } return n; })()`;
   if (route === '#/settings/projects') out.push({ name: 'shown', setup: menuItem('Show details'), undoJs: menuItem('Hide details') });
   // Set up this repo (#333): the sample's plan, with its table, check problems and the form for the missing connection.
@@ -502,8 +505,8 @@ function states(route, width, sample = true) {
     out.push({ name: 'split-aging-by-team', setup: split('aging', 'Team'), undo: 'Escape', undoJs: clickAll('[data-chart-close]', null, 0) });
   }
   // The history (#395), set open rather than clicked, since the check has already opened every <details> once: an entry's what-changed opened; an analysis with its evidence unfolded, and a citation chip's detail as a keyboard user who tabbed to it sees it.
-  if (/\/analyses$/.test(route)) out.push({ name: 'what-changed', undoJs: 'window.scrollTo(0, 0)', setup: `(() => { const d = [...document.querySelectorAll('details.analysis__changes')]; for (const x of d) x.open = true; d[0]?.scrollIntoView({ block: 'start' }); return d.length; })()` });
-  if (/\/analyses\/[^/]+$/.test(route)) {
+  if (/\/summary\/briefings$/.test(route)) out.push({ name: 'what-changed', undoJs: 'window.scrollTo(0, 0)', setup: `(() => { const d = [...document.querySelectorAll('details.analysis__changes')]; for (const x of d) x.open = true; d[0]?.scrollIntoView({ block: 'start' }); return d.length; })()` });
+  if (/\/summary\/briefings\/[^/]+$/.test(route)) {
     // A real agent's briefing may legitimately have no evidence paragraphs (a Codex run can), and a state that opens nothing is a problem, so only the sample (whose analysis always has some) is held to it.
     out.push({ name: 'evidence-open', undoJs: 'window.scrollTo(0, 0)', setup: `(() => { const d = [...document.querySelectorAll('details.analysis-evidence')]; for (const x of d) x.open = true; d[0]?.scrollIntoView({ block: 'start' }); return d.length || ${sample ? 0 : 1}; })()` });
     const chip = `[...document.querySelectorAll('main .cite-link')].find((c) => c.getClientRects().length)`;
@@ -653,6 +656,9 @@ async function dragCheck(page, width, shoot, inspectDropped, sample) {
   const ghost = await until(page, `(() => { const g = document.querySelector('[data-proposed-ghost]'); return g ? g.closest('.column')?.querySelector('h3')?.id ?? '' : null; })()`);
   if (ghost === null) problems.push('after the drop, no proposed ghost of the card showed on the board within 5s');
   else if (ghost !== plan.target) problems.push(`after the drop, the proposed ghost is in ${ghost || 'no column'}, not ${plan.target}`);
+  // The tidied proposal says in one line why it was not applied (here, the sample can't write), and keeps its command a step further in.
+  const why = await page.evaluate(`(() => document.querySelector('[data-proposal-why]')?.textContent?.trim() ?? '')()`);
+  if (ghost !== null && !why) problems.push('after the drop, the proposal card had no line saying why the move was not applied');
   await shoot('drag-dropped');
   await page.evaluate(ANIMATIONS_DONE);
   const dropped = ghost === null ? none : await inspectDropped();

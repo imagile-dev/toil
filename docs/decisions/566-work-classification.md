@@ -479,3 +479,20 @@ scope on the token) and on Azure DevOps (it needs an inherited process for the t
 project); the tuning flow with a real AI agent, which appears only after ten
 corrections; Jira Data Center and Azure DevOps Server, which the maintainer set aside on
 12 November 2026.
+
+**The maintainer's review of the screens, 12 November 2026: board moves**
+
+- **A drop on the Board applies the move, behind a setting that defaults to on** (the
+  maintainer's call: "It should have settings to auto-apply board movement - but
+  default to on"). The page sends only the toil project, the item's id and the column;
+  the server runs `jira issue transition --to <intent>` or `ado work-item transition
+  --to <intent>` with `--allow-write` as the person, so the connection's `writes`
+  still decides and toil's audit log records it. Defaults taken: the setting is kept in
+  the browser, since it changes only what the page asks for; toil picks the transition
+  and a move it will not pick (several fit, or none) stays a proposal listing the
+  moves; a connection with writes off, the sample, and every GitHub move stay
+  proposals (toil has no command to close or reopen an issue, and a project board's
+  Status has no category to choose by); the proposal's own command now uses the same
+  `--to <intent>`. `CLAUDE.md`'s `ui/` paragraph lists what Toil UI writes on a press
+  and does not yet name this one: the maintainer's to add. Not verified: no real move
+  was applied to a real tracker. Where: `ui/server/board.ts`, `ui/src/board-moves.ts`.

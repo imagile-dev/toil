@@ -31,7 +31,6 @@ import { useTerm, useWords } from '../skins.tsx';
 import { usePlain } from '../plain-words.ts';
 import type { ChangeRef, Deployment } from '../toil.ts';
 import { Board } from './Board.tsx';
-import { Analyses } from './Analyses.tsx';
 import { BlockerGantt } from './Gantt.tsx';
 import { Overview } from './Overview.tsx';
 import { Loader } from '../moments/Moments.tsx';
@@ -146,15 +145,14 @@ function useBoardFilter(person: string | undefined) {
   }, [person, toilProject, now]);
 }
 
-export type DashboardTab = 'overview' | 'board' | 'dependencies' | 'analyses';
+export type DashboardTab = 'overview' | 'board' | 'dependencies';
 
 /** The toil project's own tabs (#394). The rest (pull requests, people, the worklog) are views of their own in the same frame. */
-export function Dashboard({ tab = 'overview', person, analysis }: { tab?: DashboardTab; person?: string; analysis?: string } = {}) {
+export function Dashboard({ tab = 'overview', person }: { tab?: DashboardTab; person?: string } = {}) {
   const { health: h } = useDerived();
   useSprintProgress(h);
   if (tab === 'board') return <BoardTab {...(person ? { person } : {})} />;
   if (tab === 'dependencies') return <DependenciesTab />;
-  if (tab === 'analyses') return <Analyses {...(analysis ? { open: analysis } : {})} />;
   return <Overview />;
 }
 
@@ -271,15 +269,13 @@ function BoardTab({ person }: { person?: string }) {
 /** The Dependencies tab: the blocker Gantt on the sprint's timeline (#396), then the dependency graph, with every relation listed in words under it. */
 function DependenciesTab() {
   const { toilProject } = useData();
-  const term = useTerm();
-  const plain = usePlain();
   const words = useWords();
   return (
     <div className="tab-panels">
       <Panel id="gantt" title="Blocker timeline" calls={[...toilProject.calls.work, ...toilProject.calls.prs, ...toilProject.calls.builds]} alerts={false}>
         <BlockerGantt />
       </Panel>
-      <Panel id="graph" title={term('dependencies', plain.pw('Dependencies', 'What blocks what'))} calls={toilProject.calls.work} alerts={false}>
+      <Panel id="graph" title="Links between items" calls={toilProject.calls.work} alerts={false}>
         <Suspense fallback={<Loader size="panel" message={words('loading.graph')} />}>
           <Graph />
         </Suspense>

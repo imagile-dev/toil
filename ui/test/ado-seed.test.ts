@@ -280,6 +280,6 @@ describe("toil's ado commands on a Services connection, on the seeded board", ()
     vi.stubGlobal('fetch', board.fetch);
     const data = await loadToilProject(execute as unknown as Execute, 'ado-board', { mapOwi, now: () => new Date(after()) });
     const item = data.items.find((i) => i.status === 'New' && i.type === 'STORY') as WorkItem;
-    expect(proposeMove(item, 'IN_PROGRESS', data.items, 'ado-board')).toMatchObject({ command: 'ado work-item transition', input: { toilProject: 'ado-board', id: Number(item.source.key), state: 'Committed' } });
+    expect(proposeMove(item, 'IN_PROGRESS', data.items, 'ado-board')).toMatchObject({ command: 'ado work-item transition', input: { toilProject: 'ado-board', id: Number(item.source.key), to: 'start' } });
   });
 });

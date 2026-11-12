@@ -1158,7 +1158,7 @@ describe('each question, as an agent run for the worklog (#308)', () => {
     // FIXTURE_NOW is a Tuesday: since the last working day is Monday and Tuesday.
     expect(asked).toEqual([['2026-10-12', '2026-10-13']]);
     expect(out.team[0]!.fact).toBe('F1');
-    expect(Object.keys(out.people[0]!)).toEqual(['name', 'kind', 'inToilProjectPeople', 'Done', 'In progress', 'Blocked', 'Next']);
+    expect(Object.keys(out.people[0]!)).toEqual(['name', 'kind', 'inToilProjectPeople', 'Done', 'In progress', 'Blocked', 'Next', 'Comments']);
     const cited = [...out.team, ...out.people.flatMap((p) => ['Done', 'In progress', 'Blocked', 'Next'].flatMap((b) => p[b] as Array<{ cite: string[] }>))].flatMap((l) => l.cite);
     expect(cited.length).toBeGreaterThan(0);
     for (const id of cited) expect(ledger.ids.has(id)).toBe(true);

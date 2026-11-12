@@ -17,7 +17,7 @@ import type { AssignmentsApi } from '../src/assign/model.ts';
 async function open(hash: string, assignments: AssignmentsApi = fixtureAssignments({ delay: 1 })) {
   window.location.hash = hash;
   const view = render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview assignments={assignments} />);
-  await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
+  await waitFor(() => expect(document.querySelector('h1, [data-tab-panel]')).toBeTruthy(), { timeout: 3000 });
   return view;
 }
 
@@ -177,7 +177,7 @@ describe("a stale chat (#305)", () => {
     };
     window.location.hash = '#/project/card-payments';
     render(<App execute={fixtureExecute().execute} agent={agent} now={FIXTURE_NOW} preview />);
-    await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
+    await waitFor(() => expect(document.querySelector('h1, [data-tab-panel]')).toBeTruthy(), { timeout: 3000 });
     const user = userEvent.setup();
     await user.click(screen.getByRole('textbox', { name: 'Your question' }));
     const chat = await screen.findByRole('dialog', { name: 'Ask about card-payments' });

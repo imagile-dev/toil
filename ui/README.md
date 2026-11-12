@@ -8,7 +8,9 @@ requests view for what is waiting on review, and a daily worklog of what happene
 **Status: beta, local only.** It runs on your own machine, binds loopback, and
 reads through toil with your own connections and Toil projects, read-only. Its
 settings pages, and a Toil project's name and description edited in place, are the only
-places it changes anything of toil's, and only toil's own connections and Toil projects. The worklog keeps its pages and the notes you add in its own
+places it changes anything of toil's, and only toil's own connections and Toil projects. The one change it makes to a tracker is a card
+you drop on another Board column, which asks toil's own transition command to change that item's status, behind the connection's `writes`
+setting, and only while Settings, General has "Apply board moves when I drop a card" on (it is by default). The worklog keeps its pages and the notes you add in its own
 data folder, and writes anywhere else only when you export a page. Its Feedback dialog sends a report to Imagile through
 `toil feedback`, only when you approve it. It is a separate package from toil: installing toil
 never installs it. toil's beta commitment to stable commands, flags and output doesn't
@@ -36,7 +38,7 @@ It prints one URL and keeps running until you press Ctrl+C:
 
 ```text
 Toil UI <version> (beta, local only), on toil <version>
-Syncing through toil, read-only, with your own connections and Toil projects. Only its Settings pages, and a Toil project's name and description edited in place, change anything: toil's own connections and toilProjects, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
+Syncing through toil, read-only, with your own connections and Toil projects. Only its Settings pages, a Toil project's name and description edited in place, and a card dropped on another column of the Board (while Settings, General says to apply board moves) change anything: toil's own connections and Toil projects when you ask, and a status through toil's own transition command, behind the connection's writes setting. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
 The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
 Open this URL in your browser. It holds no secret: your browser is let in by a cookie signed with the key in the data folder, and anything running as you on this machine can reach Toil UI too:
@@ -139,7 +141,7 @@ in any view.
 
 Screens always read in everyday words: a pull request is a **code review**, an agent an **AI agent**, with toil's own term in the hover. There is no switch. Anything a person reads to act (a menu item, tab, button, label, heading, an error and its fix) is plain English and identical in every theme; a theme speaks only in ledes and explanations, loading text, empty-state sentences and its moments (**Words** in `docs/themes.md`). Facts, numbers, commands and errors read the same everywhere. Themed wording is on by default and themed agent voice is off until chosen.
 
-The tabs read **Summary**, **Board**, **What blocks what** (Dependencies), **Code reviews**, **People**, **Charts**, **What happened** (Worklog) and **Past briefings** (Analyses); Analyze is **Get a briefing**. A panel's source reads "From Jira and GitHub", with each tool and how many reads it took one step in. **Settings → Appearance** has a **Font** control: the theme's own type first, then pairings made only of fonts already bundled (`docs/themes.md`, **Fonts**). Quoted titles, the tracker's words and a briefing's own sentences are never reworded.
+The tabs read **Summary**, **Board**, **What blocks what** (Dependencies), **Code reviews**, **People**, **Stand-up** and **What happened** (Worklog); Analyze is **Get a briefing**, on the Summary. A panel's source reads "From Jira and GitHub", with each tool and how many reads it took one step in. **Settings → Appearance** has a **Font** control: the theme's own type first, then pairings made only of fonts already bundled (`docs/themes.md`, **Fonts**). Quoted titles, the tracker's words and a briefing's own sentences are never reworded.
 
 ## Plain copy: no terminal in the words
 
@@ -220,13 +222,14 @@ A Toil project opens on its **Overview**, the briefing, in a frame all of its pa
 - **The top row:** on the Overview, a **Diagram** link (`#/project/<name>/job/diagram`) draws the Toil project's repositories as a C4 diagram in Mermaid; the steps that need a folder on disk (`util size`, `git log`, `deps scan`) are reported unchecked. Its name; the sprint and its day; its description, cut to one
   line with the whole of it in its tooltip, its sources and a quiet **Edit** link at the end of that line (on a phone, a **Details** button beside the name opens them, the link with them); and the Ask bar, with the
   **AI agents** button beside it (The agent, below). Moving to another Toil project is the picker in the app's header, right after the brand, on every page (see below).
-- **The tabs**, one address each: **Overview** (`#/project/<name>`), **Board**
+- **The tabs**, one address each, one tab and one page: **Overview** (the Summary, `#/project/<name>`), **Board**
   (`/board`, with how many of its cards need attention), **Dependencies**
-  (`/dependencies`), **Pull requests** (`/prs`), **People** (`/people`), **Charts**
-  (`/charts`), **Worklog**
-  (`/worklog`) and **Analyses** (`/analyses`). The Command Center (`/command-center`)
-  is the Board tab's **Readiness** view, the stand-up is the Worklog's, and an item's
-  page sits under Board, so every address from before the tabs still opens. On a
+  (`/dependencies`), **Pull requests** (`/prs`), **People** (`/people`), **Stand-up**
+  (`/standup`) and **Worklog** (`/worklog`). A page does not open with a title that repeats its tab: the tab is the
+  title, the page is named by it, and what the page is sits in the (i) at the end of the tabs. The Command Center (`/command-center`)
+  is the Board tab's **Readiness** view, and an item's page sits under Board. The charts and the earlier briefings are no tabs: they
+  are steps in from the Summary (`/summary/<chart>`, `/summary/briefings`), each with a breadcrumb ("Summary › Work mix") back,
+  and the old `/charts`, `/charts/<chart>`, `/analyses` and `/analyses/<id>` addresses are rewritten to them, so every address from before still opens. On a
   narrow screen the tabs scroll sideways; the Agents button sits beside the Ask bar at
   every width (a compact **AI** with its count on a phone, still named "AI agents"), so the tabs get the whole row.
 - **The Agents panel**, closed by default at every width: one **Agents** button (**AI agents** in plain words)
@@ -239,13 +242,13 @@ A Toil project opens on its **Overview**, the briefing, in a frame all of its pa
   Toil project's three newest analyses, each linking to it (Assigning work to an agent, below). Each card's title is its link; how many run at once, for how long, and what the inbox is are in the heading's (i), and the tracker's raw label (`agent:refine`) is in the Start dialog.
   While an item's drawer is open (`?item=<id>`, The briefing, below), it takes the
   sidebar's column from 1200px wide, and covers the view from the right below that.
-- **Analyses** lists every Analyze kept for the Toil project, newest first: when it was made,
+- **Earlier briefings** (`/summary/briefings`, linked as "Earlier briefings (N)" under the briefing on the Summary; the Past briefings tab is gone) lists every Analyze kept for the Toil project, newest first: when it was made,
   the adapter and model that wrote it, its one-line recommendation, and what changed
   since the one before (items newly blocked or blocked by something new, blockers
   cleared, points moved on an item or in the sprint, items newly cited or no longer
   cited, a new recommendation). What changed is worked out by code, from a snapshot of
   the Toil project's items each analysis keeps, never by asking the agent. **Open** reads one
-  again at its own address (`/analyses/<id>`), top-down like the chat, with its
+  again at its own address (`/summary/briefings/<id>`), top-down like the chat, with its
   suggested changes and what it used. The server keeps them in the cache (Sync and the
   cache, below), so they outlast a reload and a restart; with `--sample`,
   card-payments starts with two, kept in memory for the run.
@@ -365,12 +368,36 @@ The Board tab flags each card that needs attention, with a flag beside its statu
 an edge in the warning colour: anything that needs action now or a look (Insights,
 below), but not what is only worth knowing. **Needs attention only** narrows the board
 to those cards, and the tab carries how many there are. Drag a card to another column,
-or press M on it for its menu, to propose the move (a card that can't be moved can't be dragged, and shows the reason: a GitHub issue that isn't on a project board this Toil project reads, or an area with no status command; a GitHub move proposes `toil github project status --item <id> --to <status>`): nothing changes until you apply
-the command the proposal shows, and the card stays where its tracker says. Under the board are its
+or press M on it for its menu, to move it (a card that can't be moved can't be dragged, and shows the reason: a GitHub issue that isn't on a project board this Toil project reads, or an area with no status command). What a drop does is under **Board moves**, below. Under the board are its
 stories with their pull requests, builds and deployments, then the builds and
 deployments themselves.
 
-The board and **Ready to start?** share the Charts tab's filter bar (without its period), so "Fix version: 2.4, Category: Keep
+### Board moves
+
+A drop is your own act, so by default it makes the move. **Settings, General, Apply board moves when I drop a card** (on until you
+turn it off, kept in this browser) decides: with it on, the card is in its new column at once, marked *Moving…*, and the server asks toil
+to change the status. The page sends the Toil project, the item's id and the column, and nothing else (`POST api/board/move`, `ui/server/board.ts`):
+the server checks the Toil project, the connection and the item through toil's reads, then runs one command as you,
+`caller: "toil-ui"`, through `execute()`, so toil's audit log records it: `jira issue transition --to <intent>` for Jira and
+`ado work-item transition --to <intent>` for Azure DevOps, with the column's intent (To do is `reopen`, In progress `start`, Done `done`).
+toil resolves the intent against that item's own workflow, and refuses, listing the moves the item offers, unless exactly one fits.
+The connection's `writes` setting still decides, as it would typed by hand; a Toil project's connection you haven't adopted is refused by toil
+(`WRITE_DISABLED`) and the page says so in toil's words.
+
+On success a line says **Moved PAY-102 to In progress** (with the transition toil chose), with **Undo**, which makes the reverse move the same way.
+If toil refuses or fails, the card goes back to its column and the message, toil's own with its fix, stays above the board until you dismiss it. A write
+that timed out may still have been applied, and the message says to check the tracker.
+
+When the move can't be made for you, nothing changes in the tracker and the drop becomes a **proposed move** under the board (the card stays where
+its tracker says, with a dashed ghost in the target column). The card says what would change, **one line on why it wasn't applied**, an **Apply**
+button when a press can make it (the setting is off but the connection allows changes), and **Dismiss**; the command to run yourself, in PowerShell or
+bash/zsh with **Copy command**, is a step further in under **Show the command**. Why it can be a proposal: the setting is off; the sample, which can
+show a move and write none; a connection with `writes` off (the card says so and where to turn them on); a status that more than one transition
+leads to, or none (toil's refusal, with the moves the workflow offers, is on the card: nothing is guessed); a card Toil UI can't move; a GitHub
+project board's Status, which has no category to choose by, so it stays a proposal with its `toil github project status` command; and a view with no server to ask.
+A drop in the column the card is already in, or onto another lane when the board is grouped, does nothing.
+
+The board and **Ready to start?** share the charts' filter bar (without its period), so "Fix version: 2.4, Category: Keep
 the lights on" narrows the cards, each column's count, the lanes and the tables under the board; the Unsure share on Work mix
 opens the board filtered to the items nobody has categorised (`?category=none`). The filters live in the address and carry from one
 board view to the other. **Group by** turns the board into swimlanes (`?group=parent:Epic`): one lane per value of the chosen
@@ -508,9 +535,7 @@ cards sit under their team's heading, teams and people both in name order, with 
 
 ## Charts
 
-The **Charts** tab (`/charts`) is a list of dashboards, each one card with its one headline in a sentence, worked out from the
-same data as the dashboard it opens. A headline that can't be known is a dash with its reason, never 0. Six dashboards:
-**Work mix** (`/charts/mix`), **Releases**, **Sprints**, **Where we're working**, **Flow** and **Explore**, then the views your team saved. Every dashboard is a module in `ui/src/views/charts/`
+There is no Charts tab. The Summary carries **Where the work goes**: three items, **Work mix**, **Where we're working** and **Flow**, each its dashboard's own headline sentence and one small chart, the title a link to the full page (`/summary/mix`, `/summary/where`, `/summary/flow`). The Summary has no controls: splitting and filtering happen on the full page. An item whose data was not read is a dash with its reason, never 0. Six dashboards exist: those three, then **Releases** (`/summary/releases`), **Sprints** (`/summary/sprints`) and **Explore** (`/summary/explore`), which the Summary does not offer and which are reached by their own addresses, by typing their name in the command palette, and from the split dialogs' **Open the full chart**. Views your team saved open from the palette by name too. Every dashboard is a module in `ui/src/views/charts/`
 that exports an `id`, a `title`, a `headline` and a `View`, and is added to one list, so a new one changes no other file.
 
 Every figure comes from toil's pure pivot model (`src/core/insights/`), the same one `toil projects pivot` and the agent
@@ -555,7 +580,7 @@ How many finish a week and how long they took, then throughput by any split; fol
 
 ### Explore
 
-Pick a measure, a split, an across and filters; the chart's form follows the data (columns over time, stacked bars, a heatmap for two wide dimensions, one bar per value with no across), with small multiples when a split has more than four values. The whole view is in the address, so a link shows the same chart. The Split and Across menus offer every dimension the data holds, including the parent levels it has, label families (a prefix three labels share) and the fields your Toil project names, greyed "not read yet" when unread. **Save to Charts** keeps the view in the Toil project (`projects view set`, the same local write the Settings pages make, with the name and title you type); saved views appear on the Charts list under "Saved by your team". In the preview, which changes nothing, the button says so. Removing a saved view is a delete and stays on the command line.
+Pick a measure, a split, an across and filters; the chart's form follows the data (columns over time, stacked bars, a heatmap for two wide dimensions, one bar per value with no across), with small multiples when a split has more than four values. The whole view is in the address, so a link shows the same chart. The Split and Across menus offer every dimension the data holds, including the parent levels it has, label families (a prefix three labels share) and the fields your Toil project names, greyed "not read yet" when unread. **Save this view** keeps the view in the Toil project (`projects view set`, the same local write the Settings pages make, with the name and title you type); a saved view opens from the command palette by its name. In the preview, which changes nothing, the button says so. Removing a saved view is a delete and stays on the command line.
 
 ## Sort work into categories
 
@@ -704,36 +729,22 @@ Toil UI posts nothing. With sample data, notes and export are off.
 
 **Stand-up since the last working day** leads the Summary too: a compact **Stand-up** card right under the
 headline answer and what needs attention shows the same report for the default range ("Yesterday" or "Since
-Friday"), five lines with **Show more** in place, and **Open the full stand-up**. With no sync behind it the card
+Friday"), a team line, the few rows that matter most (unanswered questions, then blocked, done, in progress) and **Open the full stand-up**. With no sync behind it the card
 shows `–` and "Not read yet" with **Sync now**, never "nothing happened". The Summary's **Go to** row and the
-command palette (**Open the stand-up**) open it as well. The page, on the Worklog
-(`#/project/<name>/worklog/standup`), reshapes the worklog for a meeting: since the last
+command palette (**Open the stand-up**) open it as well. The page (`#/project/<name>/standup`) reshapes the worklog for a meeting: since the last
 working day through today (Friday through Monday on a Monday), or any range of up to 31
-days you pick (`#/project/<name>/worklog/standup/<from>/<to>`, or `/<day>` for one), and each day's page has a
+days you pick (`#/project/<name>/standup/<from>/<to>`, or `/<day>` for one), and each day's page has a
 **Stand-up for this day**. It is a fold of those days' pages by code, with no model, so the
 same days always give the same report.
 
-- **Team lines first:** the sprint's working days left, items added to or dropped from a
-  sprint, and builds and deployments that broke or recovered.
-- **Then each person, agents included,** in four lists: **Done** (items moved into a done
-  status, pull requests merged or closed), **In progress** (every other status change,
-  pull requests opened or reviewed), **Blocked** (a new blocker on an item they hold, a
-  failed build of their pull request, a pull request of theirs waiting on review for 2
-  working days or more) and **Next** (current-sprint items assigned to them and not
-  started). A line belongs to whoever the fact names: who moved the item, who wrote or
-  reviewed the pull request. A pull request a Toil project agent wrote goes under the agent.
-- **People** come from the Toil project's `people`, so one person's Jira, Azure DevOps and
-  GitHub accounts land under one name. An account the Toil project doesn't map gets its own
-  card, named with its area and id; the People view suggests where it belongs.
-- **What the worklog can't vouch for** in the range is said at the top. Review waits, the
-  sprint and Next aren't on any worklog page, so they are as of the latest sync, and the
-  report says which.
-- **Every line links** to its item, pull request or build, and is numbered (F1, F2, ...).
+- **No title, one source line.** The page has no heading of its own; one line says where it came from ("From the worklog, as of the sync at 13 Oct 07:55 UTC") and which trackers' comments were read, and the (i) holds the rest. One row of controls: a menu of days (since the last working day, today, last 7 days, this sprint, or custom dates), which apply at once, and **Copy text**.
+- **The team in one line:** the sprint ("Sprint 26: day 7 of 10, 7 of 25 done"), then scope changes and builds that broke or recovered, folded after three.
+- **Then each person, agents included,** as a small block: a small person (an agent has its own shape) and the name, then five rows in a fixed order, **Done** (items moved into a done status, pull requests merged or closed), **In progress**, **Blocked** (a new blocker, a failed build of their pull request, a pull request waiting on review for 2 working days or more), **Next** (current-sprint items assigned to them and not started) and **Comments**. Each row is a few chips (key and a short title; the full text on hover), folded after three with "+N". An empty row is a `–` (read aloud as "none", or "not read yet" where nothing was read). A person with nothing at all is one line. People sit in two or three columns on a wide screen.
+- **Comments are the reminder.** A person's comments in the days, and, first and marked with a "?" and "no reply, N d", every question they asked that nobody else has answered since, however old. Jira's comments come with the search (`comment` is one of the fields it asks for, so no extra requests), kept as OWI's optional `comments`; Toil UI does not read pull request or other trackers' comments yet, and the source line says so.
+- **People** come from the Toil project's `people`, so one person's Jira, Azure DevOps and GitHub accounts land under one name. An account the Toil project doesn't map gets its own block, named with its area and id; the People view suggests where it belongs.
+- **What the worklog can't vouch for** in the range is one folded "Coverage" line. Review waits, the sprint and Next aren't on any worklog page, so they are as of the latest sync.
 
-It copies as **Markdown** (for Slack, Teams or a wiki) or **plain text**, line for line as
-shown. **Export** writes the Markdown through toil's file service, as a page's export does,
-to `standup-<toilProject>-<from>-to-<to>.md`, and publishing it to Confluence or GitHub is a
-proposal for you to run.
+**Copy text** is the whole stand-up as short plain text: a team line, then one line per person ("A. Chen — In progress: SHOP-119 Size guide (To Do → In Progress). Next: SHOP-131. Comments: SHOP-125 "Do we need a migration…" (1 day, no reply)"). **Export as a Markdown file**, folded at the bottom, writes the full Markdown through toil's file service, as a page's export does, to `standup-<toilProject>-<from>-to-<to>.md`, and publishing it to Confluence or GitHub is a proposal for you to run.
 
 **Write it up** is optional: it asks the agent for a short narrative of the same report,
 in the theme's voice when that is on. The agent reads the report through its
@@ -762,6 +773,8 @@ running those commands through `@imagile-dev/toil/api`, never by editing a file:
   show and check any of them. A Toil project's name and description are edited in place
   on its card and dashboard, through `toil projects describe`. The list has **New Toil project** (`#/new-project`) and an edit page for each (`#/settings/projects/<name>/<section>`: Sources, Field names, People, Work in progress limit, How Analyze briefs). A link to a connection with writes on is refused
   here, as over MCP: make it on the CLI.
+- **Board moves:** the one setting here that is Toil UI's own and not toil's, **Apply board moves when I drop a card**, kept in this
+  browser and on by default (see **Board moves** under the board). It changes nothing by itself; it decides whether a drop on the Board asks toil to change a status.
 - **Bounds and time limit:** toil has no command for these, so they are under
   Settings, General, **Advanced**, shown read-only.
 - **Usage:** how toil is used on this machine, from `toil audit stats`, which
@@ -809,7 +822,7 @@ Every empty panel offers the one action that fills it, under one short line, wit
 explanation in its (i): **Link a pipeline** and **Add an environment** (pencils to
 Toil project setup at the Toil project's sources) on the Board tab's builds and deployments, **Add
 a repository** for pull requests, **Add a person** on the People tab, **Analyze now**
-for an empty Analyses tab, **Show every item** for a Command Center filter that hides
+for an empty list of earlier briefings, **Show every item** for a Command Center filter that hides
 everything, and **Sync now** in the local app wherever only a newer read of the tracker
 fills the panel (the sprint, the burn-up, links between items). The site preview can't
 sync, so it offers Toil project setup there instead. A test fails on any empty panel with
@@ -834,7 +847,7 @@ use the arrow keys to move, **Enter** to open and **Escape** to close. It's hidd
 until you call it up.
 
 - **Jump** to a Toil project, any of a Toil project's tabs (Overview, Board, Dependencies,
-  Pull requests, People, Worklog, Analyses), a saved analysis, a settings page, or a
+  Pull requests, People, Stand-up, Worklog), a chart or the earlier briefings (typed by name), a saved analysis, a settings page, or a
   theme.
 - **Run** Sync now (where Toil UI keeps a cache), and on a Toil project's page Ask (it
   focuses the Ask bar), Analyze, **Review a pull request**, **Ship: answer a review** and **Diagram <Toil project>** (each opens its job's page), **Open the Agents panel** (**Open the AI agents panel** in plain words), the agent that answers this chat, and Assign the
@@ -985,7 +998,7 @@ conversation stays, for the rest of the Toil project's pages, until you reload.
   do the starter questions.
 - **Analyze** briefs the Toil project in one press (#494). It is the guided start's first
   question, "Give me the full briefing", and still the command palette's Get a briefing and the
-  Analyses tab's button; the Ask bar has no button of its own for it. Its question comes from toil,
+  Summary's Get a briefing button; the Ask bar has no button of its own for it. Its question comes from toil,
   `toil projects analyze prompt <toilProject> --host toil-ui`: the standard method with
   the Toil project's own lenses and focus (Tuning Analyze, above). It answers with a
   briefing block, which the server lifts out of the answer and checks, every id in it
@@ -996,7 +1009,7 @@ conversation stays, for the rest of the Toil project's pages, until you reload.
   open it. An answer with no briefing block is shown as it came, and says so. With a
   toil that has no `projects analyze prompt`, Analyze asks Toil UI's own question
   instead, and the answer warns that it did. Each whole Analyze is kept in the
-  Toil project's **Analyses** tab, and the answer links to it.
+  Toil project's earlier briefings, and the answer links to it.
 - **Citations are links in the text**: in every answer, each `[[id]]` is an ordinary link
   (a short source name such as ADO or GH, the item's key and a cut title) to its page (a
   pull request to its host). Hovering or focusing one shows the whole title, its source and
@@ -1525,7 +1538,7 @@ npm run verify:ui -- --no-build --starter standup
   (#395): that Analyze was kept with its briefing (a recommendation, and its first
   three reasons as the history's issues); then it changes the Toil project's WIP limit in the scratch home (`toil projects
   wip-limit --replace`), asks Analyze again, checks the history lists both, newest
-  first, the second compared with the first, and puts the Overview, the Analyses tab
+  first, the second compared with the first, and puts the Overview, the earlier briefings
   and the second analysis opened through the layout check, shot. It needs the Codex CLI signed in and the
   SDK installed in the clone (above). `--adapter copilot` or `--adapter claude` asks that
   adapter instead, held to the same checks (Codex is the reference; its MCP check is

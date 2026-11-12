@@ -6,18 +6,29 @@
  * pixels of movement, a finger after a short hold, the keyboard with Space or
  * Enter on the focused card. Its context menu (right-click, the Menu key,
  * a long press, or M while it has focus) is the single-pointer way to make
- * the same move, so no card carries a button for it. Either way nothing
- * changes: the move becomes a proposal card naming the toil command that
- * would apply it (src/model/board.ts), and the card stays where its tracker
- * says it is.
+ * the same move, so no card carries a button for it.
+ *
+ * A drop is the person's own act, so with "Apply board moves when I drop a
+ * card" on (the default, src/board-moves.ts) it makes the move: the card is in
+ * its new column at once, quietly marked as moving, and the server asks toil
+ * to change the status behind the connection's `writes` (ui/server/board.ts).
+ * It then says so with an Undo, which makes the reverse move the same way; if
+ * toil refuses, the card goes back and the refusal stays on screen until
+ * dismissed. Where the move can't be made for the person (the setting is off,
+ * the sample, a connection with writes off, a status more than one transition
+ * leads to, a card the app can't move) nothing changes in the tracker: the
+ * move becomes a proposal card naming the toil command that would apply it
+ * (src/model/board.ts), with one line saying why, and the card stays where
+ * its tracker says it is.
  *
  * What a person sees (#393): while a card is dragged, a copy of it follows
  * the pointer (dnd-kit's DragOverlay, in a portal so no scrolling box clips
  * it) and says what a drop there would do; the card itself stays put as a
  * dashed placeholder; the column under the pointer is outlined as a target,
- * or as refused when the card is already in it. After any move, by drag,
- * keyboard or menu, a ghost of the card sits at the top of the target column,
- * marked as a proposal not applied, with Undo and the way to apply it.
+ * or as refused when the card is already in it. After a move that stays a
+ * proposal, by drag, keyboard or menu, a ghost of the card sits at the top of
+ * the target column, marked as a proposal not applied, with Undo and the way
+ * to apply it.
  */
 
 import {
@@ -48,7 +59,9 @@ import { useClassify } from '../classify-state.tsx';
 import { AssignModal } from '../assign/views.tsx';
 import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, estimateText, itemHref, peekHref, personText, shortKey, sourceLabel } from '../format.ts';
-import { canMove, columns, proposeMove } from '../model/board.ts';
+import { appliesItself, canMove, columns, proposeMove } from '../model/board.ts';
+import { isMoveColumn, type MoveColumn } from '../board-api.ts';
+import { useBoardMoves } from '../board-moves.ts';
 import { flows } from '../model/flow.ts';
 import { boardLanes, mixOfItems, type Lane } from '../model/lanes.ts';
 import { useWorkInsights } from '../insights-data.ts';
@@ -99,23 +112,43 @@ const TOUCH_HOLD = { delay: 250, tolerance: 8 };
 const PRESS_SLOP = 10;
 
 /**
- * What dropping an item on a column would do: propose a move, or nothing,
- * and why. The same rule as proposeMove: its own column, or Unknown, which
- * no tracker has a status for, proposes nothing.
+ * What dropping an item on a column would do: make the move (`applies`), propose
+ * it, or nothing, and why. The same rule as proposeMove: its own column, or
+ * Unknown, which no tracker has a status for, moves and proposes nothing.
  */
-export function dropVerdict(item: WorkItem, to: StatusCategory | null, sameLane = true): { ok: boolean; text: string } {
+export function dropVerdict(item: WorkItem, to: StatusCategory | null, sameLane = true, applies = false): { ok: boolean; text: string } {
   if (!to) return { ok: false, text: 'Not over a column' };
   if (!sameLane) return { ok: false, text: 'Another lane: a lane is a grouping, nothing to change' };
   if (to === item.statusCategory) return { ok: false, text: `Already in ${label(to)}: nothing to propose` };
   if (to === 'UNKNOWN') return { ok: false, text: 'Unknown is no status to move to' };
-  return { ok: true, text: `Drop to propose: ${label(to)}` };
+  return { ok: true, text: `${applies ? 'Drop to move' : 'Drop to propose'}: ${label(to)}` };
 }
 
-/** A proposed move on the board, with the column it would go to. */
+/** A proposed move on the board, with the column it would go to and why it wasn't applied. */
 interface Move {
   proposal: Proposal;
   to: StatusCategory;
+  /** The one line: why this is a proposal and not a move. */
+  why: string;
+  /** What toil said about the moves the workflow offers, when that is why. */
+  detail?: string;
+  /** Whether a press on Apply can make it (the setting was off, but writes are available); else the reason is the whole story. */
+  applicable: boolean;
 }
+
+/**
+ * A card's place while a move is on screen that the data hasn't caught up with: where it was (`base`, the category the
+ * loaded data holds) and where it is shown. It stands only while the data still says `base`, so a sync that reads the move
+ * back, or one that reads something else, ends it; the tracker has the last word.
+ */
+interface Shown {
+  base: StatusCategory;
+  at: StatusCategory;
+  pending: boolean;
+}
+
+/** The line above the board about the last drop that was applied or refused. */
+type Notice = { kind: 'moved'; id: string; key: string; from: StatusCategory; to: StatusCategory; transition: string | null } | { kind: 'failed'; key: string; message: string };
 
 /**
  * The card's face: what it shows, in the column and under the pointer. The
@@ -175,11 +208,11 @@ function CardFace({ item, ids }: { item: WorkItem; ids?: string }) {
 }
 
 /** The copy of the card that follows the pointer, saying what a drop where it is would do. */
-function DragCard({ item }: { item: WorkItem }) {
+function DragCard({ item, applies }: { item: WorkItem; applies: boolean }) {
   const { over, active } = useDndContext();
   const { insights: prepared } = useDerived();
   const target = over ? parseId(over.id) : null;
-  const verdict = dropVerdict(item, (target?.rest as StatusCategory | undefined) ?? null, !target || !active || target.lane === parseId(active.id).lane);
+  const verdict = dropVerdict(item, (target?.rest as StatusCategory | undefined) ?? null, !target || !active || target.lane === parseId(active.id).lane, applies);
   return (
     <div className={`card card--${item.statusCategory.toLowerCase()}${attentionClass(item, prepared)} card--overlay`} data-drag-overlay aria-hidden="true">
       <div className="card-grip">
@@ -242,7 +275,7 @@ export const columnSteps =
     return { x: rect.left + Math.max(0, (rect.width - collisionRect.width) / 2), y: rect.top + 48 };
   };
 
-function Card({ item, lane, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem; lane: string; others: StatusCategory[]; onMove: (to: StatusCategory) => void; menuOpen: boolean; setMenuOpen: (open: boolean) => void }) {
+function Card({ item, lane, others, onMove, menuOpen, setMenuOpen, moving }: { item: WorkItem; lane: string; others: StatusCategory[]; onMove: (to: StatusCategory) => void; menuOpen: boolean; setMenuOpen: (open: boolean) => void; moving: boolean }) {
   const { toilProject, assignments } = useData();
   const { insights: prepared } = useDerived();
   // Decided up front, by the rule the proposal uses: a card that can't be moved isn't draggable, and says why.
@@ -296,7 +329,7 @@ function Card({ item, lane, others, onMove, menuOpen, setMenuOpen }: { item: Wor
 
   return (
     // While it's dragged the card stays where it is, as a placeholder; the copy in the DragOverlay is what moves.
-    <li ref={setNodeRef} className={`card card--${item.statusCategory.toLowerCase()}${attentionClass(item, prepared)}${isDragging ? ' card--dragging' : ''}`}>
+    <li ref={setNodeRef} className={`card card--${item.statusCategory.toLowerCase()}${attentionClass(item, prepared)}${isDragging ? ' card--dragging' : ''}${moving ? ' card--moving' : ''}`} aria-busy={moving || undefined}>
       <div
         ref={gripRef}
         className="card-grip"
@@ -316,6 +349,11 @@ function Card({ item, lane, others, onMove, menuOpen, setMenuOpen }: { item: Wor
         {!can.ok && (
           <p id={`${ids}-why`} className="card-why" data-why-immovable>
             {can.reason}
+          </p>
+        )}
+        {moving && (
+          <p className="card-moving" data-moving="">
+            Moving…
           </p>
         )}
       </div>
@@ -351,13 +389,14 @@ function Card({ item, lane, others, onMove, menuOpen, setMenuOpen }: { item: Wor
   );
 }
 
-function Column({ category, lane, items, all, onMove, menuFor, setMenuFor, ghosts, onUndo, onShow }: { category: StatusCategory; lane: string; items: WorkItem[]; all: StatusCategory[]; onMove: (item: WorkItem, to: StatusCategory) => void; menuFor: string | null; setMenuFor: (id: string | null) => void; ghosts: { item: WorkItem; move: Move }[]; onUndo: (move: Move) => void; onShow: (move: Move) => void }) {
+function Column({ category, lane, items, all, onMove, menuFor, setMenuFor, ghosts, onUndo, onShow, effective, movingIds }: { category: StatusCategory; lane: string; items: WorkItem[]; all: StatusCategory[]; onMove: (item: WorkItem, to: StatusCategory) => void; menuFor: string | null; setMenuFor: (id: string | null) => void; ghosts: { item: WorkItem; move: Move }[]; onUndo: (move: Move) => void; onShow: (move: Move) => void; effective: (item: WorkItem) => WorkItem; movingIds: ReadonlySet<string> }) {
   const { setNodeRef, isOver, active } = useDroppable({ id: dropId(lane, category) });
   const { byId } = useData();
   const words = useWords();
   const ids = useId();
   const id = `col-${ids}`;
-  const dragged = active ? byId.get(parseId(active.id).rest) : undefined;
+  const draggedItem = active ? byId.get(parseId(active.id).rest) : undefined;
+  const dragged = draggedItem && effective(draggedItem);
   // Under the pointer: a target, or refused (its own column, or another lane), whose reason the copy under the pointer gives.
   const drop = isOver && dragged ? (dropVerdict(dragged, category, !active || parseId(active.id).lane === lane).ok ? ' column--over' : ' column--refused') : '';
   // A long column is a wall: the first cards show, the rest are one press away, and the count in the heading stays the whole.
@@ -384,6 +423,7 @@ function Column({ category, lane, items, all, onMove, menuFor, setMenuFor, ghost
               onMove={(to) => onMove(item, to)}
               menuOpen={menuFor === item.id}
               setMenuOpen={(open) => setMenuFor(open ? item.id : null)}
+              moving={movingIds.has(item.id)}
             />
           ))}
         </ul>
@@ -434,7 +474,11 @@ function LaneHead({ lane, open, onToggle, mix, id }: { lane: Lane; open: boolean
 export function Board({ items, group = null }: { items: WorkItem[]; group?: string | null }) {
   const { toilProject, byId } = useData();
   const ins = useWorkInsights();
+  const { api: classifyApi } = useClassify();
+  const [applyDrops] = useBoardMoves();
   const [moves, setMoves] = useState<Move[]>([]);
+  const [shown, setShown] = useState<ReadonlyMap<string, Shown>>(new Map());
+  const [notice, setNotice] = useState<Notice | null>(null);
   const [said, setSaid] = useState('');
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [dragging, setDragging] = useState<WorkItem | null>(null);
@@ -448,21 +492,91 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: TOUCH_HOLD }),
-    useSensor(KeyboardSensor, { coordinateGetter: columnSteps(cats, (id) => byId.get(parseId(id).rest)?.statusCategory, (id) => parseId(id).lane) }),
+    useSensor(KeyboardSensor, { coordinateGetter: columnSteps(cats, (id) => { const it = byId.get(parseId(id).rest); return it && effective(it).statusCategory; }, (id) => parseId(id).lane) }),
   );
   const keyOf = (id: unknown) => {
     const item = byId.get(parseId(id as UniqueIdentifier).rest);
     return item ? shortKey(item) : String(id);
   };
 
-  const propose = (item: WorkItem, to: StatusCategory) => {
+  // What the page shows for a card now: the move it has made and the tracker hasn't been read back for, else the data's own word.
+  // The status word is the tracker's, which this page hasn't read since, so it is left off until the next sync says it.
+  const effective = (item: WorkItem): WorkItem => {
+    const s = shown.get(item.id);
+    return s && s.base === item.statusCategory && s.at !== item.statusCategory ? { ...item, statusCategory: s.at, status: null } : item;
+  };
+  const movingIds = new Set([...shown].filter(([, s]) => s.pending).map(([id]) => id));
+  // Whether a drop makes the move, before it is tried: the person's setting, and a view that has a server to ask and isn't the sample.
+  const canApply = Boolean(classifyApi?.moveItem) && !classifyApi?.movesDisabled;
+  const applies = applyDrops && canApply;
+
+  /** The proposal for a move that wasn't made, with the one line saying why. */
+  const propose = (item: WorkItem, to: StatusCategory, why = 'Applying board moves is off in Settings, General, so this move is a proposal.', extra: { detail?: string; applicable?: boolean } = {}) => {
     const p = proposeMove(item, to, toilProject.items, toilProject.name);
     if (!p) {
       setSaid(`${shortKey(item)} is already in ${label(to)}. Nothing proposed.`);
       return;
     }
-    setMoves((list) => [{ proposal: p, to }, ...list.filter((x) => x.proposal.id !== p.id && x.proposal.item !== p.item)]);
-    setSaid(`Proposed: ${p.title}. Nothing has changed in ${toilProject.name}'s tracker.`);
+    setMoves((list) => [{ proposal: p, to, why, ...(extra.detail ? { detail: extra.detail } : {}), applicable: extra.applicable ?? false }, ...list.filter((x) => x.proposal.id !== p.id && x.proposal.item !== p.item)]);
+    setSaid(`Proposed: ${p.title}. Nothing has changed in ${toilProject.name}'s tracker. ${why}`);
+  };
+
+  const unshow = (id: string) =>
+    setShown((m) => {
+      const next = new Map(m);
+      next.delete(id);
+      return next;
+    });
+
+  /**
+   * Makes the move through the server and toil: the card is in its new column at once, and goes back if toil refuses. What the
+   * server leaves as a proposal comes back as one, with its reason; what fails is said in toil's own words and stays until dismissed.
+   */
+  const apply = async (item: WorkItem, to: StatusCategory, base: StatusCategory = item.statusCategory) => {
+    if (!isMoveColumn(to) || !classifyApi?.moveItem) return;
+    const key = shortKey(item);
+    const before = shown.get(item.id);
+    // Where the card was shown before this try: a refused second move goes back to the first, not to the data.
+    const restore = () => (before ? setShown((m) => new Map(m).set(item.id, before)) : unshow(item.id));
+    setMoves((list) => list.filter((x) => x.proposal.item !== item.id));
+    setNotice(null);
+    setShown((m) => new Map(m).set(item.id, { base, at: to, pending: true }));
+    setSaid(`Moving ${key} to ${label(to)}.`);
+    try {
+      const out = await classifyApi.moveItem(toilProject.name, item.id, to as MoveColumn);
+      if (out.status === 'applied') {
+        // Back where the data says it is, the card needs no override; anywhere else it stays where it was put until a sync says.
+        if (to === base) unshow(item.id);
+        else setShown((m) => new Map(m).set(item.id, { base, at: to, pending: false }));
+        setNotice({ kind: 'moved', id: item.id, key, from: item.statusCategory, to, transition: out.transition });
+        setSaid(`Moved ${key} to ${label(to)}${out.transition ? ` with the transition ${out.transition}` : ''}.`);
+        return;
+      }
+      // What toil left alone is shown back where it was, with the proposal and the reason.
+      restore();
+      propose(item, to, out.reason, out.detail ? { detail: out.detail } : {});
+    } catch (e) {
+      restore();
+      const message = e instanceof Error ? e.message : String(e);
+      setNotice({ kind: 'failed', key, message: `${key} was not moved to ${label(to)}. ${message}` });
+      setSaid(`${key} was not moved. ${message}`);
+    }
+  };
+  /** A drop, or a pick from the menu: made, or proposed with the reason it wasn't. */
+  const move = (item: WorkItem, to: StatusCategory) => {
+    if (to === item.statusCategory || to === 'UNKNOWN') return propose(item, to);
+    const can = canMove(item);
+    if (!can.ok) return propose(item, to, can.reason);
+    if (!applyDrops) return propose(item, to, undefined, { applicable: canApply && appliesItself(item) });
+    if (!classifyApi?.moveItem) return propose(item, to, "This view can't change your tracker, so this move is a proposal.");
+    if (classifyApi.movesDisabled) return propose(item, to, 'This is sample data, so a move can\'t be applied. Here is what would run with your own work.');
+    if (!appliesItself(item)) return propose(item, to, "Toil UI applies Jira and Azure DevOps moves itself. A GitHub project's Status is set with its command, shown here.");
+    void apply(item, to, byId.get(item.id)?.statusCategory ?? item.statusCategory);
+  };
+  const undoMove = (n: Extract<Notice, { kind: 'moved' }>) => {
+    const item = byId.get(n.id);
+    if (!item) return;
+    void apply(effective(item), n.from, item.statusCategory);
   };
   const dismiss = (move: Move) => setMoves((list) => list.filter((x) => x.proposal.id !== move.proposal.id));
   // Undo hands focus back to the card, which never left its column; looked for on this board only.
@@ -494,17 +608,23 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
       setSaid(`${shortKey(item)} was dropped in another lane. A lane is a grouping, not a status: nothing was changed and nothing proposed.`);
       return;
     }
-    propose(item, target.rest as StatusCategory);
+    move(effective(item), target.rest as StatusCategory);
+  };
+  /** Apply on a proposal's card: the same move, by a press, where the drop only proposed it. */
+  const applyProposal = (m: Move) => {
+    const item = byId.get(m.proposal.item);
+    if (item) void apply(effective(item), m.to, item.statusCategory);
   };
 
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up ${keyOf(active.id)}. Moving it proposes a change; nothing is changed.`,
+    onDragStart: ({ active }) => (applies ? `Picked up ${keyOf(active.id)}. Dropping it on another column moves it in the tracker.` : `Picked up ${keyOf(active.id)}. Moving it proposes a change; nothing is changed.`),
     onDragOver: ({ active, over }) =>
       over ? `${keyOf(active.id)} is over ${label(parseId(over.id).rest as StatusCategory)}${parseId(over.id).lane === parseId(active.id).lane ? '' : ' in another lane, where a drop changes nothing'}.` : `${keyOf(active.id)} is not over a column.`,
     onDragEnd: ({ active, over }) => {
       if (!over) return `Dropped ${keyOf(active.id)} outside the columns. Nothing proposed.`;
       if (parseId(over.id).lane !== parseId(active.id).lane) return `Dropped ${keyOf(active.id)} in another lane. Nothing was changed.`;
-      const home = byId.get(parseId(active.id).rest)?.statusCategory === parseId(over.id).rest;
+      const dropped = byId.get(parseId(active.id).rest);
+      const home = dropped && effective(dropped).statusCategory === parseId(over.id).rest;
       return `Dropped ${keyOf(active.id)} on ${label(parseId(over.id).rest as StatusCategory)}${home ? ', where it already is. Nothing proposed.' : '.'}`;
     },
     onDragCancel: ({ active }) => `Stopped dragging ${keyOf(active.id)}. Nothing proposed.`,
@@ -519,9 +639,11 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
             key={category}
             category={category}
             lane={lane}
-            items={laneItems.filter((i) => flows(i) && i.statusCategory === category)}
+            items={laneItems.filter(flows).map(effective).filter((i) => i.statusCategory === category)}
             all={cats}
-            onMove={propose}
+            onMove={move}
+            effective={effective}
+            movingIds={movingIds}
             menuFor={menuFor}
             setMenuFor={setMenuFor}
             ghosts={moves.flatMap((move) => {
@@ -538,6 +660,26 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
 
   return (
     <>
+      {notice && (
+        <div className={`board-notice board-notice--${notice.kind}`} role={notice.kind === 'failed' ? 'alert' : 'status'} data-board-notice={notice.kind}>
+          {notice.kind === 'moved' ? (
+            <p>
+              Moved <strong>{notice.key}</strong> to {label(notice.to)}
+              {notice.transition ? ` with the transition ${notice.transition}` : ''}.
+            </p>
+          ) : (
+            <p>{notice.message}</p>
+          )}
+          {notice.kind === 'moved' && notice.from !== 'UNKNOWN' && (
+            <Button className="btn btn--small" onPress={() => undoMove(notice)} aria-label={`Undo the move of ${notice.key}`}>
+              Undo
+            </Button>
+          )}
+          <Button className="btn btn--small btn--quiet" onPress={() => setNotice(null)} aria-label="Dismiss this message">
+            Dismiss
+          </Button>
+        </div>
+      )}
       <DndContext
         sensors={sensors}
         onDragStart={(e) => setDragging(byId.get(parseId(e.active.id).rest) ?? null)}
@@ -546,7 +688,7 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
         accessibility={{
           announcements,
           screenReaderInstructions: {
-            draggable: 'To pick up the card, press Space or Enter. Use the arrow keys to move it to the next or previous column, then press Space or Enter to propose the move, or Escape to cancel. Press M or the Menu key for its menu.',
+            draggable: `To pick up the card, press Space or Enter. Use the arrow keys to move it to the next or previous column, then press Space or Enter to ${applies ? 'drop it and make the move' : 'propose the move'}, or Escape to cancel. Press M or the Menu key for its menu.`,
           },
         }}
       >
@@ -596,7 +738,7 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
         )}
         {/* In a portal, so no scrolling or transformed box around the board can clip or offset it. No drop animation: the
             card doesn't move on a drop, so flying the copy back to it would read as refused; the ghost says where it went. */}
-        {createPortal(<DragOverlay dropAnimation={null}>{dragging ? <DragCard item={dragging} /> : null}</DragOverlay>, document.body)}
+        {createPortal(<DragOverlay dropAnimation={null}>{dragging ? <DragCard item={effective(dragging)} applies={applies} /> : null}</DragOverlay>, document.body)}
       </DndContext>
       <p className="sr-only" role="status">
         {said}
@@ -606,7 +748,21 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
           <h3>Proposed moves</h3>
           {moves.map((m) => (
             <div key={m.proposal.id} data-proposal={m.proposal.id} className="proposal-slot" tabIndex={-1}>
-              <ProposalCard proposal={m.proposal} onDismiss={() => dismiss(m)} />
+              <ProposalCard
+                proposal={m.proposal}
+                onDismiss={() => dismiss(m)}
+                why={m.why}
+                {...(m.detail ? { detail: m.detail } : {})}
+                {...(m.applicable
+                  ? {
+                      actions: (
+                        <Button className="btn btn--accent" onPress={() => applyProposal(m)} aria-label={`Apply: ${m.proposal.title}`}>
+                          Apply
+                        </Button>
+                      ),
+                    }
+                  : {})}
+              />
             </div>
           ))}
         </div>

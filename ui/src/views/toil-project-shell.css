@@ -197,3 +197,7 @@ a.ticket-chip:hover { border-color: var(--link); }
   .metric__mix li { display: inline; }
   .metric__mix li + li::before { content: " · "; }
 }
+
+/* The tab's (i): what this page is, at the end of the tabs, since the page carries no title of its own (#567). */
+.toil-project-tabs__help { display: inline-flex; align-items: center; margin-left: 0.25rem; }
+.toil-project-main:focus { outline: none; }
