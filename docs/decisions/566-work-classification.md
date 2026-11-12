@@ -458,11 +458,24 @@ agent made where the proposal was silent, or where it couldn't be built as writt
   36 and on Jira's SCRUM-54), each read back from the tracker afterwards. The run
   found the Classify view claiming "Everything is sorted" on a project that hadn't
   been read, and four small things in the review card and its keys, all fixed.
+- **A category field, on Jira Cloud** (12 November 2026): a dropdown "Work category"
+  with the options KTLO and Feature was created by hand on the Story and Task work
+  types of `SCRUM`, and a toil project in the maintainer's own folder named it as the
+  target. `jira issue categorize` set it on seven seeded issues to match their labels,
+  one `PUT` each; a second run sent nothing; and the values read back.
+- **A real AI agent in the Classify view** (12 November 2026): on the GitHub test
+  project, Ask your AI agent had Codex suggest a category and a reason for all 25
+  unsure items, shown as suggestions; one was accepted, reviewed on the card and
+  applied. The run found two faults, both fixed: an accepted suggestion came back as
+  needing an answer after Apply (accepting is now recorded as the person's say), and
+  the page kept the Settings screen above the next page after a save or a sync (two
+  parts of the local app shared a key; this was on `main` too).
 - **Reads on all three**, Azure DevOps Services included: the value lists, `jira issue
   search --more-fields`, the mapper's dimension fields, `projects pivot` and `classify
   run`.
 
-**Not verified:** a category *field* on any tracker (none of the three
-test projects has one, and creating one is an admin's step), Jira Data Center, Azure
-DevOps Server (`ado work-item untag`'s fix included), and Toil UI's Ask your AI agent
-and tuning flows with a real agent.
+**Not verified:** a category field on GitHub (it needs a Project and the `project`
+scope on the token) and on Azure DevOps (it needs an inherited process for the test
+project); the tuning flow with a real AI agent, which appears only after ten
+corrections; Jira Data Center and Azure DevOps Server, which the maintainer set aside on
+12 November 2026.

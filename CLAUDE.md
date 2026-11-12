@@ -1161,7 +1161,9 @@ verify:ui`. They are the only places a live run may write.
 - **Seed with the scripts, never by hand,** so a sandbox can be rebuilt and so its
   items stay recognisable. A feature that needs data the seeds lack (a fix version,
   a component, a category field) extends the seed in the same PR and says so.
-- **A field or a project is an admin's to create.** toil never creates either. Where a
+- **A field or a project is an admin's to create.** toil never creates either. `SCRUM`
+  has one category field, the dropdown `Work category` (KTLO, Feature) on its Story and
+  Task work types; the other two test projects have none. Where a
   live check needs one that doesn't exist, the PR says what is missing under what
   wasn't verified, and the check waits.
 - **The sample team is not a sandbox.** `toil sample team` and `toil-ui --sample` run
