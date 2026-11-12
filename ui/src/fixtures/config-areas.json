@@ -452,9 +452,10 @@
               "required": "write",
               "commands": [
                 "github project status",
+                "github project add",
                 "github issue categorize"
               ],
-              "note": "Changing a project item's Status, or the field issue categorize sets (needed only when the plan names a field). It includes read:project."
+              "note": "Adding an item to a project, changing its Status, or the field issue categorize sets (needed only when the plan names a field). It includes read:project."
             }
           ]
         },
@@ -615,9 +616,10 @@
               "required": "write",
               "commands": [
                 "github project status",
+                "github project add",
                 "github issue categorize"
               ],
-              "note": "Changing a project item's Status, or the field issue categorize sets (needed only when the plan names a field). Only an organization's projects."
+              "note": "Adding an item to a project, changing its Status, or the field issue categorize sets (needed only when the plan names a field). Only an organization's projects."
             },
             {
               "name": "Projects (organization permission)",

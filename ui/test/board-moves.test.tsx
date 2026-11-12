@@ -5,11 +5,14 @@ import { App } from '../src/App.tsx';
 import { fixtureClassify } from '../src/fixtures/classify.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
-import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
+import { CANNED, FIXTURE_NOW, fixtureExecute, type Canned } from '../src/fixtures/execute.ts';
 import type { ClassifyApi } from '../src/classify-api.ts';
 import type { MoveOutcome } from '../src/board-api.ts';
 import { resetBoardMoves, setBoardMoves } from '../src/board-moves.ts';
-import { appliesItself, canMove } from '../src/model/board.ts';
+import { appliesItself, boardBlock, canMove, dropRefusal, proposeMove } from '../src/model/board.ts';
+import { commandLine } from '../src/proposal.ts';
+import { TOIL_PROJECTS, showData } from '../src/fixtures/toil-projects.ts';
+import { GITHUB_ISSUES } from '../src/fixtures/work.ts';
 import { dropVerdict } from '../src/views/Board.tsx';
 import type { WorkItem } from '../src/toil.ts';
 
@@ -222,5 +225,210 @@ describe('a drop that stays a proposal', () => {
     const of = (native: Record<string, unknown>) => ({ source: { area: 'github', key: 'acme/shop#7' }, native }) as unknown as WorkItem;
     expect(canMove(of({ 'github project items': { id: 'PVTI_abc12345' } }))).toEqual({ ok: true });
     expect(canMove(of({}))).toEqual({ ok: true });
+  });
+});
+
+/**
+ * A GitHub card with the Toil project naming no project board (the fixture's checkout-web, with the board taken out of its
+ * file and its issues read the way the loader reads a plain repository), so In progress is a column nothing can fill.
+ */
+function noBoardCanned(): Canned[] {
+  const file = TOIL_PROJECTS.find((d) => d.name === 'checkout-web')!;
+  const shown = showData({ ...file, github: { ...(file.github as Record<string, unknown>), projects: [] } });
+  return [
+    ...CANNED.filter((c) => !(c.command === 'projects show' && c.input.toilProject === 'checkout-web') && c.command !== 'github project items'),
+    { command: 'projects show', input: { toilProject: 'checkout-web' }, data: shown, toilProject: 'checkout-web' },
+    { command: 'github issue list', input: { toilProject: 'checkout-web', owner: 'imagile', repo: 'payments-web', state: 'all' }, data: GITHUB_ISSUES, toilProject: 'checkout-web', area: 'github' },
+  ];
+}
+
+async function openCheckout(classify: ClassifyApi | undefined, canned?: Canned[]) {
+  window.location.hash = '#/project/checkout-web/board';
+  render(<App execute={fixtureExecute(canned).execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview {...(classify ? { classify } : {})} />);
+  const first = await waitFor(
+    () => {
+      const el = document.querySelector<HTMLElement>('.board section.column--todo .card-grip[data-item^="github"]');
+      if (!el) throw new Error('no GitHub card in To do yet');
+      return el;
+    },
+    { timeout: 8000 },
+  );
+  const todo = () => document.querySelector<HTMLElement>('.board section.column--todo')!;
+  return { first, todo, col: (name: string) => within(document.querySelector<HTMLElement>('.board')!).getByRole('region', { name: new RegExp(`^${name}`) }) };
+}
+
+async function dropGrip(grip: HTMLElement, to: 'In progress' | 'Done' | 'To do') {
+  fireEvent.contextMenu(grip);
+  const menu = await screen.findByRole('menu');
+  await userEvent.click(within(menu).getByRole('menuitem', { name: to }));
+}
+
+describe('a GitHub card dropped where no project board gives it a place', () => {
+  it('case 1: In progress with no board named sends the card back, says what is missing and where to name it, and shows no ghost and no proposal', async () => {
+    const moveItem = vi.fn<NonNullable<ClassifyApi['moveItem']>>();
+    const { first, todo } = await openCheckout(api(moveItem), noBoardCanned());
+    const id = first.dataset.item!;
+    await dropGrip(first, 'In progress');
+    const alert = await screen.findByRole('alert');
+    expect(alert.querySelector('[data-blocked-reason]')!.textContent).toBe("GitHub issues are only open or closed, so In progress needs a project board. This Toil project doesn't name one.");
+    expect(alert.textContent).toMatch(/wasn't moved to In progress/);
+    expect(alert.querySelector('[data-blocked-next]')!.textContent).toMatch(/Create a project board on GitHub if there is none, name it in the Toil project, then add the issue to it\./);
+    const link = within(alert).getByRole('link', { name: 'Name a project board in this Toil project' });
+    expect(link.getAttribute('href')).toBe('#/settings/projects/checkout-web/sources');
+    // The command is a step further in, as it is typed, with the number left for the person.
+    const details = alert.querySelector('details')!;
+    expect(details.open).toBe(false);
+    expect(details.textContent).toContain('toil projects link checkout-web github --add projects=<number>');
+    // The card never left its column; there is no ghost and no proposal; the server was never asked.
+    expect(todo().querySelector(`.card-grip[data-item="${CSS.escape(id)}"]`)).toBeTruthy();
+    expect(document.querySelector('[data-proposed-ghost]')).toBeNull();
+    expect(screen.queryByRole('article', { name: /^Proposal/ })).toBeNull();
+    expect(screen.queryByText('Moving…')).toBeNull();
+    expect(moveItem).not.toHaveBeenCalled();
+    // It stays until it is dismissed.
+    await userEvent.click(within(alert).getByRole('button', { name: 'Dismiss this message' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('says the same with the setting off, since no command could make the move either way', async () => {
+    setBoardMoves(false);
+    const moveItem = vi.fn<NonNullable<ClassifyApi['moveItem']>>();
+    const { first } = await openCheckout(api(moveItem), noBoardCanned());
+    await dropGrip(first, 'In progress');
+    expect((await screen.findByRole('alert')).textContent).toMatch(/only open or closed/);
+    expect(screen.queryByRole('article', { name: /^Proposal/ })).toBeNull();
+    expect(document.querySelector('[data-proposed-ghost]')).toBeNull();
+  });
+
+  it('says it where a view has no server to ask, rather than leaving a ghost', async () => {
+    const { first } = await openCheckout(undefined, noBoardCanned());
+    await dropGrip(first, 'In progress');
+    expect((await screen.findByRole('alert')).textContent).toMatch(/only open or closed/);
+    expect(document.querySelector('[data-proposed-ghost]')).toBeNull();
+  });
+
+  it('case 2: a card that is not on its board is a proposal with Add to the board and move; one press is one call, and says it added and moved', async () => {
+    const moveItem = vi
+      .fn<NonNullable<ClassifyApi['moveItem']>>()
+      .mockResolvedValueOnce({
+        status: 'proposal',
+        why: 'not-on-board',
+        reason: 'imagile/payments-web#9 isn\'t on the project board "Roadmap" (project 7). Add it there, then move it.',
+        board: { project: 7, title: 'Roadmap', url: 'https://ghe.imagile.dev/orgs/imagile/projects/7' },
+        add: { project: 7, number: 9, status: 'In Progress', canApply: true },
+      })
+      .mockResolvedValueOnce({ status: 'applied', transition: null, toStatus: 'In Progress', added: true });
+    const { first, col } = await openCheckout(api(moveItem));
+    const id = first.dataset.item!;
+    await dropGrip(first, 'In progress');
+    const card = await screen.findByRole('article', { name: /^Proposal: Move .* to In progress$/ });
+    expect(card.querySelector('[data-proposal-why]')!.textContent).toMatch(/isn't on the project board "Roadmap" \(project 7\)\. Add it there, then move it\./);
+    expect(within(card).getByRole('link', { name: /Open the project board/ }).getAttribute('href')).toBe('https://ghe.imagile.dev/orgs/imagile/projects/7');
+    expect(moveItem).toHaveBeenCalledTimes(1);
+    expect(moveItem).toHaveBeenLastCalledWith('checkout-web', id, 'IN_PROGRESS');
+    // Under Show the command, the two commands that work, in order: add by number, then the Status by number.
+    const shown = card.querySelector('details')!.textContent!;
+    expect(shown).toMatch(/toil github project add '7' '\d+' --toil-project 'checkout-web' --owner 'imagile' --repo 'payments-web' --allow-write/);
+    expect(shown).toMatch(/toil github project status '7' '\d+' --toil-project 'checkout-web' --owner 'imagile' --repo 'payments-web' --to 'In Progress' --allow-write/);
+    expect(shown.indexOf('project add')).toBeLessThan(shown.indexOf('project status'));
+    // Pressing the button is the same move with the add asked for, and nothing else is sent.
+    await userEvent.click(within(card).getByRole('button', { name: /^Add to the board and move: / }));
+    await waitFor(() => expect(moveItem).toHaveBeenCalledTimes(2));
+    expect(moveItem).toHaveBeenLastCalledWith('checkout-web', id, 'IN_PROGRESS', { addToBoard: true });
+    const line = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>('[data-board-notice="moved"]');
+      if (!el) throw new Error('no notice yet');
+      return el;
+    });
+    expect(line.textContent).toMatch(/^Added .* to the board and moved it to In progress\./);
+    expect(col('In progress').querySelector(`.card-grip[data-item="${CSS.escape(id)}"]`)).toBeTruthy();
+    expect(screen.queryByRole('article', { name: /^Proposal/ })).toBeNull();
+  });
+
+  it('case 2 without the means: no button when the app cannot add, and the reason is on the card', async () => {
+    const moveItem = vi.fn<NonNullable<ClassifyApi['moveItem']>>().mockResolvedValue({
+      status: 'proposal',
+      why: 'not-on-board',
+      reason: "imagile/payments-web#9 isn't on the project board project 7. Add it there, then move it.",
+      detail: "Changes to github are switched off, so toil can't add it for you. Turn them on under Settings, Connections, or run the commands yourself.",
+      add: { project: 7, number: 9, status: 'In Progress', canApply: false },
+    });
+    const { first } = await openCheckout(api(moveItem));
+    await dropGrip(first, 'In progress');
+    const card = await screen.findByRole('article', { name: /^Proposal: Move .* to In progress$/ });
+    expect(within(card).queryByRole('button', { name: /^Add to the board and move/ })).toBeNull();
+    expect(card.textContent).toContain('switched off');
+  });
+
+  it("case 3: a board that couldn't be read is said so, with toil's message and the connection to check, and never as not being on the board", async () => {
+    const moveItem = vi.fn<NonNullable<ClassifyApi['moveItem']>>().mockResolvedValue({
+      status: 'blocked',
+      why: 'board-unread',
+      reason: "The project board 7 couldn't be read, so toil can't tell where imagile/payments-web#9 stands on it: The GitHub token can't change items of project 7.",
+      next: { text: 'Give the token access to Projects. A classic token needs read:project.', link: { kind: 'connection', name: 'github', label: 'Check the github connection' } },
+    });
+    const { first, todo } = await openCheckout(api(moveItem));
+    const id = first.dataset.item!;
+    await dropGrip(first, 'In progress');
+    const alert = await screen.findByRole('alert');
+    expect(alert.querySelector('[data-blocked-reason]')!.textContent).toMatch(/^The project board 7 couldn't be read, so toil can't tell where .* stands on it: The GitHub token can't change items of project 7\.$/);
+    expect(alert.textContent).not.toMatch(/isn't on/);
+    expect(alert.querySelector('[data-blocked-next]')!.textContent).toContain('A classic token needs read:project.');
+    expect(within(alert).getByRole('link', { name: 'Check the github connection' }).getAttribute('href')).toBe('#/settings/connections/github');
+    expect(todo().querySelector(`.card-grip[data-item="${CSS.escape(id)}"]`)).toBeTruthy();
+    expect(document.querySelector('[data-proposed-ghost]')).toBeNull();
+    expect(screen.queryByRole('article', { name: /^Proposal/ })).toBeNull();
+  });
+
+  it('case 5: a closed issue asked to leave Done is a notice with the command that reopens it, not a proposal', async () => {
+    const moveItem = vi.fn<NonNullable<ClassifyApi['moveItem']>>().mockResolvedValue({
+      status: 'blocked',
+      why: 'closed',
+      reason: 'imagile/payments-web#9 is closed, and a closed issue stays in Done whatever its Status says.',
+      next: { text: 'Reopen it first, then move it.', command: { command: 'github issue reopen', input: { toilProject: 'checkout-web', owner: 'imagile', repo: 'payments-web', number: 9 } } },
+    });
+    const { first } = await openCheckout(api(moveItem));
+    await dropGrip(first, 'In progress');
+    const alert = await screen.findByRole('alert');
+    expect(alert.querySelector('[data-blocked-reason]')!.textContent).toMatch(/stays in Done whatever its Status says\.$/);
+    expect(alert.querySelector('[data-blocked-next]')!.textContent).toBe('Reopen it first, then move it.');
+    expect(alert.querySelector('details')!.textContent).toContain("toil github issue reopen '9' --toil-project 'checkout-web' --owner 'imagile' --repo 'payments-web' --allow-write");
+    expect(screen.queryByRole('article', { name: /^Proposal/ })).toBeNull();
+  });
+});
+
+describe('what the page knows before a drop', () => {
+  const issue = (statusCategory: string, key = 'acme/shop#7') => ({ source: { area: 'github', key, connection: 'github' }, statusCategory, native: {} }) as unknown as WorkItem;
+
+  it('says In progress needs a project board when the Toil project names none, and only then', () => {
+    const none = { projects: [], unread: [] };
+    expect(boardBlock(issue('TODO'), 'IN_PROGRESS', none, 'card-payments')).toMatchObject({ why: 'no-board', reason: expect.stringContaining('In progress needs a project board'), next: { template: 'toil projects link card-payments github --add projects=<number>' } });
+    // To do and Done are open and closed: no board needed.
+    expect(boardBlock(issue('TODO'), 'DONE', none, 'card-payments')).toBeNull();
+    expect(boardBlock(issue('DONE'), 'TODO', none, 'card-payments')).toBeNull();
+    // A board is named, or the data doesn't say, or it is not a GitHub issue: the server decides.
+    expect(boardBlock(issue('TODO'), 'IN_PROGRESS', { projects: [3], unread: [] }, 'card-payments')).toBeNull();
+    expect(boardBlock(issue('TODO'), 'IN_PROGRESS', undefined, 'card-payments')).toBeNull();
+    expect(boardBlock(issue('TODO'), 'IN_PROGRESS', null, 'card-payments')).toBeNull();
+    expect(boardBlock({ ...issue('TODO'), source: { area: 'jira', key: 'PAY-1', connection: 'jira' } } as unknown as WorkItem, 'IN_PROGRESS', none, 'card-payments')).toBeNull();
+  });
+
+  it('hints on the column, and on the copy under the pointer, while a card that has no In progress is dragged', () => {
+    const none = { projects: [], unread: [] };
+    expect(dropRefusal(issue('TODO'), 'IN_PROGRESS', none)).toBe('Needs a project board to go here');
+    expect(dropRefusal(issue('TODO'), 'DONE', none)).toBeNull();
+    expect(dropRefusal(issue('TODO'), 'IN_PROGRESS', { projects: [3], unread: [] })).toBeNull();
+    expect(dropVerdict(issue('TODO') as WorkItem, 'IN_PROGRESS', true, true, 'Needs a project board to go here')).toEqual({ ok: false, text: 'Needs a project board to go here' });
+  });
+
+  it('proposes putting a card that has no record on a named board there first, then setting its Status: two writes, in that order', () => {
+    const item = { ...issue('TODO'), id: 'github:acme/shop#7', typeName: null, status: 'open', url: null } as unknown as WorkItem;
+    const p = proposeMove(item, 'IN_PROGRESS', [item], 'card-payments', { projects: [3], unread: [] }, { project: 3, number: 7, status: 'In Progress', canApply: true })!;
+    expect(p).toMatchObject({ command: 'github project add', input: { toilProject: 'card-payments', owner: 'acme', repo: 'shop', project: 3, number: 7 }, then: { command: 'github project status', input: { toilProject: 'card-payments', owner: 'acme', repo: 'shop', project: 3, number: 7, to: 'In Progress' } } });
+    expect(commandLine(p, 'posix').line).toBe("toil github project add '3' '7' --toil-project 'card-payments' --owner 'acme' --repo 'shop' --allow-write");
+    expect(commandLine(p.then!, 'posix').line).toBe("toil github project status '3' '7' --toil-project 'card-payments' --owner 'acme' --repo 'shop' --to 'In Progress' --allow-write");
+    // Several boards, or one that wasn't read: no command is guessed.
+    expect(proposeMove(item, 'IN_PROGRESS', [item], 'card-payments', { projects: [3, 5], unread: [] })).toMatchObject({ command: null });
+    expect(proposeMove(item, 'IN_PROGRESS', [item], 'card-payments', { projects: [3], unread: [3] })).toMatchObject({ command: null });
   });
 });

@@ -112,7 +112,7 @@ describe('the Board service', () => {
 
   it('leaves an area with no status command to the person', async () => {
     const t = toil({ 'connections list': ok('connections list', { connections: [{ name: 'corp-wiki', area: 'confluence', writes: true }] }) });
-    expect(await new BoardService({ execute: t.execute }).move('card-payments', 'corp-wiki:123', 'DONE', signal)).toMatchObject({ status: 'proposal', why: 'unsupported' });
+    expect(await new BoardService({ execute: t.execute }).move('card-payments', 'corp-wiki:123', 'DONE', signal)).toMatchObject({ status: 'blocked', why: 'unsupported', reason: expect.stringContaining('no status change for confluence'), next: { text: expect.stringContaining('in confluence itself') } });
     expect(t.writesSent()).toEqual([]);
   });
 
@@ -205,12 +205,12 @@ describe('the Board service, GitHub', () => {
     expect(t.writesSent()).toEqual([]);
   });
 
-  it('leaves an item that is on none of the boards, and a closed issue asked to leave Done, to the person', async () => {
-    const off = board({ 'github project items': ok('github project items', [item('PVTI_other', 6)]) });
-    expect(await off.service.move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal)).toMatchObject({ status: 'proposal', why: 'unsupported', reason: expect.stringContaining("isn't on a GitHub project board") });
+  it('blocks a closed issue asked to leave Done, naming the command that reopens it, and reads no board first', async () => {
     const closed = board({ 'github issue get': closedIssue, 'github project items': items, 'github project fields': standard });
-    expect(await closed.service.move('card-payments', 'corp-gh:acme/shop#7', 'TODO', signal)).toMatchObject({ status: 'proposal', why: 'unsupported', reason: expect.stringContaining('stays in Done') });
-    expect(off.t.writesSent().concat(closed.t.writesSent())).toEqual([]);
+    const out = await closed.service.move('card-payments', 'corp-gh:acme/shop#7', 'TODO', signal);
+    expect(out).toEqual({ status: 'blocked', why: 'closed', reason: expect.stringContaining('stays in Done'), next: { text: 'Reopen it first, then move it.', command: { command: 'github issue reopen', input: { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7 } } } });
+    expect(closed.t.calls.map((c) => c.command)).not.toContain('github project items');
+    expect(closed.t.writesSent()).toEqual([]);
   });
 
   it('closes a plain issue dropped on Done, and reopens a closed one dropped on To do', async () => {
@@ -224,18 +224,145 @@ describe('the Board service, GitHub', () => {
     expect(shut.t.writesSent()[0]).toMatchObject({ command: 'github issue reopen', input: { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7, allowWrite: true } });
   });
 
-  it('leaves In progress, a pull request with no board and a move to where the issue already is as proposals, with the reason', async () => {
-    const plain = { 'projects show': showWith([]) };
-    const a = board(plain);
-    expect(await a.service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal)).toMatchObject({ status: 'proposal', why: 'unsupported', reason: expect.stringContaining('only open or closed') });
-    const pull = board({ ...plain, 'github issue get': ok('github issue get', { number: 8, state: 'open', pull_request: {} }, viaConnection('corp-gh')) });
-    expect(await pull.service.move('card-payments', 'corp-gh:acme/shop#8', 'DONE', signal)).toMatchObject({ status: 'proposal', why: 'unsupported', reason: expect.stringContaining('pull request') });
-    const there = board(plain);
-    expect(await there.service.move('card-payments', 'corp-gh:acme/shop#7', 'TODO', signal)).toMatchObject({ status: 'proposal', why: 'unsupported', reason: expect.stringContaining('already open') });
-    const fromDone = board({ ...plain, 'github issue get': closedIssue });
-    expect(await fromDone.service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal)).toMatchObject({ status: 'proposal', why: 'unsupported' });
-    expect([a, pull, there, fromDone].flatMap((x) => x.t.writesSent())).toEqual([]);
+  it('case 1: In progress with no board named is blocked, not proposed: it says GitHub issues are open or closed, and how to name a board', async () => {
+    const a = board({ 'projects show': showWith([]) });
+    const out = await a.service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal);
+    expect(out).toEqual({
+      status: 'blocked',
+      why: 'no-board',
+      reason: "GitHub issues are only open or closed, so In progress needs a project board. This Toil project doesn't name one.",
+      next: {
+        text: 'Create a project board on GitHub if there is none, name it in the Toil project, then add the issue to it.',
+        link: { kind: 'toil-project', label: 'Name a project board in this Toil project' },
+        template: 'toil projects link card-payments github --add projects=<number>',
+      },
+    });
+    // Nothing was read from a board and nothing was written.
+    expect(a.t.calls.map((c) => c.command)).toEqual(['projects list', 'connections list', 'github issue get', 'projects show']);
+    expect(a.t.writesSent()).toEqual([]);
+    // A closed issue dropped on In progress is the same case: no board gives it an In progress.
+    const fromDone = board({ 'projects show': showWith([]), 'github issue get': closedIssue });
+    expect(await fromDone.service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal)).toMatchObject({ status: 'blocked', why: 'no-board' });
   });
+
+  it('blocks a pull request with no board, and a move to where the issue already is, each with the reason and the next step', async () => {
+    const plain = { 'projects show': showWith([]) };
+    const pull = board({ ...plain, 'github issue get': ok('github issue get', { number: 8, state: 'open', pull_request: {} }, viaConnection('corp-gh')) });
+    expect(await pull.service.move('card-payments', 'corp-gh:acme/shop#8', 'DONE', signal)).toMatchObject({ status: 'blocked', why: 'pull-request', reason: expect.stringContaining('is a pull request'), next: { text: expect.stringContaining('Merge or close it'), link: { kind: 'toil-project' } } });
+    const there = board(plain);
+    expect(await there.service.move('card-payments', 'corp-gh:acme/shop#7', 'TODO', signal)).toMatchObject({ status: 'blocked', why: 'stale', reason: expect.stringContaining('already open'), next: { text: expect.stringContaining('Reload') } });
+    expect([pull, there].flatMap((x) => x.t.writesSent())).toEqual([]);
+  });
+
+  describe('case 2: the Toil project names a board and the issue is not on it', () => {
+    const off = ok('github project items', [item('PVTI_other', 6)]);
+    const list = ok('github project list', [{ number: 2, title: 'Other' }, { number: 3, title: 'Roadmap', url: 'https://github.com/orgs/acme/projects/3' }]);
+
+    it('proposes, naming the board and giving the add and the Status that fits, and writes nothing on a plain drop', async () => {
+      const { t, service } = board({ 'github project items': off, 'github project fields': standard, 'github project list': list });
+      const out = await service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal);
+      expect(out).toEqual({
+        status: 'proposal',
+        why: 'not-on-board',
+        reason: 'acme/shop#7 isn\'t on the project board "Roadmap" (project 3). Add it there, then move it.',
+        board: { project: 3, title: 'Roadmap', url: 'https://github.com/orgs/acme/projects/3' },
+        add: { project: 3, number: 7, status: 'In Progress', canApply: true },
+      });
+      expect(t.writesSent()).toEqual([]);
+      expect(t.calls.every((c) => c.options.readOnly === true)).toBe(true);
+    });
+
+    it('with the press, adds first and moves second through the id the add returned: two gated writes, in that order', async () => {
+      const { t, service } = board({
+        'github project items': off,
+        'github project fields': standard,
+        'github project list': list,
+        'github project add': ok('github project add', { item: 'PVTI_new1', added: true }),
+      });
+      const out = await service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal, { addToBoard: true });
+      expect(out).toEqual({ status: 'applied', transition: null, toStatus: 'In Progress', added: true });
+      expect(t.writesSent()).toEqual([
+        { command: 'github project add', input: { toilProject: 'card-payments', owner: 'acme', repo: 'shop', project: 3, number: 7, allowWrite: true }, options: expect.objectContaining({ readOnly: false, caller: 'toil-ui' }) },
+        { command: 'github project status', input: { toilProject: 'card-payments', item: 'PVTI_new1', to: 'In Progress', allowWrite: true }, options: expect.objectContaining({ readOnly: false, caller: 'toil-ui' }) },
+      ]);
+      // Every read and refusal was made before the first write.
+      expect(t.calls.findIndex((c) => c.options.readOnly === false)).toBe(t.calls.length - 2);
+    });
+
+    it('says exactly where it stopped when the add worked and the move did not, and when the add itself failed', async () => {
+      const stalled = board({
+        'github project items': off,
+        'github project fields': standard,
+        'github project add': ok('github project add', { item: 'PVTI_new1', added: true }),
+        'github project status': fail('github project status', 'AUTH', "The GitHub token can't change the Status of item PVTI_new1.", 'Give the token the project scope.'),
+      });
+      await expect(stalled.service.move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal, { addToBoard: true })).rejects.toMatchObject({
+        status: 502,
+        message: expect.stringMatching(/acme\/shop#7 was added to project 3, but its Status was not set to Done: The GitHub token can't change the Status/),
+        fix: expect.stringMatching(/Give the token the project scope\. It is on the board now/),
+      });
+      const failedAdd = board({ 'github project items': off, 'github project fields': standard, 'github project add': fail('github project add', 'NOT_FOUND', 'GitHub found no project 3 owned by acme.', 'Check the project number.') });
+      await expect(failedAdd.service.move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal, { addToBoard: true })).rejects.toMatchObject({ message: expect.stringContaining('was not added to project 3: GitHub found no project 3'), fix: 'Check the project number.' });
+      expect(failedAdd.t.writesSent().map((c) => c.command)).toEqual(['github project add']);
+    });
+
+    it('adds nothing when the connection has writes off, saying so, and still gives the commands', async () => {
+      const { t, service } = board({ 'github project items': off, 'github project fields': standard }, false);
+      const out = await service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal, { addToBoard: true });
+      expect(out).toMatchObject({ status: 'proposal', why: 'not-on-board', add: { project: 3, number: 7, status: 'In Progress', canApply: false }, detail: expect.stringContaining('switched off') });
+      expect(t.writesSent()).toEqual([]);
+    });
+
+    it('adds nothing when no single Status option fits, or the board is under another owner, or several boards are named', async () => {
+      const two = board({ 'github project items': off, 'github project fields': fields(['Todo', 'In Progress', 'In Review', 'Done']) });
+      expect(await two.service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal, { addToBoard: true })).toMatchObject({ status: 'proposal', why: 'not-on-board', detail: expect.stringContaining('In Progress; In Review') });
+      const other = toil({ 'projects show': ok('projects show', { name: 'card-payments', toilProject: { github: { connection: 'corp-gh', owner: 'elsewhere', projects: ['3'] } }, areas: { github: { connection: { value: 'corp-gh' }, inputs: {} } } }), 'github project items': off, 'github project fields': standard });
+      const foreign = await new BoardService({ execute: other.execute }).move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal, { addToBoard: true });
+      expect(foreign).toMatchObject({ status: 'proposal', why: 'not-on-board', detail: expect.stringContaining("can't be added to from acme/shop") });
+      const many = toil({ 'projects show': showWith(['3', '5']), 'github project items': off });
+      expect(await new BoardService({ execute: many.execute }).move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal, { addToBoard: true })).toMatchObject({ status: 'proposal', why: 'not-on-board', reason: expect.stringContaining('any of the project boards this Toil project names (3, 5)') });
+      expect([two.t, other, many].flatMap((x) => x.writesSent())).toEqual([]);
+    });
+
+    it('leaves the board out of the answer, never the number, when its page could not be read; and never links an address that is not http(s)', async () => {
+      const unreadList = board({ 'github project items': off, 'github project fields': standard, 'github project list': fail('github project list', 'AUTH', 'no', 'no') });
+      const out = (await unreadList.service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal)) as { reason: string; board?: unknown };
+      expect(out.reason).toContain("isn't on the project board project 3");
+      expect(out.board).toBeUndefined();
+      const script = board({ 'github project items': off, 'github project fields': standard, 'github project list': ok('github project list', [{ number: 3, title: 'Roadmap', url: 'javascript:alert(1)' }]) });
+      expect(((await script.service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal)) as { board?: { url: string | null } }).board?.url).toBeNull();
+    });
+
+    it('a plain drop never adds: the flag is false unless the body says so', async () => {
+      const { t, service } = board({ 'github project items': off, 'github project fields': standard, 'github project add': ok('github project add', { item: 'PVTI_new1' }) });
+      await service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal, { addToBoard: false });
+      await service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal);
+      expect(t.writesSent()).toEqual([]);
+    });
+  });
+
+  describe('case 3: the board could not be read', () => {
+    it("says so with toil's own message and fix, and never that the issue is not on the board", async () => {
+      const denied = fail('github project items', 'AUTH', "The GitHub token can't change items of project 3 owned by acme: Resource not accessible.", 'Give the token access to Projects. A classic token needs read:project.');
+      const { t, service } = board({ 'github project items': denied });
+      const out = await service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal);
+      expect(out).toEqual({
+        status: 'blocked',
+        why: 'board-unread',
+        reason: "The project board 3 couldn't be read, so toil can't tell where acme/shop#7 stands on it: The GitHub token can't change items of project 3 owned by acme: Resource not accessible.",
+        next: { text: 'Give the token access to Projects. A classic token needs read:project.', link: { kind: 'connection', name: 'corp-gh', label: 'Check the corp-gh connection' } },
+      });
+      expect((out as { reason: string }).reason).not.toMatch(/isn't on/);
+      expect(t.writesSent()).toEqual([]);
+    });
+
+    it("says the same when the Status options can't be read, with a fix of its own when toil gave none", async () => {
+      const { service } = board({ 'github project items': items, 'github project fields': fail('github project fields', 'HTTP', 'GitHub answered 502.', '') });
+      const out = await service.move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal);
+      expect(out).toMatchObject({ status: 'blocked', why: 'board-unread', reason: expect.stringContaining("The Status options of project 3 couldn't be read"), next: { link: { kind: 'connection' } } });
+    });
+  });
+
 
   it('leaves it a proposal, writing nothing, when the connection has writes off', async () => {
     const plain = board({ 'projects show': showWith([]) }, false);
@@ -323,9 +450,26 @@ describe('api/board/move', () => {
     for (const extra of [{ command: 'jira issue delete' }, { connection: 'corp-jira' }, { input: { allowWrite: true } }, { allowWrite: true }, { transition: '31' }, { path: 'C:/secrets.json' }]) {
       const r = await post({ ...base, ...extra });
       expect(r.status, JSON.stringify(extra)).toBe(400);
-      expect(r.body.error?.message).toMatch(/A move takes toilProject, item and to, not /);
+      expect(r.body.error?.message).toMatch(/A move takes toilProject, item, to and addToBoard, not /);
     }
     expect(asked).toEqual([]);
+  });
+
+  it('passes addToBoard only when the body says true, refuses anything else for it, and sends nothing more', async () => {
+    const seen: unknown[] = [];
+    const backend: BoardBackend = { move: async (_p, _i, _t, _s, options) => (seen.push(options), { status: 'applied', transition: null, toStatus: null }) };
+    const { post } = await serve(backend);
+    const body = { toilProject: 'card-payments', item: 'corp-gh:acme/shop#7', to: 'IN_PROGRESS' };
+    expect((await post(body)).status).toBe(200);
+    expect((await post({ ...body, addToBoard: true })).status).toBe(200);
+    expect((await post({ ...body, addToBoard: false })).status).toBe(200);
+    expect(seen).toEqual([{}, { addToBoard: true }, {}]);
+    for (const bad of ['yes', 1, null, {}]) {
+      const r = await post({ ...body, addToBoard: bad });
+      expect(r.status, JSON.stringify(bad)).toBe(400);
+      expect(r.body.error?.message).toBe('addToBoard is true or false.');
+    }
+    expect(seen).toHaveLength(3);
   });
 
   it('refuses a body that is not a Toil project, an item and one of the three columns, before the backend runs', async () => {

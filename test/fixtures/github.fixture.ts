@@ -166,6 +166,9 @@ function graphql(body: string | undefined) {
   if (query.includes('convertPullRequestToDraft')) return { data: { convertPullRequestToDraft: { pullRequest: { number: 7, isDraft: true } } } };
   if (query.includes('markPullRequestReadyForReview')) return { data: { markPullRequestReadyForReview: { pullRequest: { number: 7, isDraft: false } } } };
   if (query.includes('resolveReviewThread')) return { data: { resolveReviewThread: { thread: { ...thread(), isResolved: true } } } };
+  // project add: the lookup of the project and the issue (on no project yet), then the mutation. Written from the GraphQL reference, not captured live.
+  if (query.includes('addProjectV2ItemById')) return { data: { addProjectV2ItemById: { item: { id: 'PVTI_new12345' } } } };
+  if (query.includes('projectV2(number: $project) { id number title url }')) return { data: { repositoryOwner: { projectV2: { id: 'PVT_kwDOabc123453', number: 3, title: 'Roadmap', url: `${GHE}/orgs/imagile/projects/3` } }, repository: { issueOrPullRequest: { __typename: 'Issue', id: 'I_kwDOabc12345', number: 9, title: 'Fix the probe', url: `${GHE}/imagile/toil-probe/issues/9`, projectItems: { nodes: [] } } } } };
   if (query.includes('updateProjectV2ItemFieldValue')) return { data: { updateProjectV2ItemFieldValue: { projectV2Item: { id: 'PVTI_abc12345' } } } };
   if (query.includes('issueOrPullRequest') && query.includes('Work category')) return { data: { repository: { issueOrPullRequest: { __typename: 'Issue', projectItems: { nodes: [categoryItem()] } } } } };
   if (query.includes('issueOrPullRequest')) return { data: { repository: { issueOrPullRequest: { __typename: 'Issue', projectItems: { nodes: [statusItem()] } } } } };

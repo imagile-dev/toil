@@ -70,7 +70,8 @@ describe('github project status', () => {
   it('an issue that is not on the project is NOT_FOUND, says where it is, and is never added', async () => {
     const other = { ...statusItem(), project: { ...statusItem().project, number: 8 } };
     const { envelope, calls } = await run(projectStatusCommand, move, graphql(read([other])));
-    expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: expect.stringContaining('is not on project 3 owned by imagile (it is on imagile/8)'), fix: expect.stringContaining('never adds') });
+    expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: expect.stringContaining('is not on project 3 owned by imagile (it is on imagile/8)'), fix: expect.stringContaining('toil github project add 3 9 --owner imagile --repo toil-probe --allow-write') });
+    expect(envelope.error?.fix).toContain('never adds an item as a side effect');
     expect(calls).toHaveLength(1);
     const none = await run(projectStatusCommand, move, graphql(read([])));
     expect(none.envelope.error?.message).toContain('it is on no project');
@@ -84,7 +85,7 @@ describe('github project status', () => {
   });
 
   it('wants the item named one way, and the write gate holds', async () => {
-    expect((await run(projectStatusCommand, { ...BASE, to: 'Done', allowWrite: true })).envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('Say which item') });
+    expect((await run(projectStatusCommand, { ...BASE, to: 'Done', allowWrite: true })).envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('Say which project board'), fix: expect.stringContaining('project list --owner') });
     expect((await run(projectStatusCommand, { ...move, item: 'PVTI_abc12345' })).envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('one way') });
     const gated = await run(projectStatusCommand, { ...move, allowWrite: false });
     expect(gated.envelope.error?.code).toBe('WRITE_DISABLED');

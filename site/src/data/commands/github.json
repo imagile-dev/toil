@@ -289,6 +289,20 @@
     ]
   },
   {
+    "name": "project add",
+    "tool": "github_project_add",
+    "description": "Add an issue or pull request to a project (put it on the board)",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<project>",
+      "<number>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
     "name": "pr list",
     "tool": "github_pr_list",
     "description": "List pull requests",

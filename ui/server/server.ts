@@ -659,20 +659,22 @@ export function createUiServer(options: UiServerOptions): UiServer {
   };
 
   /**
-   * `POST api/board/move`: the Board's drop. The body is a Toil project, an item's OWI id and a column, and nothing else:
-   * no command, connection, path or transition comes from the page. The backend does the rest and says what came of it.
+   * `POST api/board/move`: the Board's drop. The body is a Toil project, an item's OWI id and a column, and nothing else but
+   * one switch: `addToBoard: true`, which a person's press on "Add to the board and move" sends, so a plain drop never adds
+   * anything. No command, connection, path or transition comes from the page. The backend does the rest and says what came of it.
    */
   const boardCall = async (req: IncomingMessage, res: ServerResponse, ctx: RequestContext) => {
     const service = options.board;
     if (!service) throw new HttpError(404, 'This Toil UI applies no moves.', 'Start toil-ui with its cache, or with --sample for the sample.');
-    const shape = 'Send { "toilProject": "<name>", "item": "<owi id>", "to": "TODO" | "IN_PROGRESS" | "DONE" }.';
+    const shape = 'Send { "toilProject": "<name>", "item": "<owi id>", "to": "TODO" | "IN_PROGRESS" | "DONE" }, and "addToBoard": true only for a press on Add to the board and move.';
     const body = await readJson(req);
-    only(body, ['toilProject', 'item', 'to'], 'A move takes toilProject, item and to', shape);
+    only(body, ['toilProject', 'item', 'to', 'addToBoard'], 'A move takes toilProject, item, to and addToBoard', shape);
+    if (body.addToBoard !== undefined && typeof body.addToBoard !== 'boolean') throw new HttpError(400, 'addToBoard is true or false.', shape);
     if (typeof body.toilProject !== 'string' || !TOIL_PROJECT_NAME.test(body.toilProject)) throw new HttpError(400, 'Name the Toil project by its name.', shape);
     if (typeof body.item !== 'string' || !body.item || body.item.length > 300) throw new HttpError(400, 'Name the item by its OWI id.', shape);
     if (!isMoveColumn(body.to)) throw new HttpError(400, 'to is the column the card was dropped on: TODO, IN_PROGRESS or DONE.', shape);
     try {
-      json(res, 200, await service.move(body.toilProject, body.item, body.to, ctx.signal));
+      json(res, 200, await service.move(body.toilProject, body.item, body.to, ctx.signal, body.addToBoard === true ? { addToBoard: true } : {}));
     } catch (e) {
       if (e instanceof BoardRefusal) throw new HttpError(e.status, e.message, e.fix);
       throw e;

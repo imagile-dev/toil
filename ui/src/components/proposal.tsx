@@ -50,8 +50,10 @@ export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not
   const shell = useShell();
   const { line, reason, mcp } = commandLine(proposal, shell);
   const hint = proposal.hint ? { text: proposal.hint.text, ...readLine(proposal.hint, shell) } : null;
+  // A second write, run after the first has worked: its own line, with its own --allow-write.
+  const then = proposal.then ? { text: proposal.then.text, ...commandLine(proposal.then, shell) } : null;
   // The toggle stays even when this shell can't carry a value, so the card can switch to one that can.
-  const showShells = Boolean(proposal.command || proposal.hint);
+  const showShells = Boolean(proposal.command || proposal.hint || proposal.then);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(line!);
@@ -119,6 +121,18 @@ export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not
                 </>
               )
             )}
+            {then && (
+              <>
+                <p className="note">{then.text}</p>
+                {then.line ? (
+                  <pre className="command" data-then="">
+                    <code>{then.line}</code>
+                  </pre>
+                ) : (
+                  <p className="failure">{then.reason}</p>
+                )}
+              </>
+            )}
             {proposal.note && <p className="note">{proposal.note}</p>}
             {hint && (
               <>
@@ -174,6 +188,18 @@ export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not
             )}
           </>
         )
+      )}
+      {then && (
+        <>
+          <p className="note">{then.text}</p>
+          {then.line ? (
+            <pre className="command" data-then="">
+              <code>{then.line}</code>
+            </pre>
+          ) : (
+            <p className="failure">{then.reason}</p>
+          )}
+        </>
       )}
       {proposal.note && <p className="note">{proposal.note}</p>}
       {hint && (

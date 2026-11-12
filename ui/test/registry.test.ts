@@ -191,7 +191,7 @@ describe("the Board's drop (ui/server/board.ts) against the real registry", () =
   const valid = (command: string, input: Record<string, unknown>) => new Validator(byName.get(command)!.inputSchema as object, '2020-12', false).validate(input).errors;
 
   it('reads the item and connections with read-only commands, and writes with one transition command per tracker', () => {
-    for (const read of ['projects list', 'connections list', 'projects show', 'jira issue get', 'ado work-item get', 'github issue get', 'github project items', 'github project fields']) {
+    for (const read of ['projects list', 'connections list', 'projects show', 'jira issue get', 'ado work-item get', 'github issue get', 'github project items', 'github project fields', 'github project list']) {
       const def = byName.get(read);
       expect(def, read).toBeDefined();
       expect(def!.writes || def!.writesLocal, read).toBe(false);
@@ -209,11 +209,13 @@ describe("the Board's drop (ui/server/board.ts) against the real registry", () =
   });
 
   it("writes a GitHub move with one of three commands, with the input the server sends (owner, repository and number from the item's id)", () => {
-    for (const write of ['github project status', 'github issue close', 'github issue reopen']) expect(byName.get(write)!.writes, write).toBe(true);
+    for (const write of ['github project status', 'github project add', 'github issue close', 'github issue reopen']) expect(byName.get(write)!.writes, write).toBe(true);
     expect(valid('github issue get', { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: [7] })).toEqual([]);
     expect(valid('github project items', { toilProject: 'card-payments', owner: 'acme', project: 3 })).toEqual([]);
     expect(valid('github project fields', { toilProject: 'card-payments', owner: 'acme', project: 3 })).toEqual([]);
     expect(valid('github project status', { toilProject: 'card-payments', item: 'PVTI_abc12345', to: 'In Progress', allowWrite: true })).toEqual([]);
+    expect(valid('github project add', { toilProject: 'card-payments', owner: 'acme', repo: 'shop', project: 3, number: 7, allowWrite: true })).toEqual([]);
+    expect(valid('github project list', { toilProject: 'card-payments', owner: 'acme' })).toEqual([]);
     expect(valid('github issue close', { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7, allowWrite: true })).toEqual([]);
     expect(valid('github issue reopen', { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7, allowWrite: true })).toEqual([]);
   });
@@ -227,5 +229,15 @@ describe("the Board's drop (ui/server/board.ts) against the real registry", () =
     expect(reopened).toMatchObject({ command: 'github issue reopen', input: { owner: 'acme', repo: 'shop', number: 7 } });
     expect(proposeMove(issue, 'IN_PROGRESS', [issue], 'card-payments')).toMatchObject({ command: null, input: null });
     for (const p of [done, reopened]) expect(valid(p.command!, { ...p.input!, allowWrite: true })).toEqual([]);
+  });
+
+  it('makes the proposal for a card off its named board two real commands: github project add, then github project status by number', async () => {
+    const { proposeMove } = await import('../src/model/board.ts');
+    const issue = { id: 'github:acme/shop#7', source: { area: 'github', connection: 'github', key: 'acme/shop#7' }, native: {}, status: 'open', statusCategory: 'TODO', typeName: null, url: null } as unknown as WorkItem;
+    const p = proposeMove(issue, 'IN_PROGRESS', [issue], 'card-payments', { projects: [3], unread: [] }, { project: 3, number: 7, status: 'In Progress', canApply: true })!;
+    expect(p.command).toBe('github project add');
+    expect(p.then?.command).toBe('github project status');
+    expect(valid(p.command!, { ...p.input!, allowWrite: true })).toEqual([]);
+    expect(valid(p.then!.command, { ...p.then!.input, allowWrite: true })).toEqual([]);
   });
 });

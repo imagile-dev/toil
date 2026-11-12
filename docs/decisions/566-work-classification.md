@@ -504,3 +504,15 @@ corrections; Jira Data Center and Azure DevOps Server, which the maintainer set 
   Status option the mapper's own table puts in that column, and stays a proposal
   naming the options when none or several fit. A plain pull request stays a proposal.
   Where: `src/areas/github/issues.ts`, `ui/server/board.ts`.
+- **A move nobody can apply is a notice, not a proposal, and says what is missing** (the
+  maintainer's call, 12 November 2026: "indicate that you need to add the issue to the
+  project board"). A GitHub card dragged where no command can take it goes back to its
+  column with one notice: the Toil project names no project board (with the link to
+  name one), the board could not be read (toil's own fix), or the issue is closed.
+  An issue that is not on the named board is a proposal with "Add to the board and
+  move". Defaults taken: toil gained `github project add <project> <number>` (additive;
+  written from GitHub's documentation, not run live); `project status` and
+  `categorize` still never add an item as a side effect, and their messages now name
+  the command that does; the add runs under the issue's owner, so a board under
+  another owner gets no button; a closed issue is refused before any board is read.
+  Where: `src/areas/github/projects.ts`, `ui/server/board.ts`, `ui/src/views/Board.tsx`.

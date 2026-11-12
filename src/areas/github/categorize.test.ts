@@ -248,6 +248,7 @@ describe('github issue categorize: the project field', () => {
     expect(w[0]!.message).toContain(`${KEY(9)}`);
     expect(w[0]!.message).toContain('got the label and no field value');
     expect(w[0]!.message).toContain('run the same plan again');
+    expect(w[0]!.message).toContain('toil github project add 3 <number> --owner imagile --repo <repo> --allow-write');
   });
 
   it('an issue not on the project whose labels are already right is unchanged, and still listed', async () => {

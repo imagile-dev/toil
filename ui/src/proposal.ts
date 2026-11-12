@@ -31,6 +31,8 @@ export interface Proposal {
   note: string | null;
   /** A read-only toil command that helps, such as listing the workflow's transitions, rendered like the main one. */
   hint?: Hint | null;
+  /** A second write, run after the command succeeds (put a card on the board, then set its Status), shown after it with its own --allow-write. */
+  then?: Hint | null;
 }
 
 /** A read-only command a proposal points to, and what it is for. */
@@ -233,7 +235,7 @@ export const POSITIONAL_FIELDS: ReadonlyMap<string, readonly string[]> = new Map
     'openshift pod logs',
   ),
   ...positional(['project', 'number'],
-    'github project status',
+    'github project add', 'github project status',
   ),
   ...positional(['project'],
     'github project fields', 'github project items', 'jira project get',
