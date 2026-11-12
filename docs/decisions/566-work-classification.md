@@ -367,9 +367,10 @@ agent made where the proposal was silent, or where it couldn't be built as writt
   small stand-in for the page build only; the server and the tests use Node's own. The
   cleaner fix is to split the scheme reader from the HTTP helpers it shares a module
   with.
-- **Not verified: the real tracker path and a real AI agent in Toil UI.** No
-  `categorize` has run against a live Jira, GitHub or Azure DevOps from Toil UI; its
-  tests fake that one command, and the scripted sample agent stands in for a real one.
+- **Not verified: a real AI agent in the Classify view.** Ask your AI agent and the
+  tuning flow ran only against the scripted sample agent. Toil UI's Apply was run
+  against all three real trackers (below), and the Ask bar and Analyze against Codex
+  by `npm run verify:ui -- --ask`.
 - **A second review of the write paths found nine things; all are fixed.** The two that
   mattered: recording again before Apply let an item's old label undo the person's
   correction, and the editor could save a scheme file the toil project never reads.
@@ -445,10 +446,18 @@ agent made where the proposal was silent, or where it couldn't be built as writt
   alone. Known gap, recorded not fixed: `ado work-item untag` (Server only, behaviour
   the command contract records) sends the same `add`, so it is a suspected bug to
   check on a live Azure DevOps Server.
+- **Toil UI's Apply, on all three**, with this branch's Toil UI run on the maintainer's
+  own toil home (`ui/scripts/dev-mine.mjs`) and its sandbox toil projects: an unsure
+  item was given a category in the Classify view, the review card listed the one
+  change, and Apply wrote it (a tag on Azure DevOps item 152, a label on GitHub issue
+  36 and on Jira's SCRUM-54), each read back from the tracker afterwards. The run
+  found the Classify view claiming "Everything is sorted" on a project that hadn't
+  been read, and four small things in the review card and its keys, all fixed.
 - **Reads on all three**, Azure DevOps Services included: the value lists, `jira issue
   search --more-fields`, the mapper's dimension fields, `projects pivot` and `classify
   run`.
 
 **Not verified:** a category *field* on any tracker (none of the three
-test projects has one), Jira Data Center, Azure DevOps Server, and `categorize` from
-Toil UI's Apply.
+test projects has one, and creating one is an admin's step), Jira Data Center, Azure
+DevOps Server (`ado work-item untag`'s fix included), and Toil UI's Ask your AI agent
+and tuning flows with a real agent.
