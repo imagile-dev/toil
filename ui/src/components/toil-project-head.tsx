@@ -16,6 +16,7 @@ import { matches } from '../shortcuts.ts';
 import type { ToilProjectPreview, PreviewSprint } from '../model/preview.ts';
 import { usePlain } from '../plain-words.ts';
 import { Unread } from './unread.tsx';
+import { EditIcon } from './icons.tsx';
 import './toil-project-head.css';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -321,7 +322,7 @@ export function Editable({
               setEditing(true);
             }}
           >
-            <span aria-hidden="true">✎</span>
+            <EditIcon size={16} />
           </button>
         )}
       </span>

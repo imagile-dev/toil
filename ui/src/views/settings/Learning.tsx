@@ -8,6 +8,7 @@
 import { Checkbox } from 'react-aria-components';
 import { useLearningLinks } from '../../learning.ts';
 import { Card } from '../../components/layout.tsx';
+import { CheckIcon } from '../../components/icons.tsx';
 
 export function LearningSetting() {
   const [on, setOn] = useLearningLinks();
@@ -17,7 +18,7 @@ export function LearningSetting() {
       <div className="theme-setting__row">
         <Checkbox className="check" isSelected={on} onChange={setOn} data-learning-setting="">
           <span className="box" aria-hidden="true">
-            {on ? '✓' : ''}
+            {on ? <CheckIcon size={14} /> : null}
           </span>
           Links to learning content
         </Checkbox>

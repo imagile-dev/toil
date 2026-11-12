@@ -16,6 +16,7 @@
 
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 import type { ArchivedToilProject } from '../load.ts';
+import { MoreIcon } from './icons.tsx';
 import './archive.css';
 
 /** What the line under the header says about the last archive or unarchive. */
@@ -29,7 +30,7 @@ export function ArchiveMenu({ name, onArchive }: { name: string; onArchive: (nam
   return (
     <MenuTrigger>
       <Button className="btn btn--small archive-menu__trigger" aria-label={`More actions for ${name}`} data-archive-menu="">
-        <span aria-hidden="true">⋯</span>
+        <MoreIcon size={16} />
       </Button>
       <Popover className="popover" placement="bottom end">
         <Menu className="menu" aria-label={`Actions for ${name}`} onAction={(key) => key === 'archive' && onArchive(name)}>

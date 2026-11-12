@@ -20,6 +20,7 @@ import { useChatScope } from './ask.tsx';
 import { prName, toilProjectHref } from '../format.ts';
 import { FACE, availability, jobOf, jobPrompt, jobLabel, type Availability, type Face, type JobId } from '../model/jobs.ts';
 import type { Change } from '../toil.ts';
+import { MoreIcon } from './icons.tsx';
 import './jobs.css';
 
 /** The address of a job: its own page, which says what it does and has the Run button. */
@@ -94,11 +95,7 @@ export function PullRequestActions({ change, info, plain }: { change: Change; in
   return (
     <MenuTrigger>
       <Button className="btn jobs-trigger" aria-label={`Actions for ${prName(change.id)}`} data-job-actions="">
-        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-          <circle cx="3" cy="8" r="1.4" fill="currentColor" />
-          <circle cx="8" cy="8" r="1.4" fill="currentColor" />
-          <circle cx="13" cy="8" r="1.4" fill="currentColor" />
-        </svg>
+        <MoreIcon size={16} />
       </Button>
       <Popover className="popover menu-popover" placement="bottom end" offset={6}>
         <Menu

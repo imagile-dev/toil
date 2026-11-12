@@ -29,6 +29,7 @@ import { Loader } from '../../moments/Moments.tsx';
 import { isLensId, lensDef, LENSES, type LensId } from '../../../../src/core/brief/brief.ts';
 import { analyzePrompt, AUDIENCES, type Audience, type ToilProjectAnalyze, type FocusSource } from '../../../../src/core/brief/prompt.ts';
 import { analyzeSettings } from '../../../../src/core/brief/settings.ts';
+import { ArrowLeftIcon } from '../../components/icons.tsx';
 
 interface ListedToilProject {
   name: string;
@@ -169,7 +170,7 @@ function EditToilProject({ config, name, section, toilProjects, found, areas, co
   return (
     <>
       <p className="note">
-        <a href="#/settings/projects" className="back-link">← All Toil projects</a>
+        <a href="#/settings/projects" className="back-link"><ArrowLeftIcon size={14} className="icon--before" />All Toil projects</a>
       </p>
       <Card as="section" className="panel" aria-labelledby="toil-project-change">
         <h2 id="toil-project-change" tabIndex={-1}>

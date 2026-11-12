@@ -36,7 +36,8 @@ import { ChatUsage, UsageFooter } from './usage.tsx';
 import type { AnswerUsage } from '../model-usage.ts';
 import type { ChatSession } from '../fingerprint.ts';
 import { StaleNote } from './stale.tsx';
-import { Glossary } from './help.tsx';
+import { Glossary, InfoTip } from './help.tsx';
+import { ChevronDownIcon, CloseIcon } from './icons.tsx';
 import { HELP } from '../help.ts';
 import { useNotify } from './notify.tsx';
 import { analysisHref, toilProjectHref } from '../format.ts';
@@ -717,7 +718,7 @@ export function AboutChip({ context, onRemove }: { context: ViewContext; onRemov
     <p className="ask-about note" data-ask-about="">
       <span>{words('ask.about', { title: context.title })}</span>
       <Button className="btn btn--small" onPress={onRemove} aria-label={words('ask.about.remove')} data-ask-about-remove="">
-        <span aria-hidden="true">✕</span>
+        <CloseIcon size={14} />
       </Button>
     </p>
   );
@@ -736,7 +737,7 @@ function AgentSwitch({ label, list, current, onPick, compact = false }: { label:
     <DialogTrigger>
       <Button className="btn btn--small agent-switch" data-agent-switch="">
         {compact ? 'Change' : plain.text(label)}
-        <span aria-hidden="true"> ▾</span>
+        <ChevronDownIcon size={14} className="icon--after" />
         <span className="sr-only">{plain.text(', change the agent for this chat')}</span>
       </Button>
       <Popover className="popover agent-switch__popover" placement="bottom start" offset={6}>
@@ -815,27 +816,14 @@ export function AskInfo({ agentLabel }: { agentLabel: string | undefined }) {
       ? `Themed agent voice is off, so answers are in plain wording, whatever the theme.`
       : `${theme.label} has no voice of its own, so answers are in plain wording.`;
   return (
-    <DialogTrigger>
-      <Button className="btn info-button" data-ask-info="">
-        <span aria-hidden="true" className="info-button__mark">
-          i
-        </span>
-        <span className="sr-only">About these answers</span>
-      </Button>
-      <Popover className="popover ask-info" placement="bottom end" offset={6}>
-        <Dialog className="ask-info__dialog" aria-labelledby="ask-info-title">
-          <Heading slot="title" id="ask-info-title" className="ask-info__title">
-            About these answers
-          </Heading>
-          <p>{voice}</p>
-          <p>{plain.text(`Answered by ${agentLabel ?? 'the agent chosen in Settings'}. The chat starts on the agent last used for this Toil project, else your default under Settings, AI agent, else the first agent that's ready.`)}</p>
-          <p>{plain.text("The agent only reads: its tools can't change a ticket, and anything it suggests comes back as a proposal for you to apply.")}</p>
-          <p>
-            Change the voice under <a href="#/settings/appearance">Settings, Appearance</a>, and add your own instructions or voice under <a href="#/settings/agent">Settings, AI agent</a>.
-          </p>
-          <Glossary entries={HELP.answers.glossary} />
-        </Dialog>
-      </Popover>
-    </DialogTrigger>
+    <InfoTip label="these answers" tip={voice} placement="bottom end" triggerProps={{ 'data-ask-info': '' }}>
+      <p>{voice}</p>
+      <p>{plain.text(`Answered by ${agentLabel ?? 'the agent chosen in Settings'}. The chat starts on the agent last used for this Toil project, else your default under Settings, AI agent, else the first agent that's ready.`)}</p>
+      <p>{plain.text("The agent only reads: its tools can't change a ticket, and anything it suggests comes back as a proposal for you to apply.")}</p>
+      <p>
+        Change the voice under <a href="#/settings/appearance">Settings, Appearance</a>, and add your own instructions or voice under <a href="#/settings/agent">Settings, AI agent</a>.
+      </p>
+      <Glossary entries={HELP.answers.glossary} />
+    </InfoTip>
   );
 }

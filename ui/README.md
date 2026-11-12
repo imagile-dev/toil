@@ -387,10 +387,31 @@ Status option, which toil reads as To do, In progress or Done by its own table o
 The server finds the card on the board (`github project items`), reads the project's Status options (`github project fields`), keeps the ones that
 read as the column you dropped on, and, when exactly one does, runs `github project status --item <id> --to <option>`; with none or several it
 proposes the move and names the options, because nothing here picks one for you. A pull request on the board moves the same way. A closed issue
-stays in Done whatever its Status says, so moving one out of Done is left to you. **With no board**, a GitHub issue is open or closed: Done runs
-`github issue close`, and Done back to To do runs `github issue reopen`. A GitHub issue has no In progress, so that stays a proposal, and so does
-a pull request with no board (closing it is not finishing it, and merging is its own command). The owner, repository and number come from the card's
-own id, never from the page.
+stays in Done whatever its Status says, so moving one out of Done is blocked until you reopen it (the notice names `github issue reopen`).
+**With no board**, a GitHub issue is open or closed: Done runs `github issue close`, and Done back to To do runs `github issue reopen`. The owner,
+repository and number come from the card's own id, never from the page.
+
+**When a GitHub card can't move, the screen says which of these it is, and what to do** (it was once one vague line, which left people guessing):
+
+1. **The Toil project names no project board.** "GitHub issues are only open or closed, so In progress needs a project board. This Toil project
+   doesn't name one." The page knows this from what it loaded (`githubBoards`), so while a card is dragged the In progress column says
+   *Needs a project board to go here* (and the announcement says it), and a drop there is not sent anywhere. The next step is a link to the Toil
+   project's Sources, and, a step further in under **Show the command**, `toil projects link <name> github --add projects=<number>` with the number
+   left for you (the board is created on GitHub first). A pull request with no board says the same about itself.
+2. **It names a board, but this issue isn't on it.** A proposal: "<key> isn't on the project board <title> (project N). Add it there, then move it."
+   with a link to the board on GitHub when toil could read its address (`github project list`), and, when the connection allows changes and exactly
+   one Status option reads as the column, **Add to the board and move**. That press is one call (`addToBoard`, the only thing a page may add to a
+   move, so a plain drop never adds anything): the server adds the issue (`github project add`), then sets the Status through the item id the add
+   returned (`github project status --item`), each its own gated write, after every refusal has been made. If the add works and the move doesn't, the
+   message says exactly that: it is on the board now. Under **Show the command**, the two commands in that order, by number. The button isn't offered
+   when the board belongs to another owner than the issue's, several boards are named, or no single option fits; the card says why.
+3. **The board couldn't be read** (the token lacks the Projects permission, or the read failed). The notice says so in toil's own words, with its fix
+   and a link to the connection: never "isn't on the board", because a board nobody read says nothing about what is on it.
+4. **On the board, but no single Status option maps to the column.** A proposal naming the options.
+5. **A closed issue dragged out of Done**, and a pull request with no board: a notice with what is wrong and the next step.
+
+A move **no command could make** (cases 1 and 3, and these) is not a proposal: the card goes back to its column, no ghost is left in the target
+column, and one notice (not a "proposed move" with nothing to apply) says what's wrong and what to do, until you dismiss it.
 The connection's `writes` setting still decides, as it would typed by hand; a Toil project's connection you haven't adopted is refused by toil
 (`WRITE_DISABLED`) and the page says so in toil's words.
 
@@ -400,12 +421,13 @@ that timed out may still have been applied, and the message says to check the tr
 
 When the move can't be made for you, nothing changes in the tracker and the drop becomes a **proposed move** under the board (the card stays where
 its tracker says, with a dashed ghost in the target column). The card says what would change, **one line on why it wasn't applied**, an **Apply**
-button when a press can make it (the setting is off but the connection allows changes), and **Dismiss**; the command to run yourself, in PowerShell or
+button (**Add to the board and move**, for a card off its board) when a press can make it (the setting is off but the connection allows changes), and **Dismiss**; the command to run yourself, in PowerShell or
 bash/zsh with **Copy command**, is a step further in under **Show the command**. Why it can be a proposal: the setting is off; the sample, which can
 show a move and write none; a connection with `writes` off (the card says so and where to turn them on); a status that more than one transition
 leads to, or none (toil's refusal, with the moves the workflow offers, is on the card: nothing is guessed); a card Toil UI can't move; a GitHub
-project whose Status options give the column none or more than one (the card names them); a GitHub issue dropped on In progress, a pull request
-with no board, and a draft on a board, which has no issue to name; and a view with no server to ask.
+project whose Status options give the column none or more than one (the card names them); a card that isn't on its board (with the two commands
+that put it there and move it); a draft on a board, which has no issue to name; and a view with no server to ask. Nothing that has no command
+at all is proposed: those are the notices above.
 A drop in the column the card is already in, or onto another lane when the board is grouped, does nothing.
 
 The board and **Ready to start?** share the charts' filter bar (without its period), so "Fix version: 2.4, Category: Keep
@@ -821,6 +843,19 @@ Help's menu then has **Learn**: four of Context Overflow's modules, by task.
 **Settings, General** and kept in this browser, is on by default; off, every link to
 Context Overflow and every glossary line is gone, and Help keeps the view's docs and
 What's new.
+
+### Icons
+
+Every icon is an inline SVG from one set, `ui/src/components/icons.tsx`: a few hand-drawn
+strokes on a 24 unit grid in `currentColor`, the same 1.5px on screen at any size, and
+`aria-hidden` (the button or the word beside it carries the name). No theme's font draws
+one, so an icon looks the same in every theme and a theme can only recolour it. There is
+one (i), `InfoTip` in `ui/src/components/help.tsx`, which `Help`, the chat's **About these
+answers** and a connection form's field notes all use: hover or focus shows a tooltip,
+a press opens the popover, Escape closes it. To add an icon, add its paths to `PATHS` in
+`icons.tsx` and export a component for it; `ui/test/icons.test.tsx` holds it to the rules
+and fails if a letter or a unicode character (`i`, `?`, `✕`, `✓`) is drawn as an icon
+again. Never a font glyph, an icon font, an image file or a package.
 
 Read more, Help, Learn and What's new's changelog links open in a new tab, and are the
 only places the app links out to: nothing is fetched until you follow one.

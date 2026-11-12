@@ -471,8 +471,8 @@ export function httpClassify(base = './', { sample = false }: { sample?: boolean
     saveScheme: (toilProject, scheme) => post('scheme/save', { toilProject, scheme }, 'Saving the categories'),
     // The Board's drop: a Toil project, an item's id and a column, and nothing else.
     movesDisabled: sample ? SAMPLE_CANNOT_WRITE : null,
-    moveItem: async (toilProject, item, to) => {
-      const res = await call(base, 'api/board/move', { body: { toilProject, item, to } });
+    moveItem: async (toilProject, item, to, how) => {
+      const res = await call(base, 'api/board/move', { body: { toilProject, item, to, ...(how?.addToBoard ? { addToBoard: true } : {}) } });
       if (!res.ok) throw await failure(res, 'Moving the card');
       return (await res.json()) as MoveOutcome;
     },

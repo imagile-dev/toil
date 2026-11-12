@@ -19,13 +19,58 @@
  * Clarifying notes are available on request, and on hover, which saves a request.
  */
 
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Button, Dialog, DialogTrigger, Header, Heading, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Text, Tooltip, TooltipTrigger } from 'react-aria-components';
 import { HELP, LEARN, glossaryHref, helpHref, learnHref, type GlossaryEntry, type HelpTopic, type HelpTopicId } from '../help.ts';
 import { useLearningLinks } from '../learning.ts';
 import { usePlain } from '../plain-words.ts';
+import { ChevronDownIcon, EditIcon, InfoIcon } from './icons.tsx';
 import { NewDot } from './whats-new.tsx';
 import './help.css';
+
+/**
+ * The one (i) in Toil UI: the info icon from the icon set (icons.tsx) in a
+ * 2rem button, the same in every theme. Hovering or focusing it shows `tip`
+ * in a tooltip; pressing it (a click, a tap, Enter or Space) opens `children`
+ * in a popover, where a link can be reached. Escape or a click outside closes
+ * the popover. `triggerProps` carries a data attribute for tests and the layout
+ * check. Nothing else in the app draws an (i): a guard test fails on a letter.
+ */
+export function InfoTip({
+  label,
+  tip,
+  children,
+  placement = 'bottom',
+  triggerProps,
+}: {
+  /** The topic's name, which is the button's accessible name ("About …") and the popover's heading. */
+  label: string;
+  tip: string;
+  children: ReactNode;
+  placement?: 'bottom' | 'bottom end' | 'bottom start';
+  triggerProps?: Record<`data-${string}`, string>;
+}) {
+  return (
+    <DialogTrigger>
+      <TooltipTrigger delay={400} closeDelay={200}>
+        <Button className="btn info-trigger" aria-label={`About ${label}`} {...triggerProps}>
+          <InfoIcon size={20} />
+        </Button>
+        <Tooltip className="help-tooltip" offset={6}>
+          {tip}
+        </Tooltip>
+      </TooltipTrigger>
+      <Popover className="popover help-popover" placement={placement} offset={6}>
+        <Dialog className="help-popover__dialog" aria-label={`About ${label}`}>
+          <Heading slot="title" className="help-popover__title">
+            About {label}
+          </Heading>
+          {children}
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
+  );
+}
 
 /** `note` adds a sentence the topic can't hold because it depends on the screen (a limit, a count), after the topic's own text. */
 export function Help({ topic, note }: { topic: HelpTopicId; note?: string }) {
@@ -35,32 +80,15 @@ export function Help({ topic, note }: { topic: HelpTopicId; note?: string }) {
   const title = plain.text(t.title);
   const text = plain.text(t.text) + (plain.on && t.plainNote ? ` ${t.plainNote}` : '') + (note ? ` ${plain.text(note)}` : '');
   return (
-    <DialogTrigger>
-      <TooltipTrigger delay={400} closeDelay={200}>
-        <Button className="btn help-button" data-help={topic} aria-label={`About ${title}`}>
-          <span aria-hidden="true" className="help-button__mark">
-            i
-          </span>
-        </Button>
-        <Tooltip className="help-tooltip" offset={6}>
-          {text}
-        </Tooltip>
-      </TooltipTrigger>
-      <Popover className="popover help-popover" placement="bottom" offset={6}>
-        <Dialog className="help-popover__dialog" aria-label={`About ${title}`}>
-          <Heading slot="title" className="help-popover__title">
-            About {title}
-          </Heading>
-          <p>{text}</p>
-          <p>
-            <a href={helpHref(t)} target="_blank" rel="noopener noreferrer" data-read-more="">
-              Read more<span className="sr-only"> about {title} in the docs (opens in a new tab)</span>
-            </a>
-          </p>
-          {t.glossary && <Glossary entries={t.glossary} />}
-        </Dialog>
-      </Popover>
-    </DialogTrigger>
+    <InfoTip label={title} tip={text} triggerProps={{ 'data-help': topic }}>
+      <p>{text}</p>
+      <p>
+        <a href={helpHref(t)} target="_blank" rel="noopener noreferrer" data-read-more="">
+          Read more<span className="sr-only"> about {title} in the docs (opens in a new tab)</span>
+        </a>
+      </p>
+      {t.glossary && <Glossary entries={t.glossary} />}
+    </InfoTip>
   );
 }
 
@@ -100,7 +128,7 @@ export function HeaderHelp({ href, fresh = false, onWhatsNew, onShortcuts }: { h
     <MenuTrigger>
       <Button className="btn help-link" data-help-link="">
         Help{fresh && <NewDot />}
-        <span aria-hidden="true"> ▾</span>
+        <ChevronDownIcon size={14} className="icon--after" />
       </Button>
       <Popover className="popover menu-popover" placement="bottom end" offset={6}>
         <Menu className="menu help-menu" aria-label="Help" onAction={(key) => (key === 'whats-new' ? onWhatsNew?.() : key === 'shortcuts' ? onShortcuts?.() : undefined)}>
@@ -173,7 +201,7 @@ export function LearnButton() {
 export function EditLink({ href, label }: { href: string; label: string }) {
   return (
     <a className="btn btn--small edit-link" href={href} aria-label={label} title={label} data-edit-link="">
-      <span aria-hidden="true">✎</span>
+      <EditIcon size={16} />
     </a>
   );
 }

@@ -1,7 +1,7 @@
 {
   "name": "harvest",
   "label": "Harvest",
-  "description": "A 16-bit farm, by day or by lantern light: a pixel font, wooden sign panels, a sky that runs from dawn on the sprint's first day to dusk on its last, and crops that grow a stage with each column an item moves.",
+  "description": "A 16-bit farm, by day or by lantern light: a pixel face for headings only, wooden sign panels, a sky that runs from dawn on the sprint's first day to dusk on its last, and crops that grow a stage with each column an item moves.",
   "schemes": {
     "light": {
       "bg": "#efe3c2",
@@ -53,7 +53,7 @@
       ]
   },
   "fonts": {
-    "body": "'Pixelify Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    "body": "'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
     "display": "'Pixelify Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
     "mono": "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace"
   },

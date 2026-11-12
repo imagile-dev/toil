@@ -19,7 +19,7 @@ import type { AgentVerdict, ClassifyArea, Scheme } from '../../src/core/classify
 import type { ClassifyStats } from '../../src/core/classify/ledger-types.ts';
 import type { WorkItem } from './toil.ts';
 import type { Say } from './model/classify.ts';
-import type { MoveColumn, MoveOutcome } from './board-api.ts';
+import type { MoveColumn, MoveOptions, MoveOutcome } from './board-api.ts';
 
 export type { ClassifyStats };
 
@@ -156,7 +156,7 @@ export interface ClassifyApi {
    * and a column, and the server applies the move through toil's own command or says why it left it a proposal. Absent where
    * a view has no server to ask; it throws with toil's message and fix when toil refuses.
    */
-  moveItem?(toilProject: string, item: string, to: MoveColumn): Promise<MoveOutcome>;
+  moveItem?(toilProject: string, item: string, to: MoveColumn, how?: MoveOptions): Promise<MoveOutcome>;
   /** Why a drop can't be applied here (the sample), or null; checked before the card moves, so the sample never looks as if it wrote. */
   readonly movesDisabled?: string | null;
 }

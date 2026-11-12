@@ -18,8 +18,8 @@
 .reasons { border-top: 1px solid var(--line); }
 .reason > summary { display: flex; gap: 0.6rem; align-items: baseline; padding: 0.8rem 0.25rem; border-bottom: 1px solid var(--line); cursor: pointer; list-style: none; min-height: 44px; }
 .reason > summary::-webkit-details-marker { display: none; }
-.reason > summary::before { content: '▸'; color: var(--muted); width: 0.9rem; flex: none; transition: transform 0.15s; }
-.reason[open] > summary::before { transform: rotate(90deg); }
+.reason > summary::before { content: ''; align-self: center; width: 0.45rem; height: 0.45rem; margin-inline: 0.2rem 0.25rem; border: solid var(--muted); border-width: 0 2px 2px 0; transform: rotate(-45deg); flex: none; transition: transform 0.15s; }
+.reason[open] > summary::before { transform: rotate(45deg); }
 .reason > summary:hover { background: var(--surface); }
 .reason__dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; flex: none; align-self: center; background: var(--muted); }
 .reason__dot--danger { background: var(--danger); }

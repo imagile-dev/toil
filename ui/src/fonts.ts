@@ -56,7 +56,6 @@ export const BUNDLED_FONTS: Record<string, BundledFont> = {
   Fredoka: { role: 'display', load: () => import('@fontsource/fredoka/latin-600.css') },
   'Source Serif 4': { role: 'display', load: () => import('@fontsource/source-serif-4/600.css') },
   'Pixelify Sans': { role: 'display', load: all(() => import('@fontsource/pixelify-sans/400.css'), () => import('@fontsource/pixelify-sans/600.css')) },
-  'Press Start 2P': { role: 'display', load: () => import('@fontsource/press-start-2p/latin-400.css') },
   Rye: { role: 'display', load: () => import('@fontsource/rye/latin-400.css') },
   'Grenze Gotisch': { role: 'display', load: all(() => import('@fontsource/grenze-gotisch/latin-600.css'), () => import('@fontsource/grenze-gotisch/latin-800.css')) },
   'Chakra Petch': { role: 'display', load: all(() => import('@fontsource/chakra-petch/600.css'), () => import('@fontsource/chakra-petch/700.css')) },

@@ -198,6 +198,19 @@ was built, and the defaults taken where the call left a choice.
 - **The items drawer** leads with the category, hides a column that is empty or the
   same on every row, and has no sideways scroll at 1280 px and up.
 
+- **One icon set, one (i)** (the maintainer's call, 12 November 2026). Every info
+  tooltip in Toil UI is one trigger, `InfoTip`, and every glyph that stood in for an
+  icon is an inline SVG from `ui/src/components/icons.tsx`: hand-drawn, no dependency,
+  the same shape in every theme. A test refuses a bare-letter (i). Default taken: the
+  hover tooltips on category chips and citations stay as they are, since they explain
+  content and are not (i) triggers.
+- **Harvest and Overworld read in a text face** (the maintainer's call, 12 November
+  2026: the pixel font was "just not legible enough"). Harvest's body is IBM Plex Sans
+  and its pixel face is for headings only; Overworld's headings and figures use
+  Pixelify Sans in place of Press Start 2P, at the sizes every theme shares, and its
+  small labels use the body face. Press Start 2P is no longer loaded; its package is
+  still listed in `ui/package.json`, left for a change that touches the lockfile.
+
 **Still the maintainer's to take**
 
 The proposal's decisions 1 to 7 were each taken as a default above or in the

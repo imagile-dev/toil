@@ -10,6 +10,7 @@
 
 import { Button, Label, ListBox, ListBoxItem, Popover, Select, SelectValue } from 'react-aria-components';
 import { labelOfDimension, type WorkInsights } from '../model/work-insights.ts';
+import { ChevronDownIcon } from './icons.tsx';
 
 const NONE = '(none)';
 
@@ -32,7 +33,7 @@ export function DimensionPicker({ label, value, options, none, ins, onChange }: 
       <Label>{label}</Label>
       <Button className="btn choice-button btn--small">
         <SelectValue>{() => shown}</SelectValue>
-        <span aria-hidden="true">▾</span>
+        <ChevronDownIcon size={14} />
       </Button>
       <Popover className="popover">
         <ListBox className="menu">

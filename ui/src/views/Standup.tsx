@@ -30,6 +30,7 @@ import { useTheme, useThemeChoiceContext } from '../skins.tsx';
 import { voiceOn } from '../theme-context.ts';
 import type { WorklogApi, WorklogExport, WorklogStandup } from '../worklog.ts';
 import { Loader } from '../moments/Moments.tsx';
+import { HelpIcon } from '../components/icons.tsx';
 import './standup.css';
 
 export type Loaded<T> = { ok: true; value: T } | { ok: false; message: string } | null;
@@ -275,7 +276,7 @@ function ChipView({ report, chip, bucket, cited }: { report: StandupReport; chip
       <span className="standup-chip standup-chip--comment" data-truncate="" id={`fact-${chip.key}`} data-cited={isCited || undefined} data-outstanding={c.outstanding || undefined} title={chipTitle(report, chip)}>
         {c.outstanding && (
           <span className="standup-q" role="img" aria-label="Unanswered question" title="A question nobody has answered">
-            ?
+            <HelpIcon size={16} />
           </span>
         )}
         <SubjectLink chip={chip} />

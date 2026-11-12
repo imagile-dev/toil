@@ -154,6 +154,12 @@ export interface ToilProjectData extends ToilProjectSummary {
   analyze: ToilProjectAnalyze | null;
   /** The classification the toil project names (`classify.scheme`), for the charts' categories; null when it names none. */
   classifyScheme?: string | null;
+  /**
+   * The GitHub project boards the toil project names (`github.projects`), and those of them whose items couldn't be read, so a
+   * card with no board record on a board that wasn't read is not said to be off it (unknown is not zero). Null when it has no
+   * GitHub section at all; an empty `projects` is a Toil project that names no board, which a GitHub issue's In progress needs.
+   */
+  githubBoards?: { projects: number[]; unread: number[] } | null;
   /** The extra dimensions the toil project names (`dimensions`), by name: what a chart may split by beyond the built-in ones. */
   dimensionNames?: string[];
   /** The views the team saved in the toil project (`views`), each as it passed toil's own check; a view that didn't is left out. */
@@ -457,6 +463,7 @@ export async function loadToilProject(execute: Execute, name: string, options: L
   // Work items, mapped to OWI ---------------------------------------------------------
   // Each area is mapped on its own, with its own section's OWI fields.
   const boardOf = new Map<string, { project: number; owner?: string }>();
+  let githubBoards: { projects: number[]; unread: number[] } | null = areas.github ? { projects: [], unread: [] } : null;
   const work: Record<(typeof JIRA_AREAS)[number] | (typeof ADO_AREAS)[number] | 'github', unknown[]> = { jira: [], ado: [], github: [] };
   const tasks: Array<Promise<void>> = [];
   /** The custom fields each Jira connection registers, read once before its searches, so they ask for the fields the Toil project names. */
@@ -557,6 +564,8 @@ export async function loadToilProject(execute: Execute, name: string, options: L
         });
       };
       const projects = strings(section('github').projects);
+      const boards = { projects: projects.map(Number).filter((x) => Number.isInteger(x) && x > 0), unread: [] as number[] };
+      githubBoards = boards;
       // No board named: each repository's own issues are the tracker, open and closed.
       if (!projects.length) {
         await Promise.all(targets.map(async (r) => {
@@ -577,7 +586,10 @@ export async function loadToilProject(execute: Execute, name: string, options: L
       boardOf.clear();
       for (const project of projects) {
         const answer = await run('work', 'github project items', { ...base, ...(owner ? { owner } : {}), project: Number(project) });
-        if (!answer) continue;
+        if (!answer) {
+          boards.unread.push(Number(project));
+          continue;
+        }
         work.github.push(answer);
         board.push(...recs(answer.data));
         for (const b of recs(answer.data)) if (typeof b.id === 'string') boardOf.set(b.id, { project: Number(project), ...(owner ? { owner } : {}) });
@@ -754,7 +766,7 @@ export async function loadToilProject(execute: Execute, name: string, options: L
   const views = savedViewsOf(toilProject);
   const shown = show!.data as Rec;
   const origin = typeof shown.source === 'string' && typeof shown.file === 'string' ? { source: shown.source, file: shown.file, adopted: shown.adopted === true } : null;
-  return { ...summary, items, pullRequests, codeowners, prNotes: [...new Set(prNotes)], readTargets: [...readState.values()], changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, analyze, classifyScheme, dimensionNames: Object.keys(dimensionsOf(toilProject) ?? {}), ...(Object.keys(views).length > 0 ? { views } : {}), origin, peopleNotes: team.notes, readiness: readReadiness(toilProject), calls };
+  return { ...summary, items, pullRequests, codeowners, prNotes: [...new Set(prNotes)], readTargets: [...readState.values()], changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, analyze, classifyScheme, githubBoards, dimensionNames: Object.keys(dimensionsOf(toilProject) ?? {}), ...(Object.keys(views).length > 0 ? { views } : {}), origin, peopleNotes: team.notes, readiness: readReadiness(toilProject), calls };
 }
 
 /** A Toil project put away with `toil projects archive` (#561): all the list needs of it. */

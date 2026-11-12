@@ -644,16 +644,32 @@ async function dragCheck(page, width, shoot, inspectDropped, sample) {
     await settle(16);
   }
   const midNow = `(${dragMid})(${JSON.stringify(plan.item)}, ${plan.tx}, ${plan.ty})`;
-  await until(page, `(() => { const m = ${midNow}; return m.overlay && m.underPointer && m.placeholder && /^Drop to propose: /.test(m.verdict ?? ''); })()`);
+  await until(page, `(() => { const m = ${midNow}; return m.overlay && m.underPointer && m.placeholder && /^(Drop to propose: |Needs a project board)/.test(m.verdict ?? ''); })()`);
   const mid = await page.evaluate(midNow);
   await shoot('drag-mid');
   if (!mid.overlay) problems.push('mid-drag, no copy of the card followed the pointer within 5s');
   else if (!mid.underPointer) problems.push(`mid-drag, the copy of the card wasn't under the pointer at ${plan.tx},${plan.ty} within 5s`);
-  if (mid.overlay && !/^Drop to propose: /.test(mid.verdict ?? '')) problems.push(`mid-drag over the next column, the copy says "${mid.verdict}" instead of what a drop would propose`);
+  if (mid.overlay && !/^(Drop to propose: |Needs a project board)/.test(mid.verdict ?? '')) problems.push(`mid-drag over the next column, the copy says "${mid.verdict}" instead of what a drop would propose`);
   if (!mid.placeholder) problems.push('mid-drag, the card left no placeholder in its column within 5s');
   await (touch ? page.touch('end', plan.tx, plan.ty) : page.mouse('up', plan.tx, plan.ty));
   if (touch) await page.touchscreen(false);
-  const ghost = await until(page, `(() => { const g = document.querySelector('[data-proposed-ghost]'); return g ? g.closest('.column')?.querySelector('h3')?.id ?? '' : null; })()`);
+  // Where a command could make the move, a ghost of the card in the target column; where none could (a GitHub issue's In progress with no
+  // project board), no ghost at all and one notice saying what is wrong and what to do, with the card still where it was.
+  const outcome = await until(page, `(() => { const g = document.querySelector('[data-proposed-ghost]'); if (g) return g.closest('.column')?.querySelector('h3')?.id ?? ''; return document.querySelector('[data-board-notice="blocked"]') ? 'blocked' : null; })()`);
+  if (outcome === 'blocked') {
+    const notice = await page.evaluate(`(() => { const n = document.querySelector('[data-board-notice="blocked"]'); return { reason: n?.querySelector('[data-blocked-reason]')?.textContent?.trim() ?? '', next: n?.querySelector('[data-blocked-next]')?.textContent?.trim() ?? '', ghost: Boolean(document.querySelector('[data-proposed-ghost]')), home: Boolean(document.querySelector('.card-grip[data-item="' + CSS.escape(${JSON.stringify(plan.item)}) + '"]')) }; })()`);
+    if (!notice.reason || !notice.next) problems.push('after the drop, the notice for a move nothing could make did not say what is wrong and what to do');
+    if (notice.ghost) problems.push('after the drop, a move nothing could make left a proposed ghost in the target column');
+    if (!notice.home) problems.push('after the drop, the card that could not move was not on the board');
+    await shoot('drag-dropped');
+    await page.evaluate(ANIMATIONS_DONE);
+    const blockedLayout = await inspectDropped();
+    // Dismiss, so the next width starts from the board as it opened.
+    const dismissed = await page.evaluate(`(async () => { const deadline = Date.now() + 5000; for (;;) { const b = document.querySelector('[data-board-notice="blocked"] button'); if (!b) return true; b.click(); if (Date.now() > deadline) return false; await new Promise((r) => setTimeout(r, 50)); } })()`);
+    if (!dismissed) problems.push('after Dismiss was pressed for 5s, the notice was still on the board');
+    return { problems, ...blockedLayout };
+  }
+  const ghost = outcome;
   if (ghost === null) problems.push('after the drop, no proposed ghost of the card showed on the board within 5s');
   else if (ghost !== plan.target) problems.push(`after the drop, the proposed ghost is in ${ghost || 'no column'}, not ${plan.target}`);
   // The tidied proposal says in one line why it was not applied (here, the sample can't write), and keeps its command a step further in.

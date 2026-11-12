@@ -7,6 +7,7 @@
  */
 
 import { Button, Menu, MenuItem, MenuTrigger, Popover, Separator } from 'react-aria-components';
+import { MenuIcon } from './icons.tsx';
 import './card-menu.css';
 
 export interface CardMenuItem {
@@ -24,7 +25,7 @@ export function CardMenu({ name, items, onAction }: { name: string; items: CardM
   return (
     <MenuTrigger>
       <Button className="btn btn--small card-menu__trigger" aria-label={`Menu for ${name}`} data-card-menu="">
-        <span aria-hidden="true">☰</span>
+        <MenuIcon size={16} />
       </Button>
       <Popover className="popover" placement="bottom end">
         <Menu className="menu" aria-label={`Actions for ${name}`} onAction={(key) => onAction(String(key))} disabledKeys={items.filter((i) => i.disabled).map((i) => i.id)}>

@@ -26,7 +26,7 @@
 .menu-item { display: flex; align-items: center; min-height: 44px; padding: 0 0.75rem; border-radius: var(--radius); color: var(--ink); cursor: pointer; outline: none; text-decoration: none; }
 .menu-item[data-focused], .menu-item[data-hovered] { background: var(--surface); }
 .menu-item[data-selected] { font-weight: 600; }
-.menu-item[data-selected]::after { content: "\2713"; margin-left: auto; padding-left: 1rem; }
+.menu-item[data-selected]::after { content: ""; width: 0.35rem; height: 0.7rem; margin: 0 0.3rem 0.2rem auto; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); flex: none; }
 .menu-header { padding: 0.4rem 0.75rem 0.2rem; font-size: 0.8125rem; font-weight: 600; color: var(--muted); }
 .nowrap { white-space: nowrap; }
 /* A heading that takes focus by script (a wizard moving to its next step) shows no ring; keyboard focus elsewhere keeps its own. */
@@ -261,11 +261,6 @@
 /* The starter questions' label and the (i) beside it (#283): a 44px target, the popover's words within the screen. */
 .starters-head { display: flex; align-items: center; gap: 0.5rem; }
 .starters-head .note { margin: 0; }
-.info-button { min-width: 44px; min-height: 44px; padding: 0; border-radius: 999px; display: inline-grid; place-items: center; }
-.info-button__mark { display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; border: 2px solid currentColor; border-radius: 999px; font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 700; line-height: 1; }
-.ask-info { max-width: min(22rem, calc(100vw - 2rem)); }
-.ask-info__dialog { padding: 0.9rem 1rem; display: grid; gap: 0.5rem; outline: none; font-size: 0.9375rem; }
-.ask-info__dialog p { margin: 0; overflow-wrap: anywhere; }
 .ask-info__title { font-size: 1rem; margin: 0; }
 .starter { font: inherit; font-size: 0.875rem; min-height: 44px; padding: 0.35rem 0.8rem; border-radius: 999px; border: 1px solid var(--accent); background: var(--raised); color: var(--ink); cursor: pointer; text-align: left; }
 .starter[data-hovered] { background: var(--bg); }
@@ -427,11 +422,6 @@
 /* The connection form (#561): the live required/optional badge, the (i) beside a label, what a field says under itself, and an address built around a word. */
 .need { margin-inline-start: 0.4rem; padding: 0 0.4rem; border: 1px solid var(--muted); border-radius: var(--radius); font-size: 0.75rem; font-weight: 400; text-transform: lowercase; }
 .need--required { border-color: var(--accent); }
-.info { display: inline-block; margin-inline-start: 0.35rem; }
-.info > summary { cursor: pointer; list-style: none; display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; border: 1.5px solid currentColor; border-radius: 999px; font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 700; font-size: 0.875rem; line-height: 1; color: var(--accent); }
-.info > summary::-webkit-details-marker { display: none; }
-.info > summary:hover { background: var(--raised); }
-.info > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .problems { display: grid; gap: 0.25rem; margin: 0.25rem 0 0; }
 .problem--warning { border-inline-start: 3px solid var(--accent); padding-inline-start: 0.5rem; }
 .affix { display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem; }
@@ -456,14 +446,6 @@
 
 /* A field's label row: the label, its required or optional badge and its (i) on one line. */
 .field-row__head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.4rem; min-width: 0; }
-.field-row__head .info { margin: 0; }
-
-/* Open, the text floats under the (i) as a tooltip card, so nothing on the page shifts; in a form's label row it spans the field. */
-.info { position: relative; }
-.field-row__head { position: relative; }
-.field-row__head .info { position: static; }
-.info[open] > .info__text { position: absolute; z-index: 20; top: calc(100% + 0.35rem); left: 0; width: min(24rem, 80vw); margin: 0; padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius); background: var(--raised); box-shadow: 0 8px 24px rgb(0 0 0 / 0.3); }
-.field-row__head .info[open] > .info__text { right: 0; width: auto; }
 /* The row is the box, so a helper's choice, its Install and its details read as one thing; the choice inside keeps no box of its own. */
 .helper-row { padding: 0.25rem 0.75rem 0.5rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .helper-row > .agent-choice { border: 0; box-shadow: none; background: transparent; padding-inline: 0; }

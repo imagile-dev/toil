@@ -10,7 +10,8 @@
    screen readers; the words beside it say what it shows. Text sits on the
    room floors, never on the map. */
 
-@import '@fontsource/press-start-2p/latin-400.css';
+@import '@fontsource/pixelify-sans/400.css';
+@import '@fontsource/pixelify-sans/600.css';
 @import '@fontsource/ibm-plex-sans/400.css';
 @import '@fontsource/ibm-plex-sans/600.css';
 
@@ -154,19 +155,12 @@
 [data-theme="overworld"] .rank,
 [data-theme="overworld"] .aging-days {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: 600;
   letter-spacing: 0;
-  line-height: 1.5;
+  line-height: 1.3;
 }
 
-[data-theme="overworld"] h1,
-[data-theme="overworld"] .toil-project-bar__name {
-  font-size: clamp(1rem, 0.85rem + 0.6vw, 1.35rem);
-}
-
-[data-theme="overworld"] h2 {
-  font-size: 0.8125rem;
-}
+/* Headings keep the sizes every theme shares: the pixel face that needed them small is gone. */
 
 [data-theme="overworld"] h3 {
   font-weight: 600;
@@ -176,16 +170,16 @@
 [data-theme="overworld"] .metric__value,
 [data-theme="overworld"] .count__value,
 [data-theme="overworld"] .aging-days {
-  font-size: 0.9375rem;
+  font-size: 1.25rem;
 }
 
 [data-theme="overworld"] .big-number,
 [data-theme="overworld"] .team-figure {
-  font-size: 1.5rem;
+  font-size: 2rem;
 }
 
 [data-theme="overworld"] .rank {
-  font-size: 0.75rem;
+  font-size: 0.9375rem;
 }
 
 /* A sentence reads in the body face, even where other themes set it as a figure. */
@@ -341,8 +335,9 @@
   padding: 0.35rem 0.5rem;
   background: var(--overworld-pane);
   border: 2px solid var(--overworld-stone);
-  font-family: var(--font-display);
-  font-size: 0.6875rem;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.8125rem;
   line-height: 1.6;
   color: var(--overworld-pane-ink);
 }
@@ -394,8 +389,9 @@
 }
 
 [data-theme="overworld"] .ow-sage-name {
-  font-family: var(--font-display);
-  font-size: 0.6875rem;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.8125rem;
   color: var(--overworld-gold);
 }
 
@@ -565,9 +561,9 @@
 
 [data-theme="overworld"] .loader-tip__label,
 [data-theme="overworld"] .moment__label strong {
-  font-family: var(--font-display);
-  font-size: 0.6875rem;
-  font-weight: 400;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.8125rem;
   line-height: 1.8;
   color: var(--overworld-gold);
 }

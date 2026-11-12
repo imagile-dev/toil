@@ -34,6 +34,7 @@ import { Board } from './Board.tsx';
 import { BlockerGantt } from './Gantt.tsx';
 import { Overview } from './Overview.tsx';
 import { Loader } from '../moments/Moments.tsx';
+import { CheckIcon } from '../components/icons.tsx';
 
 // The graph library is the biggest piece of the page, so it loads on its own, after the rest.
 const Graph = lazy(() => import('./Graph.tsx').then((m) => ({ default: m.Graph })));
@@ -203,7 +204,7 @@ function BoardTab({ person }: { person?: string }) {
         <div className="board-tools">
           <Checkbox className="check" isSelected={attentionOnly} onChange={setAttentionOnly} data-attention-only="">
             <span className="box" aria-hidden="true">
-              {attentionOnly ? '✓' : ''}
+              {attentionOnly ? <CheckIcon size={14} /> : null}
             </span>
             Needs attention only ({flagged.length})
           </Checkbox>
@@ -225,7 +226,7 @@ function BoardTab({ person }: { person?: string }) {
         <p className="note">{words('trace.note')}</p>
         <Checkbox className="check" isSelected={gapsOnly} onChange={setGapsOnly}>
           <span className="box" aria-hidden="true">
-            {gapsOnly ? '✓' : ''}
+            {gapsOnly ? <CheckIcon size={14} /> : null}
           </span>
           Only items with something to check
         </Checkbox>

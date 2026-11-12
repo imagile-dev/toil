@@ -83,6 +83,7 @@ import { Bell } from './components/bell.tsx';
 import { ProjectLinks, ProjectSwitcher } from './components/project-switcher.tsx';
 import { NewDot, WhatsNewModal, useWhatsNew } from './components/whats-new.tsx';
 import type { Release, Versions } from './whats-new.ts';
+import { MenuIcon } from './components/icons.tsx';
 
 const ChartkitGallery = lazy(() => import('./components/chartkit/gallery.tsx'));
 
@@ -919,9 +920,7 @@ function HeaderMenu({ suspended, projects, links, feedback, controls, help, fres
     <>
       <DialogTrigger isOpen={open && !suspended} onOpenChange={setOpen}>
         <Button className="btn menu-button" data-menu-button="">
-          <span aria-hidden="true" className="menu-button__icon">
-            ☰
-          </span>
+          <MenuIcon size={18} className="menu-button__icon" />
           Menu
           {/* Help, with its dot (#417), is inside the Menu here, so the Menu carries the dot. */}
           {fresh && <NewDot />}

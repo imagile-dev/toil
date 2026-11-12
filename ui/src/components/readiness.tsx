@@ -6,7 +6,7 @@
  * stamped and why.
  */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button } from 'react-aria-components';
 import { useData } from '../data.ts';
 import { dateTime } from '../format.ts';
@@ -15,12 +15,13 @@ import { liveWorkflow, readiness, VERDICT_LABEL, VERDICT_PLAIN, workflowRead, ty
 import { CALL_OPTIONS, type WorkItem } from '../toil.ts';
 import { Cited } from './items.tsx';
 import { Card } from './layout.tsx';
+import { CheckIcon, CloseIcon, WarningIcon } from './icons.tsx';
 import '../views/readiness.css';
 
-const MARK: Record<Row['state'], string> = { pass: '✓', thin: '!', fail: '✕' };
+const MARK: Record<Row['state'], ReactNode> = { pass: <CheckIcon size={14} />, thin: <WarningIcon size={14} />, fail: <CloseIcon size={14} /> };
 const STATE_WORD: Record<Row['state'], string> = { pass: 'Passes', thin: 'Thin', fail: 'Fails' };
 
-const VERDICT_MARK: Record<Verdict, string> = { ready: '✓', thin: '!', blocked: '✕' };
+const VERDICT_MARK: Record<Verdict, ReactNode> = { ready: <CheckIcon size={14} />, thin: <WarningIcon size={14} />, blocked: <CloseIcon size={14} /> };
 
 /** The verdict as a chip: a mark and a word, so it reads the same in a theme whose colours don't tell the three apart. */
 export function VerdictChip({ verdict }: { verdict: Verdict }) {

@@ -12,6 +12,7 @@ import { Card } from '../../components/layout.tsx';
 import { Help } from '../../components/help.tsx';
 import { useSimpleMarksSetting } from '../../simple-marks.ts';
 import { useTheme } from '../../theme-context.ts';
+import { CheckIcon } from '../../components/icons.tsx';
 
 export function ChartMarksSetting() {
   const theme = useTheme();
@@ -23,7 +24,7 @@ export function ChartMarksSetting() {
       <div className="theme-setting__row">
         <Checkbox className="check" isSelected={simple} onChange={setSimple} aria-describedby="chart-marks-note">
           <span className="box" aria-hidden="true">
-            {simple ? '✓' : ''}
+            {simple ? <CheckIcon size={14} /> : null}
           </span>
           Simple chart marks
         </Checkbox>

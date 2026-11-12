@@ -15,7 +15,7 @@ Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the r
 |---|---|---|---|
 | Plain | Light and quiet: Fredoka on headings and figures, IBM Plex Sans to read | None: always the standard text | WCAG 2.2 AA, strict |
 | Crate | The toil site's look, in its blue: the near-black, or warm drafting paper in light, the drafting grid and the blue glow, the accent-to-highlight gradient, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
-| Harvest | A 16-bit farm: a pixel font, wooden sign panels, a sky that runs from dawn to dusk across the sprint | A patient farmhand | Decorative |
+| Harvest | A 16-bit farm: a pixel face for headings only, wooden sign panels, a sky that runs from dawn to dusk across the sprint | A patient farmhand | Decorative |
 | Starship | A bridge console: HUD frames, scanlines, a slow starfield, holo panels | A ship's log | Decorative |
 | Realm | A grimdark house ledger kept as a tabletop campaign: soot and iron around aged vellum, leather-bound panels with wax-sealed headings, a dungeon map at the foot of every page, a d20 that rolls while a view loads, an item's fields as a character sheet, the dependency graph as an engraved war-table map | A dungeon master | Decorative |
 | Sprawl | A terminal in a rain-soaked megacity: monospace type and a block cursor, faint scanlines and a CRT edge glow, neon magenta and cyan on deep blue-black, or the city at dawn in light, the skyline at the foot of the page, the dependency graph as a net map where a blocker is black ICE | A laconic street-level netrunner | Decorative |

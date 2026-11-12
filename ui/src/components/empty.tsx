@@ -14,6 +14,7 @@ import { useSkins } from '../skins.tsx';
 import type { HelpTopicId } from '../help.ts';
 import { Help } from './help.tsx';
 import { toilProjectEditHref } from '../format.ts';
+import { EditIcon } from './icons.tsx';
 import './empty.css';
 
 export function Empty({ message, action, help }: { message: string; action: ReactNode; help?: HelpTopicId }) {
@@ -33,9 +34,7 @@ export function EmptyLink({ href, children, edit = false }: { href: string; chil
   return (
     <a className="btn btn--small empty-action__link" href={href}>
       {edit && (
-        <span aria-hidden="true" className="empty-action__pencil">
-          ✎
-        </span>
+        <EditIcon size={14} className="empty-action__pencil" />
       )}
       {children}
     </a>

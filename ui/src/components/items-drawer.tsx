@@ -22,6 +22,7 @@ import { StatusChip } from './bits.tsx';
 import { ReclassifyChip } from './reclassify.tsx';
 import { Choice } from './choice.tsx';
 import { DataTable, type Column } from './layout.tsx';
+import { ArrowDownIcon, ArrowUpIcon } from './icons.tsx';
 import './items-drawer.css';
 
 type SortKey = 'key' | 'title' | 'status' | 'assignee' | 'estimate' | 'category' | `dim:${string}`;
@@ -99,9 +100,7 @@ export function ItemsDrawer({ spec }: { spec: string }) {
   const header = (label: string, by: SortKey): ReactNode => (
     <button type="button" className="drill-sort" aria-label={`Sort by ${label}`} onClick={() => setSort((s) => ({ by, down: s.by === by ? !s.down : false }))} data-sort={by}>
       {label}
-      <span className="drill-sort__arrow" aria-hidden="true">
-        {sort.by === by ? (sort.down ? '↓' : '↑') : ''}
-      </span>
+      <span className="drill-sort__arrow">{sort.by === by ? sort.down ? <ArrowDownIcon size={12} /> : <ArrowUpIcon size={12} /> : null}</span>
     </button>
   );
   const sortOf = (by: SortKey): Column<WorkItem>['sort'] => (sort.by === by ? (sort.down ? 'descending' : 'ascending') : 'none');

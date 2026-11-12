@@ -54,7 +54,7 @@
   },
   "fonts": {
     "body": "'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
-    "display": "'Press Start 2P', 'IBM Plex Sans', system-ui, sans-serif",
+    "display": "'Pixelify Sans', 'IBM Plex Sans', system-ui, sans-serif",
     "mono": "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace"
   },
   "radius": "0px",

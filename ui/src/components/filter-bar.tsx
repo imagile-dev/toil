@@ -17,6 +17,7 @@ import { useDerived } from '../data.ts';
 import { addValue, removeValue, writeFilters, type DimensionFilter, type Filters } from '../filters.ts';
 import { useAddress, useWorkInsights } from '../insights-data.ts';
 import { FILTER_MENU, labelOfDimension, periodOf, periodWords, type WorkInsights } from '../model/work-insights.ts';
+import { ChevronDownIcon, CloseIcon, ArrowLeftIcon } from './icons.tsx';
 import './filter-bar.css';
 
 /** The words a chip says for one filter value: a category by its name, a "none" bucket by its own name. */
@@ -51,7 +52,7 @@ function PeriodChip({ ins, filters, apply }: { ins: WorkInsights; filters: Filte
     <div className="filter-bar__period">
       <MenuTrigger>
         <Button className="btn btn--small filter-chip filter-chip--period" aria-label={`Period: ${text}`} data-filter-period="">
-          {text} <span aria-hidden="true">▾</span>
+          {text} <ChevronDownIcon size={14} />
         </Button>
         <Popover className="popover" placement="bottom start">
           <Menu
@@ -152,7 +153,7 @@ function AddFilter({ ins, filters, apply }: { ins: WorkInsights; filters: Filter
           ) : (
             <div>
               <button type="button" className="filter-list__back" onClick={() => setDim(null)}>
-                ← {labelOfDimension(dim)}
+                <ArrowLeftIcon size={14} className="icon--before" /> {labelOfDimension(dim)}
               </button>
               <ul className="filter-list" aria-label={`${labelOfDimension(dim)} values`}>
                 {(ins.valuesIn(dim) ?? []).map((v) => (
@@ -186,7 +187,7 @@ function Chip({ ins, w, value, apply, filters }: { ins: WorkInsights; w: Dimensi
     <span className="filter-chip" data-filter-chip={`${w.dimension}=${value}`}>
       {text}
       <button type="button" className="filter-chip__remove" aria-label={`Remove ${text}`} onClick={() => apply(removeValue(filters, w.dimension, value))}>
-        <span aria-hidden="true">✕</span>
+        <CloseIcon size={12} />
       </button>
     </span>
   );

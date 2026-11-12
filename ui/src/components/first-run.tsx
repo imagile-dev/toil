@@ -20,6 +20,7 @@ import { OWI_SOURCES } from '../../../src/core/owi/types.ts';
 import { usePlain } from '../plain-words.ts';
 import { LookAround } from '../sample-mode.tsx';
 import { Help } from './help.tsx';
+import { CheckIcon } from './icons.tsx';
 import './first-run.css';
 
 /** The areas a toil project reads work items from: a connection to one of these is a tracker. */
@@ -107,7 +108,7 @@ function Step({ n, title, precise, topic, done, detail, children }: { n: number;
   return (
     <li className={`first-run__step${done ? ' first-run__step--done' : ''}`} data-done={done || undefined}>
       <span className="first-run__mark" aria-hidden="true">
-        {done ? '✓' : n}
+        {done ? <CheckIcon size={14} /> : n}
       </span>
       <div className="first-run__what">
         <div className="first-run__head">

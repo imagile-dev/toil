@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button, Checkbox, Dialog, DialogTrigger, Heading, Input, Label, Modal, ModalOverlay, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components';
 import { feedbackData, feedbackProblem, type FeedbackApi, type FeedbackData, type FeedbackFields, type FeedbackKind } from './feedback.ts';
+import { CheckIcon } from './components/icons.tsx';
 import './feedback.css';
 
 const EMPTY: FeedbackFields = { kind: 'bug', title: '', body: '', email: '' };
@@ -187,7 +188,7 @@ export function FeedbackForm({ api, close }: { api: FeedbackApi; close: () => vo
           </p>
           <Checkbox className="check" isSelected={agreed} onChange={setAgreed} isRequired aria-describedby="feedback-disclaimer">
             <span className="box" aria-hidden="true">
-              {agreed ? '✓' : ''}
+              {agreed ? <CheckIcon size={14} /> : null}
             </span>
             I have removed company data from this report and agree to send it to Imagile LLC.
           </Checkbox>

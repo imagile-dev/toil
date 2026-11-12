@@ -225,13 +225,13 @@ describe('the items drawer', () => {
     const heads = [...drawer.querySelectorAll('thead th')];
     expect(heads.slice(0, 3).map((h) => h.textContent!.replace(/[↑↓]/g, '').trim())).toEqual(['Category', 'Item', 'Title']);
     expect(heads.every((h) => h.getAttribute('aria-sort'))).toBe(true);
-    expect(heads.filter((h) => h.getAttribute('aria-sort') === 'ascending').map((h) => h.textContent!.trim())).toEqual(['Item↑']);
+    expect(heads.filter((h) => h.getAttribute('aria-sort') === 'ascending').map((h) => h.textContent!.trim())).toEqual(['Item']);
     expect(drawer.querySelector('.drill-sort[aria-pressed]')).toBeNull();
     // A column that repeats the one cell's own value (here the month it was resolved in) is left out.
     expect(heads.map((h) => h.textContent).join(' ')).not.toMatch(/Resolved/);
     // Sorting by another header moves the arrow and aria-sort.
     await act(async () => (drawer.querySelector('[data-sort="title"]') as HTMLButtonElement).click());
     expect(drawer.querySelector('thead th[aria-sort="ascending"]')!.textContent).toContain('Title');
-    expect(drawer.querySelector('thead th[aria-sort="ascending"] .drill-sort__arrow')!.textContent).toBe('↑');
+    expect(drawer.querySelector('thead th[aria-sort="ascending"] .drill-sort__arrow [data-icon="arrow-up"]')).not.toBeNull();
   });
 });

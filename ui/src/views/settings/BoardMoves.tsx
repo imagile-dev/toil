@@ -9,6 +9,7 @@ import { Checkbox } from 'react-aria-components';
 import { useBoardMoves } from '../../board-moves.ts';
 import { Card } from '../../components/layout.tsx';
 import { Help } from '../../components/help.tsx';
+import { CheckIcon } from '../../components/icons.tsx';
 
 export function BoardMovesSetting() {
   const [on, setOn] = useBoardMoves();
@@ -18,7 +19,7 @@ export function BoardMovesSetting() {
       <div className="theme-setting__row">
         <Checkbox className="check" isSelected={on} onChange={setOn} data-board-moves-setting="">
           <span className="box" aria-hidden="true">
-            {on ? '✓' : ''}
+            {on ? <CheckIcon size={14} /> : null}
           </span>
           Apply board moves when I drop a card
         </Checkbox>

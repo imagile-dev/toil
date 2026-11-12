@@ -17,6 +17,7 @@
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 import { toilProjectHref } from '../format.ts';
 import { TOIL_PROJECT_TABS, type ToilProjectTab } from '../views/ToilProjectShell.tsx';
+import { ChevronDownIcon, CheckIcon } from './icons.tsx';
 
 export const ALL_PROJECTS = 'All Toil projects';
 
@@ -34,13 +35,13 @@ export function ProjectSwitcher({ current, toilProjects, tab, loaded = true }: {
   return (
     <MenuTrigger>
       <Button className="btn project-switch" aria-label={`Switch Toil project, on ${label}`} data-toil-project-switch="">
-        <span className="project-switch__name">{label}</span> <span aria-hidden="true">▾</span>
+        <span className="project-switch__name">{label}</span> <ChevronDownIcon size={14} />
       </Button>
       <Popover className="popover" placement="bottom start">
         <Menu className="menu" aria-label="Toil projects">
           {projectEntries(current, toilProjects, tab).map((e) => (
             <MenuItem key={e.key} id={e.key} href={e.href} className="menu-item" textValue={e.label} data-current={e.current || undefined}>
-              <span aria-hidden="true" className="project-switch__check">{e.current ? '✓' : ''}</span>
+              <span aria-hidden="true" className="project-switch__check">{e.current ? <CheckIcon size={14} /> : null}</span>
               {e.label}
               {e.current && <span className="sr-only"> (current)</span>}
             </MenuItem>
