@@ -496,3 +496,11 @@ corrections; Jira Data Center and Azure DevOps Server, which the maintainer set 
   `--to <intent>`. `CLAUDE.md`'s `ui/` paragraph lists what Toil UI writes on a press
   and does not yet name this one: the maintainer's to add. Not verified: no real move
   was applied to a real tracker. Where: `ui/server/board.ts`, `ui/src/board-moves.ts`.
+- **GitHub moves apply too** (the maintainer's call, 12 November 2026, after the entry
+  above). toil gained `github issue close` and `github issue reopen` (additive; written
+  from GitHub's documentation). A plain issue dropped on Done is closed and dropped
+  back on To do is reopened; In progress stays a proposal, since an issue is only open
+  or closed. A card on a GitHub Project moves by `github project status` to the one
+  Status option the mapper's own table puts in that column, and stays a proposal
+  naming the options when none or several fit. A plain pull request stays a proposal.
+  Where: `src/areas/github/issues.ts`, `ui/server/board.ts`.

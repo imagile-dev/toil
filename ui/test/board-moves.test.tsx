@@ -9,7 +9,7 @@ import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import type { ClassifyApi } from '../src/classify-api.ts';
 import type { MoveOutcome } from '../src/board-api.ts';
 import { resetBoardMoves, setBoardMoves } from '../src/board-moves.ts';
-import { appliesItself } from '../src/model/board.ts';
+import { appliesItself, canMove } from '../src/model/board.ts';
 import { dropVerdict } from '../src/views/Board.tsx';
 import type { WorkItem } from '../src/toil.ts';
 
@@ -209,10 +209,18 @@ describe('a drop that stays a proposal', () => {
     expect(dropVerdict(card, 'DONE', false, true)).toEqual({ ok: false, text: 'Another lane: a lane is a grouping, nothing to change' });
   });
 
-  it('leaves a GitHub card to its command, because a project Status has no category to choose by', () => {
-    const of = (area: string) => ({ source: { area } }) as unknown as WorkItem;
+  it('applies a GitHub issue itself, and leaves a draft on a project board, which has no issue number, to its command', () => {
+    const of = (area: string, key = 'x') => ({ source: { area, key } }) as unknown as WorkItem;
     expect(appliesItself(of('jira'))).toBe(true);
     expect(appliesItself(of('ado'))).toBe(true);
-    expect(appliesItself(of('github'))).toBe(false);
+    expect(appliesItself(of('github', 'acme/shop#7'))).toBe(true);
+    expect(appliesItself(of('github', 'acme/draft/PVTI_abc12345'))).toBe(false);
+    expect(appliesItself(of('confluence'))).toBe(false);
+  });
+
+  it('lets every GitHub card be picked up: on a board by its Status, off one by open and closed', () => {
+    const of = (native: Record<string, unknown>) => ({ source: { area: 'github', key: 'acme/shop#7' }, native }) as unknown as WorkItem;
+    expect(canMove(of({ 'github project items': { id: 'PVTI_abc12345' } }))).toEqual({ ok: true });
+    expect(canMove(of({}))).toEqual({ ok: true });
   });
 });

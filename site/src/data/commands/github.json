@@ -101,6 +101,33 @@
     ]
   },
   {
+    "name": "issue close",
+    "tool": "github_issue_close",
+    "description": "Close an issue (a pull request's number closes the pull request)",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<number>",
+      "--reason <reason>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "issue reopen",
+    "tool": "github_issue_reopen",
+    "description": "Reopen a closed issue (a pull request's number reopens the pull request)",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<number>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
     "name": "issue categorize",
     "tool": "github_issue_categorize",
     "description": "Apply a classification plan: label issues and pull requests with their category, and set a project field",

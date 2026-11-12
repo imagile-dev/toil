@@ -43,6 +43,12 @@ function toil(over: Partial<Record<string, Envelope>> = {}, writes = true) {
     'ado work-item get': ok('ado work-item get', { id: 2304 }, viaConnection('corp-ado')),
     'jira issue transition': ok('jira issue transition', { transitioned: 'PAY-102', transition: 'Start progress' }, { transition: { intent: 'start', transition: 'Start progress', toStatus: 'In Progress', resolvedBy: 'category' } }),
     'ado work-item transition': ok('ado work-item transition', { id: 2304 }),
+    // GitHub: an open issue in acme/shop, on a Toil project that names no board until a test says so.
+    'github issue get': ok('github issue get', { number: 7, state: 'open' }, viaConnection('corp-gh')),
+    'projects show': ok('projects show', { name: 'card-payments', toilProject: { github: { connection: 'corp-gh', owner: 'acme', repo: 'shop' } }, areas: { github: { connection: { value: 'corp-gh' }, inputs: { owner: 'acme', repo: 'shop' } } } }),
+    'github issue close': ok('github issue close', { number: 7, state: 'closed' }),
+    'github issue reopen': ok('github issue reopen', { number: 7, state: 'open' }),
+    'github project status': ok('github project status', { changed: true }),
     ...over,
   };
   const execute: Execute = async (command, input = {}, options = {}) => {
@@ -93,15 +99,21 @@ describe('the Board service', () => {
     expect(t.writesSent()).toEqual([]);
   });
 
-  it('leaves a GitHub item to its command, and a Toil project that would use another connection to the person', async () => {
-    const gh = toil();
-    expect(await new BoardService({ execute: gh.execute }).move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal)).toMatchObject({ status: 'proposal', why: 'unsupported' });
-    expect(gh.writesSent()).toEqual([]);
+  it('leaves a Toil project that would use another connection to the person', async () => {
     const other = toil({ 'jira issue get': ok('jira issue get', {}, viaConnection('other-jira')) });
     const out = await new BoardService({ execute: other.execute }).move('card-payments', 'corp-jira:PAY-102', 'DONE', signal);
     expect(out).toMatchObject({ status: 'proposal', why: 'unsupported' });
     expect((out as { reason: string }).reason).toMatch(/other-jira rather than corp-jira/);
     expect(other.writesSent()).toEqual([]);
+    const gh = toil({ 'github issue get': ok('github issue get', { number: 7, state: 'open' }, viaConnection('other-gh')) });
+    expect(await new BoardService({ execute: gh.execute }).move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal)).toMatchObject({ status: 'proposal', why: 'unsupported', reason: expect.stringContaining('other-gh rather than corp-gh') });
+    expect(gh.writesSent()).toEqual([]);
+  });
+
+  it('leaves an area with no status command to the person', async () => {
+    const t = toil({ 'connections list': ok('connections list', { connections: [{ name: 'corp-wiki', area: 'confluence', writes: true }] }) });
+    expect(await new BoardService({ execute: t.execute }).move('card-payments', 'corp-wiki:123', 'DONE', signal)).toMatchObject({ status: 'proposal', why: 'unsupported' });
+    expect(t.writesSent()).toEqual([]);
   });
 
   it("shows toil's refusal to choose, with the moves it offers, as a proposal: nothing is guessed", async () => {
@@ -140,6 +152,119 @@ describe('the Board service', () => {
     await expect(board.move('card-payments', 'corp-jira:PAY-102', 'TODO', signal)).rejects.toMatchObject({ status: 409 });
     release();
     expect((await first).status).toBe('applied');
+  });
+});
+
+describe('the Board service, GitHub', () => {
+  const showWith = (projects: string[]) => ok('projects show', { name: 'card-payments', toilProject: { github: { connection: 'corp-gh', owner: 'acme', repo: 'shop', projects } }, areas: { github: { connection: { value: 'corp-gh' }, inputs: { owner: 'acme', repo: 'shop' } } } });
+  const board = (extra: Partial<Record<string, Envelope>> = {}, writes = true) => {
+    const t = toil({ 'projects show': showWith(['3']), ...extra }, writes);
+    return { t, service: new BoardService({ execute: t.execute }) };
+  };
+  const item = (id: string, number: number, repo = 'acme/shop') => ({ id, type: 'ISSUE', content: { number, repository: { nameWithOwner: repo } } });
+  const items = ok('github project items', [item('PVTI_other', 6, 'acme/elsewhere'), item('PVTI_seven', 7), item('PVTI_eight', 8)]);
+  const fields = (options: string[]) => ok('github project fields', [{ name: 'Priority', options: [{ name: 'P1' }] }, { name: 'Status', options: options.map((name) => ({ name })) }]);
+  const standard = fields(['Todo', 'In Progress', 'Done']);
+  const closedIssue = ok('github issue get', { number: 7, state: 'closed' }, viaConnection('corp-gh'));
+
+  it('moves a card on a project board by the one Status option that reads as the column: project status with the item id, allowWrite, as the UI', async () => {
+    const { t, service } = board({ 'github project items': items, 'github project fields': standard });
+    const out = await service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal);
+    expect(out).toEqual({ status: 'applied', transition: null, toStatus: 'In Progress' });
+    expect(t.calls.map((c) => c.command)).toEqual(['projects list', 'connections list', 'github issue get', 'projects show', 'github project items', 'github project fields', 'github project status']);
+    expect(t.calls.every((c) => c.options.caller === 'toil-ui')).toBe(true);
+    // Owner, repository and number are the id's own, and the board's owner is the Toil project's.
+    expect(t.calls[2]).toMatchObject({ input: { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: [7] } });
+    expect(t.calls[4]).toMatchObject({ input: { toilProject: 'card-payments', owner: 'acme', project: 3 } });
+    expect(t.calls[5]).toMatchObject({ input: { toilProject: 'card-payments', owner: 'acme', project: 3 } });
+    expect(t.calls.slice(0, 6).every((c) => c.options.readOnly === true)).toBe(true);
+    expect(t.writesSent()).toEqual([{ command: 'github project status', input: { toilProject: 'card-payments', item: 'PVTI_seven', to: 'In Progress', allowWrite: true }, options: expect.objectContaining({ readOnly: false, caller: 'toil-ui' }) }]);
+    expect(t.calls.some((c) => 'connection' in c.input)).toBe(false);
+  });
+
+  it("maps the options with toil's own table, whatever the case: Backlog is To do and done is Done", async () => {
+    const { t, service } = board({ 'github project items': items, 'github project fields': fields(['Backlog', 'DOING', 'done']) });
+    await service.move('card-payments', 'corp-gh:acme/shop#7', 'TODO', signal);
+    await service.move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal);
+    expect(t.writesSent().map((c) => c.input.to)).toEqual(['Backlog', 'done']);
+  });
+
+  it('moves a pull request that is on the board the same way', async () => {
+    const { t, service } = board({ 'github issue get': ok('github issue get', { number: 8, state: 'open', pull_request: {} }, viaConnection('corp-gh')), 'github project items': items, 'github project fields': standard });
+    expect((await service.move('card-payments', 'corp-gh:acme/shop#8', 'DONE', signal)).status).toBe('applied');
+    expect(t.writesSent()[0]).toMatchObject({ command: 'github project status', input: { item: 'PVTI_eight', to: 'Done' } });
+  });
+
+  it.each([
+    ['two options read as the column', ['Todo', 'In Progress', 'In Review', 'Done'], /More than one Status option of project 3 reads as In progress/, 'In Progress; In Review'],
+    ['none does', ['Todo', 'Done'], /no Status option that toil reads as In progress/, 'Todo; Done'],
+  ])('proposes, naming the options and writing nothing, when %s', async (_why, options, reason, listed) => {
+    const { t, service } = board({ 'github project items': items, 'github project fields': fields(options) });
+    const out = await service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal);
+    expect(out).toMatchObject({ status: 'proposal', why: 'choices', reason: expect.stringMatching(reason), detail: expect.stringContaining(listed) });
+    expect(t.writesSent()).toEqual([]);
+  });
+
+  it('leaves an item that is on none of the boards, and a closed issue asked to leave Done, to the person', async () => {
+    const off = board({ 'github project items': ok('github project items', [item('PVTI_other', 6)]) });
+    expect(await off.service.move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal)).toMatchObject({ status: 'proposal', why: 'unsupported', reason: expect.stringContaining("isn't on a GitHub project board") });
+    const closed = board({ 'github issue get': closedIssue, 'github project items': items, 'github project fields': standard });
+    expect(await closed.service.move('card-payments', 'corp-gh:acme/shop#7', 'TODO', signal)).toMatchObject({ status: 'proposal', why: 'unsupported', reason: expect.stringContaining('stays in Done') });
+    expect(off.t.writesSent().concat(closed.t.writesSent())).toEqual([]);
+  });
+
+  it('closes a plain issue dropped on Done, and reopens a closed one dropped on To do', async () => {
+    const open = board({ 'projects show': showWith([]) });
+    expect(await open.service.move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal)).toEqual({ status: 'applied', transition: null, toStatus: 'closed' });
+    expect(open.t.writesSent()).toEqual([{ command: 'github issue close', input: { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7, allowWrite: true }, options: expect.objectContaining({ readOnly: false, caller: 'toil-ui' }) }]);
+    // No board is read when the Toil project names none.
+    expect(open.t.calls.map((c) => c.command)).toEqual(['projects list', 'connections list', 'github issue get', 'projects show', 'github issue close']);
+    const shut = board({ 'projects show': showWith([]), 'github issue get': closedIssue });
+    expect(await shut.service.move('card-payments', 'corp-gh:acme/shop#7', 'TODO', signal)).toEqual({ status: 'applied', transition: null, toStatus: 'open' });
+    expect(shut.t.writesSent()[0]).toMatchObject({ command: 'github issue reopen', input: { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7, allowWrite: true } });
+  });
+
+  it('leaves In progress, a pull request with no board and a move to where the issue already is as proposals, with the reason', async () => {
+    const plain = { 'projects show': showWith([]) };
+    const a = board(plain);
+    expect(await a.service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal)).toMatchObject({ status: 'proposal', why: 'unsupported', reason: expect.stringContaining('only open or closed') });
+    const pull = board({ ...plain, 'github issue get': ok('github issue get', { number: 8, state: 'open', pull_request: {} }, viaConnection('corp-gh')) });
+    expect(await pull.service.move('card-payments', 'corp-gh:acme/shop#8', 'DONE', signal)).toMatchObject({ status: 'proposal', why: 'unsupported', reason: expect.stringContaining('pull request') });
+    const there = board(plain);
+    expect(await there.service.move('card-payments', 'corp-gh:acme/shop#7', 'TODO', signal)).toMatchObject({ status: 'proposal', why: 'unsupported', reason: expect.stringContaining('already open') });
+    const fromDone = board({ ...plain, 'github issue get': closedIssue });
+    expect(await fromDone.service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal)).toMatchObject({ status: 'proposal', why: 'unsupported' });
+    expect([a, pull, there, fromDone].flatMap((x) => x.t.writesSent())).toEqual([]);
+  });
+
+  it('leaves it a proposal, writing nothing, when the connection has writes off', async () => {
+    const plain = board({ 'projects show': showWith([]) }, false);
+    expect(await plain.service.move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal)).toMatchObject({ status: 'proposal', why: 'writes-off' });
+    const onBoard = board({ 'github project items': items, 'github project fields': standard }, false);
+    expect(await onBoard.service.move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal)).toMatchObject({ status: 'proposal', why: 'writes-off' });
+    expect(plain.t.writesSent().concat(onBoard.t.writesSent())).toEqual([]);
+  });
+
+  it("refuses with toil's own message and fix when toil refuses the write, and shows its refusal to choose as a proposal", async () => {
+    const refused = board({ 'projects show': showWith([]), 'github issue close': fail('github issue close', 'WRITE_DISABLED', 'The Toil project chose corp-gh, which Toil UI has not adopted.', 'Copy it with toil projects import.') });
+    await expect(refused.service.move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal)).rejects.toMatchObject({ status: 403, fix: 'Copy it with toil projects import.' });
+    const choose = board({ 'github project items': items, 'github project fields': standard, 'github project status': fail('github project status', 'INVALID_INPUT', 'No Status option named "Done".', 'The options are Todo; Done.') });
+    expect(await choose.service.move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal)).toMatchObject({ status: 'proposal', why: 'choices', detail: 'The options are Todo; Done.' });
+  });
+
+  it('refuses a malformed id, a draft and a repository that is a dot segment before anything is read from GitHub', async () => {
+    const { t, service } = board();
+    for (const id of ['corp-gh:7', 'corp-gh:acme/shop', 'corp-gh:acme/shop#0', 'corp-gh:acme/shop#7x', 'corp-gh:acme/draft/PVTI_abc', 'corp-gh:acme/../x#7', 'corp-gh:acme/..#7', 'corp-gh:-acme/shop#7', 'corp-gh:acme/sh op#7']) {
+      await expect(service.move('card-payments', id, 'DONE', signal), id).rejects.toBeInstanceOf(BoardRefusal);
+    }
+    expect(t.calls.filter((c) => c.command.startsWith('github'))).toEqual([]);
+    expect(t.writesSent()).toEqual([]);
+  });
+
+  it('refuses an issue GitHub does not have', async () => {
+    const { t, service } = board({ 'github issue get': fail('github issue get', 'NOT_FOUND', 'Not Found', 'Check the number.') });
+    await expect(service.move('card-payments', 'corp-gh:acme/shop#99', 'DONE', signal)).rejects.toMatchObject({ status: 404 });
+    expect(t.writesSent()).toEqual([]);
   });
 });
 

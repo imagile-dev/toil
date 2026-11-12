@@ -6,7 +6,7 @@ import { loadToilProject, loadToilProjects } from '../src/load.ts';
 import { workflowRead } from '../src/model/readiness.ts';
 import { WORKFLOW_READS } from '../server/store.ts';
 import { mapOwi } from '../src/owi.ts';
-import type { Execute } from '../src/toil.ts';
+import type { Execute, WorkItem } from '../src/toil.ts';
 import { NAMES } from './harness.ts';
 
 /**
@@ -191,7 +191,7 @@ describe("the Board's drop (ui/server/board.ts) against the real registry", () =
   const valid = (command: string, input: Record<string, unknown>) => new Validator(byName.get(command)!.inputSchema as object, '2020-12', false).validate(input).errors;
 
   it('reads the item and connections with read-only commands, and writes with one transition command per tracker', () => {
-    for (const read of ['projects list', 'connections list', 'jira issue get', 'ado work-item get']) {
+    for (const read of ['projects list', 'connections list', 'projects show', 'jira issue get', 'ado work-item get', 'github issue get', 'github project items', 'github project fields']) {
       const def = byName.get(read);
       expect(def, read).toBeDefined();
       expect(def!.writes || def!.writesLocal, read).toBe(false);
@@ -206,5 +206,26 @@ describe("the Board's drop (ui/server/board.ts) against the real registry", () =
     }
     expect(valid('jira issue get', { toilProject: 'card-payments', key: 'PAY-102' })).toEqual([]);
     expect(valid('ado work-item get', { toilProject: 'card-payments', id: 2304 })).toEqual([]);
+  });
+
+  it("writes a GitHub move with one of three commands, with the input the server sends (owner, repository and number from the item's id)", () => {
+    for (const write of ['github project status', 'github issue close', 'github issue reopen']) expect(byName.get(write)!.writes, write).toBe(true);
+    expect(valid('github issue get', { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: [7] })).toEqual([]);
+    expect(valid('github project items', { toilProject: 'card-payments', owner: 'acme', project: 3 })).toEqual([]);
+    expect(valid('github project fields', { toilProject: 'card-payments', owner: 'acme', project: 3 })).toEqual([]);
+    expect(valid('github project status', { toilProject: 'card-payments', item: 'PVTI_abc12345', to: 'In Progress', allowWrite: true })).toEqual([]);
+    expect(valid('github issue close', { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7, allowWrite: true })).toEqual([]);
+    expect(valid('github issue reopen', { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7, allowWrite: true })).toEqual([]);
+  });
+
+  it('makes the proposal for a plain GitHub issue the command the server would run', async () => {
+    const { proposeMove } = await import('../src/model/board.ts');
+    const issue = { id: 'github:acme/shop#7', source: { area: 'github', connection: 'github', key: 'acme/shop#7' }, native: {}, status: 'open', statusCategory: 'TODO', typeName: null, url: null } as unknown as WorkItem;
+    const done = proposeMove(issue, 'DONE', [issue], 'card-payments')!;
+    expect(done).toMatchObject({ command: 'github issue close', input: { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7 } });
+    const reopened = proposeMove({ ...issue, status: 'closed', statusCategory: 'DONE' } as WorkItem, 'TODO', [issue], 'card-payments')!;
+    expect(reopened).toMatchObject({ command: 'github issue reopen', input: { owner: 'acme', repo: 'shop', number: 7 } });
+    expect(proposeMove(issue, 'IN_PROGRESS', [issue], 'card-payments')).toMatchObject({ command: null, input: null });
+    for (const p of [done, reopened]) expect(valid(p.command!, { ...p.input!, allowWrite: true })).toEqual([]);
   });
 });

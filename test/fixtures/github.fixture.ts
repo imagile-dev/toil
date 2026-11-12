@@ -244,6 +244,8 @@ const routes: Route[] = [
   // issue categorize: the label is there, and GitHub answers an added label with the issue's labels as a bare array.
   { path: `${REPO}/labels/ktlo`, respond: { json: label('ktlo', 3) } },
   { method: 'POST', path: `${REPO}/issues/9/labels`, respond: { json: [label('bug'), label('ktlo', 3)] } },
+  // issue close and reopen: GitHub answers the PATCH with the issue in the state asked for (written from the docs, not captured live).
+  { method: 'PATCH', path: `${REPO}/issues/9`, respond: (request) => ({ json: request.body?.includes('"closed"') ? { ...issue(9), state: 'closed', state_reason: request.body.includes('not_planned') ? 'not_planned' : 'completed', closed_at: '2025-01-17T10:00:00Z' } : { ...issue(9), state_reason: 'reopened' } }) },
   { method: 'POST', path: `${REPO}/issues/7/assignees`, respond: { status: 201, json: issue(7) } },
   { method: 'DELETE', path: `${REPO}/issues/7/assignees`, respond: { json: issue(7) } },
   { method: 'POST', path: '/api/graphql', respond: (request) => ({ json: graphql(request.body) }) },

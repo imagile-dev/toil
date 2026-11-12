@@ -164,4 +164,46 @@ export const removeAssigneesCommand = githubArea.command({
   run: async (input, ctx) => assignees(ctx, input.number, input.assignee, 'DELETE'),
 });
 
-export const issueCommands = [createRepoCommand, createIssueCommand, addLabelsCommand, removeLabelCommand, addAssigneesCommand, removeAssigneesCommand];
+/**
+ * `issue close` and `issue reopen`: the issue endpoint's own PATCH, the one
+ * `pr close` and `pr reopen` send to a pull request's number, because GitHub
+ * keeps both on one address. GitHub answers with the issue as `issue get`
+ * reads it, so that is `data`. A pull request's number is accepted, as
+ * `issue label` accepts it, and closes the pull request, which GitHub treats
+ * as an issue with ideas above its station. Merging is `pr merge`, never this.
+ *
+ * Written from https://docs.github.com/en/rest/issues/issues#update-an-issue
+ * (state, state_reason); not run against a real GitHub.
+ */
+function setIssueState(ctx: GitHubContext, number: number | string, state: 'open' | 'closed', stateReason?: 'completed' | 'not_planned') {
+  const { owner, repo } = target(ctx);
+  return github(ctx, apiPath`/repos/${owner}/${repo}/issues/${parseIntText(number)}`, { method: 'PATCH', json: { state, ...(stateReason !== undefined ? { state_reason: stateReason } : {}) } });
+}
+
+const closeReasonText = 'Why it is closed (choices: "completed", "not-planned"; default: left to GitHub, which says completed)';
+
+export const closeIssueCommand = githubArea.command({
+  path: ['github', 'issue', 'close'],
+  description: "Close an issue (a pull request's number closes the pull request)",
+  input: z.object({ number: itemNumber, reason: z.enum(['completed', 'not-planned']).optional().describe(closeReasonText), ...allowWriteField }),
+  writes: true,
+  args: [itemNumberArg],
+  options: [{ flags: '--reason <reason>', field: 'reason', description: closeReasonText }],
+  examples: [
+    { owner: 'imagile', repo: 'toil-probe', number: '9', allowWrite: true },
+    { owner: 'imagile', repo: 'toil-probe', number: '9', reason: 'not-planned', allowWrite: true },
+  ],
+  run: async (input, ctx) => setIssueState(ctx, input.number, 'closed', input.reason === undefined ? undefined : input.reason === 'not-planned' ? 'not_planned' : 'completed'),
+});
+
+export const reopenIssueCommand = githubArea.command({
+  path: ['github', 'issue', 'reopen'],
+  description: "Reopen a closed issue (a pull request's number reopens the pull request)",
+  input: z.object({ number: itemNumber, ...allowWriteField }),
+  writes: true,
+  args: [itemNumberArg],
+  examples: [{ owner: 'imagile', repo: 'toil-probe', number: '9', allowWrite: true }],
+  run: async (input, ctx) => setIssueState(ctx, input.number, 'open'),
+});
+
+export const issueCommands = [createRepoCommand, createIssueCommand, addLabelsCommand, removeLabelCommand, addAssigneesCommand, removeAssigneesCommand, closeIssueCommand, reopenIssueCommand];

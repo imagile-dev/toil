@@ -8,9 +8,10 @@
  * toil project already shows in that column. It is a
  * proposal when a person has turned applying moves off, and wherever the
  * server can't apply it (see `appliesItself`); otherwise the server makes the
- * move itself (ui/server/board.ts) and this file's command is only the fallback. Where that name
- * isn't known, or the item isn't where its status can be set (a GitHub issue
- * that isn't on a project board), the proposal says so instead of guessing.
+ * move itself (ui/server/board.ts) and this file's command is only the fallback. A GitHub issue
+ * with no project board has only open and closed, so Done is `github issue close`, To do
+ * `github issue reopen`, and In progress is no move at all. Where a name isn't known, the
+ * proposal says so instead of guessing.
  * A kanban board where nothing moves until somebody signs.
  */
 
@@ -83,20 +84,23 @@ export type CanMove = { ok: true } | { ok: false; reason: string };
  */
 export function canMove(item: WorkItem): CanMove {
   const fam = family(item);
-  if (fam === 'github') {
-    return boardItemId(item) ? { ok: true } : { ok: false, reason: "Can't be moved here: this issue isn't on a GitHub project board this Toil project reads, so it has no Status to set." };
-  }
+  // A GitHub issue on a board moves by its Status; one with no board is open or closed, which Done and To do set. Every card is a card.
+  if (fam === 'github') return { ok: true };
   if (fam === 'jira' || fam === 'ado') return { ok: true };
   return { ok: false, reason: `Can't be moved here: toil has no status change for ${item.source.area} items.` };
 }
 
+/** An issue's key as the loader forms it, `owner/repo#number`; a draft on a board has none (its key is `owner/draft/<id>`). */
+const GITHUB_ISSUE_KEY = /^([^/\s#]+)\/([^/\s#]+)#(\d+)$/;
+
 /**
  * Whether Toil UI can apply this item's move itself: Jira and Azure DevOps, whose
- * toil commands resolve a column's intent against the item's own workflow. A GitHub
- * project's Status options carry no category to choose by, so a GitHub move stays a
- * proposal, with its command.
+ * toil commands resolve a column's intent against the item's own workflow, and a
+ * GitHub issue, which the server moves by its project Status option (the one toil
+ * reads as the column) or, with no board, by closing or reopening it. A draft on a
+ * board has no issue number to name, so its move stays a proposal, with its command.
  */
-export const appliesItself = (item: WorkItem): boolean => ['jira', 'ado'].includes(family(item));
+export const appliesItself = (item: WorkItem): boolean => (family(item) === 'github' ? GITHUB_ISSUE_KEY.test(item.source.key) : ['jira', 'ado'].includes(family(item)));
 
 /** What moving an item to another column would take; null when it's already there. */
 export function proposeMove(item: WorkItem, to: StatusCategory, items: WorkItem[], toilProject: string): Proposal | null {
@@ -110,6 +114,15 @@ export function proposeMove(item: WorkItem, to: StatusCategory, items: WorkItem[
   const can = canMove(item);
   if (!can.ok) {
     return { ...base, command: null, input: null, note: `${key}: ${can.reason}${fam === 'github' ? ` Add it to the board first${item.url ? `: ${item.url}` : ''}.` : ''}` };
+  }
+  if (fam === 'github' && !boardItemId(item)) {
+    // No board: the column is open or closed, and only Done and To do are moves; the server runs the same command.
+    const at = GITHUB_ISSUE_KEY.exec(item.source.key);
+    if (!at) return { ...base, command: null, input: null, note: `${key} has no issue number to name.` };
+    const where = { toilProject, owner: at[1]!, repo: at[2]!, number: Number(at[3]) };
+    if (to === 'DONE') return { ...base, command: 'github issue close', input: where, note: 'A GitHub issue with no project board is only open or closed: Done closes it.' };
+    if (to === 'TODO') return { ...base, command: 'github issue reopen', input: where, note: 'A GitHub issue with no project board is only open or closed: To do reopens it.' };
+    return { ...base, command: null, input: null, note: `${key}: a GitHub issue is only open or closed, so it has no In progress to move to. A project board's Status gives it one.` };
   }
   if (fam === 'github') {
     const boardId = boardItemId(item)!;

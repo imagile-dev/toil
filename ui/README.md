@@ -9,7 +9,7 @@ requests view for what is waiting on review, and a daily worklog of what happene
 reads through toil with your own connections and Toil projects, read-only. Its
 settings pages, and a Toil project's name and description edited in place, are the only
 places it changes anything of toil's, and only toil's own connections and Toil projects. The one change it makes to a tracker is a card
-you drop on another Board column, which asks toil's own transition command to change that item's status, behind the connection's `writes`
+you drop on another Board column, which asks toil's own command to change that item's status (a transition, a GitHub project's Status, or closing or reopening a GitHub issue), behind the connection's `writes`
 setting, and only while Settings, General has "Apply board moves when I drop a card" on (it is by default). The worklog keeps its pages and the notes you add in its own
 data folder, and writes anywhere else only when you export a page. Its Feedback dialog sends a report to Imagile through
 `toil feedback`, only when you approve it. It is a separate package from toil: installing toil
@@ -38,7 +38,7 @@ It prints one URL and keeps running until you press Ctrl+C:
 
 ```text
 Toil UI <version> (beta, local only), on toil <version>
-Syncing through toil, read-only, with your own connections and Toil projects. Only its Settings pages, a Toil project's name and description edited in place, and a card dropped on another column of the Board (while Settings, General says to apply board moves) change anything: toil's own connections and Toil projects when you ask, and a status through toil's own transition command, behind the connection's writes setting. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
+Syncing through toil, read-only, with your own connections and Toil projects. Only its Settings pages, a Toil project's name and description edited in place, and a card dropped on another column of the Board (while Settings, General says to apply board moves) change anything: toil's own connections and Toil projects when you ask, and a status through toil's own command (a transition, a project's Status, or closing or reopening a GitHub issue), behind the connection's writes setting. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
 The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
 Open this URL in your browser. It holds no secret: your browser is let in by a cookie signed with the key in the data folder, and anything running as you on this machine can reach Toil UI too:
@@ -368,7 +368,7 @@ The Board tab flags each card that needs attention, with a flag beside its statu
 an edge in the warning colour: anything that needs action now or a look (Insights,
 below), but not what is only worth knowing. **Needs attention only** narrows the board
 to those cards, and the tab carries how many there are. Drag a card to another column,
-or press M on it for its menu, to move it (a card that can't be moved can't be dragged, and shows the reason: a GitHub issue that isn't on a project board this Toil project reads, or an area with no status command). What a drop does is under **Board moves**, below. Under the board are its
+or press M on it for its menu, to move it (a card that can't be moved can't be dragged, and shows the reason: an area with no status command). What a drop does is under **Board moves**, below. Under the board are its
 stories with their pull requests, builds and deployments, then the builds and
 deployments themselves.
 
@@ -381,6 +381,16 @@ the server checks the Toil project, the connection and the item through toil's r
 `caller: "toil-ui"`, through `execute()`, so toil's audit log records it: `jira issue transition --to <intent>` for Jira and
 `ado work-item transition --to <intent>` for Azure DevOps, with the column's intent (To do is `reopen`, In progress `start`, Done `done`).
 toil resolves the intent against that item's own workflow, and refuses, listing the moves the item offers, unless exactly one fits.
+
+A GitHub card moves one of two ways, depending on whether the Toil project names a GitHub project (a board). **On a board**, the card's column is its
+Status option, which toil reads as To do, In progress or Done by its own table of the usual names (Todo, Backlog, In Progress, Done and a few more).
+The server finds the card on the board (`github project items`), reads the project's Status options (`github project fields`), keeps the ones that
+read as the column you dropped on, and, when exactly one does, runs `github project status --item <id> --to <option>`; with none or several it
+proposes the move and names the options, because nothing here picks one for you. A pull request on the board moves the same way. A closed issue
+stays in Done whatever its Status says, so moving one out of Done is left to you. **With no board**, a GitHub issue is open or closed: Done runs
+`github issue close`, and Done back to To do runs `github issue reopen`. A GitHub issue has no In progress, so that stays a proposal, and so does
+a pull request with no board (closing it is not finishing it, and merging is its own command). The owner, repository and number come from the card's
+own id, never from the page.
 The connection's `writes` setting still decides, as it would typed by hand; a Toil project's connection you haven't adopted is refused by toil
 (`WRITE_DISABLED`) and the page says so in toil's words.
 
@@ -394,7 +404,8 @@ button when a press can make it (the setting is off but the connection allows ch
 bash/zsh with **Copy command**, is a step further in under **Show the command**. Why it can be a proposal: the setting is off; the sample, which can
 show a move and write none; a connection with `writes` off (the card says so and where to turn them on); a status that more than one transition
 leads to, or none (toil's refusal, with the moves the workflow offers, is on the card: nothing is guessed); a card Toil UI can't move; a GitHub
-project board's Status, which has no category to choose by, so it stays a proposal with its `toil github project status` command; and a view with no server to ask.
+project whose Status options give the column none or more than one (the card names them); a GitHub issue dropped on In progress, a pull request
+with no board, and a draft on a board, which has no issue to name; and a view with no server to ask.
 A drop in the column the card is already in, or onto another lane when the board is grouped, does nothing.
 
 The board and **Ready to start?** share the charts' filter bar (without its period), so "Fix version: 2.4, Category: Keep

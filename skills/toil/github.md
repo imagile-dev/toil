@@ -35,6 +35,7 @@ What each group of commands needs from the token:
 | Commands | Fine-grained token | Classic token |
 |----------|--------------------|---------------|
 | `issue list`, `issue search`, `issue get`, `issue history`, `milestone list` | Issues: read, on the repository | `repo` (`public_repo` for public repositories only) |
+| `issue close`, `issue reopen` | Issues: read and write, on the repository | `repo` (`public_repo` for public repositories only) |
 | `repo file` | Contents: read, on the repository | `repo` (`public_repo` for public repositories only) |
 | `project list`, `project fields`, `project items` | Projects: read, under the organization's permissions. A fine-grained token can't read a user's own projects | `read:project` (plus `repo` to see items from private repositories) |
 | `project status` | Projects: read and write, under the organization's permissions (organization projects only) | `project` (plus `repo` to reach an item in a private repository) |
@@ -171,6 +172,7 @@ Owner, repo, labels and refs go into request paths as typed; a value that would 
     <number>` (repeatable `--label`), `issue unlabel <number> --label`, `issue assign
     <number>` and `issue unassign <number>` (repeatable `--assignee`). `pr label`,
     `pr unlabel`, `pr assign` and `pr unassign` are the same commands.
+  - `issue close <number>` (`--reason completed|not-planned`, sent as `state_reason`; with none, GitHub's own, completed) and `issue reopen <number>`, both writes: a `PATCH` of the issue's `state`, answering with the issue as `issue get` returns it. Like the label commands they take a pull request's number too, and then close or reopen the pull request, as GitHub does (`pr close` is the same request). Merging is `pr merge`.
   - `issue categorize --from <file>` (a write): applies the classification plan that `toil classify run` wrote to the issues and pull requests it names. See **Categorize issues** below.
 - **Projects (v2):** GitHub's boards, over GraphQL (read, except `project status`). They belong to an owner, so
   only `--owner` is read; `<project>` is the number in the project's URL.

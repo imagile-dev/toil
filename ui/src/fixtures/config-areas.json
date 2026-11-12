@@ -427,6 +427,8 @@
                 "github issue categorize",
                 "github issue assign",
                 "github issue unassign",
+                "github issue close",
+                "github issue reopen",
                 "github repo file",
                 "github repo create",
                 "github commit status",
@@ -582,7 +584,9 @@
                 "github issue unlabel",
                 "github issue categorize",
                 "github issue assign",
-                "github issue unassign"
+                "github issue unassign",
+                "github issue close",
+                "github issue reopen"
               ]
             },
             {

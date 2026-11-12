@@ -37,7 +37,7 @@ const PR_WRITE = [
   'github pr enqueue',
 ];
 const ISSUE_READ = ['github issue list', 'github issue search', 'github issue get', 'github issue history', 'github milestone list'];
-const ISSUE_WRITE = ['github issue create', 'github issue label', 'github issue unlabel', 'github issue categorize', 'github issue assign', 'github issue unassign'];
+const ISSUE_WRITE = ['github issue create', 'github issue label', 'github issue unlabel', 'github issue categorize', 'github issue assign', 'github issue unassign', 'github issue close', 'github issue reopen'];
 const PROJECTS = ['github project list', 'github project fields', 'github project items'];
 const PROJECT_WRITE = ['github project status', 'github issue categorize'];
 

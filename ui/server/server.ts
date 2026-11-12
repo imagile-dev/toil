@@ -52,7 +52,7 @@
  * only: the server keeps each Analyze itself as its answer ends whole, and
  * says which on the answer's last line, so nothing the page sends writes one.
  * A Board drop (`board/move`) names a Toil project, an item and a column, and the server
- * runs toil's own transition command for it behind the connection's `writes`
+ * runs toil's own command for it (a transition, a project Status, or closing or reopening a GitHub issue) behind the connection's `writes`
  * (ui/server/board.ts); it never takes a command, a connection or a path from the page.
  * The building has one door, a doorman who reads the visitor's address, and a
  * guest book, and the guest book is toil's audit log. The key was retired.

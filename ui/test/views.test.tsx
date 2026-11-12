@@ -629,27 +629,16 @@ describe('the views on a dashboard (#252, #253)', () => {
     await waitFor(() => expect(document.activeElement).toBe(grip));
   });
 
-  it('keeps a card that is not on a GitHub project board from being dragged, says why, and leaves the others draggable', async () => {
+  it('lets a GitHub issue that is on no project board be dragged too, since open and closed are moves', async () => {
     // One board item loses its project item id, as an issue the board doesn't hold would have none.
     const canned = CANNED.map((c) => (c.command === 'github project items' ? { ...c, data: (c.data as Array<Record<string, unknown>>).map((b) => ((b.content as { number?: number } | undefined)?.number === 43 ? { ...b, id: 0 } : b)) } : c));
     await open('#/project/checkout-web/board', { execute: fixtureExecute(canned).execute });
     const board = await screen.findByRole('region', { name: /board/i });
-    const grips = Array.from(board.querySelectorAll<HTMLElement>('.card-grip[data-item]'));
-    const github = grips.filter((g) => g.dataset.item!.startsWith('github:'));
+    const github = Array.from(board.querySelectorAll<HTMLElement>('.card-grip[data-item]')).filter((g) => g.dataset.item!.startsWith('github:'));
     expect(github.length).toBeGreaterThan(0);
-    const off = github.filter((g) => g.hasAttribute('data-immovable'));
-    const on = github.filter((g) => !g.hasAttribute('data-immovable'));
-    expect(off).toHaveLength(1);
-    expect(on.length).toBeGreaterThan(0);
-    for (const g of on) expect(g.getAttribute('aria-roledescription')).toBe('draggable card');
-    // Every card the board refuses to drag names its reason where a screen reader gets it, and offers no move in its menu.
-    for (const g of off) {
-      expect(g.getAttribute('aria-roledescription')).toBeNull();
-      expect(document.getElementById(g.getAttribute('aria-describedby')!)!.textContent).toMatch(/isn't on a GitHub project board/);
-      fireEvent.contextMenu(g);
-      const menu = await screen.findByRole('menu');
-      expect(within(menu).getAllByRole('menuitem', { name: /To do|In progress|Done/ }).every((m) => m.getAttribute('aria-disabled') === 'true')).toBe(true);
-      await userEvent.keyboard('{Escape}');
+    for (const g of github) {
+      expect(g.hasAttribute('data-immovable')).toBe(false);
+      expect(g.getAttribute('aria-roledescription')).toBe('draggable card');
     }
   });
 

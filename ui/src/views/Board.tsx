@@ -570,7 +570,7 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
     if (!applyDrops) return propose(item, to, undefined, { applicable: canApply && appliesItself(item) });
     if (!classifyApi?.moveItem) return propose(item, to, "This view can't change your tracker, so this move is a proposal.");
     if (classifyApi.movesDisabled) return propose(item, to, 'This is sample data, so a move can\'t be applied. Here is what would run with your own work.');
-    if (!appliesItself(item)) return propose(item, to, "Toil UI applies Jira and Azure DevOps moves itself. A GitHub project's Status is set with its command, shown here.");
+    if (!appliesItself(item)) return propose(item, to, "Toil UI can't apply this card's move itself (a draft on a project board has no issue to name), so here is its command.");
     void apply(item, to, byId.get(item.id)?.statusCategory ?? item.statusCategory);
   };
   const undoMove = (n: Extract<Notice, { kind: 'moved' }>) => {

@@ -9,7 +9,7 @@ import { execute } from '../../core/run.js';
 import { checkSecret } from '../../core/secret-input.js';
 import { graphqlUrl } from './client.js';
 import { commands } from './index.js';
-import { addAssigneesCommand, addLabelsCommand, createIssueCommand, createRepoCommand, removeLabelCommand } from './issues.js';
+import { addAssigneesCommand, addLabelsCommand, closeIssueCommand, createIssueCommand, createRepoCommand, removeLabelCommand, reopenIssueCommand } from './issues.js';
 import { repoFileCommand } from './files.js';
 import { enableAutoMergeCommand, enqueuePrCommand, prStatusCommand } from './merging.js';
 import { createPrCommand, diffCommand, getPrCommand, listPrsCommand, mergePrCommand } from './prs.js';
@@ -555,6 +555,29 @@ describe('repositories, issues, labels, assignees and reviewers', () => {
       expect(calls[0]!.url, name).toBe(url);
       expect(envelope.data).toEqual({ removed: true, label: name });
     }
+  });
+
+  it('issue close and reopen PATCH the issue; close sends a reason only when asked, and the issue comes back as issue get reads it', async () => {
+    const plain = await run(closeIssueCommand, { ...BASE, number: '9', allowWrite: true });
+    expect(plain.calls[0]).toMatchObject({ method: 'PATCH', url: `${API}/repos/imagile/toil-probe/issues/9`, body: '{"state":"closed"}' });
+    expect(plain.envelope.data).toMatchObject({ number: 9, state: 'closed', state_reason: 'completed' });
+    const planned = await run(closeIssueCommand, { ...BASE, number: 9, reason: 'not-planned', allowWrite: true });
+    expect(planned.calls[0]!.body).toBe('{"state":"closed","state_reason":"not_planned"}');
+    const done = await run(closeIssueCommand, { ...BASE, number: '9', reason: 'completed', allowWrite: true });
+    expect(done.calls[0]!.body).toBe('{"state":"closed","state_reason":"completed"}');
+    const reopened = await run(reopenIssueCommand, { ...BASE, number: '9', allowWrite: true });
+    expect(reopened.calls[0]).toMatchObject({ method: 'PATCH', url: `${API}/repos/imagile/toil-probe/issues/9`, body: '{"state":"open"}' });
+    expect(reopened.envelope.data).toMatchObject({ number: 9, state: 'open' });
+  });
+
+  it('issue close and reopen are writes: refused without --allow-write, and a bad --reason is INVALID_INPUT before any request', async () => {
+    const refused = await run(closeIssueCommand, { ...BASE, number: '9' });
+    expect(refused.envelope.error?.code).toBe('WRITE_DISABLED');
+    expect(refused.calls).toEqual([]);
+    const bad = await run(closeIssueCommand, { ...BASE, number: '9', reason: 'duplicate', allowWrite: true });
+    expect(bad.envelope.error?.code).toBe('INVALID_INPUT');
+    expect(bad.calls).toEqual([]);
+    expect((await run(reopenIssueCommand, { ...BASE, number: '9' })).envelope.error?.code).toBe('WRITE_DISABLED');
   });
 
   it('issue assign POSTs the logins; pr remove-reviewers DELETEs with a JSON body and returns { removed: true }', async () => {
