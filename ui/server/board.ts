@@ -18,6 +18,11 @@
  *   refuses, listing the moves it does offer, unless exactly one fits. A
  *   refusal like that is not a failure: nothing was sent, and the page shows
  *   the proposal with those moves. Nothing here picks a transition for anyone.
+ * - **GitHub, on a project board, and a closed issue.** A closed issue stays in Done whatever its Status says, and
+ *   GitHub's own project workflow closes an issue moved to Done. So a closed issue dropped on To do or In progress is
+ *   reopened first (`github issue reopen`), then given the Status (`github project status`): the Status option is chosen
+ *   before anything is reopened, and if the reopen works and the Status doesn't, the refusal says exactly that. A closed
+ *   pull request is not reopened by a drag: it stays `blocked`.
  * - **GitHub, on a project board.** When the Toil project names a GitHub
  *   project, a card's column is its Status option, mapped to a category by
  *   toil's own table (`GITHUB_STATUSES`, the one `mapOwi` reads). The server
@@ -25,8 +30,7 @@
  *   Status options (`github project fields`) and keeps those the table puts in
  *   the column dropped on. Exactly one: `github project status --item <id> --to
  *   <option>`. None, or several: a proposal naming them, because nothing here
- *   picks an option for anyone either. A closed issue stays in Done whatever its
- *   Status says, so moving one out of Done is blocked until it is reopened.
+ *   picks an option for anyone either.
  * - **A card that isn't on the board.** The Toil project names a board and the
  *   issue isn't on it: a proposal (`why: 'not-on-board'`) saying so, naming the
  *   board, with `add`, the project, the issue and the Status option that fits.
@@ -186,12 +190,10 @@ export class BoardService implements BoardBackend {
     const section = asRecord(toilProjectRecord.github);
     const projects = (Array.isArray(section.projects) ? section.projects : []).flatMap((x) => (typeof x === 'string' || typeof x === 'number' ? [Number(x)] : [])).filter((x) => Number.isInteger(x) && x > 0);
     const boardOwner = typeof section.owner === 'string' && section.owner ? section.owner : githubRepos(toilProjectRecord, asRecord(asRecord(asRecord(data.areas).github).inputs) as Record<string, string>)[0]?.owner;
-    const reopen = { text: `Reopen it first, then move it.`, command: { command: 'github issue reopen', input: { toilProject, owner, repo, number: n } } };
-    const closedReason = `${key} is closed, and a closed issue stays in Done whatever its Status says.`;
-
-    let plan: { command: string; input: Record<string, unknown>; toStatus: string };
+    let plan: { command: string; input: Record<string, unknown>; toStatus: string; reopen?: Record<string, unknown>; mayClose?: true };
     if (projects.length > 0) {
-      if (closed && to !== 'DONE') return blocked('closed', closedReason, reopen);
+      // A closed pull request is not reopened by a drag: reopening one is its own decision.
+      if (closed && isPull && to !== 'DONE') return blocked('closed', `${key} is a closed pull request, and a closed pull request stays in Done whatever its Status says.`, { text: 'Reopen it on GitHub first, then move it.' });
       let found: { project: number; itemId: string } | null;
       try {
         found = await this.onBoard(toilProject, boardOwner, projects, owner, repo, n, signal);
@@ -209,7 +211,15 @@ export class BoardService implements BoardBackend {
       }
       const fit = options_.filter((name) => GITHUB_STATUSES[name.toLowerCase()] === to);
       if (fit.length !== 1) return this.choices(found.project, to, options_, fit.length);
-      plan = { command: 'github project status', input: { toilProject, item: found.itemId, to: fit[0]! }, toStatus: fit[0]! };
+      plan = {
+        command: 'github project status',
+        input: { toilProject, item: found.itemId, to: fit[0]! },
+        toStatus: fit[0]!,
+        // A closed issue stays in Done whatever its Status says, so leaving Done reopens it first. The option was chosen above, so nothing is reopened when it can't be.
+        ...(closed && !isPull && to !== 'DONE' ? { reopen: { toilProject, owner, repo, number: n } } : {}),
+        // GitHub's own project workflow closes an issue moved to Done; the confirmation says so.
+        ...(to === 'DONE' && !isPull ? { mayClose: true as const } : {}),
+      };
     } else {
       // No board named: the column is open or closed, and the Toil project has no project board to give an issue an In progress.
       const nameIt = noBoardNext(toilProject);
@@ -227,8 +237,15 @@ export class BoardService implements BoardBackend {
     }
 
     if (!writesOn) return this.writesOff(connection);
+    if (plan.reopen) {
+      const reopened = await this.call('github issue reopen', { ...plan.reopen, allowWrite: true }, { write: true, signal });
+      if (!reopened.ok) throw new BoardRefusal(`${key} was not reopened, so it was not moved: ${reopened.error.message}`, `${reopened.error.fix ?? 'Check GitHub before trying again.'} Nothing was changed.`.trim(), reopened.error.code === 'WRITE_DISABLED' ? 403 : 502);
+      const moved = await this.call(plan.command, { ...plan.input, allowWrite: true }, { write: true, signal });
+      if (moved.ok) return { status: 'applied', transition: null, toStatus: plan.toStatus, reopened: true };
+      throw new BoardRefusal(`${key} was reopened, but its Status was not set to ${plan.toStatus}: ${moved.error.message}`, `${moved.error.fix ?? ''} The issue is open again and its Status is unchanged, so drop the card on the column again, or set it with toil github project status.`.trim(), moved.error.code === 'WRITE_DISABLED' ? 403 : 502);
+    }
     const done = await this.call(plan.command, { ...plan.input, allowWrite: true }, { write: true, signal });
-    if (done.ok) return { status: 'applied', transition: null, toStatus: plan.toStatus };
+    if (done.ok) return { status: 'applied', transition: null, toStatus: plan.toStatus, ...(plan.mayClose ? { mayClose: true as const } : {}) };
     // As above: toil refused before anything was sent, and says what to pass instead.
     if (done.error.code === 'INVALID_INPUT') return { status: 'proposal', why: 'choices', reason: done.error.message, ...(done.error.fix ? { detail: done.error.fix } : {}) };
     throw new BoardRefusal(done.error.message, done.error.fix ?? 'Check GitHub before trying again.', done.error.code === 'WRITE_DISABLED' ? 403 : 502);

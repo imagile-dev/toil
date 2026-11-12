@@ -387,7 +387,10 @@ Status option, which toil reads as To do, In progress or Done by its own table o
 The server finds the card on the board (`github project items`), reads the project's Status options (`github project fields`), keeps the ones that
 read as the column you dropped on, and, when exactly one does, runs `github project status --item <id> --to <option>`; with none or several it
 proposes the move and names the options, because nothing here picks one for you. A pull request on the board moves the same way. A closed issue
-stays in Done whatever its Status says, so moving one out of Done is blocked until you reopen it (the notice names `github issue reopen`).
+stays in Done whatever its Status says, and GitHub's own project workflow closes an issue moved to Done, so dropping a closed issue on To do or In progress
+does both steps: `github issue reopen`, then `github project status` (the Status option is chosen first, so nothing is reopened when it can't be),
+and says "Reopened and moved". If the reopen works and the Status change doesn't, the message says exactly that. A move to Done says GitHub may close the
+issue. Undo after a move to Done is just the reverse move. A closed pull request is not reopened by a drop: it stays blocked, with its reason.
 **With no board**, a GitHub issue is open or closed: Done runs `github issue close`, and Done back to To do runs `github issue reopen`. The owner,
 repository and number come from the card's own id, never from the page.
 
@@ -408,7 +411,7 @@ repository and number come from the card's own id, never from the page.
 3. **The board couldn't be read** (the token lacks the Projects permission, or the read failed). The notice says so in toil's own words, with its fix
    and a link to the connection: never "isn't on the board", because a board nobody read says nothing about what is on it.
 4. **On the board, but no single Status option maps to the column.** A proposal naming the options.
-5. **A closed issue dragged out of Done**, and a pull request with no board: a notice with what is wrong and the next step.
+5. **A closed pull request dragged out of Done**, and a pull request with no board: a notice with what is wrong and the next step.
 
 A move **no command could make** (cases 1 and 3, and these) is not a proposal: the card goes back to its column, no ghost is left in the target
 column, and one notice (not a "proposed move" with nothing to apply) says what's wrong and what to do, until you dismiss it.

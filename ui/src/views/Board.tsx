@@ -13,8 +13,8 @@
  * its new column at once, quietly marked as moving, and the server asks toil
  * to change the status behind the connection's `writes` (ui/server/board.ts).
  * A move no command could make (a GitHub issue's In progress when the Toil
- * project names no project board, a board toil couldn't read, a closed issue
- * asked to leave Done) is not a proposal: the card stays, no ghost is left, and
+ * project names no project board, a board toil couldn't read, a closed pull
+ * request asked to leave Done) is not a proposal: the card stays, no ghost is left, and
  * one notice says what is wrong and what to do (components/blocked-move.tsx),
  * until it is dismissed. The column that can't take the card in hand says so
  * while it is dragged.
@@ -161,9 +161,12 @@ interface Shown {
   pending: boolean;
 }
 
+/** Said after a card on a board is moved to Done: GitHub's own project workflow does the closing, not Toil UI. */
+const MAY_CLOSE = 'GitHub may close the issue, since its project workflow does.';
+
 /** The line above the board about the last drop that was applied or refused. */
 type Notice =
-  | { kind: 'moved'; id: string; key: string; from: StatusCategory; to: StatusCategory; transition: string | null; added: boolean }
+  | { kind: 'moved'; id: string; key: string; from: StatusCategory; to: StatusCategory; transition: string | null; added: boolean; reopened: boolean; mayClose: boolean }
   | { kind: 'failed'; key: string; message: string }
   /** A move no command can make yet: the reason and the next step, until dismissed. */
   | { kind: 'blocked'; key: string; title: string; reason: string; next: NextStep };
@@ -584,8 +587,8 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
         // Back where the data says it is, the card needs no override; anywhere else it stays where it was put until a sync says.
         if (to === base) unshow(item.id);
         else setShown((m) => new Map(m).set(item.id, { base, at: to, pending: false }));
-        setNotice({ kind: 'moved', id: item.id, key, from: item.statusCategory, to, transition: out.transition, added: out.added === true });
-        setSaid(`${out.added ? `Added ${key} to the board and moved it` : `Moved ${key}`} to ${label(to)}${out.transition ? ` with the transition ${out.transition}` : ''}.`);
+        setNotice({ kind: 'moved', id: item.id, key, from: item.statusCategory, to, transition: out.transition, added: out.added === true, reopened: out.reopened === true, mayClose: out.mayClose === true });
+        setSaid(`${out.added ? `Added ${key} to the board and moved it` : out.reopened ? `Reopened and moved ${key}` : `Moved ${key}`} to ${label(to)}${out.transition ? ` with the transition ${out.transition}` : ''}.${out.mayClose ? ` ${MAY_CLOSE}` : ''}`);
         return;
       }
       restore();
@@ -710,11 +713,11 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
         <div className={`board-notice board-notice--${notice.kind}`} role={notice.kind === 'failed' ? 'alert' : 'status'} data-board-notice={notice.kind}>
           {notice.kind === 'moved' ? (
             <p>
-              {notice.added ? 'Added ' : 'Moved '}
+              {notice.added ? 'Added ' : notice.reopened ? 'Reopened and moved ' : 'Moved '}
               <strong>{notice.key}</strong>
               {notice.added ? ' to the board and moved it to ' : ' to '}
               {label(notice.to)}
-              {notice.transition ? ` with the transition ${notice.transition}` : ''}.
+              {notice.transition ? ` with the transition ${notice.transition}` : ''}.{notice.mayClose ? ` ${MAY_CLOSE}` : ''}
             </p>
           ) : (
             <p>{notice.message}</p>

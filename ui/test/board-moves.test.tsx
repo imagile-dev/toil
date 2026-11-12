@@ -118,6 +118,23 @@ describe('a drop with the setting on', () => {
     expect(moveItem).toHaveBeenCalledTimes(2);
   });
 
+  it('says GitHub may close the issue after a move to Done, and says "Reopened and moved" after a reopen', async () => {
+    const moveItem = vi.fn<NonNullable<ClassifyApi['moveItem']>>().mockResolvedValueOnce({ status: 'applied', transition: null, toStatus: 'Done', mayClose: true });
+    const { grip } = await openBoard(api(moveItem));
+    await drop(grip(), 'Done');
+    const line = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>('[data-board-notice="moved"]');
+      if (!el) throw new Error('no notice yet');
+      return el;
+    });
+    expect(line.textContent).toContain('Moved PAY-102 to Done. GitHub may close the issue, since its project workflow does.');
+    // Undo is the reverse move, and the server reopens the issue first.
+    moveItem.mockResolvedValueOnce({ status: 'applied', transition: null, toStatus: 'Todo', reopened: true });
+    await userEvent.click(screen.getByRole('button', { name: 'Undo the move of PAY-102' }));
+    await waitFor(() => expect(document.querySelector('[data-board-notice="moved"]')!.textContent).toContain('Reopened and moved PAY-102 to To do.'));
+    expect(document.querySelector('[data-board-notice="moved"]')!.textContent).not.toContain('may close');
+  });
+
   it("sends the card back and says in toil's own words why, when toil refuses; the message stays until dismissed", async () => {
     const moveItem = vi.fn<NonNullable<ClassifyApi['moveItem']>>().mockRejectedValue(new Error("Changes to corp-jira are switched off, so PAY-102 wasn't changed. Turn writes on for corp-jira under Settings, Connections."));
     const { col, grip } = await openBoard(api(moveItem));
@@ -380,19 +397,18 @@ describe('a GitHub card dropped where no project board gives it a place', () => 
     expect(screen.queryByRole('article', { name: /^Proposal/ })).toBeNull();
   });
 
-  it('case 5: a closed issue asked to leave Done is a notice with the command that reopens it, not a proposal', async () => {
+  it('case 5: a closed pull request asked to leave Done is a notice with the next step, not a proposal', async () => {
     const moveItem = vi.fn<NonNullable<ClassifyApi['moveItem']>>().mockResolvedValue({
       status: 'blocked',
       why: 'closed',
-      reason: 'imagile/payments-web#9 is closed, and a closed issue stays in Done whatever its Status says.',
-      next: { text: 'Reopen it first, then move it.', command: { command: 'github issue reopen', input: { toilProject: 'checkout-web', owner: 'imagile', repo: 'payments-web', number: 9 } } },
+      reason: 'imagile/payments-web#9 is a closed pull request, and a closed pull request stays in Done whatever its Status says.',
+      next: { text: 'Reopen it on GitHub first, then move it.' },
     });
     const { first } = await openCheckout(api(moveItem));
     await dropGrip(first, 'In progress');
     const alert = await screen.findByRole('alert');
     expect(alert.querySelector('[data-blocked-reason]')!.textContent).toMatch(/stays in Done whatever its Status says\.$/);
-    expect(alert.querySelector('[data-blocked-next]')!.textContent).toBe('Reopen it first, then move it.');
-    expect(alert.querySelector('details')!.textContent).toContain("toil github issue reopen '9' --toil-project 'checkout-web' --owner 'imagile' --repo 'payments-web' --allow-write");
+    expect(alert.querySelector('[data-blocked-next]')!.textContent).toBe('Reopen it on GitHub first, then move it.');
     expect(screen.queryByRole('article', { name: /^Proposal/ })).toBeNull();
   });
 });

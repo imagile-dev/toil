@@ -57,7 +57,7 @@ export interface AddToBoard {
 
 /** What came of one drop. A failure is not an outcome: it is thrown, with toil's own message and fix. */
 export type MoveOutcome =
-  | { status: 'applied'; /** The transition toil chose, when it says. */ transition: string | null; toStatus: string | null; /** True when the card was put on the board first. */ added?: true }
+  | { status: 'applied'; /** The transition toil chose, when it says. */ transition: string | null; toStatus: string | null; /** True when the card was put on the board first. */ added?: true; /** True when a closed issue was reopened first. */ reopened?: true; /** True when a board card was moved to Done: GitHub's project workflow may close the issue. */ mayClose?: true }
   | { status: 'proposal'; why: ProposalWhy; /** One line: why nothing was changed. */ reason: string; /** The moves the workflow offers, in toil's words, when that is why. */ detail?: string; /** For a card that isn't on its board: the add and the move. */ add?: AddToBoard; /** The project board's name and address, when known. */ board?: { project: number; title: string | null; url: string | null } }
   | { status: 'blocked'; why: BlockedWhy; reason: string; next: NextStep };
 

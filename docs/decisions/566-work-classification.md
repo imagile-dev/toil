@@ -516,3 +516,16 @@ corrections; Jira Data Center and Azure DevOps Server, which the maintainer set 
   the command that does; the add runs under the issue's owner, so a board under
   another owner gets no button; a closed issue is refused before any board is read.
   Where: `src/areas/github/projects.ts`, `ui/server/board.ts`, `ui/src/views/Board.tsx`.
+- **Run live on a throwaway project board, 12 November 2026** (the maintainer's ask), on
+  a personal account's private repository and board, both made for the run: `project
+  status` refused an issue that was not on the board and named `project add`; `project
+  add` was refused without `--allow-write`, added the issue with it, and reported
+  `added: false` the second time with no write; `project status` moved it; and Toil
+  UI's move route proposed, then added and moved in one call. **It found one fault,
+  fixed here:** setting Status to Done makes GitHub's own project workflow close the
+  issue, and moving the card back only changed the Status, so the card stayed in Done.
+  A closed issue on a board dropped on To do or In progress is now reopened and then
+  moved (the Status option is chosen first, so nothing is reopened when it can't be),
+  and the Done confirmation says GitHub may close the issue. Run again live: Done,
+  then back, left the issue open in Todo. Default taken: a closed pull request is not
+  reopened by a drag. Where: `ui/server/board.ts`.

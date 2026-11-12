@@ -205,12 +205,56 @@ describe('the Board service, GitHub', () => {
     expect(t.writesSent()).toEqual([]);
   });
 
-  it('blocks a closed issue asked to leave Done, naming the command that reopens it, and reads no board first', async () => {
+  it('reopens a closed issue on the board, then sets the Status: reopen first, each its own gated write', async () => {
     const closed = board({ 'github issue get': closedIssue, 'github project items': items, 'github project fields': standard });
-    const out = await closed.service.move('card-payments', 'corp-gh:acme/shop#7', 'TODO', signal);
-    expect(out).toEqual({ status: 'blocked', why: 'closed', reason: expect.stringContaining('stays in Done'), next: { text: 'Reopen it first, then move it.', command: { command: 'github issue reopen', input: { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7 } } } });
-    expect(closed.t.calls.map((c) => c.command)).not.toContain('github project items');
+    const out = await closed.service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal);
+    expect(out).toEqual({ status: 'applied', transition: null, toStatus: 'In Progress', reopened: true });
+    expect(closed.t.writesSent().map((c) => ({ command: c.command, input: c.input }))).toEqual([
+      { command: 'github issue reopen', input: { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7, allowWrite: true } },
+      { command: 'github project status', input: { toilProject: 'card-payments', item: 'PVTI_seven', to: 'In Progress', allowWrite: true } },
+    ]);
+    expect(closed.t.writesSent().every((c) => c.options.readOnly === false && c.options.caller === 'toil-ui')).toBe(true);
+  });
+
+  it('reopens nothing when the Status cannot be chosen, and says what the options are', async () => {
+    const closed = board({ 'github issue get': closedIssue, 'github project items': items, 'github project fields': fields(['Todo', 'In Progress', 'In Review', 'Done']) });
+    const out = await closed.service.move('card-payments', 'corp-gh:acme/shop#7', 'IN_PROGRESS', signal);
+    expect(out).toMatchObject({ status: 'proposal', why: 'choices' });
     expect(closed.t.writesSent()).toEqual([]);
+  });
+
+  it('reopens nothing when writes are off', async () => {
+    const closed = board({ 'github issue get': closedIssue, 'github project items': items, 'github project fields': standard }, false);
+    expect(await closed.service.move('card-payments', 'corp-gh:acme/shop#7', 'TODO', signal)).toMatchObject({ status: 'proposal', why: 'writes-off' });
+    expect(closed.t.writesSent()).toEqual([]);
+  });
+
+  it('says exactly what is half done when the reopen works and the Status change fails', async () => {
+    const closed = board({ 'github issue get': closedIssue, 'github project items': items, 'github project fields': standard, 'github project status': fail('github project status', 'HTTP', 'GitHub refused the change.', 'Check the token.') });
+    await expect(closed.service.move('card-payments', 'corp-gh:acme/shop#7', 'TODO', signal)).rejects.toMatchObject({
+      status: 502,
+      message: 'acme/shop#7 was reopened, but its Status was not set to Todo: GitHub refused the change.',
+      fix: expect.stringMatching(/^Check the token\. The issue is open again and its Status is unchanged/),
+    });
+    expect(closed.t.writesSent().map((c) => c.command)).toEqual(['github issue reopen', 'github project status']);
+  });
+
+  it('stops, with nothing changed, when the reopen itself fails: the Status is never set', async () => {
+    const closed = board({ 'github issue get': closedIssue, 'github project items': items, 'github project fields': standard, 'github issue reopen': fail('github issue reopen', 'HTTP', 'GitHub refused.', 'Check the token.') });
+    await expect(closed.service.move('card-payments', 'corp-gh:acme/shop#7', 'TODO', signal)).rejects.toMatchObject({ status: 502, message: expect.stringContaining('was not reopened') });
+    expect(closed.t.writesSent().map((c) => c.command)).toEqual(['github issue reopen']);
+  });
+
+  it('does not reopen a closed pull request on a drag: it stays blocked, with its reason', async () => {
+    const closedPull = ok('github issue get', { number: 8, state: 'closed', pull_request: {} }, viaConnection('corp-gh'));
+    const closed = board({ 'github issue get': closedPull, 'github project items': items, 'github project fields': standard });
+    expect(await closed.service.move('card-payments', 'corp-gh:acme/shop#8', 'TODO', signal)).toEqual({ status: 'blocked', why: 'closed', reason: expect.stringContaining('closed pull request'), next: { text: 'Reopen it on GitHub first, then move it.' } });
+    expect(closed.t.writesSent()).toEqual([]);
+  });
+
+  it('flags a board move of an issue to Done, since the project workflow may close it', async () => {
+    const { service } = board({ 'github project items': items, 'github project fields': standard });
+    expect(await service.move('card-payments', 'corp-gh:acme/shop#7', 'DONE', signal)).toEqual({ status: 'applied', transition: null, toStatus: 'Done', mayClose: true });
   });
 
   it('closes a plain issue dropped on Done, and reopens a closed one dropped on To do', async () => {
