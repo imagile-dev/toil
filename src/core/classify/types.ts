@@ -135,7 +135,7 @@ export interface ResolvedTarget extends ClassifyTarget {
 }
 
 /**
- * What settled an item: a scheme label or field value already on it, one of
+ * What settled an item: a scheme label already on it (the record), or a field value where no label settles it, one of
  * the team's rules, a built-in signal, its parent's verdict, the person's own
  * AI agent, a person, or nothing.
  */

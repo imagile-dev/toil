@@ -33,13 +33,13 @@ const EXAMPLE_VERDICTS_FILE = 'owi/verdicts.json';
 export const toilProjectField = z.string().min(1).optional().describe('A toil project name, or the path to a toil project file. Without one, the toil project that applies to the folder is used if there is exactly one; with none, the built-in scheme applies and nothing is written to a field.');
 export const cwdField = z.string().min(1).optional().describe('The folder to look from; its repository decides which checked-in toil projects and schemes apply. Defaults to the workspace.');
 export const schemeField = z.string().min(1).optional().describe("The scheme: a name (yours, the repository's or built in), or a path to a scheme file. Defaults to the toil project's scheme, else the built-in ktlo-feature.");
-const recheckField = z.boolean().optional().describe("Ignore a category already on an item (a scheme label or a value in its field) and classify it afresh.");
+const recheckField = z.boolean().optional().describe("Ignore a category already on an item (a scheme label, or a value in its field where no label settles it) and classify it afresh.");
 
 export const fileOption = { flags: '--file <path>', field: 'file', description: 'The OWI records: a file inside the workspace, or - for stdin (the default when no --text is given)' };
 export const toilProjectOption = { flags: '--toil-project <name|file>', field: 'toilProject', description: 'Use this toil project (a name or a file) instead of the one the folder matches' };
 export const cwdOption = { flags: '--cwd <dir>', field: 'cwd', description: 'The folder to look from (default: the working directory)' };
 export const schemeOption = { flags: '--scheme <name|file>', field: 'scheme', description: "The scheme: a name, or a path to a scheme file (default: the toil project's, else ktlo-feature)" };
-const recheckOption = { flags: '--recheck', field: 'recheck', description: 'Ignore a category already on an item and classify it afresh' };
+const recheckOption = { flags: '--recheck', field: 'recheck', description: 'Ignore a category already on an item (its label, or its field where no label settles it) and classify it afresh' };
 
 export interface Prepared {
   scheme: Scheme;
@@ -212,9 +212,13 @@ export function readLedger(ledger: Ledger, scheme: string, ctx: CommandContext<u
  * kept when it is new to the ledger or its category differs from the standing one, or
  * its source does (unless a person's say stands and the category agrees: the person's
  * say is the source that matters, and a label that now says the same is not news), so
- * running twice keeps nothing the second time. An item whose label or field, set in
- * the tracker, differs from the category the ledger holds is a correction from the
- * tracker, which then stands as the person's say.
+ * running twice keeps nothing the second time. An item whose label, changed in the
+ * tracker, differs from the category the ledger holds is a correction from the
+ * tracker, which then stands as the person's say. The label is the record and a field
+ * only mirrors it (the maintainer's call, 12 November 2026), so a person who changes
+ * just the field is not correcting anything: the engine still reads the label, the
+ * verdict matches the ledger, and the plan puts the field back. A field settles an item
+ * (and so can be a correction) only where no single scheme label does.
  */
 export function recordable(result: ClassifyResult, lines: Parameters<typeof standing>[0], toilProject: string | null, at: string): { verdicts: LedgerVerdict[]; corrections: LedgerCorrection[] } {
   const held = standing(lines);
@@ -239,12 +243,12 @@ export function recordable(result: ClassifyResult, lines: Parameters<typeof stan
 }
 
 export function classifyRunCommands(): AnyCommand[] {
-  const recordField = z.boolean().optional().describe("Keep what this run decided in the scheme's ledger (~/.toil/classify/<scheme>.jsonl): one line per item whose verdict is new or changed, and a correction for each item whose label or field someone changed in the tracker since the ledger last held it. Ids, titles and categories only; never an item's body.");
+  const recordField = z.boolean().optional().describe("Keep what this run decided in the scheme's ledger (~/.toil/classify/<scheme>.jsonl): one line per item whose verdict is new or changed, and a correction for each item whose label someone changed in the tracker since the ledger last held it (a changed field alone is not one: the label is the record). Ids, titles and categories only; never an item's body.");
   const run = defineConfigCommand({
     path: ['classify', 'run'],
     description: "Classify work items into a scheme's categories by label, field, rules and signals, and plan what to write back (local only)",
     toolDescription:
-      "Classifies Open Work Item records you pass (what util owi map printed, as file or text) against one scheme, asking no service. The scheme is scheme, else the toil project's, else the built-in ktlo-feature. Each item gets one verdict, first match wins: a category already on it (one of the scheme's labels, or a value in the toil project's classify field; recheck ignores both), then the scheme's rules, then toil's built-in signals, then its parent's verdict, else unsure. verdicts is a workspace file of the AI agent's answers for the unsure items, [{ id, category, reason }], which fill unsure items only and never overrule the rest; a bad id or category stops the run. Returns { scheme { name, revision, source, file }, toilProject, categories, verdicts [{ id, key, title, url, category, name, short, source, reason }], summary { items, byCategory, bySource, settledByRules, alreadyLabelled }, plan [{ area, connection, labels, field, items }] }. The plan holds only what would change; save the whole result to a workspace file and pass it as from to jira_issue_categorize, github_issue_categorize or ado_work_item_categorize to write it. Changes nothing itself. When the scheme's ledger holds a person's correction for an item, that correction decides it after a label or field already on the item and before any rule (source person), so a person's say is never undone by the scheme. record also appends what this run decided to the ledger on this machine (one line per new or changed verdict, and a correction where someone changed an item's label or field in the tracker), and adds recorded { verdicts, corrections, file } to the result; it sends nothing anywhere.",
+      "Classifies Open Work Item records you pass (what util owi map printed, as file or text) against one scheme, asking no service. The scheme is scheme, else the toil project's, else the built-in ktlo-feature. Each item gets one verdict, first match wins: a category already on it (exactly one of the scheme's labels, which is the record; only when it has no scheme label, or two that disagree, a value in the toil project's optional classify field; recheck ignores both), then the scheme's rules, then toil's built-in signals, then its parent's verdict, else unsure. verdicts is a workspace file of the AI agent's answers for the unsure items, [{ id, category, reason }], which fill unsure items only and never overrule the rest; a bad id or category stops the run. Returns { scheme { name, revision, source, file }, toilProject, categories, verdicts [{ id, key, title, url, category, name, short, source, reason }], summary { items, byCategory, bySource, settledByRules, alreadyLabelled }, plan [{ area, connection, labels, field, items }] }. The plan holds only what would change: a category's label, and, where the toil project names a field, the field set to agree with the label (a field never changes a label, so a field that disagrees with the label is put right to the label's category); save the whole result to a workspace file and pass it as from to jira_issue_categorize, github_issue_categorize or ado_work_item_categorize to write it. Changes nothing itself. When the scheme's ledger holds a person's correction for an item, that correction decides it after a label (or field, where no label settles it) already on the item and before any rule (source person), so a person's say is never undone by the scheme. record also appends what this run decided to the ledger on this machine (one line per new or changed verdict, and a correction where someone changed an item's label in the tracker (a changed field alone is not one: the label is the record)), and adds recorded { verdicts, corrections, file } to the result; it sends nothing anywhere.",
     input: z.object({
       ...inputFields,
       toilProject: toilProjectField,

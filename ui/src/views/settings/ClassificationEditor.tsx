@@ -204,7 +204,7 @@ export function ClassificationEditor({ config, classify, toilProject, loadItems 
         <details>
           <summary>Where each tool keeps the category</summary>
           <div className="cedit__part">
-            <p className="note">The category always goes on the item as a label. If a tracker also has a field for it, name the field and toil sets that too. Toil never creates a field, so an admin makes it first.</p>
+            <p className="note">The category always goes on the item as a label. The label is the record. If a tracker also has a field for it, name the field and toil keeps it in step with the label. Toil never creates a field, so an admin makes it first.</p>
             {shown.areas.map((a) => (
               <Field key={a} label={`${AREA_NAME[a] ?? a}: field`} value={fields[a] ?? ''} onChange={(v) => setFields({ ...fields, [a]: v })} hint={a === 'github' ? "The name of a single-select field on the GitHub project." : "A field's name in this Toil project's field names, or its id."} />
             ))}

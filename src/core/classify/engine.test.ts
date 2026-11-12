@@ -61,9 +61,35 @@ const jiraField = (id: string, value: unknown): Record<string, unknown> => ({ 'j
 const target = { field: 'Work category', fieldId: 'customfield_10042' };
 
 describe('already categorized', () => {
-  it('takes the field over the label', () => {
-    const v = only({ items: [item('PAY-1', { labels: ['feature'], native: jiraField('customfield_10042', { value: 'ktlo' }) })], targets: { jira: target } });
-    expect([v.category, v.source, v.reason]).toEqual(['ktlo', 'field', 'The Work category field already says "ktlo".']);
+  it('takes the label over the field, and the plan puts the field right to the label', () => {
+    const v = run({ items: [item('PAY-1', { labels: ['feature'], native: jiraField('customfield_10042', { value: 'ktlo' }) })], targets: { jira: target } });
+    const verdict = v.result.verdicts[0]!;
+    expect([verdict.category, verdict.source, verdict.reason]).toEqual(['feature', 'label', 'It already carries the label "feature".']);
+    // The field is corrected to the label, never the other way round: no label is added or removed.
+    expect(v.result.plan[0]!.items).toEqual([{ id: 'corp-jira:PAY-1', key: 'PAY-1', category: 'feature', labels: { add: [], remove: [] }, field: { value: 'Feature' } }]);
+  });
+
+  it('settles by the field only when the item has no scheme label', () => {
+    const { result } = run({ items: [item('PAY-1', { labels: ['unrelated'], native: jiraField('customfield_10042', { value: 'ktlo' }) })], targets: { jira: target } });
+    expect(result.verdicts[0]).toMatchObject({ category: 'ktlo', source: 'field' });
+    expect(result.plan[0]!.items[0]!.labels).toEqual({ add: ['ktlo'], remove: [] });
+  });
+
+  it('settles by the field when two different scheme labels disagree and the field has a value; with no field value it goes on to the rules', () => {
+    const labels = ['ktlo', 'feature'];
+    const withField = only({ items: [item('PAY-1', { labels, native: jiraField('customfield_10042', { value: 'feature' }) })], targets: { jira: target } });
+    expect([withField.category, withField.source]).toEqual(['feature', 'field']);
+    const s = scheme({ rules: [{ id: 'tasks', when: { type: ['Task'] }, then: 'ktlo' }] });
+    for (const native of [jiraField('customfield_10042', null), {}]) {
+      const v = classify({ scheme: s, items: [item('PAY-1', { labels, native })], targets: { jira: target } }).result.verdicts[0]!;
+      expect(v.source).toBe('rule:tasks');
+    }
+  });
+
+  it('does not let a field disagreeing with the label change the label, even with planFields off', () => {
+    const { result } = run({ items: [item('PAY-1', { labels: ['ktlo'], native: jiraField('customfield_10042', { value: 'feature' }) })], targets: { jira: target }, planFields: false });
+    expect(result.verdicts[0]).toMatchObject({ category: 'ktlo', source: 'label' });
+    expect(result.plan).toEqual([]);
   });
 
   it('uses the target values mapping for the field', () => {

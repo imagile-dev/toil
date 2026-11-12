@@ -124,8 +124,9 @@ the built-in scheme is used and the plan sets no field. Two that apply is
 `INVALID_INPUT` asking you to name one; a name that isn't a toil project is an error,
 never a quiet fallback. The scheme is `--scheme`, else the toil project's
 `classify.scheme`, else `ktlo-feature`. The toil project's `classify` targets say where
-each tracker keeps the category besides a label; a target's `field` is looked up as the
-toil project section's field alias first, so a category already in that field is seen.
+each tracker also keeps the category in a field, if you want one; a target's `field` is
+looked up as the toil project section's field alias first, so a category already in that
+field is seen when no label settles the item.
 The result says which scheme answered: `scheme.source` (`built-in`, `user`, `repo`,
 `toil-project` or `file`) and its `file`.
 
@@ -133,9 +134,12 @@ The result says which scheme answered: `scheme.source` (`built-in`, `user`, `rep
 
 First match wins, in this order:
 
-1. A category already on the item: the target field's value, else exactly one of the
-   scheme's labels (the field wins if they disagree; two different scheme labels settle
-   nothing). `--recheck` skips this step.
+1. A category already on the item. The label is the record: exactly one of the scheme's
+   labels settles it (`source: label`), whatever the optional category field holds. Only
+   when the item has no scheme label does a value in the toil project's field settle it
+   (`source: field`); two different scheme labels settle nothing by label, so then the
+   field, if it has a value, decides, else the item goes on to the rules. `--recheck`
+   skips this step.
 2. A person's recorded correction from the ledger (`source: person`; see **Corrections
    and the ledger**), so a person's say is never undone by a rule. It also outranks a
    label or field that still holds what the tracker held before the person spoke (the
@@ -165,7 +169,9 @@ The result:
   share settled by a rule, a signal or a parent) and `alreadyLabelled`.
 - `plan`: per tracker connection, `{ area, connection, labels, field?, items }`. It holds
   only what would change: an item already as the scheme wants it is left out, and an
-  unsure item is never in it. `categorize` reads each item again before it writes.
+  unsure item is never in it. The label is the record and a field only mirrors it, so
+  where the item's field is empty or holds another category than the label's, the plan
+  sets the field to the label's category; a field never adds, changes or removes a label. `categorize` reads each item again before it writes.
   Only a toil project in your own folder (`~/.toil/projects/`) puts a `field` in the plan.
   One that is checked in, listed or loose still lets `run` read a category from its field,
   but its field targets are left out of the plan and `CLASSIFY_TARGETS_NOT_ADOPTED` says so;
@@ -175,8 +181,10 @@ The result:
 write, so a read-only caller is refused) and adds `recorded: { verdicts, corrections,
 file }` to the result. It keeps one line for each item whose verdict is new or changed,
 so running it twice keeps nothing the second time, and a correction (`via: tracker`)
-for each item whose label or field was changed in the tracker since the ledger last
-held it. Over MCP an agent may record.
+for each item whose label was changed in the tracker since the ledger last held it. To
+reclassify from the tracker, change the label: changing only the field is not a
+correction, and the next plan puts the field back to the label's category. (An item with
+no scheme label has only its field to go by, so a field changed there is a correction.) Over MCP an agent may record.
 
 To apply it, pass the result to a `categorize` command: on the CLI as stdin or
 `--from <file>`; over MCP `from` must be a workspace file, which `--summary-file`
@@ -238,8 +246,8 @@ projects learns from all of them (`--toil-project` narrows `stats` and `tune` to
 Three things put a line in it:
 
 - `classify run --record`: a **verdict** line per new or changed verdict, and a
-  **correction** (`via: tracker`) where someone changed an item's label or field in the
-  tracker.
+  **correction** (`via: tracker`) where someone changed an item's label in the
+  tracker (a changed field alone is not one: the label is the record).
 - `toil classify correct <item-id> --to <category|unsure> [--reason <text>]`: a
   correction. `--to` the category the ledger already holds records a **confirmation**, so
   agreement can be measured and not only disagreement. An agent may record a correction
@@ -257,7 +265,7 @@ way to start a new one (rename the old file). Lines that can't be read are skipp
 a `LEDGER_LINES_SKIPPED` warning.
 
 A correction made through any door decides the item on the next `classify run`
-(`source: person`, with the person's reason) until someone sets a different label or field
+(`source: person`, with the person's reason) until someone sets a different label
 in the tracker (that is recorded as a correction from the tracker); `categorize` writes it
 to the tracker. The old label the tracker still holds does not undo it. A `classify run`
 without `--record` that can't read the ledger (over 32 MiB, say) carries on without

@@ -2,7 +2,9 @@
 
 A proposal for classifying a team's work items from GitHub, Jira and Azure DevOps as
 **KTLO** (keep the lights on) or **Feature**, and writing the category back to the
-tracker as a label and, where the team has one, a field. It also lets people reclassify
+tracker as a label and, where the team has one, a field. (As built: labels are the first-class
+record and a field is an optional mirror of the label, the maintainer's call, 12 November
+2026.) It also lets people reclassify
 items, learns from their corrections, and analyses the mix in toil and Toil UI (#566).
 Slices 1 to 3 are built: the scheme, `classify run | prompt | correct | stats | tune |
 mix`, `categorize` in all three trackers, the ledger, the MCP prompts `classify` and
@@ -279,7 +281,7 @@ toil jira issue search --jql "project = PAY AND statusCategory != Done" --fields
 - The scheme is the one `--scheme` names, else the one the toil project names, else the
   built-in `ktlo-feature`.
 - First match wins. An item that already carries one of the scheme's labels, or a value
-  in its field, keeps it (unless `--recheck`). Then come the team's own rules, then the
+  in its field, keeps it (unless `--recheck`; as built, the label is the record and a field settles an item only where no single scheme label does). Then come the team's own rules, then the
   built-in signals, then the parent's verdict, which children inherit. Anything left is
   `unsure`. (As built: a person's say, from the
   ledger, comes after labels and fields and before the rules, except that a person's say
@@ -332,7 +334,7 @@ toil ado work-item categorize --from plan.json --allow-write
 
 - **One command, one connection.** Plan entries for other connections are skipped with a
   warning naming them.
-- **Labels and fields both ship in slice 1.** Before it writes anything, the command
+- **Labels and fields both ship in slice 1.** (As built: the label is the record and the field an optional mirror, the maintainer's call, 12 November 2026: see Decisions, 5.) Before it writes anything, the command
   reads the field's definition. It refuses the whole plan, still before any write, if
   the field or one of its values doesn't exist, naming what's missing and saying that an
   admin creates it. toil never creates a field. Where the option ids come from:
@@ -657,7 +659,7 @@ The maintainer's, on 9 November 2026:
    `main`. Labels in the tracker stay `ktlo`, and CLI output carries both names.
 3. **Built-in scheme:** two categories, with the four-bucket `balance` preset beside it.
 4. **Built-in signals:** on by default, ranked below the team's rules.
-5. **Labels and fields:** both in slice 1.
+5. **Labels and fields:** both in slice 1. (As built: labels are the first-class record and a field is an optional mirror, the maintainer's call, 12 November 2026. When they disagree the label wins, the plan sets the field to the label's category, and a field changed alone in the tracker is not a correction.)
 6. **Ledger:** local to each person; the team shares the scheme.
 7. **Over MCP:** `categorize` is served behind the write gate, except a plan that
    removes a GitHub label. (As built: no plan sends a `DELETE`, so it is served in every

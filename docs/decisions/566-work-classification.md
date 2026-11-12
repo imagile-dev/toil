@@ -58,11 +58,16 @@ agent made where the proposal was silent, or where it couldn't be built as writt
   project: `classify.targets.<area>.field` is an alias when the section's `fields`
   has it, otherwise the field's own id. A field the read didn't ask for is unknown,
   and unknown means the plan sets it.
-- **When an item's field and its labels disagree, the field wins.** The field was
-  set from a fixed list of options, by a person or by an earlier plan; a label is
-  free text anyone can add. With no field value, exactly one of the scheme's labels
-  settles the item (source `label`). Two different scheme labels on one item settle
-  nothing by label, and the item goes on to the rules.
+- **The label is the record; a field mirrors it.** The maintainer reversed an earlier
+  default on 12 November 2026 ("tags / labels [are] the first class citizen, categories
+  are just a customization"). Exactly one of the scheme's labels settles an item (source
+  `label`) whatever the field holds. Only an item with no scheme label is settled by a
+  value in the field (source `field`); two different scheme labels settle nothing by
+  label, so the field decides if it has a value, else the item goes on to the rules.
+  The plan sets the field to the label's category where it differs or is empty, and a
+  field never changes a label. A person changing only the field in the tracker is not a
+  correction (the next plan puts it back); changing the label is, so to reclassify from
+  the tracker, change the label.
 - **An agent's verdicts fill only the items the deterministic pass left unsure.** A
   verdict for an item a label, rule or signal already settled is ignored with a
   warning. Why: the rules are the team's own and checkable; an agent's opinion

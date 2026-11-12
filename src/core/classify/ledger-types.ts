@@ -11,7 +11,7 @@
 
 import type { VerdictSource } from './types.js';
 
-/** The door a correction came through. `tracker` is a label or field someone changed in Jira, GitHub or Azure DevOps, noticed on the next run. */
+/** The door a correction came through. `tracker` is a label someone changed in Jira, GitHub or Azure DevOps (or a field, where the item has no scheme label), noticed on the next run. */
 export const LEDGER_DOORS = ['cli', 'mcp', 'api', 'tracker'] as const;
 export type LedgerDoor = (typeof LEDGER_DOORS)[number];
 

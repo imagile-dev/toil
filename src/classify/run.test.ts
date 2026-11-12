@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- the tests read envelopes' untyped JSON */
 import { afterEach, describe, expect, it } from 'vitest';
+import { classify } from '../core/classify/engine.js';
 import { readPlanFrom } from '../core/classify/plan.js';
+import type { Scheme } from '../core/classify/types.js';
 import type { ResolvedConfig } from '../core/config.js';
 import type { Envelope } from '../core/envelope.js';
 import type { WorkItem } from '../core/owi/types.js';
@@ -14,7 +16,7 @@ import { testContext } from '../../test/harness/context.js';
 import { connectMcp, type McpSession } from '../../test/harness/mcp.js';
 import { toilProjectDisk, type ToilProjectDisk } from '../../test/harness/toil-projects.js';
 import { classifyProjectCommands } from './project-commands.js';
-import { classifyRunCommands } from './run.js';
+import { classifyRunCommands, recordable } from './run.js';
 import { classifySchemeCommands } from './scheme-commands.js';
 
 const commands = [...classifyRunCommands(), ...classifySchemeCommands(), ...classifyProjectCommands(), ...toilProjectBriefCommands(), ...toilProjectBuildCommands(areas)];
@@ -361,5 +363,33 @@ describe('the classify MCP prompt', () => {
     const s = await mcp(disk(), { 'items.json': BACKLOG }, commands.filter((def) => def.path.join(' ') !== 'classify prompt'));
     expect((await s.client.listPrompts()).prompts).toEqual([ANALYZE_PROMPT]);
     await expect(s.client.getPrompt({ name: 'classify', arguments: { file: 'items.json' } })).rejects.toThrow(/Unknown prompt/);
+  });
+});
+
+describe('what counts as a correction from the tracker: the label is the record, a field only mirrors it', () => {
+  const scheme: Scheme = {
+    name: 'team', revision: 1, guidance: [], examples: [], rules: [], signals: false, labels: {},
+    categories: [
+      { id: 'ktlo', short: 'KTLO', name: 'Keep the lights on', label: 'ktlo', definition: 'Keeps it running.' },
+      { id: 'feature', short: 'Feature', name: 'Feature', label: 'feature', definition: 'New value.' },
+    ],
+  };
+  const target = { field: 'workCategory', fieldId: 'customfield_10042' };
+  const read = (labels: string[], field: string | null) => classify({ scheme, items: [item('PAY-1', { labels, native: jiraField(field === null ? null : { value: field }) })], targets: { jira: target } });
+  const record = (result: ReturnType<typeof read>['result'], lines: Parameters<typeof recordable>[1]) => recordable(result, lines, null, '2026-11-12T00:00:00Z');
+  const lines = (result: ReturnType<typeof read>['result']) => record(result, []).verdicts;
+
+  it('treats a changed label as a correction', () => {
+    const before = lines(read(['ktlo'], 'KTLO').result);
+    const out = record(read(['feature'], 'KTLO').result, before);
+    expect(out.corrections).toMatchObject([{ from: 'ktlo', to: 'feature', via: 'tracker' }]);
+  });
+
+  it('does not treat a changed field alone as one, and the next plan puts the field back to the label', () => {
+    const before = lines(read(['ktlo'], 'KTLO').result);
+    const { result } = read(['ktlo'], 'Feature');
+    expect(record(result, before)).toEqual({ verdicts: [], corrections: [] });
+    expect(result.verdicts[0]).toMatchObject({ category: 'ktlo', source: 'label' });
+    expect(result.plan[0]!.items[0]).toMatchObject({ labels: { add: [], remove: [] }, field: { value: 'KTLO' } });
   });
 });

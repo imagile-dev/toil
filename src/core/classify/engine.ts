@@ -52,7 +52,7 @@ export interface ClassifyInput {
   /**
    * What a person said about an item, by id (the ledger's standing correction). It comes after a
    * category already on the item and before every rule: a person's word beats the scheme's rules,
-   * and the tracker's own label or field beats the person's, except a label or field that still says what
+   * and the tracker's own label (or, with no label, field) beats the person's, except one that still says what
    * the person's `from` says: the tracker hasn't caught up with them yet, so their say stands until Apply writes it.
    */
   person?: Record<string, PersonSay>;
@@ -165,16 +165,22 @@ export function classify(input: ClassifyInput): { result: ClassifyResult; warnin
     // A person's say the tracker hasn't caught up with: what is on the item is what it held before they spoke, so it is not news.
     const stale = (id: string) => said !== undefined && said.from === id && said.category !== id && category.has(said.category);
 
-    // 1. A category already on the item: the field wins, since it is picked from a fixed list.
+    // 1. A category already on the item. The label is the record and a field only mirrors it (the maintainer's call,
+    // 12 November 2026): exactly one scheme label settles it, whatever the field says, and the plan then puts the field
+    // right. A field settles it only when no label can: none on the item, or two that disagree with each other.
     if (!input.recheck) {
-      const target = isClassifyArea(area) ? targets[area] : undefined;
-      const value = target?.field ? readCategoryField(item, target) : undefined;
-      if (typeof value === 'string') {
-        const hits = scheme.categories.filter((c) => lower(fieldValueFor(target, c)) === lower(value));
-        if (hits.length === 1 && !stale(hits[0]!.id)) return settle(item, hits[0]!.id, 'field', `The ${target!.field} field already says "${value}".`);
-      }
       const held = scheme.categories.filter((c) => item.labels.some((l) => lower(l) === lower(labelFor(scheme, area, c))));
-      if (held.length === 1 && !stale(held[0]!.id)) return settle(item, held[0]!.id, 'label', `It already carries the label "${item.labels.find((l) => lower(l) === lower(labelFor(scheme, area, held[0]!)))}".`);
+      if (held.length === 1) {
+        // A stale label is the person's say not yet written; the field is a mirror of that label, so it has nothing to add.
+        if (!stale(held[0]!.id)) return settle(item, held[0]!.id, 'label', `It already carries the label "${item.labels.find((l) => lower(l) === lower(labelFor(scheme, area, held[0]!)))}".`);
+      } else {
+        const target = isClassifyArea(area) ? targets[area] : undefined;
+        const value = target?.field ? readCategoryField(item, target) : undefined;
+        if (typeof value === 'string') {
+          const hits = scheme.categories.filter((c) => lower(fieldValueFor(target, c)) === lower(value));
+          if (hits.length === 1 && !stale(hits[0]!.id)) return settle(item, hits[0]!.id, 'field', `The ${target!.field} field already says "${value}"${held.length > 1 ? ', and its labels disagree with each other' : ', and the item has no scheme label'}.`);
+        }
+      }
     }
 
     // 2. A person's say, recorded in the ledger.

@@ -13,7 +13,7 @@ verification: unit
 
 You sort work items into the categories of one scheme (the built-in `ktlo-feature`, or
 the team's own) and, on the person's yes, write each item's category back to the
-tracker as a label or tag and, where the toil project names one, a field. Rules every
+tracker as a label or tag, which is the record, and, only where the toil project names one, a field that mirrors it. Rules every
 page shares: `workflows/README.md`. The scheme, its rules and where it lives are in
 `classify.md`.
 
@@ -26,15 +26,15 @@ change nothing.
 1. **Pick the scheme.** `toil classify scheme list` shows the schemes toil can see and
    `toil classify scheme show <name>` one in full. The toil project's `classify` key
    names its scheme and where the tracker keeps the category; with none, the
-   built-in `ktlo-feature` applies and the category goes only into a label or tag. To
+   built-in `ktlo-feature` applies and the category goes only into a label or tag, the default path. A field is an optional extra the person asks for. To
    point a toil project at a scheme, or name a field, ask the person first, then
    `toil projects classify set <toil-project> --scheme <name> --target <area.key=value>`.
    A person decides what the categories mean: never edit a scheme.
 
 2. **Read the backlog,** the open items the person named, and map them. Ask for the
    fields the scheme's rules and the target field need: type, title, description,
-   labels, parent, and the category field by its id, so a category already in it can
-   be seen.
+   labels, parent, and, only when the toil project names a category field, that field by
+   its id, so a category already in it can be seen.
 
    | Tracker | Read |
    |---------|------|
@@ -53,7 +53,7 @@ change nothing.
    ```
 
    Leave out `--toil-project` when the folder matches one, or none applies. First match
-   wins: a label or field value already on the item, the scheme's rules, toil's
+   wins: the scheme label already on the item (a field value only where no label settles it), the scheme's rules, toil's
    built-in signals, the parent's verdict, else `unsure`. `--scheme <name|file>`
    overrides the scheme and `--recheck` ignores a category already on an item.
    Read `meta.warnings` and `scheme.source`: say which scheme answered and where it
@@ -89,7 +89,7 @@ change nothing.
    per source (`summary.byCategory`, `summary.bySource`), the share settled by rules,
    the items still `unsure` (they are never written), and what will change, per
    connection: the label or tag to add, the scheme's other labels to remove, and the
-   field value if there is one. Each item with its link and the `reason` for its
+   field value if the toil project names a field (set to agree with the label). Each item with its link and the `reason` for its
    category. Then ask. Write nothing yet.
 
 6. **Categorize on a yes** (or when the request already said to write them). One call

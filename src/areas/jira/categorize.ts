@@ -286,7 +286,7 @@ function defineCategorize(adapter: CategorizeAdapter, planFile: string) {
     path: ['jira', 'issue', 'categorize'],
     description: "Apply a classification plan to Jira issues: add each issue's category label, remove the scheme's other labels, and set the category field when the plan names one.",
     toolDescription:
-      "Applies a classification plan (the output of classify_run, written to a file and passed as from) to Jira issues: adds each issue's category label, removes the scheme's other labels, and sets the category field when the plan names one. It reads each issue first and sends one update only where the issue differs from the plan, so running a plan twice changes nothing. Returns { connection, scheme, field, changed, unchanged, failed, skipped, counts }; an issue that couldn't be changed is in failed and the rest are still applied. The field is never created: a missing field or option is refused before any issue is changed.",
+      "Applies a classification plan (the output of classify_run, written to a file and passed as from) to Jira issues: adds each issue's category label, removes the scheme's other labels, and, when the plan names a field, sets it to agree with the label (the label is the record; a field never changes a label). It reads each issue first and sends one update only where the issue differs from the plan, so running a plan twice changes nothing. Returns { connection, scheme, field, changed, unchanged, failed, skipped, counts }; an issue that couldn't be changed is in failed and the rest are still applied. The field is never created: a missing field or option is refused before any issue is changed.",
     input: categorizeInput,
     writes: true,
     timeLimitMs: CATEGORIZE_TIME_LIMIT_MS,
