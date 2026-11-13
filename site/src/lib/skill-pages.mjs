@@ -8,7 +8,20 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const skillDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'skills', 'toil');
+// Astro 7 bundles the pages into site/dist/.prerender/, so this module's own folder is no longer
+// src/lib/ at build time. Walk up from wherever it is running to the repository root instead.
+function findRepoRoot() {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (;;) {
+    if (existsSync(join(dir, 'skills', 'toil', 'SKILL.md'))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) throw new Error('skill-pages.mjs cannot find the repository root (skills/toil/SKILL.md) above ' + dir);
+    dir = parent;
+  }
+}
+const repoRoot = findRepoRoot();
+
+export const skillDir = join(repoRoot, 'skills', 'toil');
 
 /** Files that have a page of their own rather than an integration page. */
 const OWN_PAGES = {
@@ -104,11 +117,11 @@ export function commandGroupPage(group) {
 }
 
 /** Toil UI's own docs, outside the toil skill (ui/docs/*.md): each is a page, by its file. */
-export const uiDocDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'ui', 'docs');
+export const uiDocDir = join(repoRoot, 'ui', 'docs');
 export const UI_DOC_PAGES = { 'themes.md': '/docs/themes/', 'help.md': '/docs/ui-help/' };
 
 /** Where the diagrams a skill file places live: `site/src/figures/<name>.html`. */
-export const figureDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'figures');
+export const figureDir = join(repoRoot, 'site', 'src', 'figures');
 /** A skill file places a figure with a comment on its own line, which agents read past. */
 export const FIGURE = /^<!--\s*figure:\s*([a-z0-9-]+)\s*-->$/;
 
