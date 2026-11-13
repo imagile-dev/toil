@@ -77,6 +77,8 @@ export function diagramCommands(): AnyCommand[] {
     input: z.object({ ...modelInputs, view: viewField }),
     writes: false,
     writesLocal: false,
+    // As with save: an agent checks a model several times a run, and none of those copies belongs in the audit log.
+    auditInput: { text: 'hash' },
     args: [fileArgument],
     options: [textOption, viewOption, notMappedOption],
     examples: [{ text: EXAMPLE_TEXT }, { file: 'diagrams/payments.c4.json', view: 'containers', notMapped: ['dist/'] }],

@@ -195,6 +195,16 @@ describe('projects diagram save', () => {
     expect(line).toContain(createHash('sha256').update(body).digest('hex'));
   });
 
+  it('does the same for check, which an agent runs several times with the whole model', async () => {
+    const made = ctxFor(disk());
+    const body = text(marked());
+    const env = await execute(find('projects diagram check'), { text: body }, made.context, 'cli');
+    expect(env.ok).toBe(true);
+    const line = made.audit.lines.join(' ');
+    expect(line).not.toContain('Online Bookshop');
+    expect(line).toContain(createHash('sha256').update(body).digest('hex'));
+  });
+
   it('is served over MCP, and refused read-only', async () => {
     const d = disk();
     const s = await mcp(d);
