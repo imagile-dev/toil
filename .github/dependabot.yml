@@ -46,6 +46,7 @@ updates:
           - 'commander'
           - 'fast-uri'
           - 'hive-driver'
+          - 'js-yaml'
           - 'mysql2'
           - 'oracledb'
           - 'pg'
@@ -53,7 +54,6 @@ updates:
           - 'tedious'
           - 'thrift'
           - 'zod'
-          - 'zod-to-json-schema'
           # Built into Toil UI's front end (ui/dist/app).
           - '@dnd-kit/*'
           - '@fontsource/*'
