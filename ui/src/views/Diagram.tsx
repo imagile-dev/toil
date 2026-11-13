@@ -3,7 +3,7 @@
  * Diagram job drew and a person chose to keep, read live from toil
  * (`projects diagram show`, a file in the person's own folder, never the
  * cache). It sits one step in from the Summary, at
- * `#/project/<name>/summary/diagram[/<view>]`: not a tab, with a line of its
+ * `#/project/<name>/summary/diagram[/<view>]`: not a tab, with a breadcrumb of its
  * own that leads back.
  *
  * The first thing on the page is the picture and a switch between the model's
@@ -23,6 +23,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button } from 'react-aria-components';
 import { C4Picture, layoutNotice, layoutOf } from '../components/c4-picture.tsx';
 import '../components/c4-picture.css';
+import { Breadcrumb } from '../components/breadcrumb.tsx';
+import { SummaryChevron } from '../components/disclosure.tsx';
 import { Empty, EmptyLink } from '../components/empty.tsx';
 import { Help } from '../components/help.tsx';
 import { jobHref } from '../components/jobs.tsx';
@@ -94,11 +96,8 @@ export function Diagram({ viewKey }: { viewKey: string | null }) {
     };
   }, [execute, name, viewKey, again]);
 
-  const crumbs = (
-    <nav aria-label="Breadcrumb" className="c4-crumbs">
-      <a href={toilProjectHref(name)}>Summary</a> <span aria-hidden="true">/</span> <span aria-current="page">Diagram</span>
-    </nav>
-  );
+  // The same way back every page one step in from the Summary has (#567).
+  const crumbs = <Breadcrumb trail={[{ label: 'Summary', href: toilProjectHref(name) }, { label: 'Architecture' }]} />;
 
   /** Every state but the picture: the way back, the page's heading and one thing to say. */
   const plain = (kind: string, body: ReactNode) => (
@@ -240,14 +239,20 @@ function Provenance({ shown, at }: { shown: ShownDiagram; at: number }) {
       </p>
       {shown.file && (
         <details data-diagram-kept="">
-          <summary>Where is this kept?</summary>
+          <summary>
+            <SummaryChevron />
+            Where is this kept?
+          </summary>
           <p className="note">In your own toil folder on this computer, not in any repository.</p>
           <Path value={shown.file} what="file" />
         </details>
       )}
       {shown.notMapped.length > 0 && (
         <details>
-          <summary>Left out on purpose ({shown.notMapped.length})</summary>
+          <summary>
+            <SummaryChevron />
+            Left out on purpose ({shown.notMapped.length})
+          </summary>
           <ul className="plain">
             {shown.notMapped.map((p) => (
               <li key={p}>
@@ -323,7 +328,10 @@ function TextList({ view }: { view: ComputedView }) {
   const boxes = [...view.outside, ...view.inside];
   return (
     <details className="c4-list" data-diagram-list="">
-      <summary>List</summary>
+      <summary>
+        <SummaryChevron />
+        List
+      </summary>
       <h2 className="sr-only">Everything in this view</h2>
       <p className="note">
         {boxes.length} boxes and {view.edges.length} arrows.

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -49,7 +50,7 @@ describe('the address', () => {
     expect(diagramHref('card-payments')).toBe('#/project/card-payments/summary/diagram');
     expect(diagramHref('card-payments', 'a b')).toBe('#/project/card-payments/summary/diagram/a%20b');
     // Another summary page is not this one.
-    expect(parseRoute('#/project/card-payments/summary/other')).toEqual({ view: 'dashboard', toilProject: 'card-payments' });
+    expect(parseRoute('#/project/card-payments/summary/other')).toEqual({ view: 'charts', toilProject: 'card-payments', dashboard: 'other' });
   });
 });
 
@@ -236,7 +237,7 @@ describe('the page', () => {
     // The way back is a link, then where the person is.
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'Summary' }).getAttribute('href')).toBe('#/project/card-payments');
-    expect(crumbs.textContent).toContain('Diagram');
+    expect(crumbs.textContent).toContain('Architecture');
   });
 
   it('draws the view in the address', async () => {
