@@ -94,7 +94,7 @@ describe('the stored-diagram checks', () => {
       expect(JSON.stringify(problems)).not.toMatch(/imagile\.dev|Sup3r|5432/);
     }
     expect(checkStorable((() => { const m = marked(); m.systems[0]!.description = 'svc:Sup3rS3cret!@db.imagile.dev'; return m; })())[0]!.message).toMatch(/credential/);
-    for (const description of ['Next.js app, Node.js 24, PostgreSQL 16', 'Hosted at db.imagile.dev', 'Mail to you@example.com', 'Runs at 12:30', 'Note: see src/db.ts:42', 'source db.ts:42 and schema.sql:7', 'src\\db.ts:42', 'Phase 2: 2026']) {
+    for (const description of ['Next.js app, Node.js 24, PostgreSQL 16', 'Hosted at db.imagile.dev', 'Mail to you@example.com', 'Runs at 12:30', 'Note: see src/db.ts:42', 'source db.ts:42 and schema.sql:7', 'source Dockerfile:12 and Jenkinsfile:40', 'src\\db.ts:42', 'Phase 2: 2026']) {
       const m = marked();
       m.systems[0]!.description = description;
       expect(checkStorable(m), description).toEqual([]);

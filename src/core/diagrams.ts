@@ -75,7 +75,10 @@ const HOST_PORT_SHAPE = /(?<![\w.\\/-])((?:[a-z][a-z0-9-]*(?:\.[a-z0-9-]+)*)|\d{
 /** A file and line (`db.ts:42`) is the citation a diagram is meant to hold, and looks like a host and port, so these endings mark a file. */
 const SOURCE_FILE = /\.(?:[cm]?[jt]sx?|py|go|rs|java|kt|cs|rb|php|c|h|cpp|hpp|sql|json|ya?ml|md|xml|toml|sh|ps1|tf|bicep|cfg|ini|properties|gradle|proto|vue|swift|scala|lock|txt|log|csv)$/i;
 
-const holdsHostPort = (text: string) => [...text.matchAll(HOST_PORT_SHAPE)].some((m) => !SOURCE_FILE.test(m[1]!));
+/** The usual build files have no ending at all (`Dockerfile:12`, `Jenkinsfile:40`), and are among the likeliest places an architecture fact comes from. */
+const BUILD_FILE = /^(?:Docker|Container|Jenkins|Make|Proc|Gem|Rake|Vagrant|Just|Brew|Tilt)file$/i;
+
+const holdsHostPort = (text: string) => [...text.matchAll(HOST_PORT_SHAPE)].some((m) => !SOURCE_FILE.test(m[1]!) && !BUILD_FILE.test(m[1]!));
 
 const FIX = 'Cite the file and line or the command a fact came from, not an address: a diagram holds no URL, no host with a port and nothing shaped like a credential.';
 
