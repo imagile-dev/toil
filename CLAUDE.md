@@ -100,10 +100,16 @@ gets made again in the next place it applies.
    and flags, MCP tool names (which follow the paths), page cursors, the JSON envelope,
    precedence, the `./api` `execute()` surface and exit codes are contracts. **They
    are stable from the first beta, `0.1.0-beta.1`** (the maintainer's call on #478,
-   2026-10-24). From then on, changing one is a declared breaking change: a `feat!:`
-   with a `BREAKING CHANGE:` footer saying why and how to migrate, and, where
-   practical, the old name keeps working with a deprecation warning for at least one
-   beta before it's removed. → Output Contract, Delivery. While toil has no CI users,
+   2026-10-24). **A breaking change is one that makes something that used to work stop
+   working**: a path, flag, field, code, setting or precedence that a working setup
+   relied on is removed, renamed, or gives a different result. Something that never
+   worked starting to work is not one: a value toil could not read before (an env
+   `writes` of `1`), a call it refused, a figure it left out. That is a `feat:` or a
+   `fix:`, and its PR still says plainly what now behaves differently (the maintainer's
+   call on #585, 2026-11-13). From the first beta on, a breaking change to a contract is
+   declared: a `feat!:` with a `BREAKING CHANGE:` footer saying why and how to migrate,
+   and, where practical, the old name keeps working with a deprecation warning for at
+   least one beta before it's removed. → Output Contract, Delivery. While toil has no CI users,
    a fix that only stops toil answering from a source nobody configured (a precedence
    fall-through that reads the wrong repo or project) is a `fix:`, not a declared
    breaking change, and its PR says so (the maintainer's call on #540, 2026-11-02). The alphas
@@ -703,7 +709,8 @@ a breaking change.
 - **`meta.contractVersion`** is on every envelope and in `toil version`: `CONTRACT_VERSION`
   in `src/core/envelope.ts`, equal to `contractVersion` in `docs/command-contract.json`
   (a test holds them together). It goes up by one with every breaking change to the
-  contract and never for an additive one. The alphas all report 1, the first beta
+  contract and never for an additive one, nor for something that never worked
+  starting to work (principle 7). The alphas all report 1, the first beta
   ships 1, and every breaking change from then on raises it (principle 7;
   `docs/command-contract.md`, The contract version).
 - **Three front doors, one `execute()`.** The CLI, MCP, and `@imagile-dev/toil/api`
@@ -846,7 +853,7 @@ variables match the longest connection name first, and one naming no connection 
 a warning, as is a connection for an area toil doesn't have. Env-only connections are
 created before an area's default is chosen, so `TOIL_CONN_CI_AREA=jira` plus
 `TOIL_JIRA_TOKEN` is one connection. Env values stay strings until the area's schema types them (`"5432"` to a number,
-`"true"` to a boolean only where the schema says boolean), keys
+`"true"` or `"1"` to a boolean only where the schema says boolean), keys
 an area doesn't declare are dropped with a warning, and renamed keys still work, with
 one; with both names set, the higher tier wins (an old env var over a new name in the
 file), and the new name wins a tie.
@@ -903,6 +910,13 @@ connection. `writes` is per connection, so writes can be on for a sandbox and of
 for production; it is never read from `defaults.<area>`. Env vars can enable writes
 for CI (`TOIL_CONN_<NAME>_WRITES=true`, or `TOIL_<AREA>_WRITES=true` for the
 default connection), following normal precedence.
+
+**A boolean read from an environment variable takes `true` or `1` for on and `false` or
+`0` for off,** the words in any letter case (the maintainer's call, 2026-11-11): a
+connection's `writes`, every boolean connection setting, and toil's own switches. Any
+other value is unreadable, never guessed: `writes` stays off and every command warns
+`CONFIG_WRITES_UNREADABLE`, naming the variable. A flag on the command line and a
+value in the config file are not environment variables and keep their own forms.
 Deletes are never exposed through MCP: a delete command sets `mcp: false`, and the
 raw passthrough refuses a `DELETE` over MCP (`offMcpWhen`). A delete is a command
 that sends an HTTP `DELETE`; a removal the service takes another way (Jira removes a
@@ -989,7 +1003,13 @@ callers who rely on the recorded result.
   `suspected-bug` (`Suspected bugs to verify: <name> (`<area>`)`). The integration appends
   anything new it finds there, with where, what, why, confidence, the observable
   change if fixed, and a live check. Tests pin the recorded behavior and say it's
-  a suspected bug.
+  a suspected bug. The one exception so far (the maintainer's call, 2026-11-11):
+  `ado work-item untag` sent a JSON Patch `add` for the tags that remain, which
+  Azure DevOps reads as "add these", so it removed nothing. The same fault was
+  confirmed live on Azure DevOps Services through `ado work-item categorize`, so
+  `untag` was fixed to send `replace` without waiting for a live Azure DevOps Server,
+  and it is listed as a divergence saying so. An exception like it needs the
+  maintainer's say and the same fault seen live on the product's other deployment.
 - **A divergence is a documented difference from the contract.** Each one is an
   entry in `docs/divergences/<area>.json`: what the contract records (`old`), what
   toil does instead (`toil`), why, and the principle that requires it.
@@ -1128,12 +1148,50 @@ a real host someone could register: those use `<service>.imagile.dev` too; opaqu
 IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 `you@example.com`. Never add wildcard DNS to `imagile.dev`.
 
+## Test Projects
+
+*Principles 2 and 4.* Three sandboxes hold made-up work for runs against real
+services: a `live` verification level, a suspected bug's live check, `npm run
+verify:ui`. They are the only places a live run may write.
+
+| Tracker | Test project | toil connection | Seeded by |
+|---|---|---|---|
+| Jira Cloud | project `SCRUM` | `jira` | `ui/scripts/jira-seed.mjs`, through toil: labels `toil-seed` and `seed:<key>` |
+| Azure DevOps Services | project `Toil Sandbox` | `ado` | `ui/scripts/ado-seed/`: tag `toil-seed` and a `seed:<key>` tag |
+| GitHub | repository `imagile-dev/toil-sandbox` | `github` | `ui/scripts/seed-sandbox.mjs`, through `gh` |
+
+- **Reads may go to any of the three.** A write goes only to a test project, and only
+  to items that carry its seed mark or that the run created itself. The connection's
+  `writes` and `--allow-write` still decide (**Writes**); an agent never turns `writes`
+  on, so a sandbox whose connection has it off is read-only until a person changes it.
+- **Name the project on every call** (`--project SCRUM`, `--project "Toil Sandbox"`,
+  `--owner imagile-dev --repo toil-sandbox`). A default connection can reach other
+  projects in the same site or organization, and nothing but the argument keeps a
+  live run out of them.
+- **Nothing a live run returns is committed.** Hosts, organization names, account
+  names and ids stay out of code, tests, fixtures, docs, issues and PRs
+  (**Placeholders**). A PR quotes a live envelope only after it is sanitized. The
+  project and repository names in the table are the exception, since a contributor
+  needs them to find the sandbox.
+- **Seed with the scripts, never by hand,** so a sandbox can be rebuilt and so its
+  items stay recognisable. A feature that needs data the seeds lack (a fix version,
+  a component, a category field) extends the seed in the same PR and says so.
+- **A field or a project is an admin's to create.** toil never creates either. `SCRUM`
+  has one category field, the dropdown `Work category` (KTLO, Feature) on its Story and
+  Task work types; the other two test projects have none. Where a
+  live check needs one that doesn't exist, the PR says what is missing under what
+  wasn't verified, and the check waits.
+- **The sample team is not a sandbox.** `toil sample team` and `toil-ui --sample` run
+  with no connection and are what tests and screenshots use; a test project is for
+  what only a real service can show.
+
 ## Delivery
 
 - Conventional Commits: `fix:`, `feat:`, `feat!:` with a `BREAKING CHANGE:` footer
   that says why and how to migrate. release-please builds the changelog from them.
-  **From the first beta on, a change to a contract principle 7 lists is a `feat!:`
-  with a `BREAKING CHANGE:` footer** (but see principle 7 on fixes while there are no
+  **From the first beta on, a breaking change to a contract principle 7 lists (one
+  that makes something that used to work stop working) is a `feat!:` with a
+  `BREAKING CHANGE:` footer** (but see principle 7 on fixes while there are no
   CI users), and, where practical, keeps the old name
   working with a deprecation warning for at least one beta before removing it.
   The alphas used a plain `feat:` or `fix:` for contract changes, and their

@@ -49,7 +49,7 @@ sets one up from a terminal; in CI, define one with env vars.
 | `username` | `TOIL_SKILLS_USERNAME` | User name sent with the token (default `x-access-token` on GitHub, `x-token-auth` elsewhere; Bitbucket Data Center personal tokens usually need your username) |
 | `provider` | `TOIL_SKILLS_PROVIDER` | `github`, `bitbucket`, `ado` or `git`, when the URL doesn't say |
 | `token` | `TOIL_SKILLS_TOKEN` | HTTP access token for a private marketplace: a secret |
-| `writes` | `TOIL_SKILLS_WRITES` | `true` lets `sync`, `enable` and `disable` change skills folders from this marketplace |
+| `writes` | `TOIL_SKILLS_WRITES` | `true` or `1` lets `sync`, `enable` and `disable` change skills folders from this marketplace |
 
 A named connection uses `TOIL_CONN_<NAME>_<KEY>` instead (`TOIL_CONN_CORP_SKILLS_TOKEN`).
 A whole marketplace from env alone:

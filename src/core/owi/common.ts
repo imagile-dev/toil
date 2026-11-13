@@ -1,4 +1,4 @@
-import type { FieldOverrides, Iteration, OwiArea, OwiWarning, Person, StatusCategory, Unmapped, WorkItem, WorkItemType } from './types.js';
+import type { DimensionMap, FieldOverrides, Iteration, OwiArea, OwiWarning, Person, Release, StatusCategory, Unmapped, WorkItem, WorkItemType } from './types.js';
 import { OWI_VERSION } from './types.js';
 
 /**
@@ -28,6 +28,10 @@ export interface OwiDocument {
 
 export interface MapState {
   fields: FieldOverrides;
+  /** The toil project's extra dimensions, handed in by the caller; none when it names none. */
+  dimensions?: DimensionMap;
+  /** The ids of items whose record carried a parent field, set or not: a parent that was read, which is what `ancestors` needs to tell "no parent" from "never asked". */
+  parentRead?: Set<string>;
   warn: (code: string, message: string) => void;
 }
 
@@ -194,3 +198,45 @@ export function person(id: unknown, name: unknown, email: unknown): Person | nul
 export function current(iterations: Iteration[]): Iteration | null {
   return iterations.find((i) => i.state === 'current') ?? [...iterations].reverse().find((i) => i.state === 'future') ?? iterations[iterations.length - 1] ?? null;
 }
+
+/** The dimensions a toil project names for an area, as [name, the field that holds it]. */
+export function dimensionsFor(state: MapState, area: string): Array<[string, string]> {
+  return Object.entries(state.dimensions ?? {}).flatMap(([name, byArea]) => (Object.hasOwn(byArea, area) ? [[name, byArea[area]!] as [string, string]] : []));
+}
+
+/** A value as the list of texts it holds: a text, an option or a list of them, each once, in order. Empty when it holds none. */
+export function textsOf(value: unknown): string[] {
+  const out: string[] = [];
+  const visit = (v: unknown) => {
+    if (Array.isArray(v)) return v.forEach(visit);
+    const t = text(v);
+    if (t !== null && !out.includes(t)) out.push(t);
+  };
+  visit(value);
+  return out;
+}
+
+/** A dimension's values from one record's field, into `item.dims`; the key is only set when the field was read. */
+export function setDim(item: WorkItem, name: string, values: string[]): void {
+  item.dims = { ...item.dims, [name]: values };
+}
+
+/** A release from what a source sends for one: Jira's version object, or a bare name. Undefined when it has no name. */
+export function releaseOf(value: unknown): Release | undefined {
+  if (typeof value === 'string') return value.trim() === '' ? undefined : { id: null, name: value, released: null, date: null };
+  if (!isRecord(value)) return undefined;
+  const name = str(value.name) ?? str(value.title) ?? str(value.value);
+  if (name === null) return undefined;
+  const id = typeof value.id === 'number' ? String(value.id) : str(value.id);
+  const date = day(value.releaseDate ?? value.date);
+  const release: Release = { id, name, released: typeof value.released === 'boolean' ? value.released : null, date: typeof date === 'string' ? date : null };
+  // Jira's version `startDate`: present and a day is that day, present and empty is "none", a key the version never carried leaves `start` off (nobody read it).
+  if ('startDate' in value) release.start = typeof day(value.startDate) === 'string' ? day(value.startDate)! : null;
+  return release;
+}
+
+/** The releases a list of versions holds, in order. A value that isn't a list holds none. */
+export const releasesOf = (value: unknown): Release[] => (Array.isArray(value) ? value : []).flatMap((v) => {
+  const r = releaseOf(v);
+  return r ? [r] : [];
+});

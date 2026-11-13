@@ -1,3 +1,4 @@
+import { categorizeCommand } from './categorize.js';
 import { checkToilProject } from './check-toil-project.js';
 import { githubArea, githubSupported } from './area.js';
 import { commentCommands } from './comments.js';
@@ -13,4 +14,4 @@ import { workItemCommands } from './work-items.js';
 // Registered by existing: scripts/gen-areas.mjs finds this file.
 export const area = githubArea;
 export const supported = githubSupported;
-export const commands = [...issueCommands, ...fileCommands, ...workItemCommands, ...projectCommands, ...prCommands, ...mergingCommands, ...commentCommands, ...reviewCommands, ...statusCommands, checkToilProject];
+export const commands = [...issueCommands, categorizeCommand, ...fileCommands, ...workItemCommands, ...projectCommands, ...prCommands, ...mergingCommands, ...commentCommands, ...reviewCommands, ...statusCommands, checkToilProject];

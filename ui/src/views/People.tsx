@@ -16,19 +16,24 @@ import { Avatar } from '../components/bits.tsx';
 import { ItemLink, PrLink } from '../components/items.tsx';
 import { Card, CardGrid, Cluster, Stack } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
-import { EditLink, Help } from '../components/help.tsx';
+import { EditLink, Help, InfoTip } from '../components/help.tsx';
+import { Dash } from './Standup.tsx';
 import { useData } from '../data.ts';
 import { Empty, EmptyLink } from '../components/empty.tsx';
 import { boardHref, dateTime, toilProjectHref, sourceLabel, toilProjectEditHref } from '../format.ts';
 import { ACTIVITY_DAYS, people, type Activity, type Card as PersonCard, type Identity, type Suggestion } from '../model/people.ts';
 import { daysText, WAITING_LABEL } from '../model/prs.ts';
-import { useTerm, useTheme, useThemeChoiceContext } from '../skins.tsx';
+import { useTheme, useThemeChoiceContext } from '../skins.tsx';
 import { wordingOn } from '../theme-context.ts';
 import { rolled } from '../model/alignment.ts';
 import './people.css';
 import { AgentAssignments } from '../assign/views.tsx';
 import { failedOutcome, OutcomeLine, outcomeOf, type Outcome } from './settings/parts.tsx';
 import { MapIdentity, SaveToRepo } from './people-map.tsx';
+import { DimensionPicker } from '../components/dimension-picker.tsx';import { useAddress, useWorkInsights } from '../insights-data.ts';
+import { PERSON_MIX_DIMENSIONS } from '../model/lanes.ts';
+import { PersonMix } from './person-mix.tsx';
+import './lanes.css';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const calendarDays = (n: number) => `${round1(n)} ${round1(n) === 1 ? 'day' : 'days'}`;
@@ -37,13 +42,18 @@ const identityText = (i: Identity) => `${sourceLabel(i.area)} ${i.name && i.name
 
 export function People() {
   const { toilProject, now } = useData();
-  const term = useTerm();
   const alignments = useAlignments();
   const view = useMemo(
     () => people({ toilProject: toilProject.name, entries: toilProject.people ?? [], wipLimit: toilProject.wipLimit ?? null, items: toilProject.items, changes: toilProject.pullRequests ?? [], now }),
     [toilProject, now],
   );
   const calls = [...toilProject.calls.toilProject, ...toilProject.calls.work, ...toilProject.calls.prs];
+  const ins = useWorkInsights();
+  const { query, go } = useAddress();
+  // One menu for every card: what kind of work each person's open work is sorted by. It lives in the address, so a link shows the same bars.
+  const asked = query.get('mix');
+  const mixBy = PERSON_MIX_DIMENSIONS.find((d) => d === asked) ?? 'category';
+  const teams = useMemo(() => peopleByTeam(view.people, toilProject.people ?? []), [view.people, toilProject.people]);
   const humans = view.people.filter((c) => c.who.kind === 'human').length;
   const agents = view.people.length - humans;
 
@@ -53,12 +63,12 @@ export function People() {
         <p className="eyebrow">
           <a href={toilProjectHref(toilProject.name)}>{toilProject.name}</a>
         </p>
-        <h1 tabIndex={-1}>{term('people', 'People')}</h1>
         <p className="lede">
           {view.people.length
-            ? `${[humans ? count(humans, 'person', 'people') : '', agents ? count(agents, 'agent') : ''].filter(Boolean).join(' and ')} from the Toil project's people, and ${count(view.unmapped.length, 'account')} it doesn't map.`
-            : `This Toil project lists nobody yet, so each account its data names has a card of its own (${view.unmapped.length}).`}{' '}
-          Read {dateTime(now)}; work in progress counts work items, not the epics and features that hold them. <Help topic="people" />
+            ? `${[humans ? count(humans, 'person', 'people') : '', agents ? count(agents, 'agent') : ''].filter(Boolean).join(' and ')}, and ${count(view.unmapped.length, 'account')} not mapped.`
+            : `Nobody is listed yet, so each account its data names has a card of its own (${view.unmapped.length}).`}{' '}
+          Read {dateTime(now)}.{' '}
+          <Help topic="people" note="Work in progress counts work items, not the epics and features that hold them." />
         </p>
         {!view.people.length && (
           <p className="note">
@@ -85,13 +95,37 @@ export function People() {
             {alignments && <Help topic="alignments" />}
           </div>
           <SaveToRepo />
-          <CardGrid min="md" className="people-cards">
-            {view.people.map((c) => (
-              <li key={c.who.key}>
-                <PersonCardView card={c} limit={view.wipLimit} />
-              </li>
-            ))}
-          </CardGrid>
+          <div className="people-tools">
+            <DimensionPicker label="Show each person's work by" value={mixBy} options={PERSON_MIX_DIMENSIONS} ins={ins} onChange={(spec) => go((q) => (spec === null || spec === 'category' ? q.delete('mix') : q.set('mix', spec)))} />
+            <Help topic="people-mix" />
+          </div>
+          {teams ? (
+            teams.map((t) => (
+              <section key={t.name} className="people-team" aria-labelledby={`team-${t.id}`} data-team={t.name}>
+                <h3 id={`team-${t.id}`} className="people-team__head">
+                  {t.name}{' '}
+                  <span className="field">
+                    {count(t.cards.length, 'person', 'people')}, {t.wip} in progress
+                  </span>
+                </h3>
+                <CardGrid min="md" className="people-cards">
+                  {t.cards.map((c) => (
+                    <li key={c.who.key}>
+                      <PersonCardView card={c} limit={view.wipLimit} mixBy={mixBy} />
+                    </li>
+                  ))}
+                </CardGrid>
+              </section>
+            ))
+          ) : (
+            <CardGrid min="md" className="people-cards">
+              {view.people.map((c) => (
+                <li key={c.who.key}>
+                  <PersonCardView card={c} limit={view.wipLimit} mixBy={mixBy} />
+                </li>
+              ))}
+            </CardGrid>
+          )}
         </section>
       )}
 
@@ -132,7 +166,7 @@ export function People() {
           <CardGrid min="md" className="people-cards">
             {view.unmapped.map((c) => (
               <li key={c.who.key}>
-                <PersonCardView card={c} limit={view.wipLimit} />
+                <PersonCardView card={c} limit={view.wipLimit} mixBy={mixBy} />
               </li>
             ))}
           </CardGrid>
@@ -222,18 +256,39 @@ function useAlignments() {
   return wordingOn(theme, choice) ? theme.alignments : undefined;
 }
 
-function PersonCardView({ card, limit }: { card: PersonCard; limit: number | null }) {
+/**
+ * The cards under their team's heading, teams in name order and people in name order inside each, or null when nobody has a
+ * team (today's flat layout). Someone with no team goes last, under "No team". A team's line is its headcount and its work
+ * in progress, the team strip's own figure, and never a comparison between teams or between people.
+ */
+export function peopleByTeam(cards: PersonCard[], entries: Array<{ name: string; team?: string }>): Array<{ id: string; name: string; cards: PersonCard[]; wip: number }> | null {
+  const teamOf = new Map(entries.map((e) => [e.name, e.team ?? null]));
+  const teamed = cards.map((c) => ({ c, team: teamOf.get(c.who.name) ?? null }));
+  if (!teamed.some((t) => t.team !== null)) return null;
+  const names = [...new Set(teamed.map((t) => t.team))].sort((a, b) => (a === null ? 1 : b === null ? -1 : a.localeCompare(b)));
+  return names.map((team, i) => {
+    const mine = teamed.filter((t) => t.team === team).map((t) => t.c).sort((a, b) => a.who.name.localeCompare(b.who.name));
+    return { id: String(i), name: team ?? 'No team', cards: mine, wip: mine.reduce((n, c) => n + c.wipCount, 0) };
+  });
+}
+
+function PersonCardView({ card, limit, mixBy = 'category' }: { card: PersonCard; limit: number | null; mixBy?: string }) {
   const { toilProject } = useData();
   const alignments = useAlignments();
   const { who } = card;
   const id = `who-${who.key.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
   const seen = who.identities.find((i) => i.name) ?? who.identities[0];
+  const { none, unread } = emptyParts(card, readParts(toilProject));
+  const accounts = who.identities.length ? who.identities.map(identityText).join(' · ') : 'No identities in the Toil project yet.';
   return (
     <Card className="person-card" aria-labelledby={id}>
       <Stack gap="sm">
         <div className="person-head">
           <Avatar person={{ id: seen?.id ?? who.name, name: who.name, email: who.email }} />
           <h3 id={id}>{who.name}</h3>
+          <InfoTip label={`${who.name}'s accounts`} tip={accounts} triggerProps={{ 'data-person-accounts': '' }}>
+            <p className="any-break">{accounts}</p>
+          </InfoTip>
           <ul className="person-tags" aria-label={`About ${who.name}`}>
             {who.kind === 'agent' && <li className="person-tag">Agent</li>}
             {!who.mapped && <li className="person-tag">Not mapped</li>}
@@ -245,103 +300,168 @@ function PersonCardView({ card, limit }: { card: PersonCard; limit: number | nul
             )}
           </ul>
         </div>
-        <p className="note any-break">{who.identities.length ? who.identities.map(identityText).join(' · ') : 'No identities in the Toil project yet.'}</p>
         {!who.mapped && who.identities[0] && <MapIdentity account={who.identities[0]} />}
         <p>
-          <a href={boardHref(toilProject.name, who.key)}>{who.name}'s items on the board</a>
+          <a href={boardHref(toilProject.name, who.key)} aria-label={`${who.name}'s items on the board`}>
+            On the board
+          </a>
         </p>
+        <PersonMix name={who.name} dimension={mixBy} />
 
-        <h4>
-          In progress <span className="field">({card.wipCount}{limit !== null ? ` of ${limit}` : ''})</span>
-        </h4>
-        {card.wip.length ? (
-          card.wip.map((group) => (
-            <div key={group.status} className="person-group">
-              <p className="person-status">{group.status}</p>
-              <ul className="plain">
-                {group.items.map((w) => (
-                  <li key={w.item.id}>
-                    <ItemLink id={w.item.id} withTitle />
-                    <span className="field"> {w.days === null ? 'time in this status not recorded' : `for ${calendarDays(w.days)}`}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))
-        ) : (
-          <p className="note">Nothing in progress.</p>
-        )}
-
-        <h4>Open pull requests</h4>
-        {card.prs.length ? (
-          <ul className="plain">
-            {card.prs.map((p) => (
-              <li key={p.change.id}>
-                <PrLink change={p.change} withTitle />
-                <span className="field">
-                  {' '}
-                  {WAITING_LABEL[p.wait.on]}, {p.wait.days === null ? 'for an unknown time' : daysText(p.wait.days)}
-                  {p.withAgent && `; written with ${p.withAgent}`}
-                </span>
-              </li>
+        {card.wip.length > 0 && (
+          <>
+            <h4>
+              In progress <span className="field">({card.wipCount}{limit !== null ? ` of ${limit}` : ''})</span>
+            </h4>
+            {card.wip.map((group) => (
+              <div key={group.status} className="person-group">
+                <p className="person-status">{group.status}</p>
+                <ul className="plain">
+                  {group.items.map((w) => (
+                    <li key={w.item.id}>
+                      <ItemLink id={w.item.id} withTitle />
+                      <span className="field"> {w.days === null ? 'time in this status not recorded' : `for ${calendarDays(w.days)}`}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
-        ) : (
-          <p className="note">None open.</p>
+          </>
         )}
 
-        <h4>Reviews waiting on them</h4>
-        {card.reviews.length ? (
-          <ul className="plain">
-            {card.reviews.map((r) => (
-              <li key={r.change.id}>
-                <PrLink change={r.change} withTitle />
-                <span className="field"> {r.days === null ? 'opened at an unknown time' : `open ${daysText(r.days)}`}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="note">None waiting.</p>
-        )}
-
-        <h4>Blocked</h4>
-        {card.blocked.length ? (
-          <ul className="plain">
-            {card.blocked.map((b) => (
-              <li key={b.item.id}>
-                <ItemLink id={b.item.id} withTitle />
-                <span className="field"> blocked by </span>
-                {b.by.map((x, i) => (
-                  <span key={x.id}>
-                    {i > 0 && ', '}
-                    <ItemLink id={x.id} />
-                    {x.item ? <span className="field"> ({x.item.status ?? 'not done'})</span> : <span className="field"> (not in this Toil project, so its status is unknown)</span>}
+        {card.prs.length > 0 && (
+          <>
+            <h4>Open pull requests</h4>
+            <ul className="plain">
+              {card.prs.map((p) => (
+                <li key={p.change.id}>
+                  <PrLink change={p.change} withTitle />
+                  <span className="field">
+                    {' '}
+                    {WAITING_LABEL[p.wait.on]}, {p.wait.days === null ? 'for an unknown time' : daysText(p.wait.days)}
+                    {p.withAgent && `; written with ${p.withAgent}`}
                   </span>
-                ))}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="note">Nothing blocked.</p>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
 
-        <h4>
-          Recent activity <span className="field">(last {ACTIVITY_DAYS} days)</span>
-        </h4>
-        {card.activity.length ? (
-          <ul className="plain">
-            {card.activity.map((a, i) => (
-              <li key={i}>
-                <ActivityLine a={a} />
-              </li>
-            ))}
-            {card.moreActivity > 0 && <li className="note">and {card.moreActivity} more</li>}
-          </ul>
-        ) : (
-          <p className="note">Nothing recorded.</p>
+        {card.reviews.length > 0 && (
+          <>
+            <h4>Reviews waiting on them</h4>
+            <ul className="plain">
+              {card.reviews.map((r) => (
+                <li key={r.change.id}>
+                  <PrLink change={r.change} withTitle />
+                  <span className="field"> {r.days === null ? 'opened at an unknown time' : `open ${daysText(r.days)}`}</span>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
+
+        {card.blocked.length > 0 && (
+          <>
+            <h4>Blocked</h4>
+            <ul className="plain">
+              {card.blocked.map((b) => (
+                <li key={b.item.id}>
+                  <ItemLink id={b.item.id} withTitle />
+                  <span className="field"> blocked by </span>
+                  {b.by.map((x, i) => (
+                    <span key={x.id}>
+                      {i > 0 && ', '}
+                      <ItemLink id={x.id} />
+                      {x.item ? <span className="field"> ({x.item.status ?? 'not done'})</span> : <span className="field"> (not in this Toil project, so its status is unknown)</span>}
+                    </span>
+                  ))}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {card.activity.length > 0 && <RecentActivity card={card} />}
+
+        <Empties none={none} unread={unread} />
       </Stack>
     </Card>
+  );
+}
+
+/** How many activity lines a card shows before the rest fold behind "+N". */
+const ACTIVITY_SHOWN = 3;
+
+/** The card's recent activity: three lines, then a "+N" that opens the rest, which the model capped itself (what lay beyond that is counted, not listed). */
+function RecentActivity({ card }: { card: PersonCard }) {
+  const [open, setOpen] = useState(false);
+  const shown = open ? card.activity : card.activity.slice(0, ACTIVITY_SHOWN);
+  const folded = card.activity.length - shown.length;
+  return (
+    <>
+      <h4>
+        Recent activity <span className="field">(last {ACTIVITY_DAYS} days)</span>
+      </h4>
+      <ul className="plain">
+        {shown.map((a, i) => (
+          <li key={i}>
+            <ActivityLine a={a} />
+          </li>
+        ))}
+        {open && card.moreActivity > 0 && <li className="note">and {card.moreActivity} more</li>}
+      </ul>
+      {!open && folded + card.moreActivity > 0 && (
+        <button type="button" className="btn btn--small btn--quiet" aria-expanded={false} onClick={() => setOpen(true)} data-activity-more="">
+          +{folded + card.moreActivity}
+          <span className="sr-only"> more activity lines</span>
+        </button>
+      )}
+    </>
+  );
+}
+
+type Part = 'In progress' | 'Open pull requests' | 'Reviews waiting' | 'Blocked' | 'Recent activity';
+
+/**
+ * Which parts of a card were read at all: work items come from the work calls, pull requests from the pull request calls. A
+ * failed call, or a Toil project that reads no pull requests at all, is unknown and not none (principle 12).
+ */
+function readParts(toilProject: { calls: { work: Array<{ ok: boolean }>; prs: Array<{ ok: boolean }> }; readTargets?: Array<{ work: boolean; pullRequests: boolean }> }) {
+  const targets = toilProject.readTargets;
+  return {
+    work: (!targets || targets.some((t) => t.work)) && !toilProject.calls.work.some((c) => !c.ok),
+    prs: (!targets || targets.some((t) => t.pullRequests)) && !toilProject.calls.prs.some((c) => !c.ok),
+  };
+}
+
+/** The parts a card has nothing in, split into those that were read and found empty and those never read. */
+export function emptyParts(card: PersonCard, read: { work: boolean; prs: boolean }): { none: Part[]; unread: Part[] } {
+  const parts: Array<[Part, boolean, boolean]> = [
+    ['In progress', card.wip.length === 0, read.work],
+    ['Open pull requests', card.prs.length === 0, read.prs],
+    ['Reviews waiting', card.reviews.length === 0, read.prs],
+    ['Blocked', card.blocked.length === 0, read.work],
+    ['Recent activity', card.activity.length === 0, read.work && read.prs],
+  ];
+  return { none: parts.filter(([, empty, ok]) => empty && ok).map(([p]) => p), unread: parts.filter(([, empty, ok]) => empty && !ok).map(([p]) => p) };
+}
+
+/** The empty parts of a card as one muted line each: a dash, read aloud as "none" or "not read yet", then their names. */
+function Empties({ none, unread }: { none: Part[]; unread: Part[] }) {
+  return (
+    <>
+      {none.length > 0 && (
+        <p className="note person-empties" data-empties="none">
+          <Dash /> {none.join(' · ')}
+        </p>
+      )}
+      {unread.length > 0 && (
+        <p className="note person-empties" data-empties="not-read">
+          <Dash what="not read yet" /> {unread.join(' · ')}
+        </p>
+      )}
+    </>
   );
 }
 

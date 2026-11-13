@@ -25,8 +25,8 @@ export function whoText(a: { adapter: string | null; model: string | null; by: s
 const ADAPTER_LABEL: Record<string, string> = { claude: 'Claude', copilot: 'GitHub Copilot', codex: 'Codex' };
 
 /** `level`: the heading level of its labels, one below the heading it sits under. `done` false: still streaming, so a missing label is not yet a slip. */
-export function AnalysisBody({ parts, briefing, open = false, level = 4, done = true }: { parts: readonly AnswerPart[]; briefing?: Briefing | null; open?: boolean; level?: 3 | 4; done?: boolean }) {
-  const H = level === 3 ? 'h3' : 'h4';
+export function AnalysisBody({ parts, briefing, open = false, level = 4, done = true }: { parts: readonly AnswerPart[]; briefing?: Briefing | null; open?: boolean; level?: 2 | 3 | 4; done?: boolean }) {
+  const H = `h${level}` as 'h2' | 'h3' | 'h4';
   const words = useWords();
   const text = textOfParts(parts);
   // A briefing (#494) the server lifted out, or one still in the text (the preview's scripted agent, or mid-stream).
@@ -87,7 +87,7 @@ export function AnalysisBody({ parts, briefing, open = false, level = 4, done = 
 }
 
 /** Analyze's briefing (#494), top-down: the recommendation, each reason with its items, why and the next step, then the rest of the answer as evidence, folded. */
-function BriefingBody({ briefing: b, evidence, open, H }: { briefing: Briefing; evidence: string; open: boolean; H: 'h3' | 'h4' }) {
+function BriefingBody({ briefing: b, evidence, open, H }: { briefing: Briefing; evidence: string; open: boolean; H: 'h2' | 'h3' | 'h4' }) {
   const paragraphs = evidence.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
   return (
     <div className="analysis-body">
@@ -152,7 +152,7 @@ const pts = (n: number | null) => (n === null ? 'no estimate' : `${n} ${n === 1 
 
 /** How many things changed, in a few words, for a list entry: "2 newly blocked, 1 cleared, 3 newly cited". */
 export function changesLine(c: AnalysisChanges): string {
-  if (!c.previous) return 'The first analysis kept, so there is nothing to compare it with.';
+  if (!c.previous) return 'The first briefing kept, so there is nothing to compare it with.';
   if (unchanged(c)) return 'Nothing changed since the one before: the same blockers, points and citations.';
   const bits = [
     c.newlyBlocked.length ? `${c.newlyBlocked.length} newly blocked` : '',
@@ -179,14 +179,14 @@ function Chips({ ids }: { ids: readonly string[] }) {
   );
 }
 
-/** What changed since the analysis before, in full: each kind on its own line, with its chips. */
+/** What changed since the briefing before, in full: each kind on its own line, with its chips. */
 export function ChangesDetail({ changes: c }: { changes: AnalysisChanges }) {
   if (!c.previous) return <p className="note">{changesLine(c)}</p>;
   if (unchanged(c)) return <p className="note">{changesLine(c)}</p>;
   const sprintText = (s: NonNullable<AnalysisChanges['sprint']>['from']) => (s ? `${s.name}: ${s.done} done, ${s.remaining} left` : 'no sprint running');
   return (
     <>
-    <p className="note analysis-changes__since">Compared with the analysis of {dateTime(c.previous.at)}, by the Toil project's items then and now.</p>
+    <p className="note analysis-changes__since">Compared with the briefing of {dateTime(c.previous.at)}, by the Toil project's items then and now.</p>
     <dl className="analysis-changes">
       {c.newlyBlocked.length > 0 && (
         <div>
@@ -254,7 +254,7 @@ export function ChangesDetail({ changes: c }: { changes: AnalysisChanges }) {
       {c.recommendationChanged && (
         <div>
           <dt>Recommendation</dt>
-          <dd>A different one from the analysis before.</dd>
+          <dd>A different one from the briefing before.</dd>
         </div>
       )}
     </dl>

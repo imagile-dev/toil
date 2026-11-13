@@ -15,6 +15,7 @@ import * as cloud from './jira-cloud-data.js';
  */
 
 export const JIRA = 'https://jira.imagile.dev';
+
 const api = (path: string) => new RegExp(`^${JIRA.replace(/\./g, '\\.')}/rest/api/2${path}$`);
 const agile = (path: string) => new RegExp(`^${JIRA.replace(/\./g, '\\.')}/rest/agile/1\\.0${path}$`);
 
@@ -102,6 +103,9 @@ export const routes: Route[] = [
   // Invented from the docs: POST /rest/api/2/issue answers 201 with id, key and self.
   { method: 'POST', url: api('/issue'), respond: json({ id: '10124', key: 'PROJ-124', self: `${JIRA}/rest/api/2/issue/10124` }, 201) },
   { method: 'PUT', url: api('/issue/PROJ-123'), respond: empty },
+  // Invented from the docs: GET /rest/api/2/issue/{key}/editmeta, the fields this issue's type lets a person edit, with the options of a select.
+  { url: api('/issue/PROJ-1/editmeta'), respond: json({ fields: { labels: { required: false, name: 'Labels', operations: ['add', 'set', 'remove'] }, customfield_10042: { required: false, name: 'Work category', operations: ['set'], allowedValues: [{ id: '10500', value: 'KTLO' }, { id: '10501', value: 'Feature' }] } } }) },
+  { method: 'PUT', url: api('/issue/PROJ-[12]'), respond: empty },
   { method: 'PUT', url: api('/issue/PROJ-123/assignee'), respond: empty },
 
   // Invented from the docs: transitions.
@@ -161,7 +165,12 @@ export const routes: Route[] = [
     method: 'POST',
     url: api('/search'),
     respond: (req: RecordedRequest) => {
-      const body = JSON.parse(req.body!) as { startAt: number; maxResults: number; expand?: string[] };
+      const body = JSON.parse(req.body!) as { jql: string; startAt: number; maxResults: number; expand?: string[] };
+      // Invented from the docs: categorize reads the keys it was handed, `key in ("PROJ-1", ...)`, and gets those issues back.
+      if (body.jql.startsWith('key in')) {
+        const keys = [...body.jql.matchAll(/"([^"]+)"/g)].map((m) => m[1]!);
+        return json({ expand: 'schema,names', startAt: 0, maxResults: body.maxResults, total: keys.length, issues: keys.map((k) => issue(k)) });
+      }
       // Invented from the docs: with expand=changelog each issue carries the changelog object.
       const page = searchIssues.slice(body.startAt, body.startAt + body.maxResults).map((i) => (body.expand?.includes('changelog') ? { ...i, changelog: { startAt: 0, maxResults: 100, total: 1, histories: [{ id: '10100', author: { name: 'jsmith', displayName: 'J. Smith' }, created: '2026-10-01T09:30:00.000+0000', items: [{ field: 'status', fieldtype: 'jira', from: '1', fromString: 'To Do', to: '3', toString: 'In Progress' }] }] } } : i));
       return json({ expand: 'schema,names', startAt: body.startAt, maxResults: body.maxResults, total: searchIssues.length, issues: page });
@@ -194,6 +203,7 @@ export const routes: Route[] = [
       { id: 'summary', name: 'Summary', custom: false, orderable: true, navigable: true, searchable: true, clauseNames: ['summary'], schema: { type: 'string', system: 'summary' } },
       { id: 'customfield_10016', name: 'Story Points', custom: true, orderable: true, navigable: true, searchable: true, clauseNames: ['cf[10016]', 'Story Points'], schema: { type: 'number', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:float', customId: 10016 } },
       { id: 'customfield_10100', name: 'Epic Link', custom: true, orderable: true, navigable: true, searchable: true, clauseNames: ['cf[10100]', 'Epic Link'], schema: { type: 'any', custom: 'com.pyxis.greenhopper.jira:gh-epic-link', customId: 10100 } },
+      { id: 'customfield_10042', name: 'Work category', custom: true, orderable: true, navigable: true, searchable: true, clauseNames: ['cf[10042]', 'Work category'], schema: { type: 'option', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:select', customId: 10042 } },
       { id: 'customfield_10200', name: 'Crew', custom: true, orderable: true, navigable: true, searchable: true, clauseNames: ['cf[10200]', 'Crew'], schema: { type: 'option', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:select', customId: 10200 } },
     ]),
   },
@@ -211,6 +221,22 @@ export const routes: Route[] = [
         },
       ],
     }),
+  },
+
+  // Invented from the docs: GET /rest/api/2/project/{key}/versions and /components, each a whole array (no paging).
+  {
+    url: api('/project/PROJ/versions'),
+    respond: json([
+      { self: `${JIRA}/rest/api/2/version/10200`, id: '10200', description: 'First release', name: '1.4.2', archived: false, released: true, releaseDate: '2026-01-20', overdue: false, userReleaseDate: '20/Jan/26', projectId: 10000 },
+      { self: `${JIRA}/rest/api/2/version/10201`, id: '10201', name: '1.5.0', archived: false, released: false, startDate: '2026-02-01', releaseDate: '2026-03-01', overdue: false, projectId: 10000 },
+    ]),
+  },
+  {
+    url: api('/project/PROJ/components'),
+    respond: json([
+      { self: `${JIRA}/rest/api/2/component/10300`, id: '10300', name: 'Payments', description: 'Payment flows', lead: user('jsmith', 'J. Smith'), assigneeType: 'PROJECT_LEAD', realAssigneeType: 'PROJECT_LEAD', isAssigneeTypeValid: false, project: 'PROJ', projectId: 10000 },
+      { self: `${JIRA}/rest/api/2/component/10301`, id: '10301', name: 'Growth', assigneeType: 'UNASSIGNED', project: 'PROJ', projectId: 10000 },
+    ]),
   },
 
   // Agile: the recorded examples' shapes, with the isLast the real API sends.
@@ -248,6 +274,8 @@ export const files: Record<string, string> = {
   'query.jql': 'project = PROJ ORDER BY created DESC\n',
   'screenshot.png': 'PNG!',
   'comment.json': JSON.stringify({ body: 'Posted through jira api' }),
+  // What toil classify run writes: for categorize, shaped from the plan's own contract, not from a Jira API.
+  'classify-plan.json': JSON.stringify(cloud.classifyPlan('jira')),
 };
 
 export const config = {

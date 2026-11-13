@@ -15,7 +15,7 @@ Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the r
 |---|---|---|---|
 | Plain | Light and quiet: Fredoka on headings and figures, IBM Plex Sans to read | None: always the standard text | WCAG 2.2 AA, strict |
 | Crate | The toil site's look, in its blue: the near-black, or warm drafting paper in light, the drafting grid and the blue glow, the accent-to-highlight gradient, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
-| Harvest | A 16-bit farm: a pixel font, wooden sign panels, a sky that runs from dawn to dusk across the sprint | A patient farmhand | Decorative |
+| Harvest | A 16-bit farm: a pixel face for headings only, wooden sign panels, a sky that runs from dawn to dusk across the sprint | A patient farmhand | Decorative |
 | Starship | A bridge console: HUD frames, scanlines, a slow starfield, holo panels | A ship's log | Decorative |
 | Realm | A grimdark house ledger kept as a tabletop campaign: soot and iron around aged vellum, leather-bound panels with wax-sealed headings, a dungeon map at the foot of every page, a d20 that rolls while a view loads, an item's fields as a character sheet, the dependency graph as an engraved war-table map | A dungeon master | Decorative |
 | Sprawl | A terminal in a rain-soaked megacity: monospace type and a block cursor, faint scanlines and a CRT edge glow, neon magenta and cyan on deep blue-black, or the city at dawn in light, the skyline at the foot of the page, the dependency graph as a net map where a blocker is black ICE | A laconic street-level netrunner | Decorative |
@@ -116,8 +116,8 @@ This is the whole prompt for a question about card-payments in Crate, with the v
 You are the analyst inside Toil UI, answering a question about the Toil project "card-payments": one body of work, its tracker items, pull requests, builds and deployments. It is 2026-10-13T08:00:00.000Z.
 
 Rules:
-1. Use only your tools. owi_query, owi_get, owi_similar and owi_history read the work items Toil UI last synced for "card-payments"; owi_similar finds likely duplicates, so run it before proposing a new item. pr_query, pr_get and pr_metrics read its pull requests. people_list and person_get read what is on each person's plate; they describe load, never performance, so never rank or score people. worklog_day reads one UTC day's worklog: what changed that day, by whom and when. The other tools are toil's live read commands for the same Toil project; use them only when the cache can't answer. Never rely on anything you remember about these items.
-2. Cite every work item you mention by its OWI id in double square brackets, such as [[jira:PAY-101]], and every pull request by its change id, such as [[github:imagile/payments-web#52]], exactly as your tools returned it. Never mention an item or pull request your tools did not return: the server checks every id against your tool results and flags any it never saw.
+1. Use only your tools. owi_query, owi_get, owi_similar and owi_history read the work items Toil UI last synced for "card-payments"; owi_similar finds likely duplicates, so run it before proposing a new item. pr_query, pr_get and pr_metrics read its pull requests. insights_pivot counts the work: one measure, split by a dimension such as category, release, team or parent, across time or a second dimension, and it is the only source for a total, a share or a trend: take every figure from it, or from a view the person attached, and never estimate or work one out yourself. Say what its coverage says was not read, and a dash or null is a figure nobody read, never 0. people_list and person_get read what is on each person's plate; they describe load, never performance, so never rank or score people. worklog_day reads one UTC day's worklog: what changed that day, by whom and when. The other tools are toil's live read commands for the same Toil project; use them only when the cache can't answer. Never rely on anything you remember about these items.
+2. Cite every work item you mention by its OWI id in double square brackets, such as [[jira:PAY-101]], and every pull request by its change id, such as [[github:imagile/payments-web#52]], exactly as your tools returned it. Never mention an item or pull request your tools did not return: the server checks every id against your tool results and flags any it never saw. Cite a figure in a cell of a chart as [[cell:<column>/<row>]], with the column and row keys from the pivot or the attached view, and only for a cell the pivot or view holds: the server flags any other.
 3. You cannot change anything, and you have no tool that writes. When the question calls for a change (a re-estimate, a move to another sprint, a split story, a transition), write it as a proposal for a person to apply, in a fenced block like this, one block per change:
 ```proposal
 {"item": "<owi id>", "title": "<one line>", "reason": "<why, citing [[ids]]>", "command": "<the toil write command, such as jira issue update, or null if toil has none>", "input": {"<field>": "<value>"}, "note": "<anything to check first, or null>"}
@@ -170,6 +170,44 @@ Two settings decide what moves, in this order:
 Each theme says which particles it has in its `theme.json`, as `"ambient": { "particles": "dust" }`, so the setting knows what it controls. The Toil UI choice is kept in this browser only, never in toil's config.
 
 A theme's splash, loading screens and moments follow the same **Motion** setting (Theme moments, below), which reads off whenever either of the two asks for less.
+
+## Chart marks
+
+Every chart tells its series apart by a **mark**, not by colour alone, so a chart reads in greyscale, printed, or to someone who can't tell the hues apart. Each theme ships four marks per colour scheme in `theme.json`, beside `schemes`:
+
+```json
+"series": {
+  "light": [ { "name": "Riveted iron plate", "fill": "#d9d6cf", "stroke": "#3e3a35", "detail": "#a8a49b", "frame": "ironplate", "style": "heavy" }, ... ],
+  "dark":  [ ... ]
+}
+```
+
+- **`name`** belongs to theme authors. It is never shown on a screen.
+- **`fill`** is the pale colour inside a segment, **`stroke`** the colour of its border, **`detail`** a frame's second tone (the stroke again where a frame has one tone).
+- **`style`** is the simple border the mark falls back to: `solid`, `heavy` (4px), `dashed`, `dotted`, `double` (a second outline inset 3px), `dashdot` or `pixel` (square 3px blocks, drawn crisp, like a sprite's border). On a line chart the style is the line's dash pattern.
+- **`frame`** names the picture border in the theme's sprite. Plain and Crate leave it out. Within a theme the four marks have four different styles, and four different frames where there are any.
+- **Contrast.** A mark's `stroke` must reach 3:1 against the theme's surface and against its own fill, in its scheme (WCAG 1.4.11), in the decorative themes too, because the border is what carries the data. `ui/test/chartkit-marks.test.ts` holds every theme to it, and to the colours the maintainer accepted. Status colours (`ok`, `warn`, `danger`) are never a mark.
+
+A mark follows the value, never its rank: a classification's categories take their marks by their order in the scheme, other values take the lowest free mark in a stable order unless pinned, and filtering a chart never restyles a series. **Other** and **None** are not marks: Other is a muted fill with no border, None has no fill and a thin muted dashed border, both drawn from the theme's own tokens.
+
+### Frames are art
+
+A decorative theme's frames are one sprite, `ui/themes/<name>/assets/series.svg` (listed in its `assets` as `series`), holding for each of its four frames, the names in `series[...].frame`, two `<symbol>`s:
+
+- `<frame>-corner`, drawn for the **top-left** corner, `viewBox="0 0 8 8"`;
+- `<frame>-edge`, drawn for the **top** edge as a tile, `viewBox="0 0 8 8"`, which tiles along each side.
+
+Both carry `preserveAspectRatio="none"`, so a tile stretched a little to fit a side keeps its art; the pixel themes (Harvest, Overworld) add `shape-rendering="crispEdges"` and draw axis-aligned rectangles on the 8 by 8 grid.
+
+Paint only in `currentColor` (the mark's `stroke`) and `var(--mark-detail)` (its `detail`), so one asset serves light and dark; `none` is allowed too. Keep the art within 7 of the tile's 8 units from the segment's edge, so the middle stays clear. No raster images, text, external references, scripts or `<style>`. A corner's two outer edges must have the same cross-section as the edge tile, so build it as the edge, plus the same edge turned about the diagonal, plus a decoration on top.
+
+The chart kit places the four corners (turned 0, 90, 180 and 270 degrees) and tiles the edge along each side, turned to face it: the nine slices of CSS `border-image`, drawn in SVG so it works inside a chart. Each tile overlaps the next by half a pixel, so no seam shows. The page gets the current theme's sprite inline (`src/components/chartkit/sprite.ts`: bundled as text, injected once into a hidden element, swapped when the theme changes), not as an external `<use>`, so it needs no extra request and works under Toil UI's Content-Security-Policy and in the site's showcase. The budget is the theme art budget: 64 KB a file and 320 KB a theme, which `ui/test/themes.test.ts` and `ui/test/chartkit-marks.test.ts` hold, along with every frame having both symbols and the paints being only the two above.
+
+The simple border is drawn instead of the frame when a segment is under 26 by 22 px, in forced-colours mode (every mark is then a system colour and only the border style tells them apart), on lines, and when **Simple chart marks** is on.
+
+### Simple chart marks
+
+Under Settings, Appearance, **Simple chart marks** makes every chart use the simple border instead of the frame, for anyone who finds the frames busy. It is kept in this browser only, never in toil's config, and it changes nothing in Plain and Crate, which have no frames.
 
 ## Theme moments
 

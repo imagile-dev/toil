@@ -101,6 +101,46 @@
     ]
   },
   {
+    "name": "issue close",
+    "tool": "github_issue_close",
+    "description": "Close an issue (a pull request's number closes the pull request)",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<number>",
+      "--reason <reason>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "issue reopen",
+    "tool": "github_issue_reopen",
+    "description": "Reopen a closed issue (a pull request's number reopens the pull request)",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<number>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "issue categorize",
+    "tool": "github_issue_categorize",
+    "description": "Apply a classification plan: label issues and pull requests with their category, and set a project field",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--from <file>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
     "name": "repo file",
     "tool": "github_repo_file",
     "description": "Read one file from a repository",
@@ -178,6 +218,20 @@
     ]
   },
   {
+    "name": "milestone list",
+    "tool": "github_milestone_list",
+    "description": "List a repository's milestones",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--state <state>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
     "name": "project list",
     "tool": "github_project_list",
     "description": "List an owner's projects (v2)",
@@ -229,6 +283,20 @@
       "[number]",
       "--item <id>",
       "--to <status>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "project add",
+    "tool": "github_project_add",
+    "description": "Add an issue or pull request to a project (put it on the board)",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<project>",
+      "<number>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"

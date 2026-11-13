@@ -8,22 +8,30 @@
  * toil project's focus left out or the code flagged that Analyze didn't mention.
  * The numbers wait behind a fold, and every other view is a quiet link away
  * as well as a tab. Analyze writes it when its latest answer is current;
- * otherwise code does, and the page says which (principle 4). Briefing notes,
- * with the appendix stapled to the back rather than the front.
+ * otherwise code does, and the page says which (principle 4). Get a briefing is
+ * here, beside the briefing it replaces, and the new one lands in this place
+ * (#567); earlier ones are a step in, at `…/summary/briefings`. Between the
+ * cards and the fold sit three small charts (views/summary-charts.tsx), each a
+ * link to its full page. Briefing notes, with the appendix stapled to the back
+ * rather than the front.
  */
 
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { Sparkline } from '../components/charts.tsx';
+import { ChevronDownIcon, ChevronRightIcon } from '../components/icons.tsx';
 import { briefingSource, Customize, PeekLinks, useBriefing } from '../components/briefing.tsx';
-import { setPrefs, useBriefingPrefs } from '../briefing-prefs.ts';
+import { useChatScope } from '../components/ask.tsx';
+import { ANALYZE } from '../agent.ts';
+import { SummaryCharts } from './summary-charts.tsx';
+import { useBriefingPrefs } from '../briefing-prefs.ts';
 import { AnswerHero, NeedsAttention } from '../components/summary.tsx';
 import { answerOf, cardsOf, contextOf } from '../model/summary.ts';
 import { parseRoute } from '../App.tsx';
 import { Help } from '../components/help.tsx';
 import { Cited, PrLink } from '../components/items.tsx';
 import { useData, useDerived } from '../data.ts';
-import { analysesHref, analysisHref, boardHref, dependenciesHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, toilProjectEditHref, worklogHref } from '../format.ts';
+import { analysesHref, analysisHref, boardHref, dependenciesHref, diagramHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, standupHref, toilProjectEditHref, worklogHref } from '../format.ts';
 import { Empty, TrackerAction } from '../components/empty.tsx';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput } from '../model/flow.ts';
@@ -33,6 +41,7 @@ import { useSkins, useWords } from '../skins.tsx';
 import { usePlain } from '../plain-words.ts';
 import { StandupCard } from '../components/standup-card.tsx';
 import { Aging, CycleTime, SprintDetail, Throughput } from './Flow.tsx';
+import { Splittable } from './split-modal.tsx';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -42,6 +51,8 @@ export function Overview() {
   const view = useBriefing();
   const prefs = useBriefingPrefs();
   const plain = usePlain();
+  // Closed on every visit: the Summary's focus is the status and what needs attention. Only a finished Get a briefing, or a red line's jump, opens it.
+  const [fullOpen, setFullOpen] = useState(false);
   // Worked out once per briefing and clock, from the models the full briefing below reads, so the two can't disagree.
   const { answer, cards } = useMemo(() => {
     const c = contextOf({ d: toilProject, now, byId, h, p, view, plain: plain.on });
@@ -74,6 +85,7 @@ export function Overview() {
           )}
         </span>
       </p>
+      <BriefingActions view={view} onWritten={() => setFullOpen(true)} />
       {/* A briefing that didn't parse, or named items this toil project lacks, is said up here: a layout fold never hides it. */}
       {view.problems.map((p) => (
         <p key={p} className="briefing__warning" role="note">
@@ -92,7 +104,7 @@ export function Overview() {
           {alerts.map((r) => (
             <p key={r.lens} className="reason reason--line" data-alert={r.lens}>
               <span className="reason__dot reason__dot--danger" aria-hidden="true" />
-              <button type="button" className="reason__jump" onClick={() => showReason(r.lens)}>
+              <button type="button" className="reason__jump" onClick={() => showReason(r.lens, setFullOpen)}>
                 <b>{r.label}</b>
                 {r.items.length > 0 && <span className="reason__count">{r.items.length}</span>}
                 <span className="sr-only">, show it in the full briefing</span>
@@ -134,30 +146,31 @@ export function Overview() {
         </div>
       )}
       {worklog && <StandupCard api={worklog} />}
-      <details
-        className="briefing__full"
-        open={prefs.fullOpen}
-        onToggle={(e) => {
-          if (e.currentTarget.open !== prefs.fullOpen) setPrefs({ fullOpen: e.currentTarget.open });
-        }}
-        data-full-briefing=""
-      >
-        <summary>Show the full briefing</summary>
-        <p className="briefing__meta">
-          <Customize lenses={view.reasons.filter((r) => r.severity !== 'danger').map((r) => ({ lens: r.lens, label: r.label }))} />
-          {tuned && (
+      <SummaryCharts />
+      <div className="briefing__full" data-full-briefing="">
+        <Button className="briefing__toggle" aria-expanded={fullOpen} aria-controls="full-briefing-body" onPress={() => setFullOpen((o) => !o)} data-full-toggle="">
+          {fullOpen ? <ChevronDownIcon size={16} /> : <ChevronRightIcon size={16} />}
+          {fullOpen ? 'Hide the full briefing' : 'Show the full briefing'}
+        </Button>
+        {/* Hidden, not left out of the page: it renders as a closed details did, and an item shown from a line outside it can open it. */}
+        <div id="full-briefing-body" className="briefing__full-body" hidden={!fullOpen}>
+        {tuned && (
+          <p className="briefing__meta">
             <span className="source" data-focus-from="">
               {plain.pw('Analyze settings', 'Briefing settings')} from {tuned.file}, {tuned.adopted ? 'your own Toil project' : "a Toil project you haven't adopted"}
             </span>
-          )}
-        </p>
+          </p>
+        )}
         <Links page={prefs.opensIn === 'page'}>
           <h2 className="sr-only">Recommendation</h2>
           <p className="briefing__head">{view.recommendation ? <Cited text={view.recommendation} /> : 'Nothing needs anyone right now.'}</p>
         <section aria-labelledby="why-title">
-          <h2 id="why-title" className="briefing__label">
-            Why <Help topic="briefing" />
-          </h2>
+          <div className="briefing__labelrow">
+            <h2 id="why-title" className="briefing__label">
+              Why <Help topic="briefing" />
+            </h2>
+            <Customize lenses={view.reasons.filter((r) => r.severity !== 'danger').map((r) => ({ lens: r.lens, label: r.label }))} />
+          </div>
           <div className="reasons">
             {shown.map((r, i) => (
               <Reason key={`${r.lens}-${i}`} reason={r} open={i === 0 && prefs.firstOpen} here={here} />
@@ -216,24 +229,99 @@ export function Overview() {
           <summary>The numbers</summary>
           <MetricStrip />
         </details>
-        </details>
+        </div>
+      </div>
       <nav className="briefing__links" aria-label={`More on ${toilProject.name}`}>
         <span className="briefing__label">Go to</span>
         <a href={boardHref(toilProject.name)}>Board</a>
         <a href={dependenciesHref(toilProject.name)} title={plain.title('Dependencies')}>{plain.pw('Dependencies', 'What blocks what')}</a>
+        <a href={diagramHref(toilProject.name)} data-diagram-link="">Architecture</a>
         <a href={prsHref(toilProject.name)} title={plain.title('Pull requests')}>{plain.pw('Pull requests', 'Code reviews')}</a>
         <a href={peopleHref(toilProject.name)}>People</a>
         {worklog && <a href={standupHref(toilProject.name)}>Stand-up</a>}
         <a href={worklogHref(toilProject.name)} title={plain.title('Worklog')}>{plain.pw('Worklog', 'What happened')}</a>
-        <a href={analysesHref(toilProject.name)} title={plain.title('Analyses')}>{plain.pw('Analyses', 'Past briefings')}</a>
       </nav>
     </section>
   );
 }
 
+/**
+ * Get a briefing, where the briefing is (#567): the button beside the one it replaces, and the result landing here. Pressing it asks
+ * the agent (the same Analyze the Ask bar runs); when the answer is kept the briefing above is the new one, the full briefing opens (the only time it opens by itself)
+ * on it, and the status beside the button is a two-word confirmation (the hero above says when and by whom). A run that fails says so here, not only in the chat. Earlier ones are a
+ * quiet link a step in. One button, and no tab to look for the result in.
+ */
+function BriefingActions({ view, onWritten }: { view: ReturnType<typeof useBriefing>; onWritten: () => void }) {
+  const chat = useChatScope();
+  const plain = usePlain();
+  const { toilProject } = useData();
+  const list = chat?.history.list ?? null;
+  const running = chat?.turns.find((t) => t.analyze && !t.done) ?? null;
+  const [said, setSaid] = useState<{ ok: boolean; text: string } | null>(null);
+  // The analysis on screen when it was asked, so the one that replaces it is known when it arrives.
+  const asked = useRef<{ was: string | null } | null>(null);
+  const seen = useRef<string | null>(null);
+  const label = plain.pw('Analyze now', 'Get a briefing');
+  const id = view.analysis?.id ?? null;
+  useEffect(() => {
+    const ask = asked.current;
+    if (ask && id && id !== ask.was) {
+      asked.current = null;
+      onWritten();
+      // The hero already says when it was written and by whom; this is only the confirmation, read aloud.
+      setSaid({ ok: true, text: 'Briefing updated' });
+      // The fold opens on the next paint; the briefing is then brought into view and the keyboard put on it.
+      setTimeout(() => {
+        const d = document.querySelector<HTMLElement>('[data-full-briefing]');
+        d?.scrollIntoView?.({ block: 'start' });
+        d?.querySelector<HTMLElement>('[data-full-toggle]')?.focus({ preventScroll: true });
+      }, 50);
+    }
+    seen.current = id;
+  }, [id, view.analysis]);
+  // A run that ended in an error is said here too: the chat holds the whole message.
+  const failed = !running && asked.current ? chat?.turns.filter((t) => t.analyze && t.done && t.error).at(-1) : undefined;
+  useEffect(() => {
+    if (failed?.error) {
+      asked.current = null;
+      setSaid({ ok: false, text: failed.error });
+    }
+  }, [failed]);
+  const earlier = list ? list.length - (view.by === 'analyze' ? 1 : 0) : 0;
+  if (!chat && earlier <= 0) return null;
+  return (
+    <p className="briefing__actions" data-briefing-actions="">
+      {chat && (
+        <Button
+          className="btn btn--small"
+          isDisabled={chat.busy}
+          onPress={() => {
+            asked.current = { was: seen.current };
+            setSaid(null);
+            void chat.ask(ANALYZE, plain.pw('Analyze', 'Get a briefing'));
+          }}
+          data-get-briefing=""
+        >
+          {running ? 'Writing the briefing…' : label}
+        </Button>
+      )}
+      {earlier > 0 && (
+        <a href={analysesHref(toilProject.name)} data-earlier-briefings="">
+          {plain.pw('Earlier analyses', 'Earlier briefings')} ({earlier})
+        </a>
+      )}
+      {said && (
+        <span className={said.ok ? 'note' : 'failure'} role="status" data-briefing-said="">
+          {said.text}
+        </span>
+      )}
+    </p>
+  );
+}
+
 /** Opens the full briefing and the reason a line outside it names, and puts the keyboard on it. */
-function showReason(lens: string) {
-  setPrefs({ fullOpen: true });
+function showReason(lens: string, open: (v: boolean) => void) {
+  open(true);
   setTimeout(() => {
     const d = document.querySelector<HTMLDetailsElement>(`details[data-reason="${CSS.escape(lens)}"]`);
     if (!d) return;
@@ -296,7 +384,7 @@ function Row({ id, here, note }: { id: string; here: string; note?: string }) {
 }
 
 /** One metric: its name, its figure in words, a sparkline, and, pressed, its full chart in a dialog. */
-function Metric({ id, label, value, unit, spark, title, children }: { id: string; label: string; value: string; unit: string; spark: ReactNode; title: string; children: ReactNode }) {
+function Metric({ id, label, value, unit, spark, title, children }: { id: string; label: string; value: string; unit: string; spark: ReactNode; title: string; children: ReactNode | ((close: () => void) => ReactNode) }) {
   return (
     <li className="metric">
       <DialogTrigger>
@@ -320,7 +408,7 @@ function Metric({ id, label, value, unit, spark, title, children }: { id: string
                       Close
                     </Button>
                   </div>
-                  {children}
+                  {typeof children === 'function' ? children(close) : children}
                 </div>
               )}
             </Dialog>
@@ -380,7 +468,11 @@ function MetricStrip() {
           )}
         </Metric>
         <Metric id="throughput" label={pw('Throughput', 'Finished')} value={String(round1(mean))} unit="a week" spark={<Sparkline kind="bars" values={t.weeks.map((w) => w.items.length)} />} title={pw('Throughput', 'Finished a week')}>
-          <Throughput />
+          {(close) => (
+            <Splittable measure="throughput" onNavigate={close}>
+              <Throughput />
+            </Splittable>
+          )}
         </Metric>
         <Metric
           id="cycle"
@@ -390,11 +482,19 @@ function MetricStrip() {
           spark={<Sparkline values={cycles.map((c) => c.days)} mark={p.p85?.days ?? null} />}
           title={pw('Cycle time', 'Time to finish')}
         >
-          <CycleTime />
+          {(close) => (
+            <Splittable measure="cycleTime" onNavigate={close}>
+              <CycleTime />
+            </Splittable>
+          )}
         </Metric>
         <Metric id="aging" label={pw('Aging WIP', 'Work getting old')} value={String(ages.length)} unit={ages.length ? `in progress, oldest ${round1(ages[0]!.days)} d` : 'in progress'} spark={<Sparkline kind="bars" values={ages.map((a) => a.days)} mark={p.p85?.days ?? null} />} title={pw('Aging work in progress', 'Work getting old')}>
-          <p className="note">{words('aging.note')}</p>
-          <Aging />
+          {(close) => (
+            <Splittable measure="aging" onNavigate={close}>
+              <p className="note">{words('aging.note')}</p>
+              <Aging />
+            </Splittable>
+          )}
         </Metric>
         <Metric id="pr-wait" label={pw('PR wait', 'Review wait')} value={queue.length ? String(round1(longest)) : '0'} unit={queue.length ? `working days, ${queue.length} open` : 'open'} spark={<Sparkline kind="bars" values={waits} />} title={pw('Pull requests waiting', 'Code reviews waiting')}>
           {queue.length ? (

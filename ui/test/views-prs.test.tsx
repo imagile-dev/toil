@@ -8,9 +8,19 @@ import { open, panel, tabs, resetBrowserState } from './views-kit.tsx';
 beforeEach(resetBrowserState);
 
 describe('the pull requests view', () => {
+  it("keeps each panel's explanation behind its (i), and what qualifies a figure on the page", async () => {
+    await open('#/project/checkout-web/prs');
+    const text = document.body.textContent!;
+    for (const sentence of ['Drafts come last', 'A first review waiting over', 'For open pull requests with nobody asked', "unknown counts those whose record can't say"]) expect(text).not.toContain(sentence);
+    expect(panel('Flow').textContent).toMatch(/\d+ weeks from .*\. n is how many pull requests a figure rests on\./);
+    await userEvent.click(within(panel('Waiting now')).getByRole('button', { name: 'About the waiting list' }));
+    expect((await screen.findByRole('dialog', { name: 'About the waiting list' })).textContent).toContain('working days, Monday to Friday UTC');
+  });
+
   it('ranks the open pull requests by wait, with what each waits on, its author kind, items and flags', async () => {
     await open('#/project/checkout-web/prs');
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Code reviews');
+    expect(document.querySelector('[data-tab-panel] h1')).toBeNull();
+    expect(screen.getByText(/open across/)).toBeTruthy();
     const rows = within(panel('Waiting now')).getAllByRole('row').slice(1);
     expect(rows.map((r) => within(r).getByRole('rowheader').textContent)).toEqual([
       expect.stringContaining('payments-web #51 Retry the address lookup once'),

@@ -348,6 +348,21 @@ export const workAddCommentCommand = adoArea.command({
   run: (input, ctx) => adoc(ctx, `${projectPath(ctx)}/_apis/wit/workItems/${enc(input.id)}/comments`, { method: 'POST', query: { 'api-version': API_COMMENTS }, json: { text: input.body } }),
 });
 
+// Written for Services from the Classification Nodes reference
+// (https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/classification-nodes/get-classification-node),
+// to match Server's recorded command: the same path, flag and wording, the area tree where iterations has its dates.
+export const workListAreasCommand = adoArea.command({
+  path: ['ado', 'work-item', 'areas'],
+  description: 'List classification areas for the team project (tree)',
+  toolDescription: "Returns the project's area-path tree, to the given depth (10 by default).",
+  input: z.object({ depth: z.number().int().min(0).optional().describe('Depth of the tree to retrieve (default: "10")') }),
+  writes: false,
+  context: IN_PROJECT,
+  options: [{ flags: '--depth <n>', field: 'depth', description: 'Depth of the area tree to retrieve (default: "10")' }],
+  examples: [at, { ...all, depth: 2 }],
+  run: (input, ctx) => adoc(ctx, `${projectPath(ctx)}/_apis/wit/classificationnodes/areas`, { query: { $depth: input.depth ?? 10 } }),
+});
+
 const DEPTH = 'Depth of the iteration tree to retrieve (default: 10)';
 
 export const workListIterationsCommand = adoArea.command({
@@ -380,4 +395,4 @@ export const workListStatesCommand = adoArea.command({
   },
 });
 
-export const workCommands = [workGetCommand, workCreateCommand, workUpdateCommand, workTransitionCommand, workSearchCommand, workRevisionsCommand, workFeedCommand, workGetBatchCommand, workListCommentsCommand, workAddCommentCommand, workListIterationsCommand, workListStatesCommand];
+export const workCommands = [workGetCommand, workCreateCommand, workUpdateCommand, workTransitionCommand, workSearchCommand, workRevisionsCommand, workFeedCommand, workGetBatchCommand, workListCommentsCommand, workAddCommentCommand, workListAreasCommand, workListIterationsCommand, workListStatesCommand];

@@ -46,12 +46,33 @@ export interface FontPair {
   mono?: string;
 }
 
+/** How a series mark's simple border is drawn (src/components/chartkit/marks.tsx). */
+export const MARK_STYLES = ['solid', 'heavy', 'dashed', 'dotted', 'double', 'dashdot', 'pixel'] as const;
+export type MarkStyle = (typeof MARK_STYLES)[number];
+
+/**
+ * One of a theme's four series marks (docs/work-insights-proposal.md, Series marks): a pale `fill`, a `stroke` that
+ * reaches 3:1 against the surface and the fill, a `detail` (a frame's second tone, the stroke again where a frame has
+ * one), the simple `style` it falls back to, and, in the decorative themes, the `frame` whose picture border the
+ * theme's sprite holds. `name` belongs to theme authors and is never shown.
+ */
+export interface Mark {
+  name: string;
+  fill: string;
+  stroke: string;
+  detail: string;
+  style: MarkStyle;
+  frame?: string;
+}
+
 export interface ThemeManifest {
   name: string;
   label: string;
   description: string;
   /** Both schemes, light and dark (#507); the first listed is the theme's default. */
   schemes: Record<Scheme, Record<Token, string>>;
+  /** The four series marks for each scheme (exactly four each, which test/chartkit-marks.test.ts holds; ui/docs/themes.md, Series marks). */
+  series: Record<Scheme, Mark[]>;
   fonts: { body: string; display: string; mono: string };
   /**
    * The pairings this theme offers beside its own `fonts` ("The theme's own",

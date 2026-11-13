@@ -85,10 +85,12 @@ export const CORE_SAFETY = [
   'keychain', 'secret-input', 'secret-shapes', 'prompt', 'token',
   // Files, local paths and git.
   'files', 'local-path', 'gitignore', 'git', 'git-repo', 'git-config', 'git-remote',
+  // The stored architecture diagrams: where they live, the link checks, and what may be written into one (#582).
+  'diagrams',
   // The network: which hosts, which credentials, which requests.
   'network', 'rest', 'api', 'api-path', 'http', 'passthrough', 'multipart', 'progress',
   // Limits, the audit log and config on disk.
-  'bounds', 'audit', 'config', 'errors', 'envelope', 'shell-profile', 'runtime', 'renamed-areas',
+  'bounds', 'audit', 'config', 'errors', 'envelope', 'shell-profile', 'runtime', 'renamed-areas', 'env-boolean',
   // The bounds' other enforcers: wait's cap and glob matching.
   'wait', 'wildmatch',
 ];
@@ -105,6 +107,8 @@ export const SAFETY_ELSEWHERE_CORE = new Set([
 ]);
 export const SAFETY_CORE_FOLDERS = [
   'src/os/', 'src/shims/', 'src/mcp/', 'src/core/query/', 'src/connections/', 'src/skills/', 'src/setup/', 'src/feedback/', 'src/projects/',
+  // Work classification: the scheme catalog's writes, and the plan reader that holds a categorize call to the plan's own labels.
+  'src/core/classify/', 'src/classify/',
   // The CLI-to-MCP parity suite and its shards: what keeps the two front doors 1:1.
   'test/parity/',
   // The shipped skill: every page ships to users' agents as instructions, and most say how a write gate works.

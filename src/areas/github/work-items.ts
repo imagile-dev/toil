@@ -233,4 +233,34 @@ export const issueEventsCommand = githubArea.command({
   },
 });
 
-export const workItemCommands = [listIssuesCommand, searchIssuesCommand, getIssueCommand, issueEventsCommand];
+
+
+export const listMilestonesCommand = githubArea.command({
+  path: ['github', 'milestone', 'list'],
+  description: "List a repository's milestones",
+  toolDescription:
+    "Lists a repository's milestones as GitHub returns them: number, title, description, state, due_on, open_issues, closed_issues and closed_at. These are the values an issue's milestone can take, and what a release is on GitHub. state is open by default. With limit, pass meta.page.nextCursor as cursor for the next page.",
+  input: z.object({
+    state: z.enum(['open', 'closed', 'all']).optional().describe('Milestone state (choices: "open", "closed", "all", default: "open")'),
+    ...pageFields('milestones'),
+  }),
+  writes: false,
+  options: [{ flags: '--state <state>', field: 'state', description: 'Milestone state (choices: "open", "closed", "all", default: "open")' }, ...pageOptions('milestones')],
+  examples: [
+    { owner: 'imagile', repo: 'toil-probe' },
+    { owner: 'imagile', repo: 'toil-probe', state: 'all' },
+    { owner: 'imagile', repo: 'toil-probe', limit: 1, cursor: exampleCursor() },
+  ],
+  run: async (input, ctx) => {
+    const { owner, repo } = target(ctx);
+    return githubList<Record<string, unknown>>(
+      ctx,
+      apiPath`/repos/${owner}/${repo}/milestones`,
+      `GitHub milestones in ${owner}/${repo}`,
+      { state: input.state ?? 'open' },
+      { limit: input.limit, cursor: input.cursor },
+    );
+  },
+});
+
+export const workItemCommands = [listIssuesCommand, searchIssuesCommand, getIssueCommand, issueEventsCommand, listMilestonesCommand];

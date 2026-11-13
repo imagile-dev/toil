@@ -23,6 +23,8 @@ export interface BriefRecords {
   duplicates: string[];
 }
 
+/** The one other command whose envelope holds records: `sample team` prints exactly what `util owi map` does, so it can be piped in the same way. */
+const SAMPLE_COMMAND = 'sample team';
 const CATEGORIES = new Set<StatusCategory>(['TODO', 'IN_PROGRESS', 'DONE', 'UNKNOWN']);
 const STATES = new Set<ChangeState>(['OPEN', 'MERGED', 'DECLINED', 'DRAFT']);
 const isEnvelope = (v: unknown): v is { ok: unknown; data?: unknown; meta: { command: string } } => isRecord(v) && 'ok' in v && isRecord(v.meta) && typeof v.meta.command === 'string';
@@ -83,7 +85,7 @@ export function readBriefRecords(text: string): BriefRecords {
   };
   const walk = (value: unknown, at: string, depth: number): void => {
     if (isEnvelope(value)) {
-      if (value.meta.command !== 'util owi map') {
+      if (value.meta.command !== 'util owi map' && value.meta.command !== SAMPLE_COMMAND) {
         throw new ToilError('INVALID_INPUT', `${at === 'the input' ? 'The input' : at} is the output of "${value.meta.command}", not OWI records.`, { fix: `Map it first: pipe it through toil util owi map, then into toil projects brief.` });
       }
       if (value.ok !== true) return void out.skipped.push({ at, reason: 'the util owi map call failed, so it holds no records' });

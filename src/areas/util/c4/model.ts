@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ToilError } from '../../../core/errors.js';
 import type { Warning } from '../../../core/envelope.js';
-import { KIND_LABEL, VIEW_TYPES, type ComputedView, type Element, type ElementKind, type ViewEdge, type ViewType } from './view.js';
+import { HOW, KIND_LABEL, VIEW_TYPES, type ComputedView, type Element, type ElementKind, type ViewEdge, type ViewType } from './view.js';
 
 export { typeLine, VIEW_TYPES, type ComputedView, type Element, type ElementKind, type ViewEdge, type ViewType } from './view.js';
 
@@ -25,9 +25,12 @@ const name = z.string().min(1, 'a name is required').describe('The name shown on
 const description = z.string().optional().describe('What it is or does, in a sentence');
 const technology = z.string().optional().describe('The technology, e.g. "React", "PostgreSQL", "Spring Boot"');
 const external = z.boolean().optional().describe('Outside the organisation or team that owns the model; drawn grey (default: false)');
+const how = z.enum(HOW).optional().describe('How it is known: "observed" (read from a file or a command) or "inferred" (concluded from other evidence). Left out when not said; an inferred one is drawn dashed or dotted');
+const source = z.string().optional().describe('For an observed fact: the file and line, or the command, it was read from. Never an address or a secret');
+const reason = z.string().optional().describe('For an inferred fact: why it is believed');
 
 const component = z
-  .object({ id, name, description, technology, external })
+  .object({ id, name, description, technology, external, how, source, reason })
   .strict()
   .describe('A component: a grouping of code inside a container');
 
@@ -38,6 +41,9 @@ const container = z
     description,
     technology,
     external,
+    how,
+    source,
+    reason,
     database: z.boolean().optional().describe('Draw it as a database (default: false)'),
     components: z.array(component).optional().describe('The components inside this container'),
   })
@@ -45,11 +51,11 @@ const container = z
   .describe('A container: something that runs or stores data, inside a software system');
 
 const system = z
-  .object({ id, name, description, external, containers: z.array(container).optional().describe('The containers inside this system') })
+  .object({ id, name, description, external, how, source, reason, containers: z.array(container).optional().describe('The containers inside this system') })
   .strict()
   .describe('A software system');
 
-const person = z.object({ id, name, description, external }).strict().describe('A person: a user, actor or role');
+const person = z.object({ id, name, description, external, how, source, reason }).strict().describe('A person: a user, actor or role');
 
 const relationship = z
   .object({
@@ -57,6 +63,9 @@ const relationship = z
     destination: z.string().describe('The id of the element it points to'),
     description: z.string().optional().describe('What the source does with the destination, e.g. "Reads orders from"'),
     technology,
+    how,
+    evidence: z.string().optional().describe('For an observed relationship: the file and line, or the command, it was read from (a relationship already has a source, the element it starts from). Never an address or a secret'),
+    reason,
   })
   .strict()
   .describe('A relationship between two elements, at any level');
@@ -89,6 +98,13 @@ export const c4ModelSchema = z
 export type C4Model = z.infer<typeof c4ModelSchema>;
 export type C4View = C4Model['views'][number];
 
+/** How an element or relationship is known, only the parts it says, so a model that says nothing carries nothing extra. */
+const known = (x: { how?: 'observed' | 'inferred' | undefined; source?: string | undefined; reason?: string | undefined }) => ({
+  ...(x.how === undefined ? {} : { how: x.how }),
+  ...(x.source === undefined ? {} : { source: x.source }),
+  ...(x.reason === undefined ? {} : { reason: x.reason }),
+});
+
 /** Every element by id, nested ones included. */
 export function indexElements(model: C4Model): Map<string, Element> {
   const out = new Map<string, Element>();
@@ -97,10 +113,10 @@ export function indexElements(model: C4Model): Map<string, Element> {
   };
   (model.people ?? []).forEach((p, i) => put({ ...p, kind: 'person', external: p.external ?? false, database: false, path: `people[${i}]` }));
   model.systems.forEach((s, i) => {
-    put({ id: s.id, name: s.name, description: s.description, kind: 'system', external: s.external ?? false, database: false, path: `systems[${i}]` });
+    put({ id: s.id, name: s.name, description: s.description, kind: 'system', external: s.external ?? false, database: false, ...known(s), path: `systems[${i}]` });
     (s.containers ?? []).forEach((c, j) => {
       const cPath = `systems[${i}].containers[${j}]`;
-      put({ id: c.id, name: c.name, description: c.description, technology: c.technology, kind: 'container', external: c.external ?? s.external ?? false, database: c.database ?? false, parent: s.id, path: cPath });
+      put({ id: c.id, name: c.name, description: c.description, technology: c.technology, kind: 'container', external: c.external ?? s.external ?? false, database: c.database ?? false, ...known(c), parent: s.id, path: cPath });
       (c.components ?? []).forEach((k, n) =>
         put({ ...k, kind: 'component', external: k.external ?? c.external ?? s.external ?? false, database: false, parent: c.id, path: `${cPath}.components[${n}]` }),
       );
@@ -215,6 +231,28 @@ export function loadModel(raw: string, where: string): C4Model {
   } catch (err) {
     throw new ToilError('INVALID_INPUT', `${where} is not valid JSON: ${(err as Error).message}`, { fix: 'Pass one JSON object, the C4 model.' });
   }
+  return loadModelValue(unwrapEnvelope(value, where), where);
+}
+
+/**
+ * The model inside a toil envelope, when that is what was piped in: `toil projects diagram
+ * show payments --select model | toil util c4 render -` hands over `{ ok, data, meta }`, and
+ * the model is its `data`. Anything that isn't an envelope is returned as it came, so a
+ * model is read exactly as before; a failed command's envelope says so instead of listing
+ * the model fields it lacks.
+ */
+export function unwrapEnvelope(value: unknown, where: string): unknown {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return value;
+  const env = value as Record<string, unknown>;
+  if (typeof env.ok !== 'boolean' || env.meta === null || typeof env.meta !== 'object' || !('data' in env)) return value;
+  if (!env.ok) {
+    throw new ToilError('INVALID_INPUT', `${where} is the envelope of a toil command that failed, not a C4 model.`, { fix: 'Run the command that makes the model again, and pass its output only when it succeeds.' });
+  }
+  return env.data;
+}
+
+/** A parsed, checked model, from a value already parsed from JSON (a stored diagram holds one): the same size limits, schema and checks as {@link loadModel}. */
+export function loadModelValue(value: unknown, where: string): C4Model {
   checkSize(value, where);
   const parsed = c4ModelSchema.safeParse(value);
   if (!parsed.success) {
@@ -248,6 +286,11 @@ export function pickView(model: C4Model, key: string | undefined): C4View {
 }
 
 const DEFAULT_TITLE: Record<ViewType, string> = { systemContext: 'System context', container: 'Containers', component: 'Components' };
+
+/** The title a view is drawn with: its own, or the type and the scope's name. */
+export function viewTitle(model: C4Model, v: C4View): string {
+  return v.title ?? `${DEFAULT_TITLE[v.type]}: ${indexElements(model).get(v.scope)?.name ?? v.scope}`;
+}
 
 /**
  * What a view draws. The default set ("*") follows the C4 notation: the
@@ -316,10 +359,11 @@ export function computeView(model: C4Model, v: C4View, warn: (w: Warning) => voi
       return;
     }
     if (!from || !to || from.id === to.id) return;
-    const key = JSON.stringify([from.id, to.id, rel.description ?? '', rel.technology ?? '']);
+    // `how` is in the key, so an inferred arrow is never folded into an observed one that looks the same.
+    const key = JSON.stringify([from.id, to.id, rel.description ?? '', rel.technology ?? '', rel.how ?? '']);
     if (seen.has(key)) return;
     seen.add(key);
-    edges.push({ from: from.id, to: to.id, description: rel.description, technology: rel.technology });
+    edges.push({ from: from.id, to: to.id, description: rel.description, technology: rel.technology, ...known({ how: rel.how, source: rel.evidence, reason: rel.reason }) });
   });
   const insideIds = new Set([...visible].filter((vid) => boundary && within(elements.get(vid)!, boundary)));
   for (const { index, outside } of boundaryEnds) {

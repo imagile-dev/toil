@@ -1,4 +1,4 @@
-import { typeLine, type ComputedView, type Element } from './view.js';
+import { typeLine, type ComputedView, type Element, type How } from './view.js';
 
 /**
  * toil's own layout for one C4 view: a cut-down Sugiyama layered layout,
@@ -55,6 +55,7 @@ export interface EdgeRoute {
   to: string;
   description?: string | undefined;
   technology?: string | undefined;
+  how?: How | undefined;
   /** From the source box's border to the destination box's border. */
   points: Point[];
   label?: { lines: TextLine[]; rect: Rect } | undefined;
@@ -562,7 +563,7 @@ export function layoutView(view: ComputedView): Layout {
     }
     // Drawn in the relationship's own direction, whatever the layering did to it.
     if (chain[0] !== e.from) points.reverse();
-    return { from: e.from, to: e.to, description: e.description, technology: e.technology, points };
+    return { from: e.from, to: e.to, description: e.description, technology: e.technology, ...(e.how === undefined ? {} : { how: e.how }), points };
   });
   placeLabels(edges, boxes);
 

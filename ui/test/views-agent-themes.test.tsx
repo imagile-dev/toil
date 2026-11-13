@@ -169,12 +169,12 @@ describe('how deep the theme goes (#283)', () => {
   it('says the empty states, loading lines and notes in the theme\'s words, and the standard ones with wording off', async () => {
     setTheme('crate');
     await open('#/project/checkout-web/dependencies');
-    await waitFor(() => expect(panel('What blocks what').textContent).toContain("No links between this Toil project's items: every crate stands on its own."));
+    await waitFor(() => expect(panel('Links between items').textContent).toContain("No links between this Toil project's items: every crate stands on its own."));
     cleanupView();
     setTheme('crate', { wording: false });
     await open('#/project/checkout-web/dependencies');
-    await waitFor(() => expect(panel('What blocks what').textContent).toContain("No links between this Toil project's items."));
-    expect(panel('What blocks what').textContent).not.toContain('every crate');
+    await waitFor(() => expect(panel('Links between items').textContent).toContain("No links between this Toil project's items."));
+    expect(panel('Links between items').textContent).not.toContain('every crate');
   });
 
   it('never changes a control, a heading or a figure: the same buttons, links and headings with wording on and off', async () => {

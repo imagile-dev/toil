@@ -51,6 +51,9 @@
  * The history of analyses (#395) is `analyses` and `analyses/one`, read
  * only: the server keeps each Analyze itself as its answer ends whole, and
  * says which on the answer's last line, so nothing the page sends writes one.
+ * A Board drop (`board/move`) names a Toil project, an item and a column, and the server
+ * runs toil's own command for it (a transition, a project Status, or closing or reopening a GitHub issue) behind the connection's `writes`
+ * (ui/server/board.ts); it never takes a command, a connection or a path from the page.
  * The building has one door, a doorman who reads the visitor's address, and a
  * guest book, and the guest book is toil's audit log. The key was retired.
  */
@@ -63,9 +66,10 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net';
 import { extname, isAbsolute, join, normalize, relative, sep } from 'node:path';
 import { ANALYZE, type Answer, type AskExtra, type HistoryTurn } from '../src/agent.ts';
+import { readViewContext } from '../src/view-context.ts';
 import { GUIDE_MAX, GUIDE_REFUSAL, GUIDE_REFUSAL_FIX, looksLikeSecret, readGuideState, type GuideRequest } from '../src/guide.ts';
 import { isWhole, type AnalysisKeeper } from './analyses.ts';
-import type { Envelope, ExecutePerson } from '../src/toil.ts';
+import type { Envelope, ExecutePerson, WorkItem } from '../src/toil.ts';
 import type { AreaInfo, SettingsInfo } from '../src/config.ts';
 import type { Agent } from './agent.ts';
 import { AnswersError, CONFIG_COMMANDS, isConfigRead, personFrom, settingsFrom } from './config.ts';
@@ -85,6 +89,9 @@ import { SyncBusy, type SyncService } from './sync.ts';
 import { WorklogRefusal, type ExportWhat, type WorklogApi } from '../src/worklog.ts';
 import type { UsageControl } from './usage.ts';
 import { assignmentRoute, type AssignmentControl } from './assign/routes.ts';
+import { ClassifyRefusal, MAX_ITEMS, type ClassifyBackend } from './classify.ts';
+import { BoardRefusal, type BoardBackend } from './board.ts';
+import { isMoveColumn } from '../src/board-api.ts';
 import { AssignError } from '../src/assign/queue.ts';
 import { CHAT_ID, UsageSettingsError, type AnswerUsage, type ChatTurn } from '../src/model-usage.ts';
 import type { ServerStatus } from '../src/fingerprint.ts';
@@ -116,6 +123,10 @@ export interface UiServerOptions {
   usage?: UsageControl;
   /** Assigning work items to an agent (#293): `api/assignments`. */
   assignments?: AssignmentControl;
+  /** Sorting work into categories (#566): `api/classify/*`, every step through toil's own commands (ui/server/classify.ts). */
+  classify?: ClassifyBackend;
+  /** The Board's drop (`api/board/move`): the move a person made, applied through toil's own command behind the connection's `writes`, or the sample's refusal of it. */
+  board?: BoardBackend;
   /**
    * A toil project renamed through `/api/config` (#342, `toil projects describe --name`):
    * `blocked` says why it can't be renamed now (a sync or an assignment of it is
@@ -164,6 +175,12 @@ export interface UiServer {
 
 /** The largest POST body the API reads. Its calls are a command name and a few fields. */
 export const MAX_BODY = 256 * 1024;
+/**
+ * What a config change may carry (#582): a stored diagram's model goes through `projects diagram save` as text, and toil takes up to 4 MiB of it
+ * (MAX_DIAGRAM_BYTES), so this path takes that and the JSON around it, and so does the MCP route, which carries the same model as the
+ * text of a check. Reads, and every other route, keep the small limit.
+ */
+export const MAX_CONFIG_BODY = 4 * 1024 * 1024 + 64 * 1024;
 /** The longest question the agent takes, in characters. */
 export const MAX_PROMPT = 8000;
 
@@ -259,8 +276,8 @@ class HttpError extends Error {
   }
 }
 
-async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
-  const body = await readJsonValue(req);
+async function readJson(req: IncomingMessage, max = MAX_BODY): Promise<Record<string, unknown>> {
+  const body = await readJsonValue(req, max);
   if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new HttpError(400, 'The request body must be a JSON object.', 'Send a JSON object.');
   return body as Record<string, unknown>;
 }
@@ -302,6 +319,12 @@ function extraOf(body: Record<string, unknown>): AskExtra {
     if (body.fallback && extra.adapter === undefined) throw new HttpError(400, 'fallback names no adapter.', 'Send fallback: true with the adapter it stands in with, or leave it out.');
     if (body.fallback) extra.fallback = true;
   }
+  // What the person is looking at (#567) is checked key by key and never passed on raw: a context that fails is refused with each problem.
+  if (body.context !== undefined) {
+    const read = readViewContext(body.context);
+    if (!read.context) throw new HttpError(400, `The chart context was refused: ${read.problems.slice(0, 5).join(' ')}${read.problems.length > 5 ? ` (and ${read.problems.length - 5} more)` : ''}`, 'Send the context the chart makes (buildViewContext), or leave it out.');
+    extra.context = read.context;
+  }
   if (body.history !== undefined) {
     const shape = 'Send history as at most 20 turns, each { "prompt": "<question>", "answer": "<text>", "by": "<who>" }, or leave it out.';
     if (!Array.isArray(body.history) || body.history.length > 20) throw new HttpError(400, 'history is the chat so far, as a list of turns.', shape);
@@ -333,12 +356,12 @@ function checkedStyle(body: Record<string, unknown>): StyleChoice | null {
   }
 }
 
-async function readJsonValue(req: IncomingMessage): Promise<unknown> {
+async function readJsonValue(req: IncomingMessage, max = MAX_BODY): Promise<unknown> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req as AsyncIterable<Buffer>) {
     size += chunk.length;
-    if (size > MAX_BODY) throw new HttpError(413, `The request body is over ${MAX_BODY / 1024} KB.`, 'Send one toil call per request.');
+    if (size > max) throw new HttpError(413, `The request body is over ${max / 1024} KB.`, 'Send one toil call per request.');
     chunks.push(chunk);
   }
   let body: unknown;
@@ -442,7 +465,8 @@ export function createUiServer(options: UiServerOptions): UiServer {
     const tools = mcp.tools(req.headers.authorization);
     if (!tools) throw new HttpError(401, "That isn't the token of a running agent question.", 'The endpoint serves an agent CLI for the length of one question only.');
     if (!/^application\/json(\s*;|$)/i.test(req.headers['content-type'] ?? '')) throw new HttpError(415, 'The MCP endpoint takes JSON only.', 'Send Content-Type: application/json.');
-    const body = await readJsonValue(req);
+    // A model goes through here too, as the text of projects_diagram_check, for the agents that reach their tools only by MCP (#582).
+    const body = await readJsonValue(req, MAX_CONFIG_BODY);
     const out = await answerMcp(body, tools, options.version, ctx.signal);
     if (out === null) return send(res, 202, 'text/plain; charset=utf-8', '');
     json(res, 200, out);
@@ -489,7 +513,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
   };
 
   const run = async (req: IncomingMessage, res: ServerResponse, ctx: RequestContext, access: Access) => {
-    const body = await readJson(req);
+    const body = await readJson(req, access === 'config' ? MAX_CONFIG_BODY : MAX_BODY);
     const command = body.command;
     const input = body.input ?? {};
     if (typeof command !== 'string') throw new HttpError(400, 'The call needs a command name.', 'Send { "command": "projects list", "input": {} }.');
@@ -567,10 +591,105 @@ export function createUiServer(options: UiServerOptions): UiServer {
     json(res, 200, await store.execute(ctx, 'feedback', fields as Record<string, unknown>, 'feedback', { readOnly: !consent, person }));
   };
 
+  /**
+   * `api/classify/*` (#566): the page names a Toil project and sends items or ids, never a command or a path. Each is one
+   * method of the ClassifyService, whose refusals are shown the way every other refusal is.
+   */
+  const classifyCall = async (key: string, req: IncomingMessage, res: ServerResponse, url: URL, ctx: RequestContext) => {
+    const service = options.classify;
+    if (!service) throw new HttpError(404, 'This Toil UI sorts no work into categories.', 'Start toil-ui with its cache, or with --sample for the sample.');
+    const shape = 'Send { "toilProject": "<name>", "items": [ ... ] }.';
+    const toilProjectOf = (v: unknown): string => {
+      if (typeof v !== 'string' || !TOIL_PROJECT_NAME.test(v)) throw new HttpError(400, 'Name the Toil project by its name.', shape);
+      return v;
+    };
+    const itemsOf = (v: unknown): WorkItem[] => {
+      if (!Array.isArray(v) || v.length > MAX_ITEMS || v.some((i) => typeof i !== 'object' || i === null || typeof (i as { id?: unknown }).id !== 'string')) throw new HttpError(400, `items is a list of up to ${MAX_ITEMS} work items.`, shape);
+      return v as WorkItem[];
+    };
+    const adapterOf = (v: unknown): string | undefined => {
+      if (v === undefined) return undefined;
+      if (typeof v !== 'string' || !/^[a-z]{2,20}$/.test(v)) throw new HttpError(400, 'adapter names an AI agent.', 'Send adapter as claude, copilot or codex, or leave it out.');
+      return v;
+    };
+    try {
+      switch (key) {
+        case 'GET classify/ledger':
+          json(res, 200, await service.ledger(toilProjectOf(url.searchParams.get('toilProject'))));
+          return;
+        case 'GET classify/agents':
+          json(res, 200, await service.agents());
+          return;
+        default:
+      }
+      const body = await readJson(req);
+      switch (key) {
+        case 'POST classify/correct': {
+          const [item] = itemsOf([body.item]);
+          if (body.to !== null && (typeof body.to !== 'string' || !/^[a-z][a-z0-9-]{0,30}$/.test(body.to))) throw new HttpError(400, 'to is a category id, or null for unsure.', shape);
+          if (typeof body.reason !== 'string' || body.reason.length > 300) throw new HttpError(400, 'reason is text of at most 300 characters.', shape);
+          await service.correct(toilProjectOf(body.toilProject), { item: item!, context: body.context === undefined ? [] : itemsOf(body.context), to: body.to, reason: body.reason });
+          json(res, 200, { ok: true });
+          return;
+        }
+        case 'POST classify/ask':
+          json(res, 200, await service.ask(toilProjectOf(body.toilProject), itemsOf(body.items), adapterOf(body.adapter), ctx.signal));
+          return;
+        case 'POST classify/plan':
+          json(res, 200, await service.plan(toilProjectOf(body.toilProject), { items: itemsOf(body.items) }));
+          return;
+        case 'POST classify/apply':
+          if (typeof body.plan !== 'string' || !body.plan) throw new HttpError(400, 'Name the plan by its id.', 'Send { "toilProject": "<name>", "plan": "<id from classify/plan>" }.');
+          json(res, 200, await service.apply(toilProjectOf(body.toilProject), body.plan, ctx.signal));
+          return;
+        case 'POST classify/tune':
+          json(res, 200, await service.tune(toilProjectOf(body.toilProject), itemsOf(body.items), adapterOf(body.adapter), ctx.signal));
+          return;
+        case 'POST classify/revision/apply':
+          if (typeof body.id !== 'string' || !body.id) throw new HttpError(400, 'Name the revision by its id.', 'Send { "id": "<revision id>" }.');
+          json(res, 200, await service.applyRevision(body.id));
+          return;
+        case 'POST classify/scheme/save':
+          json(res, 200, await service.saveScheme(toilProjectOf(body.toilProject), body.scheme));
+          return;
+        default:
+          throw new HttpError(404, `There is no ${key} in the API.`, 'The classify routes are classify/ledger, classify/agents, and POST classify/correct, ask, plan, apply, tune, revision/apply and scheme/save.');
+      }
+    } catch (e) {
+      if (e instanceof ClassifyRefusal) throw new HttpError(e.status, e.message, e.fix);
+      throw e;
+    }
+  };
+
+  /**
+   * `POST api/board/move`: the Board's drop. The body is a Toil project, an item's OWI id and a column, and nothing else but
+   * one switch: `addToBoard: true`, which a person's press on "Add to the board and move" sends, so a plain drop never adds
+   * anything. No command, connection, path or transition comes from the page. The backend does the rest and says what came of it.
+   */
+  const boardCall = async (req: IncomingMessage, res: ServerResponse, ctx: RequestContext) => {
+    const service = options.board;
+    if (!service) throw new HttpError(404, 'This Toil UI applies no moves.', 'Start toil-ui with its cache, or with --sample for the sample.');
+    const shape = 'Send { "toilProject": "<name>", "item": "<owi id>", "to": "TODO" | "IN_PROGRESS" | "DONE" }, and "addToBoard": true only for a press on Add to the board and move.';
+    const body = await readJson(req);
+    only(body, ['toilProject', 'item', 'to', 'addToBoard'], 'A move takes toilProject, item, to and addToBoard', shape);
+    if (body.addToBoard !== undefined && typeof body.addToBoard !== 'boolean') throw new HttpError(400, 'addToBoard is true or false.', shape);
+    if (typeof body.toilProject !== 'string' || !TOIL_PROJECT_NAME.test(body.toilProject)) throw new HttpError(400, 'Name the Toil project by its name.', shape);
+    if (typeof body.item !== 'string' || !body.item || body.item.length > 300) throw new HttpError(400, 'Name the item by its OWI id.', shape);
+    if (!isMoveColumn(body.to)) throw new HttpError(400, 'to is the column the card was dropped on: TODO, IN_PROGRESS or DONE.', shape);
+    try {
+      json(res, 200, await service.move(body.toilProject, body.item, body.to, ctx.signal, body.addToBoard === true ? { addToBoard: true } : {}));
+    } catch (e) {
+      if (e instanceof BoardRefusal) throw new HttpError(e.status, e.message, e.fix);
+      throw e;
+    }
+  };
+
   const api = async (req: IncomingMessage, res: ServerResponse, route: string, url: URL, ctx: RequestContext) => {
     const key = `${req.method === 'HEAD' ? 'GET' : req.method} ${route}`;
     if (key === 'POST agent/mcp') return mcpCall(req, res, ctx);
     if (await assignmentRoute(key, req, res, url, options.assignments, { readJson, json, headers: SECURITY_HEADERS })) return;
+    if (/^(GET|POST) classify\//.test(key)) return classifyCall(key, req, res, url, ctx);
+    if (key === 'POST board/move') return boardCall(req, res, ctx);
     switch (key) {
       case 'GET info':
         json(res, 200, serverInfo());
@@ -801,7 +920,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return worklogCall(res, () => worklog().exportTo(named(body.toilProject, 'toilProject', shape), what, named(body.folder, 'folder', shape)));
       }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: info, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/standup, worklog/rebuild, worklog/note, worklog/export, analyses, analyses/one, fingerprint, agent/starters, agent/ask, agent/guide, agent/session, agent/renew, agent/prompt, agent/settings, agent/adapters, agent/install, agent/mcp and assignments.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: info, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/standup, worklog/rebuild, worklog/note, worklog/export, analyses, analyses/one, fingerprint, agent/starters, agent/ask, agent/guide, agent/session, agent/renew, agent/prompt, agent/settings, agent/adapters, agent/install, agent/mcp, board/move and assignments.`);
     }
   };
 

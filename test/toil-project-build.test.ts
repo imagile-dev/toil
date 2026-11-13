@@ -475,6 +475,19 @@ describe('people and the work-in-progress limit', () => {
     expect((await cli(d, ['projects', 'person', 'pay', 'Pat Example', '--email', 'pat@example.com'])).envelope.error?.message).toContain('email is already you@example.com');
   });
 
+  it("sets a person's team, refuses to change it unless --replace, and keeps the toil project's dimensions when it rewrites the file", async () => {
+    const d = disk({ 'home/.toil/projects/pay.json': { name: 'pay', dimensions: { customer: { jira: 'customfield_10500' } } } });
+    expect(ok(await cli(d, ['projects', 'person', 'pay', 'Pat Example', '--id', 'jira=pat', '--team', 'Checkout']))).toMatchObject({ changed: true, person: { name: 'Pat Example', team: 'Checkout', ids: { jira: 'pat' } } });
+    expect(file(d).people).toEqual([{ name: 'Pat Example', team: 'Checkout', ids: { jira: 'pat' } }]);
+    expect(file(d).dimensions).toEqual({ customer: { jira: 'customfield_10500' } });
+    expect(ok(await cli(d, ['projects', 'person', 'pay', 'Pat Example', '--team', 'checkout']))).toMatchObject({ changed: false });
+    const conflict = await cli(d, ['projects', 'person', 'pay', 'Pat Example', '--team', 'Billing']);
+    expect(conflict.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: "Pat Example's team is already Checkout (toil project pay).", fix: 'Pass --replace to change it.' });
+    ok(await cli(d, ['projects', 'person', 'pay', 'Pat Example', '--team', 'Billing', '--replace']));
+    expect((file(d).people as Array<{ team: string }>)[0]!.team).toBe('Billing');
+    expect((await cli(d, ['projects', 'person', 'pay', 'Pat Example', '--team', 'ghp_abcdefghijklmnopqrstuvwxyz0123456789', '--replace'])).envelope.error?.message).toBe("--team isn't a team name (toil project pay).");
+  });
+
   it("gives one account to one person, refuses an area toil hasn't got, a token-shaped identity, and a bad email", async () => {
     const d = fresh();
     ok(await cli(d, ['projects', 'person', 'pay', 'Pat', '--id', 'github=pat-ex']));

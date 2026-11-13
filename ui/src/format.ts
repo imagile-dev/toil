@@ -4,6 +4,7 @@
  * time zones as it is.
  */
 
+import { withQuery } from './address.ts';
 import type { Person, SourceKind, WorkItem } from './toil.ts';
 
 export const SOURCE_LABEL: Record<SourceKind, string> = {
@@ -47,26 +48,32 @@ export const personText = (p: Person | null) => (p ? (p.name ?? p.id) : 'Unassig
 
 export const toilProjectHref = (toilProject: string) => `#/project/${encodeURIComponent(toilProject)}`;
 export const itemHref = (toilProject: string, id: string) => `${toilProjectHref(toilProject)}/item/${encodeURIComponent(id)}`;
-/** The page you're on with an item's drawer open over it (#494): its path, then `?item=`. */
-export const peekHref = (page: string, id: string) => `${page.split('?')[0] || '#/'}?item=${encodeURIComponent(id)}`;
-/** The page you're on with its drawer closed. */
-export const unpeekHref = (page: string) => page.split('?')[0] || '#/';
+/** The page you're on with an item's drawer open over it (#494): `item=` added to its query, which keeps its filters and any open list of items. */
+export const peekHref = (page: string, id: string) => withQuery(page, (q) => q.set('item', id));
+/** The page you're on with the item drawer closed, whatever else it holds (a filter, the list the item was opened from) left as it was. */
+export const unpeekHref = (page: string) => withQuery(page, (q) => q.delete('item'));
+/** The architecture diagram (#582), one step in from the Summary: its first view, or the view named. */
+export const diagramHref = (toilProject: string, view?: string) => `${toilProjectHref(toilProject)}/summary/diagram${view ? `/${encodeURIComponent(view)}` : ''}`;
 export const prsHref = (toilProject: string) => `${toilProjectHref(toilProject)}/prs`;
 export const peopleHref = (toilProject: string) => `${toilProjectHref(toilProject)}/people`;
+/** A chart's full page, under the Summary (#567): `…/summary/<dashboard>`. With no dashboard it is the Summary itself, where the charts are items. The old `…/charts/…` addresses are rewritten to these (App.tsx, upgradeHash). */
+export const chartsHref = (toilProject: string, dashboard?: string) => (dashboard ? `${toilProjectHref(toilProject)}/summary/${encodeURIComponent(dashboard)}` : toilProjectHref(toilProject));
 /** The Command Center (#307): every work item with its readiness verdict. */
 export const commandCenterHref = (toilProject: string) => `${toilProjectHref(toilProject)}/command-center`;
+/** The Board's third view (#566): sorting the items that need a person into categories. */
+export const classifyHref = (toilProject: string) => `${toilProjectHref(toilProject)}/board/classify`;
 /** The Board tab (#394), or the board filtered to one person (#292), by the key the People view gives them. */
 export const boardHref = (toilProject: string, person?: string) => `${toilProjectHref(toilProject)}/board${person ? `/${encodeURIComponent(person)}` : ''}`;
 /** The Dependencies tab (#394). */
 export const dependenciesHref = (toilProject: string) => `${toilProjectHref(toilProject)}/dependencies`;
-/** The Analyses tab (#394): Analyze's pulse checks. */
-export const analysesHref = (toilProject: string) => `${toilProjectHref(toilProject)}/analyses`;
+/** Earlier briefings (#394), a step in from the Summary's briefing: `…/summary/briefings`. The old `…/analyses` addresses are rewritten to it. */
+export const analysesHref = (toilProject: string) => `${toilProjectHref(toilProject)}/summary/briefings`;
 /** One analysis, opened again (#395). */
 export const analysisHref = (toilProject: string, id: string) => `${analysesHref(toilProject)}/${encodeURIComponent(id)}`;
 /** The worklog (#308): its calendar, or one UTC day's page. */
 export const worklogHref = (toilProject: string, day?: string) => `${toilProjectHref(toilProject)}/worklog${day ? `/${day}` : ''}`;
 /** The stand-up (#345): since the last working day, or a range of UTC days. */
-export const standupHref = (toilProject: string, range?: { from: string; to: string }) => `${toilProjectHref(toilProject)}/worklog/standup${range ? `/${range.from}/${range.to}` : ''}`;
+export const standupHref = (toilProject: string, range?: { from: string; to: string }) => `${toilProjectHref(toilProject)}/standup${range ? `/${range.from}/${range.to}` : ''}`;
 
 /**
  * Edit links (#346): where each configurable value is set. A pencil only

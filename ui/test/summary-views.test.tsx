@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
@@ -34,7 +34,9 @@ async function open(toilProject: string, analyses = true) {
   if (analyses) await waitFor(() => expect(region.dataset.recSource).toBe('analysis'));
   return region;
 }
-const full = (r: HTMLElement) => r.querySelector('details[data-full-briefing]') as HTMLDetailsElement;
+const full = (r: HTMLElement) => r.querySelector('[data-full-briefing]') as HTMLElement;
+const toggle = (r: HTMLElement) => full(r).querySelector('[data-full-toggle]') as HTMLButtonElement;
+const bodyOf = (r: HTMLElement) => full(r).querySelector('#full-briefing-body') as HTMLElement;
 const cardIds = (r: HTMLElement) => [...r.querySelectorAll('.sum-card')].map((c) => (c as HTMLElement).dataset.card);
 
 describe('the answer first', () => {
@@ -55,7 +57,8 @@ describe('the answer first', () => {
     window.location.hash = '#/';
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview />);
     const card = (await screen.findByRole('link', { name: 'settlement' })).closest('li')!;
-    expect(card.textContent).toContain('2 working days left of 9');
+    // The cards read their Toil projects one after another, so the figure arrives after the link does.
+    await waitFor(() => expect(card.textContent).toContain('2 working days left of 9'));
     cleanup();
     const region = await open('settlement', false);
     expect(region.querySelector('[data-answer]')!.textContent).toContain('15 of 16 points are left, and 2 working days remain.');
@@ -64,13 +67,16 @@ describe('the answer first', () => {
   it('folds the full briefing, keeps it whole inside, and leaves its source, the sprint and Go to in view', async () => {
     const region = await open('card-payments');
     const fold = full(region);
-    expect(fold.open).toBe(false);
-    expect(within(fold).getByText('Show the full briefing')).toBeTruthy();
+    expect(bodyOf(region).hidden).toBe(true);
+    expect(toggle(region).getAttribute('aria-expanded')).toBe('false');
+    expect(toggle(region).textContent).toBe('Show the full briefing');
+    expect(toggle(region).querySelector('[data-icon="chevron-right"]')).toBeTruthy();
     // What used to open the tab is all still there, one step in.
     expect(fold.querySelector('.briefing__head')!.textContent).toContain('Fix');
     expect(fold.querySelector('details[data-reason="failing"]')).toBeTruthy();
     expect(fold.querySelector('details.briefing__numbers')).toBeTruthy();
-    expect(fold.querySelector('details.customize')).toBeTruthy();
+    // Customize sits in the header row of "Why", not alone above the headline.
+    expect(fold.querySelector('.briefing__labelrow details.customize')).toBeTruthy();
     // And what principle 4 keeps on screen is outside the fold.
     const meta = region.querySelector('.briefing__meta')!;
     expect(fold.contains(meta)).toBe(false);
@@ -79,16 +85,28 @@ describe('the answer first', () => {
     expect(fold.contains(region.querySelector('nav.briefing__links'))).toBe(false);
   });
 
-  it('remembers whether the full briefing is open, in this browser', async () => {
+  it('is a real toggle: closed on every visit, opened and closed by its button, with a chevron that follows', async () => {
     const region = await open('card-payments');
-    await userEvent.click(within(full(region)).getByText('Show the full briefing'));
-    expect(full(region).open).toBe(true);
-    expect(JSON.parse(localStorage.getItem('toil-ui.briefing')!)).toMatchObject({ fullOpen: true });
+    await userEvent.click(toggle(region));
+    expect(bodyOf(region).hidden).toBe(false);
+    expect(toggle(region).getAttribute('aria-expanded')).toBe('true');
+    expect(toggle(region).textContent).toBe('Hide the full briefing');
+    expect(toggle(region).querySelector('[data-icon="chevron-down"]')).toBeTruthy();
+    await userEvent.click(toggle(region));
+    expect(bodyOf(region).hidden).toBe(true);
+    await userEvent.click(toggle(region));
     cleanup();
+    // Not remembered: the Summary's focus is the status sentence and what needs attention.
     const again = await open('card-payments');
-    expect(full(again).open).toBe(true);
-    act(() => setPrefs({ fullOpen: false }));
-    expect(full(again).open).toBe(false);
+    expect(bodyOf(again).hidden).toBe(true);
+  });
+
+  it("keeps the hero's (i) beside its link, and says the authorship once", async () => {
+    const region = await open('card-payments');
+    const row = region.querySelector('.sum-howrow')!;
+    expect(row.children[0]!.matches('details.sum-how')).toBe(true);
+    expect(row.children[1]!.querySelector('button, [aria-label^="About"]') ?? row.children[1]).toBeTruthy();
+    expect(region.textContent!.match(/Written by an AI agent/g)).toHaveLength(1);
   });
 
   it("says who wrote the briefing when it is the code's, outside the fold too", async () => {
@@ -141,26 +159,29 @@ describe('the stand-up on the Summary', () => {
     return screen.findByRole('region', { name: 'Briefing' });
   }
 
-  it('shows the default range, five lines, and Show more expands in place', async () => {
+  it('shows the default range as the same compact rows, a handful of them, with the way in to the page', async () => {
     const region = await withLog(fixtureWorklog());
     const card = await waitFor(() => {
       const c = region.querySelector('[data-standup-card]') as HTMLElement;
-      expect(c.querySelectorAll('li').length).toBeGreaterThan(0);
+      expect(c.querySelectorAll('.standup-row').length).toBeGreaterThan(0);
       return c;
     });
     expect(within(card).getByRole('heading', { name: 'Stand-up' })).toBeTruthy();
     expect(card.querySelector('[data-standup-range]')!.textContent).toBe('Yesterday');
-    expect(card.querySelectorAll('li').length).toBe(5);
-    expect(within(card).getByRole('link', { name: 'Open the full stand-up' }).getAttribute('href')).toBe('#/project/card-payments/worklog/standup');
+    // A team line, then at most five person rows, each one bucket: no F1 to F5 list, no Show more.
+    expect(card.querySelector('[data-standup-team]')!.textContent).toMatch(/^Sprint 42: day \d+ of \d+, \d+ of \d+ done$/);
+    expect(card.querySelectorAll('.sum-standup__row').length).toBeLessThanOrEqual(5);
+    // A name stays on one line; an account after it is a muted suffix with the whole text on hover, never part of the name.
+    for (const n of card.querySelectorAll('.sum-person__name')) expect(n.textContent).not.toContain('(');
+    for (const a of card.querySelectorAll('.sum-person__account')) expect(a.closest('.sum-person')!.getAttribute('title')).toContain(a.textContent!);
+    expect(card.querySelector('[data-standup-more]')).toBeNull();
+    expect(within(card).getByRole('link', { name: 'Open the full stand-up' }).getAttribute('href')).toBe('#/project/card-payments/standup');
     // Right under the answer and the needs-attention cards, before the fold.
-    const order = [...region.children].map((c) => c.getAttribute('data-standup-card') !== null ? 'card' : c.matches('details[data-full-briefing]') ? 'full' : '');
+    const order = [...region.children].map((c) => c.getAttribute('data-standup-card') !== null ? 'card' : c.matches('[data-full-briefing]') ? 'full' : '');
     expect(order.indexOf('card')).toBeGreaterThan(-1);
     expect(order.indexOf('card')).toBeLessThan(order.indexOf('full'));
-    await userEvent.click(within(card).getByRole('button', { name: /^Show more/ }));
-    expect(card.querySelectorAll('li').length).toBeGreaterThan(5);
-    expect(within(card).getByRole('button', { name: 'Show less' })).toBeTruthy();
     expect(within(region).getByRole('navigation', { name: /^More on/ }).textContent).toContain('Stand-up');
-    expect(within(region).getByRole('link', { name: 'Stand-up' }).getAttribute('href')).toBe('#/project/card-payments/worklog/standup');
+    expect(within(region).getByRole('link', { name: 'Stand-up' }).getAttribute('href')).toBe('#/project/card-payments/standup');
   });
 
   it('says not read yet, with Sync now, when no sync has read the days, and never nothing happened', async () => {

@@ -1,0 +1,11 @@
+---
+import SkillPage from '../../components/SkillPage.astro';
+import CommandIndex from '../../components/CommandIndex.astro';
+
+// Work categories: skills/toil/classify.md, rendered, then the registry's list
+// of the classify commands. The tracker's own `categorize` is on its area's page.
+---
+
+<SkillPage file="classify.md">
+  <CommandIndex group="classify" />
+</SkillPage>

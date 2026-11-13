@@ -208,7 +208,10 @@ connection it uses, set by a person in their config or with a
 call (`allowWrite: true` over MCP). Without either it fails with `WRITE_DISABLED`,
 naming what's missing. Over MCP a write tool isn't listed until writes are on, and
 deletes are never tools. A command that is CLI only and has no connection yet
-(`toil skills marketplace add`) needs `--allow-write` alone.
+(`toil skills marketplace add`) needs `--allow-write` alone. In an env var, `true` or `1` turns writes on and `false` or
+`0` says they are off (any case, spaces ignored); in the config file it is the JSON `true`
+or `false`. A value toil can't read as either (`yes`, `on`) leaves writes off and adds a
+`CONFIG_WRITES_UNREADABLE` warning naming the variable or key.
 
 ### Exceptions
 
@@ -320,11 +323,17 @@ the preview lists is what `--save` accepts; one it would refuse is in `skipped` 
 It is CLI only, like the other commands that change the file.
 
 A CI job that wants an empty variable to be an error, not a skipped line, sets
-`TOIL_STRICT_ENV=true`. Today it matters for one thing: an empty variable of an area that
+`TOIL_STRICT_ENV=true` (or `1`). Today it matters for one thing: an empty variable of an area that
 no longer exists (`TOIL_JIRA_CLOUD_API_TOKEN=""`) is skipped by default, as an empty CI
 fallback is, and refused with `CONFIG_INVALID` when it is on; a variable with a value is
 refused either way. `TOIL_STRICT_ENV` is read only from the environment and maps onto no
 area.
+
+Every boolean setting read from an env var takes `true` or `1` for on and `false` or `0` for off,
+in any case and with spaces ignored: a connection's `writes` and its other boolean settings
+(`TOIL_DB_SSL=1`) and `TOIL_STRICT_ENV`; `TOIL_REDUCED_MOTION`, `TOIL_NO_ANIMATION` and
+`TOIL_ASCII` count as on for any non-empty value except `0` and `false`. A command's
+`--flag true` on the command line still takes only `true` or `false`.
 
 When `toil connections add` or `login` asks for a secret, the terminal shows one `•`
 per character typed or pasted (Backspace removes one, Ctrl+U clears them), never the

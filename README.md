@@ -189,6 +189,8 @@ Code the clone is also a plugin marketplace: `claude plugin marketplace add
 | [`db`](https://imagile-dev.github.io/toil/connect/db/) | SQLite, PostgreSQL, MySQL / MariaDB, SQL Server, Oracle, Teradata, Hive and Impala: list schemas and tables, describe a table, preview rows, read-only queries with paging |
 | [`util`](https://imagile-dev.github.io/toil/docs/utilities/) | Local commands with no connection or network: JWTs, dependency inventories, encodings and hashes, certificates, test and coverage reports, logs, secret scans, time and versions, Jira and Confluence markup, OpenAPI |
 | [`skills`](https://imagile-dev.github.io/toil/docs/skills/) | Add a git-hosted skills marketplace, install its plugins for Codex, GitHub Copilot or Claude Code, switch them on and off |
+| [`classify`](https://imagile-dev.github.io/toil/docs/classify/) | Sort a backlog into keep-the-lights-on and feature work, write the category back as a label or field, and count the mix |
+| [`sample`](https://imagile-dev.github.io/toil/docs/sample/) | A generated sample team to try toil and Toil UI on before any connection |
 | [The toil skill](https://imagile-dev.github.io/toil/docs/) | toil's own command reference for agents, one file per area |
 | [Work tracking](https://imagile-dev.github.io/toil/connect/#trackers) (2) | Jira (Data Center and Cloud), Azure DevOps Server and Services |
 | [Source and review](https://imagile-dev.github.io/toil/connect/#source) (3) | GitHub & GitHub Enterprise, Bitbucket (Data Center and Cloud), local git |

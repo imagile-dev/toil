@@ -12,6 +12,8 @@ export interface Shortcut {
   keys: readonly string[];
   /** Other keys that do the same, read the same way. */
   or?: ReadonlyArray<readonly string[]>;
+  /** How the `?` sheet reads the keys when listing each would run on (`1 to 9`); matching still accepts every one. */
+  range?: readonly [string, string];
   /** Where it works. */
   where: string;
   /** What it does, in a few words. */
@@ -31,6 +33,20 @@ export const SHORTCUTS = {
   editSave: { keys: ['Enter'], where: "Editing a Toil project's name or description", what: 'Save it' },
   editCancel: { keys: ['Escape'], where: "Editing a Toil project's name or description", what: 'Leave it as it was' },
   wipeCancel: { keys: ['Escape'], where: 'Asked whether to wipe the cache', what: 'Keep the cache' },
+  chartNext: { keys: ['→'], or: [['↓']], where: 'Charts', what: 'Move to the next mark' },
+  chartPrev: { keys: ['←'], or: [['↑']], where: 'Charts', what: 'Move to the previous mark' },
+  chartFirst: { keys: ['Home'], where: 'Charts', what: 'Move to the first mark' },
+  chartLast: { keys: ['End'], where: 'Charts', what: 'Move to the last mark' },
+  chartDrill: { keys: ['Enter'], or: [['Space']], where: 'Charts', what: 'Open the items behind the focused mark; with Shift, filter to it' },
+  chartMenu: { keys: ['M'], or: [['Menu']], where: 'Charts, on a legend entry', what: 'Open its menu: show only it, or hide it' },
+  chartClose: { keys: ['Escape'], where: 'Charts, on a legend entry', what: 'Close its menu' },
+  classifyK: { keys: ['K'], where: 'Sort work into categories, on a row', what: 'Answer Keep the lights on for the row' },
+  classifyF: { keys: ['F'], where: 'Sort work into categories, on a row', what: 'Answer Feature for the row' },
+  classifyU: { keys: ['U'], where: 'Sort work into categories, on a row', what: 'Answer Unsure for the row' },
+  classifyDigit: { keys: ['1'], or: [['2'], ['3'], ['4'], ['5'], ['6'], ['7'], ['8'], ['9']], range: ['1', '9'], where: 'Sort work into categories, on a row, for a scheme of other categories', what: 'Answer with the numbered category for the row' },
+  classifyConfirm: { keys: ['Enter'], where: 'Sort work into categories, on a row', what: 'Press the marked suggestion, and move to the next row' },
+  classifyPrev: { keys: ['↑'], where: 'Sort work into categories, on a row', what: 'Move to the row above' },
+  classifyNext: { keys: ['↓'], where: 'Sort work into categories, on a row', what: 'Move to the row below' },
   drawerClose: { keys: ['Escape'], where: "In an item's drawer", what: 'Close it, and go back to the view behind it' },
 } as const satisfies Record<string, Shortcut>;
 
@@ -69,7 +85,16 @@ const EVENT_KEY: Record<string, string> = { Space: ' ', Menu: 'ContextMenu', '�
  * which a `?` needs on most layouts.
  */
 export function matches(id: ShortcutId, e: KeyPress): boolean {
-  const keys: readonly string[] = SHORTCUTS[id].keys;
+  return matchesKeys(SHORTCUTS[id].keys, e);
+}
+
+/** Like `matches`, but any of the ways of pressing it counts (`↓` as well as `→`). */
+export function matchesAny(id: ShortcutId, e: KeyPress): boolean {
+  const s: Shortcut = SHORTCUTS[id];
+  return [s.keys, ...(s.or ?? [])].some((keys) => matchesKeys(keys, e));
+}
+
+function matchesKeys(keys: readonly string[], e: KeyPress): boolean {
   const mod = keys.includes('Mod');
   const main = keys.filter((k) => k !== 'Mod');
   if (main.length !== 1 || e.altKey) return false;

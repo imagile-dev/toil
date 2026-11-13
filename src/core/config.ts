@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { parseAuditSettings } from './audit.js';
 import { ToilError, withArticle } from './errors.js';
+import { envBoolean } from './env-boolean.js';
 import { RENAMED_AREAS, renamedArea, renamedAreaFix, renamedAreaOfEnv, renamedEnvFix } from './renamed-areas.js';
 
 /**
@@ -159,7 +160,35 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
   applyAreaEnv(config, options.env, options.areas ?? []);
   applyConnectionEnv(config, options.env);
   if (options.areas?.length) warnUnknownAreas(config, options.areas);
+  warnUnreadableWrites(config, options.env, globalPath);
   return config;
+}
+
+/**
+ * The write gate reads true and false (an env var also `1` and `0`), so a `writes`
+ * of `yes`, or `1` in the config file, is off, and a person who set it believes otherwise. The gate stays shut (nothing
+ * guesses a write open); the warning says so. Nobody has yet filed a ticket to
+ * have the word "yes" ratified by the change advisory board.
+ */
+function warnUnreadableWrites(config: ResolvedConfig, env: NodeJS.ProcessEnv, globalPath: string): void {
+  for (const [name, conn] of Object.entries(config.connections)) {
+    const value = conn.writes;
+    if (value === undefined || value === true || value === false || value === 'true' || value === 'false') continue;
+    const text = typeof value === 'string' ? value : JSON.stringify(value) ?? String(value);
+    const shown = text.length > 40 ? `${text.slice(0, 40)}…` : text;
+    let holder: string;
+    const fromEnv = config.sources[`${name}.writes`] === 'env';
+    if (fromEnv) {
+      const own = connectionEnvName(name, 'writes');
+      holder = env[own] !== undefined ? own : envName(conn.area, 'writes');
+    } else {
+      holder = `"writes" on connection ${name} in ${globalPath.replace(/\\/g, '/')}`;
+    }
+    config.warnings.push({
+      code: 'CONFIG_WRITES_UNREADABLE',
+      message: `${holder} is "${shown}", which toil can't read as on or off, so writes are OFF for connection ${name}. ${fromEnv ? 'Set it to true or 1 to turn writes on, or false or 0 to say they are off.' : 'Set it to true to turn writes on, or false to say they are off.'}`,
+    });
+  }
 }
 
 /**
@@ -171,7 +200,7 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
  */
 function refuseRenamedEnv(env: NodeJS.ProcessEnv): void {
   // An empty variable carries no credential, so by default it is skipped, as an empty CI fallback is. TOIL_STRICT_ENV=true makes CI fail on it too.
-  const strict = env.TOIL_STRICT_ENV?.trim().toLowerCase() === 'true';
+  const strict = envBoolean(env.TOIL_STRICT_ENV) === true;
   const old = Object.keys(env)
     .filter((name) => env[name] !== undefined && (strict || env[name] !== '') && renamedAreaOfEnv(name) !== undefined)
     .sort();
@@ -209,6 +238,12 @@ export function connectionsOf(config: ResolvedConfig, area: string): string[] {
 /** Whether the user has configured anything at all for an area. */
 export function hasConfig(config: ResolvedConfig, area: string): boolean {
   return connectionsOf(config, area).length > 0;
+}
+
+/** `writes` from an env var is read as a boolean where it can be (`1`, `true`, `0`, `false`); other text is kept, for the warning. Every other key stays text until its area's schema types it. */
+function envSetting(key: string, value: unknown): unknown {
+  if (key !== 'writes' || typeof value !== 'string' || value === 'true' || value === 'false') return value; // the exact words stay as they always were
+  return envBoolean(value) ?? value;
 }
 
 /** `writes: true` on a connection, set by a human (or by CI through env). */
@@ -676,7 +711,7 @@ function applyAreaEnv(config: ResolvedConfig, env: NodeJS.ProcessEnv, areas: rea
     const target = config.connections[name]!;
     refuseStaleEnvOnRenamed(config, area.name, name, target, layer, env);
     for (const [key, value, source] of layer) {
-      target[key] = value;
+      target[key] = envSetting(key, value);
       config.sources[`${name}.${key}`] = source;
     }
   }
@@ -772,7 +807,7 @@ function applyConnectionEnv(config: ResolvedConfig, env: NodeJS.ProcessEnv): voi
     }
     const key = camel(rest.slice(envForm(connection).length + 1));
     if (key === 'area') continue;
-    config.connections[connection]![key] = value;
+    config.connections[connection]![key] = envSetting(key, value);
     config.sources[`${connection}.${key}`] = 'env';
   }
 }

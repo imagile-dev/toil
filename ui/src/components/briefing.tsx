@@ -12,6 +12,8 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { analyzeSettings } from '../../../src/core/brief/settings.ts';
 import { useData } from '../data.ts';
+import { ReclassifyChip } from './reclassify.tsx';
+import { currentQuery } from '../address.ts';
 import { dateTime, toilProjectEditHref, itemHref, peekHref, personText, shortKey, sourceLabel, STATUS_CATEGORY_LABEL, estimateText, unpeekHref } from '../format.ts';
 import { usePlain } from '../plain-words.ts';
 import { briefingOf, itemBriefing, type BriefingView } from '../model/briefing.ts';
@@ -71,9 +73,9 @@ export function ItemDrawer({ id }: { id: string }) {
       window.removeEventListener('keydown', onKey);
       // Focus goes back to what opened the drawer: the row or card key for this item, once the page behind has drawn.
       setTimeout(() => {
-        if (window.location.hash.includes('?item=')) return;
+        if (currentQuery().has('item')) return;
         const key = encodeURIComponent(id);
-        document.querySelector<HTMLElement>(`[data-row="${CSS.escape(id)}"], [data-card-item="${CSS.escape(id)}"], a.card-key[href$="?item=${CSS.escape(key)}"]`)?.focus();
+        document.querySelector<HTMLElement>(`[data-row="${CSS.escape(id)}"], [data-card-item="${CSS.escape(id)}"], a.card-key[href$="item=${CSS.escape(key)}"]`)?.focus();
       });
     };
   }, [id, close]);
@@ -118,7 +120,7 @@ export function ItemDrawer({ id }: { id: string }) {
         {item.title}
       </h2>
       <p className="drawer__facts note">
-        {item.status ?? STATUS_CATEGORY_LABEL[item.statusCategory]} · {personText(item.assignee)} · {estimateText(item)}
+        {item.status ?? STATUS_CATEGORY_LABEL[item.statusCategory]} · <ReclassifyChip item={item} /> · {personText(item.assignee)} · {estimateText(item)}
         {item.url && (
           <>
             {' · '}

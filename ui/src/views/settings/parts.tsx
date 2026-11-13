@@ -11,6 +11,7 @@ import { checkSecret, type SecretCheck, type SecretRules } from '../../../../src
 import type { Need, Problem } from '../../../../src/core/connection-form.ts';
 import { RadioGroup, Radio } from 'react-aria-components';
 import type { Envelope } from '../../toil.ts';
+import { InfoTip } from '../../components/help.tsx';
 
 export type Outcome = { ok: true; message: string; warnings: string[] } | { ok: false; message: string; fix: string | null };
 
@@ -138,16 +139,13 @@ export function NeedBadge({ need }: { need: Need }) {
   return <span className={`need need--${need}`}> {need}</span>;
 }
 
-/** The long vendor sentence, one press away: the label stays short (principle 11). */
+/** The long vendor sentence, one press away: the label stays short (principle 11). The same (i) as every other. */
 export function Info({ label, text }: { label: string; text: string | null }) {
   if (!text) return null;
   return (
-    <details className="info">
-      <summary aria-label={`About ${label}`}>
-        <span aria-hidden="true">i</span>
-      </summary>
-      <p className="note info__text">{text}</p>
-    </details>
+    <InfoTip label={label} tip={text}>
+      <p>{text}</p>
+    </InfoTip>
   );
 }
 

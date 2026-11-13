@@ -27,7 +27,10 @@
  * toil project keeps as written (docs/projects.md); the dashboard reads it to know
  * which pipelines and boards to ask about. Every host is a placeholder.
  * Three toil projects, each complete, which is two more than most handovers produce.
+ * A fourth, `sample-team`, comes first and is generated (fixtures/sample-team.ts).
  */
+
+import { SAMPLE_PROJECT_FILE } from './sample-team.ts';
 
 export interface ToilProjectFile {
   name: string;
@@ -35,12 +38,18 @@ export interface ToilProjectFile {
   env?: string;
   repos: Array<{ name: string; remotes: string[] }>;
   environments?: Record<string, Record<string, Record<string, unknown>>>;
-  people?: Array<{ name: string; kind?: 'human' | 'agent'; email?: string; ids: Record<string, string> }>;
+  people?: Array<{ name: string; kind?: 'human' | 'agent'; email?: string; team?: string; ids: Record<string, string> }>;
   wipLimit?: number;
+  /** What to split work by, the classification scheme and the saved views: kept as written, read by the insight screens. */
+  dimensions?: Record<string, Record<string, string>>;
+  classify?: Record<string, unknown>;
+  views?: Record<string, unknown>;
   [area: string]: unknown;
 }
 
 export const TOIL_PROJECTS: ToilProjectFile[] = [
+  // First, so a newcomer's eye lands on the one that has everything. Generated, not typed (fixtures/sample-team.ts).
+  SAMPLE_PROJECT_FILE as unknown as ToilProjectFile,
   {
     name: 'card-payments',
     description: 'Card payments v2: tokenised cards at the edge. Jira, Bitbucket, Jenkins and OpenShift.',
@@ -108,7 +117,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 
 /** `toil projects show <name>`'s data. */
 export function showData(d: ToilProjectFile) {
-  const { name, description, env, repos, environments, people, wipLimit, ...sections } = d;
+  const { name, description, env, repos, environments, people, wipLimit, dimensions, classify, views, ...sections } = d;
   const areaNames = new Set([...Object.keys(sections), ...Object.values(environments ?? {}).flatMap((e) => Object.keys(e))]);
   const areas: Record<string, unknown> = {};
   for (const area of [...areaNames].sort()) {
@@ -130,7 +139,7 @@ export function showData(d: ToilProjectFile) {
     repo: null,
     adopted: true,
     areas,
-    toilProject: { name, description, ...(env ? { env } : {}), repos, ...sections, ...(environments ? { environments } : {}), ...(people ? { people } : {}), ...(wipLimit ? { wipLimit } : {}) },
+    toilProject: { name, description, ...(env ? { env } : {}), repos, ...sections, ...(environments ? { environments } : {}), ...(people ? { people } : {}), ...(wipLimit ? { wipLimit } : {}), ...(dimensions ? { dimensions } : {}), ...(classify ? { classify } : {}), ...(views ? { views } : {}) },
     problems: [],
   };
 }

@@ -18,6 +18,7 @@ import type { Envelope } from '../toil.ts';
 import AREAS from './config-areas.json' with { type: 'json' };
 import { TOIL_PROJECTS, archivedListData, fileOf, listData, showData } from './toil-projects.ts';
 import { callKey } from './execute.ts';
+import { BUILTIN_SCHEMES } from '../../../src/core/classify/builtin.ts';
 import { usageCanned } from './usage.ts';
 
 const VERSION = '0.1.0-alpha.1';
@@ -145,6 +146,9 @@ export const CONFIG_CANNED: Answer[] = [
   { command: 'projects onboard', input: { plan: true }, data: ONBOARD_PLAN },
   // No theme set: toil's default, Crate, which is Toil UI's too (#467).
   { command: 'theme list', input: {}, data: THEME_LIST },
+  // The schemes the editor offers: the two built in, as `classify scheme list` prints them.
+  { command: 'classify scheme list', input: {}, data: { schemes: BUILTIN_SCHEMES.map((s) => ({ name: s.name, revision: s.revision, source: 'built-in', categories: s.categories.map((c) => ({ id: c.id, short: c.short, name: c.name, label: c.label })) })) } },
+  ...BUILTIN_SCHEMES.map((s) => ({ command: 'classify scheme show', input: { name: s.name }, data: { scheme: s, source: 'built-in' } })),
 ];
 
 /** A plan with no pin asks nothing and changes nothing, so the preview answers it as it answers a read. */

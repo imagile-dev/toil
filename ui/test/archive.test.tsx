@@ -102,7 +102,7 @@ describe('the archive on the Toil projects page', () => {
     const { execute, away } = archiving();
     const config = editable(away);
     await open('#/', execute, config);
-    await waitFor(() => expect(cardNames()).toHaveLength(3));
+    await waitFor(() => expect(cardNames()).toHaveLength(4));
     expect(screen.queryByRole('button', { name: 'Archive' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Menu for settlement' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Archive' }));
@@ -120,7 +120,7 @@ describe('the archive on the Toil projects page', () => {
     const { execute, away } = archiving();
     const config = editable(away);
     await open('#/', execute, config);
-    await waitFor(() => expect(cardNames()).toHaveLength(3));
+    await waitFor(() => expect(cardNames()).toHaveLength(4));
     await user.click(screen.getByRole('button', { name: 'Menu for checkout-web' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Archive' }));
     await waitFor(() => expect(cardNames()).not.toContain('checkout-web'));
@@ -139,7 +139,7 @@ describe('the archive on the Toil projects page', () => {
     const { execute, away } = archiving();
     const config = editable(away, (command) => (command === 'projects archive' ? refused('Toil project settlement is checked into a repository.', 'Copy it into your own folder with toil projects import first.') : undefined));
     await open('#/', execute, config);
-    await waitFor(() => expect(cardNames()).toHaveLength(3));
+    await waitFor(() => expect(cardNames()).toHaveLength(4));
     await user.click(screen.getByRole('button', { name: 'Menu for settlement' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Archive' }));
     expect((await screen.findByRole('alert')).textContent).toContain('Toil project settlement is checked into a repository. Copy it into your own folder with toil projects import first.');
@@ -149,7 +149,7 @@ describe('the archive on the Toil projects page', () => {
   it('draws no Archived disclosure when the archive could not be read, which is not the same as none', async () => {
     const { execute, away } = archiving(new Set(), { archivedUnreadable: true });
     await open('#/', execute, editable(away));
-    await waitFor(() => expect(cardNames()).toHaveLength(3));
+    await waitFor(() => expect(cardNames()).toHaveLength(4));
     expect(screen.queryByText(/^Archived \(/)).toBeNull();
     const read = await loadToilProjects(execute);
     expect(read.archived).toBeNull();
@@ -164,7 +164,7 @@ describe('the archive on the Toil projects page', () => {
   it('has no accessibility violations with the menu closed and the disclosure open', async () => {
     const { execute, away } = archiving();
     await open('#/', execute, editable(away));
-    await waitFor(() => expect(cardNames()).toHaveLength(3));
+    await waitFor(() => expect(cardNames()).toHaveLength(4));
     await userEvent.click(await screen.findByText('Archived (1)'));
     const result = await axe.run(document.body, { rules: { 'color-contrast': { enabled: false } }, resultTypes: ['violations'] });
     expect(result.violations.map((v) => v.id)).toEqual([]);
@@ -214,7 +214,7 @@ describe('the palette entries for archiving', () => {
     const { execute, away } = archiving();
     const config = editable(away);
     await open('#/', execute, config);
-    await waitFor(() => expect(cardNames()).toHaveLength(3));
+    await waitFor(() => expect(cardNames()).toHaveLength(4));
     await act(async () => {
       fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
     });

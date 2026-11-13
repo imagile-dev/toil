@@ -15,6 +15,9 @@ import type { Envelope } from '../../toil.ts';
 import { Card, CardGrid, Cluster, DataTable, Stack, Url } from '../../components/layout.tsx';
 import { RepoSetup } from './RepoSetup.tsx';
 import { FindFields } from './FindFields.tsx';
+import { ClassificationEditor } from './ClassificationEditor.tsx';
+import type { ClassifyApi } from '../../classify-api.ts';
+import type { WorkItem } from '../../toil.ts';
 import { toilProjectEditHref } from '../../format.ts';
 import { areaLabel, toolName } from '../../setup.ts';
 import { CardMenu } from '../../components/card-menu.tsx';
@@ -26,6 +29,7 @@ import { Loader } from '../../moments/Moments.tsx';
 import { isLensId, lensDef, LENSES, type LensId } from '../../../../src/core/brief/brief.ts';
 import { analyzePrompt, AUDIENCES, type Audience, type ToilProjectAnalyze, type FocusSource } from '../../../../src/core/brief/prompt.ts';
 import { analyzeSettings } from '../../../../src/core/brief/settings.ts';
+import { ArrowLeftIcon } from '../../components/icons.tsx';
 
 interface ListedToilProject {
   name: string;
@@ -50,10 +54,10 @@ const fromEnvelope = <T,>(e: Envelope): Loaded<T> => (e.ok ? { ok: true, value: 
 export type ToilProjectTarget = { toilProject: string; section: string | null };
 
 /** The form each section's edit link lands on, by its heading's id. */
-const SECTION_FORM: Record<string, string> = { sources: 'toil-project-form-sources', repos: 'toil-project-form-repos', fields: 'toil-project-form-fields', 'find-fields': 'toil-project-form-find-fields', people: 'toil-project-form-people', wip: 'toil-project-form-wip', analyze: 'toil-project-form-analyze' };
+const SECTION_FORM: Record<string, string> = { sources: 'toil-project-form-sources', repos: 'toil-project-form-repos', fields: 'toil-project-form-fields', 'find-fields': 'toil-project-form-find-fields', people: 'toil-project-form-people', wip: 'toil-project-form-wip', analyze: 'toil-project-form-analyze', classification: 'toil-project-form-classification' };
 
 /** `at`: a toil project's section to land on (#346); `toForm`: Create a toil project, which the first-run checklist opens (#416). */
-export function ToilProjectSetup({ config, at, toForm = false }: { config: ConfigApi; at?: ToilProjectTarget; toForm?: boolean }) {
+export function ToilProjectSetup({ config, at, toForm = false, classify, loadItems }: { config: ConfigApi; at?: ToilProjectTarget; toForm?: boolean; classify?: ClassifyApi | undefined; loadItems?: ((toilProject: string) => Promise<WorkItem[]>) | undefined }) {
   const [list, setList] = useState<Loaded<{ toilProjects: ListedToilProject[]; places: { user: string } }> | null>(null);
   // The archived ones (#561): null when they could not be read, which is not none and draws nothing.
   const [archived, setArchived] = useState<Array<{ name: string; description: string | null }> | null>(null);
@@ -109,7 +113,7 @@ export function ToilProjectSetup({ config, at, toForm = false }: { config: Confi
 
   // One Toil project's own page: its sources and everything else you can change about it (#561).
   if (at) {
-    return <EditToilProject config={config} name={at.toilProject} section={at.section} toilProjects={toilProjects} found={found} areas={areas} connections={connections} />;
+    return <EditToilProject config={config} name={at.toilProject} section={at.section} toilProjects={toilProjects} found={found} areas={areas} connections={connections} classify={classify} loadItems={loadItems} />;
   }
 
   return (
@@ -153,10 +157,11 @@ const GROUPS: Array<{ id: string; label: string; sections: string[] }> = [
   { id: 'people', label: 'People', sections: ['people'] },
   { id: 'wip', label: 'Work in progress limit', sections: ['wip'] },
   { id: 'analyze', label: 'How Analyze briefs', sections: ['analyze'] },
+  { id: 'classification', label: 'Classification', sections: ['classification'] },
 ];
 
 /** The edit page for one Toil project: its sources first, every other change one section further in (principle 11). */
-function EditToilProject({ config, name, section, toilProjects, found, areas, connections }: { config: ConfigApi; name: string; section: string | null; toilProjects: ListedToilProject[]; found: boolean; areas: AreaInfo[]; connections: ConnectionsData['connections'] }) {
+function EditToilProject({ config, name, section, toilProjects, found, areas, connections, classify, loadItems }: { config: ConfigApi; name: string; section: string | null; toilProjects: ListedToilProject[]; found: boolean; areas: AreaInfo[]; connections: ConnectionsData['connections']; classify: ClassifyApi | undefined; loadItems: ((toilProject: string) => Promise<WorkItem[]>) | undefined }) {
   const { pw } = usePlain();
   const first = GROUPS.find((g) => section && g.sections.includes(section))?.id ?? 'sources';
   const [open, setOpen] = useState<string>(first);
@@ -165,7 +170,7 @@ function EditToilProject({ config, name, section, toilProjects, found, areas, co
   return (
     <>
       <p className="note">
-        <a href="#/settings/projects" className="back-link">← All Toil projects</a>
+        <a href="#/settings/projects" className="back-link"><ArrowLeftIcon size={14} className="icon--before" />All Toil projects</a>
       </p>
       <Card as="section" className="panel" aria-labelledby="toil-project-change">
         <h2 id="toil-project-change" tabIndex={-1}>
@@ -200,6 +205,7 @@ function EditToilProject({ config, name, section, toilProjects, found, areas, co
               )}
               {open === g.id && g.id === 'wip' && <WipLimitForm config={config} toilProject={name} />}
               {open === g.id && g.id === 'analyze' && <AnalyzeForm config={config} toilProject={name} />}
+              {open === g.id && g.id === 'classification' && <ClassificationEditor config={config} classify={classify} toilProject={name} loadItems={loadItems} />}
             </details>
           ))
         )}

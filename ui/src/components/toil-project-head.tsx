@@ -15,6 +15,8 @@ import { EditLink } from './help.tsx';
 import { matches } from '../shortcuts.ts';
 import type { ToilProjectPreview, PreviewSprint } from '../model/preview.ts';
 import { usePlain } from '../plain-words.ts';
+import { Unread } from './unread.tsx';
+import { EditIcon } from './icons.tsx';
 import './toil-project-head.css';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -69,16 +71,7 @@ export function CountStrip({ preview, sprint = true, read = true }: { preview: T
 function Count({ value, label, tone }: { value: string | null; label: string; tone?: 'warn' | undefined }) {
   return (
     <li className={`count${tone ? ` count--${tone}` : ''}${value === null ? ' count--unknown' : ''}`}>
-      {value === null ? (
-        <>
-          <span className="count__value" aria-hidden="true">
-            –
-          </span>
-          <span className="sr-only">not read yet, </span>
-        </>
-      ) : (
-        <span className="count__value">{value}</span>
-      )}{' '}
+      {value === null ? <Unread className="count__value" label="not read yet" /> : <span className="count__value">{value}</span>}{' '}
       <span className="count__label">{label}</span>
     </li>
   );
@@ -117,9 +110,7 @@ export function Trend({ label, days }: { label: string; days: number[] | null })
     return (
       <li className="trend trend--unknown">
         <span className="trend__label">{label}</span>
-        <span className="trend__total" aria-label={`${label}: not read yet`}>
-          –
-        </span>
+        <Unread className="trend__total" label={`${label}: not read yet`} />
       </li>
     );
   }
@@ -331,7 +322,7 @@ export function Editable({
               setEditing(true);
             }}
           >
-            <span aria-hidden="true">✎</span>
+            <EditIcon size={16} />
           </button>
         )}
       </span>

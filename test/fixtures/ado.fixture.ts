@@ -54,6 +54,14 @@ export const workItem = (id: number, extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
+// Invented from the docs: one entry of the batch read categorize makes: id, rev and the fields it asked for.
+export const categorizeItem = (id: number, extra: Record<string, unknown> = {}) => ({
+  id,
+  rev: 3,
+  fields: { 'System.Id': id, 'System.Rev': 3, 'System.Tags': 'ui; backend', 'System.WorkItemType': 'Bug', 'System.TeamProject': 'Imagile', ...extra },
+  url: `${ADO}${COLL}/_apis/wit/workItems/${id}`,
+});
+
 // Invented from the docs: one entry of GET .../workItems/{id}/revisions, the whole item as of that revision.
 const revision = (rev: number, state: string) => ({
   id: 42,
@@ -228,6 +236,16 @@ export const routes: Route[] = [
       return { json: { count: value.length, value } };
     },
   },
+  // categorize reads at the collection, with errorPolicy Omit: id 404 is null, the rest carry the fields it asked for.
+  {
+    method: 'POST',
+    path: `${COLL}/_apis/wit/workitemsbatch`,
+    respond: (r) => {
+      const ids = (JSON.parse(r.body ?? '{}') as { ids: number[] }).ids;
+      return { json: { count: ids.length, value: ids.map((id) => (id === 404 ? null : categorizeItem(id))) } };
+    },
+  },
+  { path: `${PROJ}/_apis/wit/workitemtypes/Bug/fields/Custom.WorkCategory`, respond: { json: { referenceName: 'Custom.WorkCategory', name: 'Work Category', alwaysRequired: false, allowedValues: ['KTLO', 'Feature'] } } },
   { path: `${PROJ}/_apis/wit/workItems/42/comments`, respond: { json: { totalCount: 2, count: 2, comments: [comment(1), comment(2)] } } },
   { method: 'POST', path: `${PROJ}/_apis/wit/workItems/42/comments`, respond: { json: comment(3) } },
   { method: 'POST', path: `${COLL}/_apis/wit/attachments`, respond: { json: { id: ATTACHMENT, url: `${ADO}${COLL}/_apis/wit/attachments/${ATTACHMENT}` } } },
@@ -317,7 +335,14 @@ export const routes: Route[] = [
   { path: `${PROJ}/_apis/build/builds/101/logs/3`, respond: { text: '2026-10-01T12:00:00Z Starting: Build\n2026-10-01T12:05:00Z Finishing: Build\n' } },
 ];
 
+/**
+ * A classification plan as toil classify run writes it, for the categorize examples. The batch read,
+ * the field's definition and the patch answers below are shaped from the vendor's documentation
+ * (Work Items - Get Work Items Batch, Work Item Types Field - Get, Work Items - Update, REST API 7.1),
+ * not captured from a live instance.
+ */
 export const files = {
+  'categorize-plan.json': JSON.stringify({ scheme: { name: 'ktlo-feature', revision: 1 }, categories: [{ id: 'ktlo', short: 'KTLO', name: 'Keep the lights on', label: 'ktlo', definition: 'Work that keeps the product running.' }, { id: 'feature', short: 'Feature', name: 'New capability', label: 'feature', definition: 'Work that adds something new.' }], plan: [{ area: 'ado', connection: 'ado', labels: { ktlo: 'ktlo', feature: 'feature' }, field: { name: 'Custom.WorkCategory' }, items: [{ id: 'ado:42', key: '42', category: 'ktlo', labels: { add: ['ktlo'], remove: [] }, field: { value: 'KTLO' } }, { id: 'ado:7', key: '7', category: 'feature', labels: { add: ['feature'], remove: [] }, field: { value: 'Feature' } }] }] }),
   'work-item.json': JSON.stringify({ type: 'Task', fields: { Title: 'From the file', Description: '@desc.html', 'Acceptance Criteria': 'It works', Priority: 2 } }),
   'desc.html': '<p>Steps</p>',
   'screenshot.png': new Uint8Array([137, 80, 78, 71, 13]),

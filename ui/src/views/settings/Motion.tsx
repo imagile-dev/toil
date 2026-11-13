@@ -24,6 +24,7 @@ import { Choice } from '../../components/choice.tsx';
 import { Card } from '../../components/layout.tsx';
 import { Help } from '../../components/help.tsx';
 import { useTheme } from '../../theme-context.ts';
+import { CheckIcon } from '../../components/icons.tsx';
 
 /** The one Motion setting, read off the stored ones. */
 export function motionLevel(reduced: boolean, themeMotion: ThemeMotion): ThemeMotion {
@@ -73,7 +74,7 @@ export function MotionSetting() {
       <div className="theme-setting__row">
         <Checkbox className="check" isSelected={tips} onChange={setTips}>
           <span className="box" aria-hidden="true">
-            {tips ? '✓' : ''}
+            {tips ? <CheckIcon size={14} /> : null}
           </span>
           Toil tips on loading screens
         </Checkbox>

@@ -15,8 +15,8 @@ import { Button, Form, Label, Radio, RadioGroup, TextArea, TextField, Input } fr
 import { ProposalCard } from '../components/proposal.tsx';
 import { Cited, ItemLink } from '../components/items.tsx';
 import { Path } from '../components/layout.tsx';
-import { Panel } from '../components/panel.tsx';
 import { Help } from '../components/help.tsx';
+import { Panel } from '../components/panel.tsx';
 import { useData } from '../data.ts';
 import { toilProjectHref, standupHref, worklogHref } from '../format.ts';
 import {
@@ -25,7 +25,7 @@ import {
 } from '../model/worklog.ts';
 import { MAX_NOTE, type ExportWhat, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth } from '../worklog.ts';
 import { Loader } from '../moments/Moments.tsx';
-import { usePlain } from '../plain-words.ts';
+import { Dash } from './Standup.tsx';
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string } | null;
 const failedWith = (e: unknown) => ({ ok: false as const, message: e instanceof Error ? e.message : String(e) });
@@ -34,7 +34,6 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 
 export function Worklog({ api, day }: { api: WorklogApi | null; day: string | null }) {
   const { toilProject } = useData();
-  const plain = usePlain();
   const [month, setMonth] = useState<string | null>(day ? monthOf(day) : null);
   const [calendar, setCalendar] = useState<Loaded<WorklogMonth>>(null);
   const [page, setPage] = useState<Loaded<WorklogDay>>(null);
@@ -72,12 +71,6 @@ export function Worklog({ api, day }: { api: WorklogApi | null; day: string | nu
       <p className="eyebrow">
         <a href={toilProjectHref(toilProject.name)}>{toilProject.name}</a>
       </p>
-      <h1 tabIndex={-1} title={plain.title('Worklog')}>
-        {plain.pw('Worklog', 'What happened')}
-      </h1>
-      <p className="lede">
-        One page a day of what happened, facts only. <Help topic="worklog" />
-      </p>
       {api && (
         <p>
           <a className="btn" href={standupHref(toilProject.name)} data-standup-link="">
@@ -101,7 +94,7 @@ export function Worklog({ api, day }: { api: WorklogApi | null; day: string | nu
     <>
       {head}
       <div className="worklog">
-        <Panel id="worklog-calendar" title={calendar?.ok ? monthName(calendar.value.month) : 'Calendar'} calls={[]}>
+        <Panel id="worklog-calendar" title={calendar?.ok ? monthName(calendar.value.month) : 'Calendar'} calls={[]} info={calendar?.ok ? <Help topic="worklog-calendar" note={`The cache keeps ${plural(calendar.value.retentionDays, 'day')} after each sync, and so do the pages.`} /> : undefined}>
           {!calendar ? <Loader size="panel" message="Reading the calendar" /> : calendar.ok ? <Calendar data={calendar.value} selected={selected} onMonth={setMonth} /> : <p role="alert" className="failure">{calendar.message}</p>}
         </Panel>
         <Panel id="worklog-day" title={selected ? longDay(selected) : 'The day'} calls={[]}>
@@ -190,9 +183,6 @@ function Calendar({ data, selected, onMonth }: { data: WorklogMonth; selected: s
           ))}
         </tbody>
       </table>
-      <p className="note">
-        A number under a day is how many lines its page has; a star means the page says what the cache can't vouch for. The cache keeps {plural(data.retentionDays, 'day')} after each sync, and so do the pages.
-      </p>
     </>
   );
 }
@@ -240,26 +230,37 @@ function Line({ e }: { e: WorklogEvent }) {
   );
 }
 
-/**
- * One section of a day. An empty one says "nothing happened" only when a sync read that day; with no read behind it the
- * absence is unknown, not zero (principle 12), so it is a dash, "not read yet", and the way to read.
- */
-function Section({ title, events, none, read }: { title: string; events: WorklogEvent[]; none: string; read: boolean }) {
-  const { sync } = useData();
+/** A section of a day that has lines. The ones with none are not drawn: DayPage names them in one line (`Empties`). */
+function Section({ title, events }: { title: string; events: WorklogEvent[] }) {
   return (
     <section className="worklog-section">
       <h3>{title}</h3>
-      {events.length ? (
-        <ul className="rows worklog-lines">
-          {events.map((e) => (
-            <Line key={e.key} e={e} />
-          ))}
-        </ul>
-      ) : read ? (
-        <p className="note">{none}</p>
-      ) : (
+      <ul className="rows worklog-lines">
+        {events.map((e) => (
+          <Line key={e.key} e={e} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * The sections of a day with nothing in them, as one muted line each way. An empty one is "none" only when a sync read that
+ * day; with no read behind it the absence is unknown, not zero (principle 12), so it is a dash read aloud as "not read yet",
+ * beside the way to read.
+ */
+function Empties({ none, unread }: { none: string[]; unread: string[] }) {
+  const { sync } = useData();
+  return (
+    <>
+      {none.length > 0 && (
+        <p className="note" data-empties="none">
+          <Dash /> {none.join(' · ')}
+        </p>
+      )}
+      {unread.length > 0 && (
         <p className="note" data-not-read="">
-          <span aria-hidden="true">–</span> Not read yet: nothing has been read for this day.{' '}
+          <Dash what="not read yet" /> {unread.join(' · ')}{' '}
           {sync && (
             <Button className="btn btn--small" onPress={sync} data-sync-now="">
               Sync now
@@ -267,7 +268,7 @@ function Section({ title, events, none, read }: { title: string; events: Worklog
           )}
         </p>
       )}
-    </section>
+    </>
   );
 }
 
@@ -320,6 +321,11 @@ function DayPage({ api, data, today, onChange }: { api: WorklogApi; data: Worklo
   const [busy, setBusy] = useState(false);
   // Today's empty section is a real zero only after a sync has read today. An earlier day is folded from the sources' own history, and its Coverage note says what it can't vouch for.
   const read = page.day !== today || page.sources.some((s) => s.syncs > 0);
+  // The day's sections in page order, with the ones a sync decides (their sources) apart from the agent runs and notes, which are Toil UI's own records and always read.
+  const sections: Array<[string, WorklogEvent[]]> = [['Work items', page.work], ['Pull requests', page.prs], ['Builds and deployments', page.delivery]];
+  const noteForm = page.day === today && !api.disabled;
+  const none = [...sections.filter(([, e]) => e.length === 0 && read).map(([t]) => t), ...(page.agents.length === 0 ? ['Agent runs'] : []), ...(page.notes.length === 0 && !noteForm ? ['Notes'] : [])];
+  const unread = read ? [] : sections.filter(([, e]) => e.length === 0).map(([t]) => t);
   const rebuild = async () => {
     setBusy(true);
     try {
@@ -335,9 +341,10 @@ function DayPage({ api, data, today, onChange }: { api: WorklogApi; data: Worklo
   return (
     <div className="worklog-page">
       <p className="note">
-        Built by Toil UI from its cache, facts only{data.file ? ', and kept at ' : '. Sample data keeps no file.'}
+        Built by Toil UI from its cache, facts only{data.file ? ', and kept at ' : '.'}
         {data.file && <Path value={data.file} what="page's path" />}
       </p>
+      {api.disabled && <p className="note" data-worklog-disabled="">{api.disabled}</p>}
       {page.gaps.length > 0 && (
         <section className="worklog-gaps" aria-labelledby={`gaps-${page.day}`}>
           <h3 id={`gaps-${page.day}`}>Coverage</h3>
@@ -348,22 +355,19 @@ function DayPage({ api, data, today, onChange }: { api: WorklogApi; data: Worklo
           </ul>
         </section>
       )}
-      <Section title="Work items" events={page.work} read={read} none="No status changes, sprint changes or new blockers recorded." />
-      <Section title="Pull requests" events={page.prs} read={read} none="No pull requests opened, reviewed, merged or declined." />
-      <Section title="Builds and deployments" events={page.delivery} read={read} none="No builds or deployments failed or recovered." />
-      <section className="worklog-section">
-        <h3>Agent runs</h3>
-        {page.agents.length ? (
+      {sections.map(([title, events]) => events.length > 0 && <Section key={title} title={title} events={events} />)}
+      {page.agents.length > 0 && (
+        <section className="worklog-section">
+          <h3>Agent runs</h3>
           <ul className="rows worklog-lines">
             {page.agents.map((r) => (
               <Run key={r.run.id} line={r} />
             ))}
           </ul>
-        ) : (
-          <p className="note">No agent runs.</p>
-        )}
-      </section>
-      <Notes api={api} data={data} today={today} onChange={onChange} />
+        </section>
+      )}
+      <Notes api={api} data={data} onChange={onChange} wanted={noteForm} />
+      <Empties none={none} unread={unread} />
       <section className="worklog-section">
         <h3>Sources</h3>
         {page.sources.length ? (
@@ -391,7 +395,7 @@ function DayPage({ api, data, today, onChange }: { api: WorklogApi; data: Worklo
           </p>
         )}
       </div>
-      <Export api={api} toilProject={page.toilProject} day={page.day} />
+      {!api.disabled && <Export api={api} toilProject={page.toilProject} day={page.day} />}
       <details className="worklog-md">
         <summary>The page as Markdown</summary>
         <pre role="region" aria-label="The page as Markdown" tabIndex={0}>
@@ -402,11 +406,11 @@ function DayPage({ api, data, today, onChange }: { api: WorklogApi; data: Worklo
   );
 }
 
-function Notes({ api, data, today, onChange }: { api: WorklogApi; data: WorklogDay; today: string | null; onChange: (d: WorklogDay) => void }) {
+/** The day's notes, and today's form to add one. With neither, it draws nothing: the day's empty-sections line names Notes. */
+function Notes({ api, data, onChange, wanted }: { api: WorklogApi; data: WorklogDay; onChange: (d: WorklogDay) => void; wanted: boolean }) {
   const { page } = data;
   const [text, setText] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
-  const isToday = page.day === today;
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setProblem(null);
@@ -417,10 +421,11 @@ function Notes({ api, data, today, onChange }: { api: WorklogApi; data: WorklogD
       setProblem(err instanceof Error ? err.message : String(err));
     }
   };
+  if (!page.notes.length && !wanted) return null;
   return (
     <section className="worklog-section">
       <h3>Notes</h3>
-      {page.notes.length ? (
+      {page.notes.length > 0 && (
         <ul className="rows worklog-lines">
           {page.notes.map((n) => (
             <li key={n.id} className="worklog-line">
@@ -428,13 +433,8 @@ function Notes({ api, data, today, onChange }: { api: WorklogApi; data: WorklogD
             </li>
           ))}
         </ul>
-      ) : (
-        <p className="note">No notes.</p>
       )}
-      {isToday &&
-        (api.disabled ? (
-          <p className="note">{api.disabled}</p>
-        ) : (
+      {wanted && (
           <Form className="worklog-note" onSubmit={(e) => void submit(e)}>
             <TextField className="field-text field-text--area" value={text} onChange={setText} maxLength={MAX_NOTE}>
               <Label>Add a note to today's page</Label>
@@ -449,7 +449,7 @@ function Notes({ api, data, today, onChange }: { api: WorklogApi; data: WorklogD
               </p>
             )}
           </Form>
-        ))}
+      )}
     </section>
   );
 }
@@ -474,30 +474,28 @@ function Export({ api, toilProject, day }: { api: WorklogApi; toilProject: strin
   };
   return (
     <section className="worklog-section" aria-labelledby="worklog-export">
-      <h3 id="worklog-export">Export and publish</h3>
-      <p className="note">Export writes the Markdown to a new file in a folder you name, through toil's own file service. Publishing it to Confluence or GitHub is then a proposal, for you to run through toil's write gate.</p>
-      {api.disabled ? (
-        <p className="note">{api.disabled}</p>
-      ) : (
-        <Form className="worklog-export" onSubmit={(e) => void submit(e)}>
-          <RadioGroup className="shells" orientation="horizontal" value={span} onChange={(v) => setSpan(v as 'day' | 'month')}>
-            <Label>Export</Label>
-            <Radio value="day" className="shell-choice">
-              This day
-            </Radio>
-            <Radio value="month" className="shell-choice">
-              {monthName(monthOf(day))}
-            </Radio>
-          </RadioGroup>
-          <TextField className="field-text" value={folder} onChange={setFolder} isRequired>
-            <Label>Folder, as a full path</Label>
-            <Input autoComplete="off" spellCheck={false} />
-          </TextField>
-          <Button type="submit" className="btn" isDisabled={busy || !folder.trim()}>
-            Export
-          </Button>
-        </Form>
-      )}
+      <div className="edit-head">
+        <h3 id="worklog-export">Export and publish</h3>
+        <Help topic="worklog-export" />
+      </div>
+      <Form className="worklog-export" onSubmit={(e) => void submit(e)}>
+        <RadioGroup className="shells" orientation="horizontal" value={span} onChange={(v) => setSpan(v as 'day' | 'month')}>
+          <Label>Export</Label>
+          <Radio value="day" className="shell-choice">
+            This day
+          </Radio>
+          <Radio value="month" className="shell-choice">
+            {monthName(monthOf(day))}
+          </Radio>
+        </RadioGroup>
+        <TextField className="field-text" value={folder} onChange={setFolder} isRequired>
+          <Label>Folder, as a full path</Label>
+          <Input autoComplete="off" spellCheck={false} />
+        </TextField>
+        <Button type="submit" className="btn" isDisabled={busy || !folder.trim()}>
+          Export
+        </Button>
+      </Form>
       {result &&
         (result.ok ? (
           <>

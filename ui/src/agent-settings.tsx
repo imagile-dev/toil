@@ -26,7 +26,7 @@ import type { AskStyle } from './agent.ts';
 import { MAX_INSTRUCTIONS, systemPrompt } from '../server/agents/prompts.ts';
 import { promptStyle } from '../server/agents/voices.ts';
 import { useTheme, useThemeChoiceContext, voiceOn } from './theme-context.ts';
-import { FIXTURE_NOW } from './fixtures/execute.ts';
+import { SAMPLE_AS_OF as FIXTURE_NOW } from './fixtures/now.ts';
 import { AdaptersCard, InstallDialog, helperState, needsInstall, statusLines, STATE_WORD } from './agent-install.tsx';
 import { usePlain } from './plain-words.ts';
 import { SAMPLE_ADAPTER_STATUS } from './fixtures/agent-status.ts';

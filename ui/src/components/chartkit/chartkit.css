@@ -1,0 +1,140 @@
+/*
+ * The chart kit's styles: only theme tokens, so every theme and both schemes
+ * wear it as they are. Series marks are NOT here (their colours come from
+ * theme.json through the `Mark`s the components are given); what is here is the
+ * two neutrals (Other, None), the grid, the axes, the tooltip and the legend.
+ * A stylesheet of tokens, which is to say a stylesheet of other people's decisions.
+ */
+
+.ck-chart {
+  position: relative;
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  min-width: 0;
+}
+.ck-chart__head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
+.ck-chart__head h3 { margin: 0; flex: 1 1 12rem; min-width: 0; }
+
+.ck-toggle { display: inline-flex; }
+.ck-toggle__btn { border-radius: 0; min-width: 4.5rem; text-align: center; }
+.ck-toggle__btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.ck-toggle__btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; margin-left: -1px; }
+
+.ck-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.ck-svg--mix { min-width: 8rem; }
+.ck-mix__key { display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; margin: 0.3rem 0 0; padding: 0; list-style: none; font-size: 0.8125rem; }
+.ck-mix__key li { display: inline-flex; align-items: center; gap: 0.35rem; }
+.ck-mix__key .ck-swatch { width: 18px; height: 14px; }
+.ck-mix { display: block; position: relative; min-width: 0; max-width: 24rem; }
+
+/* The two neutrals, from the theme's own tokens, never from a mark. */
+.ck-other { fill: color-mix(in srgb, var(--muted) 30%, var(--surface)); stroke: none; }
+.ck-none { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+
+.ck-grid { stroke: var(--line); stroke-width: 1; }
+.ck-axis { fill: var(--muted); font-size: 13px; font-family: var(--font-body); }
+.ck-axis--row { font-size: 13px; fill: var(--ink); }
+.ck-axis--small { font-size: 10px; }
+.ck-value { fill: var(--ink); font-size: 13px; font-family: var(--font-body); pointer-events: none; }
+.ck-dash { fill: var(--muted); font-size: 16px; font-weight: 700; }
+
+/* A line with no mark (Other, None) is a neutral line. */
+.ck-line-neutral { stroke: var(--muted); stroke-width: 2; }
+.ck-line-core { stroke: var(--surface); }
+.ck-scope { stroke: var(--muted); stroke-width: 2; stroke-dasharray: 2 4; stroke-linecap: round; }
+.ck-scope-dot { fill: var(--muted); }
+.ck-band { fill: color-mix(in srgb, var(--muted) 25%, transparent); stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.ck-marker line { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 1 3; }
+.ck-marker__label { fill: var(--ink); }
+.ck-legend__static { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0 0.6rem; }
+.ck-dot-fill { stroke-width: 2; }
+.ck-dot-fill--neutral { stroke: var(--muted); fill: var(--surface); }
+
+.ck-hatch { stroke: var(--muted); stroke-width: 1.5; }
+.ck-cell-unread { stroke: var(--line); stroke-width: 1; }
+.ck-cell-value { fill: var(--ink); font-size: 11px; pointer-events: none; }
+.ck-cell-value--dark { fill: var(--accent-ink); }
+
+/* Every mark is a keyboard stop: a visible ring on whatever draws it. */
+.ck-mark, .ck-dot, .ck-unread, .ck-cell { cursor: pointer; outline: none; }
+.ck-mark:focus-visible .ck-fill,
+.ck-mark:focus-visible .ck-other,
+.ck-mark:focus-visible .ck-none,
+.ck-cell:focus-visible rect,
+.ck-dot:focus-visible .ck-dot-fill { stroke: var(--focus); stroke-width: 3; stroke-dasharray: none; }
+.ck-mark:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ck-mark:hover .ck-fill { filter: brightness(0.96); }
+
+.ck-tip {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, calc(-100% - 8px));
+  max-width: min(22rem, 90vw);
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
+  pointer-events: none;
+  width: max-content;
+}
+
+.ck-legend { display: flex; flex-wrap: wrap; gap: 0.25rem 0.5rem; margin: 0; padding: 0; list-style: none; }
+.ck-legend__item { position: relative; }
+.ck-legend__btn { display: inline-flex; align-items: center; gap: 0.4rem; border-color: transparent; background: none; }
+.ck-legend__btn[aria-pressed="true"] { background: none; color: var(--ink); border-color: var(--ink); }
+.ck-legend__item[data-off] .ck-legend__name { text-decoration: line-through; color: var(--muted); }
+.ck-legend__item[data-off] .ck-swatch { opacity: 0.45; }
+.ck-legend__all { border-color: transparent; background: none; color: var(--link); }
+.ck-swatch { flex: none; }
+.ck-menu {
+  position: absolute;
+  z-index: 6;
+  top: 100%;
+  left: 0;
+  display: grid;
+  min-width: 11rem;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--raised);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+}
+.ck-menu button { border: 0; background: none; text-align: left; }
+
+.ck-unread-state { display: grid; gap: 0.5rem; padding: 1rem; border: 1px dashed var(--line); border-radius: var(--radius); }
+.ck-unread-state p { margin: 0; }
+.ck-source { margin: 0; }
+
+.ck-ramp { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin: 0; color: var(--muted); font-size: 0.8125rem; }
+.ck-ramp__bar { width: 7rem; height: 0.75rem; border: 1px solid var(--line); background: linear-gradient(90deg, var(--surface), color-mix(in srgb, var(--accent) 85%, var(--surface))); }
+.ck-ramp__none { width: 1rem; height: 0.75rem; border: 1px solid var(--line); background: repeating-linear-gradient(45deg, var(--muted) 0 1px, transparent 1px 5px); margin-left: 0.5rem; }
+
+.ck-multiples { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: 0.75rem; min-width: 0; }
+.ck-multiple { margin: 0; min-width: 0; }
+.ck-multiple figcaption { font-size: 0.8125rem; color: var(--ink); overflow-wrap: anywhere; }
+
+.ck-gallery { display: grid; gap: 2rem; }
+.ck-gallery > section { display: grid; gap: 0.75rem; min-width: 0; }
+
+/* Forced colours: every fill and stroke becomes a system colour, the border style carries the series, and frames step aside. */
+@media (forced-colors: active) {
+  .ck-fill { fill: Canvas; }
+  .ck-edge, .ck-line, .ck-dot-fill { stroke: CanvasText; }
+  .ck-other { fill: GrayText; }
+  .ck-none { stroke: GrayText; }
+  .ck-frame { display: none; }
+  .ck-mark:focus-visible { outline-color: Highlight; }
+}
+
+/* The source line: one short line, and a quiet count beside it that opens the full notes. */
+.ck-source { display: grid; gap: 0.2rem; }
+.ck-source__line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.1rem 0.6rem; }
+.ck-source__more { display: inline-flex; align-items: center; gap: 0.2rem; min-height: 32px; padding: 0 0.3rem; background: none; border: 0; border-radius: var(--radius); color: var(--link); font: inherit; cursor: pointer; }
+.ck-source__more:hover { background: var(--surface); }
+.ck-source__more:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.ck-source__notes { margin: 0; overflow-wrap: anywhere; }

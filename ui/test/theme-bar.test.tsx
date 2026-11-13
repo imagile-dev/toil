@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { metric } from './views-kit.tsx';
 import { openChat } from './chat.ts';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
@@ -37,7 +38,7 @@ async function open(hash: string, theme: string, scheme: string) {
   localStorage.setItem('toil-ui.theme', JSON.stringify({ theme, scheme, wording: true, voice: true }));
   window.location.hash = hash;
   const view = render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview />);
-  await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
+  await waitFor(() => expect(document.querySelector('h1, [data-tab-panel]')).toBeTruthy(), { timeout: 3000 });
   // The dashboard's graph loads on its own; wait for it, so every target is on the page.
   if (hash.startsWith('#/project/') && !hash.includes('/item/')) await waitFor(() => expect(screen.queryByText('Drawing the graph…')).toBeNull(), { timeout: 3000 });
   return view;
@@ -110,10 +111,10 @@ describe('controls and headings read the real word alone, in every theme (princi
     expect(screen.queryByText(/Campaign/)).toBeNull();
   });
 
-  it.each(['plain', 'realm', 'starship', 'sprawl', 'frontier', 'overworld'])('%s names the graph "What blocks what" and its blockers Blocked', async (theme) => {
+  it.each(['plain', 'realm', 'starship', 'sprawl', 'frontier', 'overworld'])('%s names the graph "Links between items" and its blockers Blocked', async (theme) => {
     const scheme = Object.keys(themeNamed(theme).schemes)[0]!;
     await open('#/project/card-payments/dependencies', theme, scheme);
-    const graph = screen.getByRole('region', { name: 'What blocks what' });
+    const graph = screen.getByRole('region', { name: 'Links between items' });
     // The graph loads on its own, after the rest of the tab.
     await waitFor(() => expect(within(graph).getAllByText('Blocked').length).toBeGreaterThan(0), { timeout: 3000 });
   });
@@ -146,10 +147,10 @@ describe('controls and headings read the real word alone, in every theme (princi
     expect(builds.textContent).not.toMatch(/Natural 20|Critical fail/);
     cleanup();
     await open('#/project/card-payments/people', 'realm', 'light');
-    expect(screen.getByRole('heading', { level: 1, name: 'People' })).toBeTruthy();
+    expect(document.querySelector('[data-tab-panel] h1')).toBeNull();
     cleanup();
-    await open('#/project/card-payments/analyses', 'realm', 'light');
-    expect(screen.getByRole('heading', { name: 'Past briefings' })).toBeTruthy();
+    await open('#/project/card-payments/summary/briefings', 'realm', 'light');
+    expect(screen.getByRole('heading', { name: 'Earlier briefings' })).toBeTruthy();
     cleanup();
     await open(item('card-payments', 'corp-jira:PAY-100'), 'realm', 'light');
     expect(screen.getByText('Priority', { selector: 'dt' })).toBeTruthy();
@@ -159,7 +160,7 @@ describe('controls and headings read the real word alone, in every theme (princi
     localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'realm', scheme: 'light', wording: false }));
     window.location.hash = '#/project/card-payments/people';
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview />);
-    expect(await screen.findByRole('heading', { level: 1, name: 'People' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 2, name: 'People and agents' })).toBeTruthy();
     expect(document.querySelector('.person-tag--roll')).toBeNull();
   });
 });
@@ -190,7 +191,7 @@ describe('the skins', { timeout: SLOW }, () => {
     // The calendar hangs on the sprint, which the Overview's burn-up opens (#394).
     cleanup();
     await open('#/project/card-payments', 'harvest', 'light');
-    await userEvent.click(screen.getByRole('button', { name: /^Points done / }));
+    await metric(/^Points done /);
     await screen.findByRole('dialog');
     expect(document.querySelector('.harvest-calendar')?.getAttribute('aria-hidden')).toBe('true');
   });
@@ -213,7 +214,7 @@ describe('the skins', { timeout: SLOW }, () => {
     expect(hud.querySelector('.ow-gems')!.textContent).toBe('3/21');
     cleanup();
     await open('#/project/card-payments', 'overworld', 'dark');
-    await userEvent.click(screen.getByRole('button', { name: /^Points done / }));
+    await metric(/^Points done /);
     expect((await screen.findByRole('dialog')).querySelector('.ow-hud')?.getAttribute('aria-hidden')).toBe('true');
   });
 
@@ -268,7 +269,7 @@ describe('the skins', { timeout: SLOW }, () => {
 
   it("count the sprint's hit points in place of its meter in Realm, from the sprint's own figures", async () => {
     await open('#/project/card-payments', 'realm', 'light');
-    await userEvent.click(screen.getByRole('button', { name: /^Points done / }));
+    await metric(/^Points done /);
     const dialog = await screen.findByRole('dialog');
     const vitals = dialog.querySelector('.realm-vitals')!;
     expect(vitals.textContent).toBe('Points left 18 of 21');

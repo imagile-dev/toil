@@ -1,5 +1,5 @@
-import { blank, idFor, instant, isRecord, num, overrideUnit, person, setDay, setInstant, str, text, typeOf, unknownState, unmapped, type MapState, type OwiDocument } from './common.js';
-import type { History, Iteration, Link, Person, StatusCategory, WorkItem } from './types.js';
+import { blank, dimensionsFor, idFor, instant, isRecord, num, overrideUnit, person, setDay, setDim, setInstant, str, text, textsOf, typeOf, unknownState, unmapped, type MapState, type OwiDocument } from './common.js';
+import type { History, Iteration, Link, Person, Release, StatusCategory, WorkItem } from './types.js';
 
 /**
  * Azure DevOps (`ado`) to OWI: the work items `work-item get` and `work-item get-many`
@@ -81,7 +81,7 @@ export function adoPerson(value: unknown): Person | null {
 const idInUrl = (url: unknown) => (typeof url === 'string' ? /\/workItems\/(\d+)$/i.exec(url)?.[1] : undefined);
 
 /** `\Imagile\Iteration\Sprint 1` (a classification node) and `Imagile\Sprint 1` (System.IterationPath) as one key. */
-const pathKey = (path: string, node: boolean) => {
+export const pathKey = (path: string, node: boolean) => {
   const parts = path.replace(/^\\+/, '').split('\\');
   if (node && parts[1]?.toLowerCase() === 'iteration') parts.splice(1, 1);
   return parts.join('\\').toLowerCase();
@@ -141,6 +141,23 @@ export function adoItem(doc: OwiDocument, record: Item, state: MapState, dates: 
     if (f[state.fields.team] === undefined) unmapped(item, 'team', missing(state.fields.team, 'team'));
   }
 
+  // The dimensions people split by. The area path is read or it isn't. A pointed-at field Azure DevOps leaves out may be empty or may never have been asked for, so its key stays absent and unmapped says so.
+  if ('System.AreaPath' in f) {
+    const path = f['System.AreaPath'];
+    item.area = typeof path === 'string' && path.trim() !== '' ? { path } : null;
+  }
+  for (const name of ['release', 'affects'] as const) {
+    const pointer = state.fields[name];
+    if (pointer === undefined) continue;
+    const field = name === 'release' ? 'releases' : 'affects';
+    if (f[pointer] === undefined) unmapped(item, field, missing(pointer, name));
+    else item[field] = textsOf(f[pointer]).map((n): Release => ({ id: null, name: n, released: null, date: null }));
+  }
+  for (const [name, pointer] of dimensionsFor(state, doc.area)) {
+    if (f[pointer] === undefined) unmapped(item, `dims.${name}`, missing(pointer, false));
+    else setDim(item, name, textsOf(f[pointer]));
+  }
+
   estimate(item, f, state);
 
   const iterationField = state.fields.iteration ?? 'System.IterationPath';
@@ -164,6 +181,7 @@ export function adoItem(doc: OwiDocument, record: Item, state: MapState, dates: 
     else if (rel.startsWith('System.LinkTypes.') || rel.startsWith('Microsoft.VSTS.')) item.links.push({ type: 'other', direction: 'outward', target: idFor(doc.connection, target), name: rel });
   }
   if (item.parent === null && typeof f['System.Parent'] === 'number') item.parent = idFor(doc.connection, String(f['System.Parent']));
+  if (Array.isArray(record.relations) || 'System.Parent' in f) state.parentRead?.add(item.id);
 
   setInstant(item, 'created', f['System.CreatedDate'], 'System.CreatedDate');
   setInstant(item, 'updated', f['System.ChangedDate'], 'System.ChangedDate');

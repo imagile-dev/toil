@@ -24,6 +24,8 @@ export const docsPath = [
     title: 'Use',
     links: [
       { label: 'Toil projects', href: '/docs/projects/' },
+      { label: 'Work categories', href: '/docs/classify/' },
+      { label: 'Sample team', href: '/docs/sample/' },
       { label: 'Utilities', href: '/docs/utilities/' },
       { label: 'Local git', href: '/connect/git/' },
       { label: 'Dependency checks', href: '/connect/#dependency-checks' },

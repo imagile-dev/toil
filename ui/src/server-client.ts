@@ -21,6 +21,9 @@ import type { Envelope, Execute } from './toil.ts';
 import type { ChatSession, ServerStatus } from './fingerprint.ts';
 import type { AnalysesApi } from './analyses.ts';
 import type { AnalysisSummary, AnalysisView } from './model/analysis.ts';
+import { SAMPLE_CANNOT_WRITE, type AgentChoice, type ClassifyApi, type LedgerView } from './classify-api.ts';
+import type { MoveOutcome } from './board-api.ts';
+import type { WorkItem } from './toil.ts';
 import { WORKLOG_SAMPLE_DISABLED, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth, type WorklogRebuilt, type WorklogStandup } from './worklog.ts';
 
 export type { ToilProjectState, SourceState } from '../server/cache.ts';
@@ -257,7 +260,7 @@ export async function httpServerStatus(base = './'): Promise<ServerStatus | null
 }
 
 /** A question's extra fields (#344), only those set, so a question with none sends what it always did. */
-const extraBody = (extra: AskExtra | undefined) => ({ ...(extra?.adapter ? { adapter: extra.adapter } : {}), ...(extra?.fallback ? { fallback: true } : {}), ...(extra?.history?.length ? { history: extra.history } : {}) });
+const extraBody = (extra: AskExtra | undefined) => ({ ...(extra?.adapter ? { adapter: extra.adapter } : {}), ...(extra?.fallback ? { fallback: true } : {}), ...(extra?.history?.length ? { history: extra.history } : {}), ...(extra?.context ? { context: extra.context } : {}) });
 
 /** One streamed answer's NDJSON lines (server.ts, streamAnswer): each answer as it grows, then done or an error. */
 export async function* answerLines(res: Response): AsyncIterable<Answer> {
@@ -423,6 +426,54 @@ export function httpAnalyses(base = './'): AnalysesApi {
       if (res.status === 404) return null;
       if (!res.ok) throw await failure(res, 'Reading the analysis');
       return (await res.json()) as AnalysisView;
+    },
+  };
+}
+
+/**
+ * Sorting work into categories over the server (#566): each call names a Toil project and sends the items it is about, never a
+ * command or a path, and each throws with the server's own message and fix. A body is one request, so a call that would carry
+ * more than the server takes is refused here, in words, rather than cut off there.
+ */
+export function httpClassify(base = './', { sample = false }: { sample?: boolean } = {}): ClassifyApi {
+  // An item without its history, which no classification reads, and (for the question to an AI agent) without the raw record it keeps beside it.
+  const slim = (item: WorkItem, keepNative: boolean): WorkItem => {
+    const rest: Record<string, unknown> = { ...item };
+    delete rest.history;
+    return (keepNative ? rest : { ...rest, native: {} }) as unknown as WorkItem;
+  };
+  const post = async <T,>(path: string, body: Record<string, unknown>, what: string): Promise<T> => {
+    const text = JSON.stringify(body);
+    if (text.length > 240_000) throw new Error(`${what}: that is more at once than one request carries. Do some now, and the rest after.`);
+    const res = await call(base, `api/classify/${path}`, { body });
+    if (!res.ok) throw await failure(res, what);
+    return (await res.json()) as T;
+  };
+  return {
+    disabled: null,
+    ledger: async (toilProject) => {
+      const res = await call(base, `api/classify/ledger?${new URLSearchParams({ toilProject }).toString()}`);
+      if (!res.ok) throw await failure(res, 'Reading the ledger');
+      return (await res.json()) as LedgerView;
+    },
+    correct: async (toilProject, change) => void (await post('correct', { toilProject, item: slim(change.item, true), context: change.context.map((i) => slim(i, true)), to: change.to, reason: change.reason }, 'Recording the change')),
+    agents: async () => {
+      const res = await call(base, 'api/classify/agents');
+      if (!res.ok) throw await failure(res, 'Reading the AI agents');
+      return (await res.json()) as AgentChoice[];
+    },
+    ask: (toilProject, items, adapter) => post('ask', { toilProject, items: items.map((i) => slim(i, false)), ...(adapter ? { adapter } : {}) }, 'Asking your AI agent'),
+    plan: (toilProject, work) => post('plan', { toilProject, items: work.items.map((i) => slim(i, true)) }, 'Making the plan'),
+    apply: (toilProject, planId) => post('apply', { toilProject, plan: planId }, 'Applying the changes'),
+    tune: (toilProject, items, adapter) => post('tune', { toilProject, items: items.map((i) => slim(i, false)), ...(adapter ? { adapter } : {}) }, 'Improving the categories'),
+    applyRevision: (id) => post('revision/apply', { id }, 'Saving the revision'),
+    saveScheme: (toilProject, scheme) => post('scheme/save', { toilProject, scheme }, 'Saving the categories'),
+    // The Board's drop: a Toil project, an item's id and a column, and nothing else.
+    movesDisabled: sample ? SAMPLE_CANNOT_WRITE : null,
+    moveItem: async (toilProject, item, to, how) => {
+      const res = await call(base, 'api/board/move', { body: { toilProject, item, to, ...(how?.addToBoard ? { addToBoard: true } : {}) } });
+      if (!res.ok) throw await failure(res, 'Moving the card');
+      return (await res.json()) as MoveOutcome;
     },
   };
 }

@@ -301,6 +301,21 @@
     ]
   },
   {
+    "name": "work-item categorize",
+    "tool": "ado_work_item_categorize",
+    "description": "Apply a classification plan: tag work items with their category and set an optional field",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--from <file>",
+      "--collection <name>",
+      "--organization <name>",
+      "--project <name>",
+      "--repo <name>",
+      "--allow-write"
+    ]
+  },
+  {
     "name": "work-item attachments",
     "tool": "ado_work_item_attachments",
     "description": "List attachments on a work item",

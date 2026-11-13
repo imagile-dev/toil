@@ -16,6 +16,7 @@ import { useTheme } from '../theme-context.ts';
 import { SAMPLE_MOMENTS } from './events.ts';
 import { Loader, momentsOf, Splash, useMomentPlayer } from './Moments.tsx';
 import { MOMENT_KINDS, MOMENT_PLAIN, type MomentKind, type SplashData } from './schema.ts';
+import { ChevronDownIcon } from '../components/icons.tsx';
 
 /** The splash's preview is handed a sample sprint (#462), as the loader's is a sample read, so a theme's face shows. */
 const SAMPLE_SPLASH: SplashData = { toilProject: 'card-payments', day: 7, days: 10, done: 4 };
@@ -37,7 +38,7 @@ export function MomentsPreview() {
     <div className="theme-setting__row moments-preview-block">
       <MenuTrigger>
         <Button className="btn btn--small" data-preview-menu="">
-          Preview the theme's moments <span aria-hidden="true">▾</span>
+          Preview the theme's moments <ChevronDownIcon size={14} />
         </Button>
         <Popover className="popover menu-popover" placement="bottom start" offset={6}>
           <Menu className="menu" onAction={(k) => act(String(k))} disabledKeys={disabled}>

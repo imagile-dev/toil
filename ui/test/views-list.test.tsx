@@ -15,25 +15,26 @@ beforeEach(resetBrowserState);
 describe('the Toil project list', () => {
   /** The cards once every one has read its toil project. */
   const cards = async () => {
-    await waitFor(() => expect(document.querySelectorAll('.count-strip')).toHaveLength(3), { timeout: 8000 });
+    await waitFor(() => expect(document.querySelectorAll('.count-strip')).toHaveLength(4), { timeout: 8000 });
     return screen.getAllByRole('article');
   };
   const badges = (card: HTMLElement) => within(within(card).getByRole('list', { name: 'Sources' })).getAllByRole('listitem').map((li) => li.firstChild?.textContent);
 
-  it('lists three Toil projects, each mixing its own sources as badges, with a link to its dashboard; the one with most in motion leads', async () => {
+  it('lists four Toil projects, each mixing its own sources as badges, with a link to its dashboard; the one with most in motion, the sample team, leads', async () => {
     await open('#/');
     const all = await cards();
-    expect(all.map((c) => within(c).getByRole('heading').textContent)).toEqual(['card-payments', 'settlement', 'checkout-web']);
+    expect(all.map((c) => within(c).getByRole('heading').textContent)).toEqual(['sample-team', 'card-payments', 'settlement', 'checkout-web']);
     expect(all[0]!.className).toContain('toil-project-card--lead');
-    expect(badges(all[0]!)).toEqual(['Bitbucket', 'Jenkins', 'Jira', 'OpenShift']);
-    expect(badges(all[1]!)).toEqual(['Azure DevOps']);
-    expect(badges(all[2]!)).toEqual(['Bitbucket', 'GitHub', 'OpenShift']);
-    expect(within(all[2]!).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['#/project/checkout-web']);
+    expect(badges(all[0]!)).toEqual(['GitHub', 'Jira']);
+    expect(badges(all[1]!)).toEqual(['Bitbucket', 'Jenkins', 'Jira', 'OpenShift']);
+    expect(badges(all[2]!)).toEqual(['Azure DevOps']);
+    expect(badges(all[3]!)).toEqual(['Bitbucket', 'GitHub', 'OpenShift']);
+    expect(within(all[3]!).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['#/project/checkout-web']);
   });
 
   it("previews each Toil project's sprint, counts and people from the data its dashboard reads", async () => {
     await open('#/');
-    const [pay, settle, web] = await cards();
+    const [, pay, settle, web] = await cards();
     expect(pay!.textContent).toContain('Sprint 42 3 working days left of 10, 3 of 21 points done');
     expect(within(pay!).getByRole('img', { name: 'Burn-up: 3 of 21 points done' })).toBeTruthy();
     expect(within(pay!).getByRole('list', { name: 'Counts' }).textContent).toBe('3 in progress2 blocked1 code review waiting');

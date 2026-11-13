@@ -76,7 +76,7 @@ describe('the views on a dashboard (#252, #253)', () => {
     await userEvent.click(within(menu).getByRole('menuitem', { name: 'In progress' }));
     expect(screen.queryByRole('menu')).toBeNull();
     const card = within(board).getByRole('article', { name: 'Proposal: Move PAY-102 to In progress' });
-    expect(card.textContent).toContain("toil jira issue transition 'PAY-102' --toil-project 'card-payments' --transition 'In Progress' --allow-write");
+    expect(card.textContent).toContain("toil jira issue transition 'PAY-102' --toil-project 'card-payments' --to 'start' --allow-write");
     expect(screen.getByText(/Proposed: Move PAY-102 to In progress. Nothing has changed/)).toBeTruthy();
     // The card is still where Jira says it is, and nothing was asked of toil.
     expect(within(within(board).getByRole('region', { name: /^To do/ })).getByText('Store tokens in the vault')).toBeTruthy();
@@ -167,32 +167,22 @@ describe('the views on a dashboard (#252, #253)', () => {
     await waitFor(() => expect(document.activeElement).toBe(grip));
   });
 
-  it('keeps a card that is not on a GitHub project board from being dragged, says why, and leaves the others draggable', async () => {
+  it('lets a GitHub issue that is on no project board be dragged too, since open and closed are moves', async () => {
     // One board item loses its project item id, as an issue the board doesn't hold would have none.
     const canned = CANNED.map((c) => (c.command === 'github project items' ? { ...c, data: (c.data as Array<Record<string, unknown>>).map((b) => ((b.content as { number?: number } | undefined)?.number === 43 ? { ...b, id: 0 } : b)) } : c));
     await open('#/project/checkout-web/board', { execute: fixtureExecute(canned).execute });
     const board = await screen.findByRole('region', { name: /board/i });
-    const grips = Array.from(board.querySelectorAll<HTMLElement>('.card-grip[data-item]'));
-    const github = grips.filter((g) => g.dataset.item!.startsWith('github:'));
+    const github = Array.from(board.querySelectorAll<HTMLElement>('.card-grip[data-item]')).filter((g) => g.dataset.item!.startsWith('github:'));
     expect(github.length).toBeGreaterThan(0);
-    const off = github.filter((g) => g.hasAttribute('data-immovable'));
-    const on = github.filter((g) => !g.hasAttribute('data-immovable'));
-    expect(off).toHaveLength(1);
-    expect(on.length).toBeGreaterThan(0);
-    for (const g of on) expect(g.getAttribute('aria-roledescription')).toBe('draggable card');
-    // Every card the board refuses to drag names its reason where a screen reader gets it, and offers no move in its menu.
-    for (const g of off) {
-      expect(g.getAttribute('aria-roledescription')).toBeNull();
-      expect(document.getElementById(g.getAttribute('aria-describedby')!)!.textContent).toMatch(/isn't on a GitHub project board/);
-      fireEvent.contextMenu(g);
-      const menu = await screen.findByRole('menu');
-      expect(within(menu).getAllByRole('menuitem', { name: /To do|In progress|Done/ }).every((m) => m.getAttribute('aria-disabled') === 'true')).toBe(true);
-      await userEvent.keyboard('{Escape}');
+    for (const g of github) {
+      expect(g.hasAttribute('data-immovable')).toBe(false);
+      expect(g.getAttribute('aria-roledescription')).toBe('draggable card');
     }
   });
 
   it('draws the metrics as sparklines, each opening its full chart, which lists what it could not compute (#394)', async () => {
     await open('#/project/checkout-web');
+    await userEvent.click(document.querySelector('[data-full-toggle]')!);
     const strip = screen.getByRole('region', { name: 'Metrics' });
     expect(within(strip).getAllByRole('button').map((b) => b.textContent)).toEqual([
       'Points done 1 of 11 points, show the full chart',
@@ -217,7 +207,7 @@ describe('the views on a dashboard (#252, #253)', () => {
 
   it('draws the dependency graph, and lists every link in words', async () => {
     await open('#/project/card-payments/dependencies');
-    const graph = panel('What blocks what');
+    const graph = panel('Links between items');
     await waitFor(() => expect(graph.querySelector('.react-flow')).not.toBeNull());
     expect([...graph.querySelectorAll(':scope > ul.rows > li')].map((li) => li.textContent)).toEqual([
       'Jira PAY-101 Tokenise card numbers at the edge blocks Jira PAY-102 Store tokens in the vault (blocks)',
@@ -243,12 +233,17 @@ describe('the views on a dashboard (#252, #253)', () => {
     expect(rows[1]!.textContent).toContain('(estimated)');
     expect(rows[2]!.textContent).toContain('PAY-102, critical chain');
     expect(gantt.textContent).toContain('Blocked time is estimated');
+    // That it is estimated stays beside the timeline; how each part is estimated is one press away, in the (i).
+    expect(gantt.querySelector('[data-gantt-estimate]')!.textContent).toMatch(/^Sprint 42, .* to .*\. Blocked time is estimated\.$/);
+    expect(gantt.textContent).not.toContain('links carry no date');
+    await userEvent.click(within(gantt).getByRole('button', { name: 'About the blocker timeline' }));
+    expect((await screen.findByRole('dialog', { name: 'About the blocker timeline' })).textContent).toContain('links carry no date in Jira, Azure DevOps or GitHub');
   });
 
   it('says so when a Toil project has no links to draw', async () => {
     localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'plain' }));
     await open('#/project/checkout-web/dependencies');
-    await waitFor(() => expect(panel('What blocks what').textContent).toContain("No links between this Toil project's items."));
+    await waitFor(() => expect(panel('Links between items').textContent).toContain("No links between this Toil project's items."));
   });
 
   it("charts the sprint's burn-up with its figures in a table", async () => {

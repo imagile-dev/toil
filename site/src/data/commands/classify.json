@@ -1,0 +1,175 @@
+[
+  {
+    "name": "scheme list",
+    "tool": "classify_scheme_list",
+    "description": "List every classification scheme toil can see, and where each lives",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "scheme show",
+    "tool": "classify_scheme_show",
+    "description": "Show one classification scheme in full",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[name]",
+      "--toil-project <name|file>",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "scheme init",
+    "tool": "classify_scheme_init",
+    "description": "Create a scheme in your own folder (~/.toil/classify) as a copy of another one",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>",
+      "--from <scheme>",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "scheme export",
+    "tool": "classify_scheme_export",
+    "description": "Write a scheme for sharing: into a repository's .toil/classify, or to one file",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>",
+      "--repo <dir>",
+      "--file <path>",
+      "--replace",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "scheme set",
+    "tool": null,
+    "description": "Change a scheme from a revised file, raising its revision (a person's command)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[name]",
+      "--from <file>",
+      "--toil-project <name|file>",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "scheme import",
+    "tool": null,
+    "description": "Copy a scheme file into your own folder to adapt it (a person's command)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<file>",
+      "--name <name>",
+      "--replace",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "run",
+    "tool": "classify_run",
+    "description": "Classify work items into a scheme's categories by label, field, rules and signals, and plan what to write back (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--file <path>",
+      "--text <text>",
+      "--toil-project <name|file>",
+      "--cwd <dir>",
+      "--scheme <name|file>",
+      "--recheck",
+      "--record",
+      "--verdicts <file>"
+    ]
+  },
+  {
+    "name": "prompt",
+    "tool": "classify_prompt",
+    "description": "Write the prompt that asks an AI agent to classify the work items classify run left unsure (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--file <path>",
+      "--text <text>",
+      "--toil-project <name|file>",
+      "--cwd <dir>",
+      "--scheme <name|file>",
+      "--recheck",
+      "--limit <n>"
+    ]
+  },
+  {
+    "name": "correct",
+    "tool": "classify_correct",
+    "description": "Record that an item belongs in another category (or confirm its verdict), in the scheme's ledger on this machine",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<item-id>",
+      "--to <category>",
+      "--reason <text>",
+      "--title <text>",
+      "--toil-project <name|file>",
+      "--cwd <dir>",
+      "--scheme <name|file>"
+    ]
+  },
+  {
+    "name": "stats",
+    "tool": "classify_stats",
+    "description": "Where a scheme gets it wrong: agreement, the sources people overrule, and which way the errors run, from the ledger (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--file <path>",
+      "--text <text>",
+      "--toil-project <name|file>",
+      "--cwd <dir>",
+      "--scheme <name|file>",
+      "--backtest <file>",
+      "--revised <file>",
+      "--standing"
+    ]
+  },
+  {
+    "name": "tune",
+    "tool": "classify_tune",
+    "description": "Write the prompt that asks an AI agent to sharpen a scheme from the corrections people made (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--toil-project <name|file>",
+      "--cwd <dir>",
+      "--scheme <name|file>",
+      "--limit <n>"
+    ]
+  },
+  {
+    "name": "mix",
+    "tool": "classify_mix",
+    "description": "Show how work divides between a scheme's categories, by period or by team, assignee, project, epic, component or release (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--file <path>",
+      "--text <text>",
+      "--toil-project <name|file>",
+      "--cwd <dir>",
+      "--scheme <name|file>",
+      "--by <period>",
+      "--group <by>",
+      "--unit <unit>",
+      "--from <day>",
+      "--to <day>",
+      "--as-of <time>"
+    ]
+  }
+]

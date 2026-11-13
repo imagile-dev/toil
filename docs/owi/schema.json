@@ -34,6 +34,19 @@
         "email": { "description": "The email address, when the source sent one.", "type": ["string", "null"] }
       }
     },
+    "Comment": {
+      "description": "One comment on a work item: who wrote it, when, and its text as plain text.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "author", "at", "text", "url"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "author": { "anyOf": [{ "$ref": "#/$defs/Person" }, { "type": "null" }] },
+        "at": { "$ref": "#/$defs/Instant" },
+        "text": { "description": "Plain text on one line, markup taken out, at most 500 characters.", "type": "string", "maxLength": 500 },
+        "url": { "description": "A link to the comment where the tracker gives one.", "type": ["string", "null"] }
+      }
+    },
     "Estimate": {
       "type": "object",
       "additionalProperties": false,
@@ -67,6 +80,31 @@
         "direction": { "description": "outward: this item <type> the target (this blocks it). inward: the target <type> this item (it blocks this).", "enum": ["outward", "inward"] },
         "target": { "$ref": "#/$defs/OwiId" },
         "name": { "description": "The source's own wording for the link (is blocked by, Successor).", "type": "string" }
+      }
+    },
+    "Release": {
+      "description": "A release, or a version an item affects: a Jira fix or affects version, a GitHub milestone, or a value of the field an Azure DevOps toil project names.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "released", "date"],
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "name": { "type": "string", "minLength": 1 },
+        "released": { "description": "Whether it has shipped; null where the source can't say.", "type": ["boolean", "null"] },
+        "date": { "description": "The day it is due or went out; null when it has none.", "anyOf": [{ "$ref": "#/$defs/Day" }, { "type": "null" }] },
+        "start": { "description": "Optional. The day work on the release started (Jira's version startDate); null when the source has the field but it is empty. Absent: the source has none (GitHub, Azure DevOps), or it was not read.", "anyOf": [{ "$ref": "#/$defs/Day" }, { "type": "null" }] }
+      }
+    },
+    "Ancestor": {
+      "description": "One level of an item's parent chain.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "typeName", "title"],
+      "properties": {
+        "id": { "$ref": "#/$defs/OwiId" },
+        "type": { "enum": ["EPIC", "STORY", "TASK", "BUG", "INCIDENT", "OTHER"] },
+        "typeName": { "type": ["string", "null"] },
+        "title": { "type": "string" }
       }
     },
     "Transition": {
@@ -263,7 +301,15 @@
         "dueDate": { "anyOf": [{ "$ref": "#/$defs/Day" }, { "type": "null" }] },
         "history": { "description": "null when no history was mapped for the item, which is not the same as an empty one.", "anyOf": [{ "$ref": "#/$defs/History" }, { "type": "null" }] },
         "unmapped": { "description": "Every OWI field left empty because the record didn't hold it, and why.", "type": "array", "items": { "$ref": "#/$defs/Unmapped" } },
-        "native": { "description": "The source records, untouched, keyed by the command that returned each (jira issue search, github project items)." , "type": "object", "minProperties": 1 }
+        "native": { "description": "The source records, untouched, keyed by the command that returned each (jira issue search, github project items)." , "type": "object", "minProperties": 1 },
+        "releases": { "description": "Optional. Fix versions (Jira), the milestone (GitHub), or the field `fields release` names (Azure DevOps). Absent: the read never fetched it. []: it was read and the item has none.", "type": "array", "items": { "$ref": "#/$defs/Release" } },
+        "affects": { "description": "Optional. Affected versions: Jira's versions, or the field `fields affects` names (Azure DevOps). Absent: not read. []: read, none.", "type": "array", "items": { "$ref": "#/$defs/Release" } },
+        "components": { "description": "Optional. Jira component names. Absent: not read. []: read, none.", "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "area": { "description": "Optional. Azure DevOps' area path, kept whole. Absent: not read. null: read, the record carries none.", "anyOf": [{ "type": "object", "additionalProperties": false, "required": ["path"], "properties": { "path": { "type": "string", "minLength": 1 } } }, { "type": "null" }] },
+        "sprints": { "description": "Optional. Every sprint or iteration the item has been in, where the source lists them (Jira's Sprint field; the history for Azure DevOps and GitHub). iteration stays the current one. Absent: not read. []: read, none.", "type": "array", "items": { "$ref": "#/$defs/Iteration" } },
+        "dims": { "description": "Optional. The values of each dimension a toil project names (dimensions), by dimension name, each a list. A dimension absent from dims was not read for this item; [] means it was read and is empty.", "type": "object", "propertyNames": { "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }, "additionalProperties": { "type": "array", "items": { "type": "string" } } },
+        "ancestors": { "description": "Optional. The parent chain among the items mapped together, nearest first; it ends where a parent isn't in the input. Absent: the parent was not read. []: it has no parent, or its parent isn't in the input.", "type": "array", "items": { "$ref": "#/$defs/Ancestor" } },
+        "comments": { "description": "Optional. The comments the read returned, oldest first, the newest 20 at most. Absent: not read (a Jira search that didn't ask for comment). []: read, none.", "type": "array", "items": { "$ref": "#/$defs/Comment" } }
       }
     }
   }

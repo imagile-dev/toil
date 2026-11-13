@@ -32,6 +32,7 @@ import { AUTHOR_KINDS, mapOwi, OVERRIDABLE } from './owi.ts';
 import { githubRepos, type GithubRepo } from './github-repos.ts';
 import { resolveTargets, targetsOf, valuesOf } from './targets.ts';
 import type { ToilProjectAnalyze } from '../../src/core/brief/prompt.ts';
+import { readSavedView, type SavedView } from '../../src/core/insights/index.ts';
 import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, type Envelope, type Execute, type WorkItem } from './toil.ts';
 
 /**
@@ -151,6 +152,18 @@ export interface ToilProjectData extends ToilProjectSummary {
   wipLimit: number | null;
   /** How Analyze briefs it (#494): the toil project's analyze key as written, null for the standard. */
   analyze: ToilProjectAnalyze | null;
+  /** The classification the toil project names (`classify.scheme`), for the charts' categories; null when it names none. */
+  classifyScheme?: string | null;
+  /**
+   * The GitHub project boards the toil project names (`github.projects`), and those of them whose items couldn't be read, so a
+   * card with no board record on a board that wasn't read is not said to be off it (unknown is not zero). Null when it has no
+   * GitHub section at all; an empty `projects` is a Toil project that names no board, which a GitHub issue's In progress needs.
+   */
+  githubBoards?: { projects: number[]; unread: number[] } | null;
+  /** The extra dimensions the toil project names (`dimensions`), by name: what a chart may split by beyond the built-in ones. */
+  dimensionNames?: string[];
+  /** The views the team saved in the toil project (`views`), each as it passed toil's own check; a view that didn't is left out. */
+  views?: Record<string, SavedView>;
   /** Where the toil project came from, for labelling its focus: its file, whose it is, and whether the reader adopted it. */
   origin: { source: string; file: string; adopted: boolean } | null;
   /** What couldn't be read from the toil project's people, in words the People view shows. */
@@ -202,28 +215,16 @@ export function owiFields(fields: unknown): Record<string, string> {
 }
 
 /**
- * What `jira issue search` returns when it is given no `fields`
- * (`STANDARD_SEARCH_FIELDS` in src/areas/jira/{cloud,server}/client.ts), which
- * a search that names any field no longer adds on its own. ui/test holds this
- * list to both of them, so a field toil starts returning is not lost here.
- */
-export const JIRA_STANDARD_FIELDS = ['summary', 'status', 'priority', 'assignee', 'issuetype', 'project', 'created', 'updated', 'labels', 'reporter'];
-
-/**
  * What `mapOwi` reads from a Jira issue (src/core/owi/jira.ts) by a standard
- * field name and a search does not return by itself: the description (the
+ * field name and a search does not return by itself (it is sent as
+ * `moreFields`, with the split and pointer fields, by `jiraMoreFields`): the description (the
  * readiness check reads it), how and when it was resolved, the due date, the
  * original estimate (the hours fallback when no points field is registered),
  * and the parent, sub-tasks and links that the Board, the Graph and the
  * blockers are drawn from. The epic link is not here: it comes only from a
  * registered field.
  */
-export const JIRA_OWI_FIELDS = ['description', 'resolution', 'resolutiondate', 'duedate', 'timeoriginalestimate', 'parent', 'subtasks', 'issuelinks'];
-
-/** The OWI keys whose value is the name or id of a Jira field (the others are units, labels and day counts). */
-const JIRA_FIELD_KEYS = ['estimate', 'iteration', 'team', 'dueDate', 'priority', 'type'] as const;
-/** The section's `fields` the readiness check reads from the issue too: the field acceptance criteria are kept in. */
-const JIRA_READ_FIELDS = [...JIRA_FIELD_KEYS, 'acceptanceCriteria'] as const;
+export const JIRA_OWI_FIELDS = ['description', 'resolution', 'resolutiondate', 'duedate', 'timeoriginalestimate', 'parent', 'subtasks', 'issuelinks', 'comment'];
 
 /** A custom field a Jira connection registers, as `jira issue fields` lists it. */
 export interface RegisteredField {
@@ -238,24 +239,6 @@ export function registeredFields(data: unknown): RegisteredField[] {
 
 /** The registered field an OWI override names, by its id or its name in any case. */
 const registeredBy = (registered: readonly RegisteredField[], value: string) => registered.find((f) => f.id === value) ?? registered.find((f) => f.name.toLowerCase() === value.toLowerCase());
-
-/**
- * The `fields` a Jira search is asked for: the standard ones, what `mapOwi`
- * reads, every custom field the connection registers, and the field each of
- * the Toil project's `fields` name (an OWI override, or where acceptance
- * criteria are kept), as the id search resolves it. A name that is neither
- * registered nor one word could not be resolved (search refuses it, and with it
- * the whole read), so it is left out and `mapOwi` says the field is missing.
- */
-export function jiraSearchFields(registered: readonly RegisteredField[], section: Record<string, unknown>): string {
-  const named = JIRA_READ_FIELDS.flatMap((k) => {
-    const v = section[k];
-    if (typeof v !== 'string' || v.trim() === '') return [];
-    const def = registeredBy(registered, v.trim());
-    return def ? [def.id] : /\s/.test(v.trim()) ? [] : [v.trim()];
-  });
-  return [...new Set([...JIRA_STANDARD_FIELDS, ...JIRA_OWI_FIELDS, ...registered.map((f) => f.id), ...named])].join(',');
-}
 
 /**
  * Jira search returns a registered custom field under the name the connection
@@ -326,6 +309,65 @@ export function keyPatternsFor(items: WorkItem[]): string[] {
   return [...out];
 }
 
+/**
+ * Jira's `issue search` asks for the standard fields plus the connection's
+ * registered custom fields by default, and `--fields` would REPLACE that set, so
+ * the sync sends `--more-fields` instead: what a split by version, component,
+ * parent, link or date reads, then the toil project's own pointers. toil adds
+ * these to the default and de-duplicates. The rest of the request is the toil
+ * project's: JIRA_OWI_NOT_FIELDS names the `fields` entries that point at no Jira
+ * field.
+ */
+export const JIRA_SPLIT_FIELDS = ['fixVersions', 'versions', 'components', 'parent', 'issuelinks', 'resolutiondate', 'duedate', 'description'];
+const JIRA_OWI_NOT_FIELDS = new Set(['estimateUnit', 'estimateLabel', 'iterationDays']);
+/** A Jira field id: `customfield_10016`, or a system field's one word. A name with spaces needs the connection to register it, so it isn't asked for here, where an unknown one would refuse the whole search. */
+const JIRA_FIELD_ID = /^(customfield_\d+|[a-z][a-z0-9]*)$/i;
+
+/**
+ * Every field a Jira search for this toil project asks for beyond toil's default
+ * set: the ones a split reads, the section's own `fields` pointers (sprint, story
+ * points, epic link, customer, acceptance criteria), every field a `dimensions`
+ * entry names for Jira, and the field `classify` writes a category to
+ * (through the section's `fields` when it names an alias). Each once, in the
+ * order they were found.
+ */
+export function jiraMoreFields(toilProject: Rec, section: Rec, registered: readonly RegisteredField[] = []): string[] {
+  const fields = isRec(section.fields) ? section.fields : {};
+  // A pointer that names a registered field, by id or by name in any case, is asked for by its id; search would resolve the name too, but a name with spaces is only safe to send once the connection is known to register it.
+  const idOf = (value: string) => registeredBy(registered, value.trim())?.id ?? value.trim();
+  const asked: string[] = [...JIRA_OWI_FIELDS, ...JIRA_SPLIT_FIELDS];
+  for (const [name, value] of Object.entries(fields)) if (!JIRA_OWI_NOT_FIELDS.has(name) && typeof value === 'string') asked.push(idOf(value));
+  const dimensions = isRec(toilProject.dimensions) ? toilProject.dimensions : {};
+  for (const dimension of Object.values(dimensions)) if (isRec(dimension) && typeof dimension.jira === 'string') asked.push(idOf(dimension.jira));
+  const classify = isRec(toilProject.classify) ? toilProject.classify : {};
+  const target = isRec(classify.targets) && isRec(classify.targets.jira) ? classify.targets.jira : {};
+  if (typeof target.field === 'string') asked.push(idOf(typeof fields[target.field] === 'string' ? (fields[target.field] as string) : target.field));
+  return [...new Set(asked.filter((f) => JIRA_FIELD_ID.test(f)))];
+}
+
+/** The toil project's `views`, each checked by toil's own reader; one that fails it is left out, never half used. */
+export function savedViewsOf(toilProject: Rec): Record<string, SavedView> {
+  const out: Record<string, SavedView> = {};
+  if (!isRec(toilProject.views)) return out;
+  for (const [name, raw] of Object.entries(toilProject.views)) {
+    const read = readSavedView(raw, `views.${name}`);
+    if (read.view) out[name] = read.view;
+  }
+  return out;
+}
+
+/** The toil project's `dimensions` as the mapper takes them: a name to the field that holds it per area. */
+export function dimensionsOf(toilProject: Rec): Record<string, Record<string, string>> | undefined {
+  if (!isRec(toilProject.dimensions)) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [name, per] of Object.entries(toilProject.dimensions)) {
+    if (!isRec(per)) continue;
+    const areas = Object.fromEntries(Object.entries(per).filter((e): e is [string, string] => typeof e[1] === 'string'));
+    if (Object.keys(areas).length) out[name] = areas;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** A toil project section's `authorKinds`, keeping the entries OWI can use and saying which it left out. */
 export function authorKindsOf(section: Rec, area: string, notes: string[]): Record<string, string> {
   if (section.authorKinds === undefined) return {};
@@ -367,7 +409,7 @@ const connectionOf = (env: Envelope, fallback: string) => (env.ok ? (env.meta.co
  * version's: OWI only adds. One that returns no `changes` maps no pull
  * requests (OWI 0.1), and the view says so.
  */
-export type LoaderMapOwi = (input: unknown, options?: { fields?: Record<string, string>; keyPatterns?: string[]; authorKinds?: Record<string, string> }) => { items: unknown[]; changes?: unknown[] };
+export type LoaderMapOwi = (input: unknown, options?: { fields?: Record<string, string>; keyPatterns?: string[]; authorKinds?: Record<string, string>; dimensions?: Record<string, Record<string, string>> }) => { items: unknown[]; changes?: unknown[] };
 
 /** The most ids one `get-many` call takes. */
 const GET_MANY_MAX = 1000;
@@ -421,6 +463,7 @@ export async function loadToilProject(execute: Execute, name: string, options: L
   // Work items, mapped to OWI ---------------------------------------------------------
   // Each area is mapped on its own, with its own section's OWI fields.
   const boardOf = new Map<string, { project: number; owner?: string }>();
+  let githubBoards: { projects: number[]; unread: number[] } | null = areas.github ? { projects: [], unread: [] } : null;
   const work: Record<(typeof JIRA_AREAS)[number] | (typeof ADO_AREAS)[number] | 'github', unknown[]> = { jira: [], ado: [], github: [] };
   const tasks: Array<Promise<void>> = [];
   /** The custom fields each Jira connection registers, read once before its searches, so they ask for the fields the Toil project names. */
@@ -449,13 +492,13 @@ export async function loadToilProject(execute: Execute, name: string, options: L
     // `issue fields` lists what the connection holds and asks Jira nothing.
     const listed = projects.length ? await run('work', `${jira} issue fields`, { ...base }) : null;
     registered[jira] = registeredFields(listed?.data);
-    // A list that failed is unknown, not empty: the search is then asked for no `fields`, as before #573, and returns what it returns by itself.
-    const fields = listed ? jiraSearchFields(registered[jira], isRec(section(jira).fields) ? (section(jira).fields as Rec) : {}) : undefined;
+    // The search sends `moreFields`, never `fields`: toil adds them to the standard fields and the connection's registered custom fields, so those still come back whether or not this list could be read (a list that failed is unknown, not empty).
+    const moreFields = jiraMoreFields(toilProject, section(jira), registered[jira]).join(',');
     for (const project of projects) {
       tasks.push((async () => {
         const state = track(jira, projects.length > 1 ? project : '');
         // The search brings each issue's history with it (toil's --changelog); only an issue whose changelog came back short is read with a call of its own.
-        const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(project, options.windowDays), changelog: true, ...(fields === undefined ? {} : { fields }) });
+        const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(project, options.windowDays), changelog: true, moreFields });
         if (!asked) return markUnread(state, 'work');
         const { search, histories: inline, incomplete } = splitChangelogs(asked, `${jira} issue history`);
         work[jira].push(withFieldIds(search, registered[jira] ?? []));
@@ -521,6 +564,8 @@ export async function loadToilProject(execute: Execute, name: string, options: L
         });
       };
       const projects = strings(section('github').projects);
+      const boards = { projects: projects.map(Number).filter((x) => Number.isInteger(x) && x > 0), unread: [] as number[] };
+      githubBoards = boards;
       // No board named: each repository's own issues are the tracker, open and closed.
       if (!projects.length) {
         await Promise.all(targets.map(async (r) => {
@@ -541,7 +586,10 @@ export async function loadToilProject(execute: Execute, name: string, options: L
       boardOf.clear();
       for (const project of projects) {
         const answer = await run('work', 'github project items', { ...base, ...(owner ? { owner } : {}), project: Number(project) });
-        if (!answer) continue;
+        if (!answer) {
+          boards.unread.push(Number(project));
+          continue;
+        }
         work.github.push(answer);
         board.push(...recs(answer.data));
         for (const b of recs(answer.data)) if (typeof b.id === 'string') boardOf.set(b.id, { project: Number(project), ...(owner ? { owner } : {}) });
@@ -564,7 +612,9 @@ export async function loadToilProject(execute: Execute, name: string, options: L
   }
   await Promise.all(tasks);
   const mapper = options.mapOwi ?? mapOwi;
-  const items = Object.entries(work).flatMap(([area, docs]) => (docs.length ? (mapper(docs, { fields: owiFields(section(area).fields) }).items as WorkItem[]) : []));
+  // The toil project's `dimensions`, handed to the mapper for every tracker, which copies each onto the item's `dims`.
+  const dimensions = dimensionsOf(toilProject);
+  const items = Object.entries(work).flatMap(([area, docs]) => (docs.length ? (mapper(docs, { fields: owiFields(section(area).fields), ...(dimensions ? { dimensions } : {}) }).items as WorkItem[]) : []));
 
   // An issue on a board remembers which one, so a move on the Board can say which project's Status to set.
   for (const item of items) {
@@ -712,9 +762,11 @@ export async function loadToilProject(execute: Execute, name: string, options: L
 
   const team = readPeople(toilProject);
   const analyze = isRec(toilProject.analyze) ? (toilProject.analyze as ToilProjectAnalyze) : null;
+  const classifyScheme = isRec(toilProject.classify) && typeof toilProject.classify.scheme === 'string' ? toilProject.classify.scheme : null;
+  const views = savedViewsOf(toilProject);
   const shown = show!.data as Rec;
   const origin = typeof shown.source === 'string' && typeof shown.file === 'string' ? { source: shown.source, file: shown.file, adopted: shown.adopted === true } : null;
-  return { ...summary, items, pullRequests, codeowners, prNotes: [...new Set(prNotes)], readTargets: [...readState.values()], changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, analyze, origin, peopleNotes: team.notes, readiness: readReadiness(toilProject), calls };
+  return { ...summary, items, pullRequests, codeowners, prNotes: [...new Set(prNotes)], readTargets: [...readState.values()], changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, analyze, classifyScheme, githubBoards, dimensionNames: Object.keys(dimensionsOf(toilProject) ?? {}), ...(Object.keys(views).length > 0 ? { views } : {}), origin, peopleNotes: team.notes, readiness: readReadiness(toilProject), calls };
 }
 
 /** A Toil project put away with `toil projects archive` (#561): all the list needs of it. */

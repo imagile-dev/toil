@@ -80,15 +80,16 @@ describe('registered fields copied back under their ids', () => {
 });
 
 describe('fields asked of the search', () => {
-  it('asks for fields once the connection has listed its own', async () => {
+  it('adds fields with `moreFields`, which keeps the standard and registered ones, and never replaces them with `fields`', async () => {
     const r = await load({}, {});
-    const asked = String(search(r).input.fields).split(',');
-    expect(asked).toEqual(expect.arrayContaining(['customfield_10016', 'timeoriginalestimate']));
+    expect(search(r).input).not.toHaveProperty('fields');
+    expect(String(search(r).input.moreFields).split(',')).toEqual(expect.arrayContaining(['timeoriginalestimate', 'description', 'issuelinks', 'fixVersions', 'components']));
   });
 
-  it('leaves `fields` out when `jira issue fields` failed: an unknown list is not an empty one', async () => {
+  it('asks for the same fields when `jira issue fields` failed: an unknown list is not an empty one, and the default set still applies', async () => {
     const r = await load({}, {}, { fieldsFail: true });
     expect(search(r).input).not.toHaveProperty('fields');
+    expect(String(search(r).input.moreFields).split(',')).toContain('timeoriginalestimate');
     expect(r.data.items).toHaveLength(1);
   });
 

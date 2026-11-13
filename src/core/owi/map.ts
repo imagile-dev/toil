@@ -4,10 +4,11 @@ import { idFor, isRecord, str, unmapped, warnings, type MapState, type OwiDocume
 import { adoChange, adoPrs } from './change-ado.js';
 import { bitbucketChange, bitbucketCloudChange, bitbucketPrs } from './change-bitbucket.js';
 import { githubChange, githubPrs } from './change-github.js';
+import { setAncestors, setSprintsFromHistory } from './dimensions.js';
 import { joinChanges, type ChangeMapState, type ChangeOptions } from './change.js';
 import { applyBoard, applyMilestones, boardEntries, boardItem, estimateLabelPattern, githubHistory, githubItem, issuesOf as githubIssuesOf, noBoard, reciprocalLinks, type BoardEntry } from './github.js';
 import { issuesOf as jiraIssuesOf, jiraHistory, jiraItem } from './jira.js';
-import { OVERRIDABLE, OWI_AREAS, OWI_SOURCES, type Change, type FieldOverrides, type History, type OrphanHistory, type OwiFamily, type OwiWarning, type StatusCategory, type WorkItem } from './types.js';
+import { OVERRIDABLE, OWI_AREAS, OWI_SOURCES, type Change, type DimensionMap, type FieldOverrides, type History, type OrphanHistory, type OwiFamily, type OwiWarning, type StatusCategory, type WorkItem } from './types.js';
 
 /**
  * Turns toil command output into OWI items: one or more envelopes (or bare
@@ -181,9 +182,33 @@ export function fieldOverrides(fields: string[] | Record<string, string> | undef
   return out;
 }
 
+/** A dimension's name: lowercase letters, digits and single hyphens, the same rule a toil project's `dimensions` keys follow. */
+export const DIMENSION_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/** A dimension map as a program hands it over, checked: each name valid, each area's value a non-empty field id or name. */
+export function dimensionMap(value: unknown): DimensionMap | undefined {
+  if (value === undefined) return undefined;
+  const bad = (message: string) => new ToilError('INVALID_INPUT', message, { fix: 'Pass dimensions as { customer: { jira: "customfield_10500", ado: "Custom.Customer" } }: a dimension name (lowercase letters, digits and hyphens), then the field that holds it in each area.' });
+  if (!isRecord(value)) throw bad('dimensions must be an object keyed by dimension name.');
+  const out: DimensionMap = {};
+  for (const [name, byArea] of Object.entries(value)) {
+    if (!DIMENSION_NAME.test(name)) throw bad(`"${name}" isn't a dimension name.`);
+    if (!isRecord(byArea)) throw bad(`dimensions.${name} must map each area to a field.`);
+    const fields: Record<string, string> = {};
+    for (const [area, field] of Object.entries(byArea)) {
+      if (typeof field !== 'string' || field.trim() === '') throw bad(`dimensions.${name}.${area} must be the id or name of a field.`);
+      fields[area] = field.trim();
+    }
+    out[name] = fields;
+  }
+  return out;
+}
+
 /** What mapOwi takes besides the documents: field overrides, and for changes, key patterns and author kinds. */
 export interface MapOptions {
   fields?: FieldOverrides;
+  /** The toil project's extra dimensions (`dimensions`), by name then area, copied onto each item's `dims`. The caller reads them from the toil project; no mapper does. */
+  dimensions?: DimensionMap;
   skipped?: OwiSkipped[];
   /** Key patterns (`keyPatterns` in ./change.ts), checked. */
   keys?: ChangeOptions['keys'];
@@ -194,7 +219,8 @@ export interface MapOptions {
 /** Maps the documents to OWI items and changes, joins board items and histories to their items, and reports what it couldn't. */
 export function mapOwi(documents: OwiDocument[], options: MapOptions = {}): OwiResult {
   const said = warnings();
-  const state: MapState = { fields: options.fields ?? {}, warn: said.warn };
+  const parentRead = new Set<string>();
+  const state: MapState = { fields: options.fields ?? {}, ...(options.dimensions === undefined ? {} : { dimensions: options.dimensions }), parentRead, warn: said.warn };
   const skipped = [...(options.skipped ?? [])];
   const items = new Map<string, WorkItem>();
   let duplicates = 0;
@@ -301,6 +327,9 @@ export function mapOwi(documents: OwiDocument[], options: MapOptions = {}): OwiR
     if (!history) skipped.push({ at: doc.at, command: doc.command, reason: "it doesn't hold a history" });
     else attach(doc, key, history);
   }
+  // What only the whole input can say: sprints from a history, and the parent chains.
+  for (const item of items.values()) setSprintsFromHistory(item, dates.get(item.source.connection));
+  setAncestors(items, parentRead);
   for (const item of items.values()) {
     if (item.history?.transitions.some((t) => t.toCategory === 'UNKNOWN' || t.fromCategory === 'UNKNOWN')) {
       unmapped(item, 'history.transitions', `some statuses in the history have no category: ${UNKNOWN_HISTORY[OWI_SOURCES[item.source.area]?.family ?? 'jira'](item.source.area)}`);

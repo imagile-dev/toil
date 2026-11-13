@@ -142,9 +142,11 @@ describe('the palette entries', () => {
     const found = paletteResults(entries, shortKey(one), null);
     expect(found[0]!.group).toBe('items');
     expect(found[0]!.entries[0]!.id).toBe(hit.id);
-    // Tabs: every toil project's seven, the one on screen's alone with nothing typed.
-    expect(entries.filter((e) => e.group === 'tabs')).toHaveLength(14);
-    expect(paletteResults(entries, '', 'settlement').find((g) => g.group === 'tabs')!.entries.map((e) => e.label)).toEqual(['Summary', 'Board', 'What blocks what', 'Code reviews', 'People', 'What happened', 'Past briefings']);
+    // Tabs: every toil project's seven, the one on screen's alone with nothing typed. Its charts and earlier briefings are found by typing, never listed (#567).
+    expect(entries.filter((e) => e.group === 'tabs' && !e.typed)).toHaveLength(14);
+    expect(entries.filter((e) => e.typed && e.id.startsWith('chart:settlement:')).map((e) => e.label)).toEqual(['Work mix', 'Releases', 'Sprints', "Where we're working", 'Flow', 'Explore']);
+    expect(paletteResults(entries, 'Releases', 'settlement').flatMap((g) => g.entries).some((e) => e.id === 'chart:settlement:releases')).toBe(true);
+    expect(paletteResults(entries, '', 'settlement').find((g) => g.group === 'tabs')!.entries.map((e) => e.label)).toEqual(['Summary', 'Board', 'What blocks what', 'Code reviews', 'People', 'Stand-up', 'What happened']);
   });
 
   it('offers Ask, Analyze, Assign and the agents only on a Toil project page, and Sync only where there is a cache', async () => {
@@ -164,8 +166,10 @@ describe('the palette entries', () => {
         adapters: { chosen: 'codex', options: [{ name: 'codex', label: 'Codex', model: null, ready: true, problem: null, fix: null, action: null }, { name: 'claude', label: 'Claude', model: 'haiku', ready: false, problem: 'Not installed', fix: null, action: 'install' }] },
       }),
     ).filter((e) => e.group === 'commands');
-    expect(on.map((e) => e.label)).toEqual(['Sync now', 'Ask about card-payments', 'Get a briefing on card-payments', 'Open the AI agents panel', 'Check a code change', 'Answer the review of my code change', 'Draw the architecture of card-payments', `Give ${shortKey(item)} to an AI agent`, 'Answer with Codex', 'Choose the default AI agent', 'Set up toil, step by step', 'Create a Toil project', 'Find your Jira fields', 'Keyboard shortcuts']);
+    expect(on.map((e) => e.label)).toEqual(['Sync now', 'Ask about card-payments', 'Get a briefing on card-payments', 'Open the AI agents panel', 'Check a code change', 'Answer the review of my code change', 'Architecture diagram of card-payments', 'Draw the architecture of card-payments', 'Sort the work in card-payments into categories', `Give ${shortKey(item)} to an AI agent`, 'Answer with Codex', 'Choose the default AI agent', 'Set up toil, step by step', 'Create a Toil project', 'Find your Jira fields', 'Keyboard shortcuts']);
     expect(on.find((e) => e.id === 'cmd:job:diagram')!.go).toEqual({ href: '#/project/card-payments/job/diagram' });
+    // The saved picture (#582) is its own entry, at its own address, beside the job that draws it.
+    expect(on.find((e) => e.id === 'cmd:diagram')!.go).toEqual({ href: '#/project/card-payments/summary/diagram' });
     expect(on.find((e) => e.id === 'cmd:agent:codex')!.go).toEqual({ command: { kind: 'agent', name: 'codex', label: 'Codex' } });
   });
 
@@ -174,7 +178,7 @@ describe('the palette entries', () => {
     const x = { route: { view: 'dashboard' as const, toilProject: 'card-payments' }, toilProjects: ['card-payments'], loaded: { 'card-payments': { ok: true as const, value: card } } };
     const withLog = paletteEntries(base({ ...x, hasWorklog: true })).find((e) => e.id === 'cmd:standup');
     expect(withLog!.label).toBe('Open the stand-up');
-    expect(withLog!.go).toEqual({ href: '#/project/card-payments/worklog/standup' });
+    expect(withLog!.go).toEqual({ href: '#/project/card-payments/standup' });
     expect(paletteEntries(base(x)).some((e) => e.id === 'cmd:standup')).toBe(false);
   });
 });

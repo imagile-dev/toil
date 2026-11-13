@@ -44,3 +44,6 @@ export function PlainAvatar({ person, labelled = false }: AvatarProps) {
     </span>
   );
 }
+
+/** The person and agent glyphs live in the icon set (icons.tsx); this keeps the old import path working. */
+export { PersonGlyph } from './icons.tsx';

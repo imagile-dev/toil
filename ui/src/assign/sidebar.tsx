@@ -113,7 +113,7 @@ function RecentAnalyses() {
       ) : (
         !running && <p className="note">None yet.</p>
       )}
-      <a href={analysesHref(toilProject.name)}>{plain.pw('All analyses', 'All past briefings')}</a>
+      <a href={analysesHref(toilProject.name)}>{plain.pw('All analyses', 'All earlier briefings')}</a>
     </section>
   );
 }

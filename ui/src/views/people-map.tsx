@@ -14,6 +14,7 @@
 import { useId, useMemo, useState } from 'react';
 import { suggestPeople } from '../../../src/core/people-match.ts';
 import { Cluster, Stack } from '../components/layout.tsx';
+import { InfoTip } from '../components/help.tsx';
 import { useData } from '../data.ts';
 import { sourceLabel } from '../format.ts';
 import type { Identity } from '../model/people.ts';
@@ -153,11 +154,11 @@ function MapForm({ account }: { account: Identity }) {
   );
 }
 
-/**
- * Writes the people into the repository's `.toil/projects` file. Said in
- * plain words first, because it changes a file the person will commit: which
- * file, what goes in it, what doesn't, and that nothing is committed.
- */
+/** Said in plain words, because the button changes a file the person will commit: which file, what goes in it, what doesn't, and that nothing is committed. It is the (i) beside the button. */
+const SAVE_EXPLAINED =
+  "Saves the people (names, kinds, emails and the login or id each system shows) into this Toil project's copy in the repository Toil UI was started in, so teammates who get it share the mapping. No password or token is ever in it. If a copy already exists only its people change, and people only it lists are kept. Nothing is committed for you.";
+
+/** Writes the people into the repository's `.toil/projects` file. */
 export function SaveToRepo() {
   const { toilProject, config } = useData();
   const off = useOff();
@@ -191,16 +192,13 @@ export function SaveToRepo() {
             Turned off: {off}
           </span>
         )}
+        <InfoTip label="saving the people" tip={SAVE_EXPLAINED} placement="bottom start" triggerProps={{ 'data-save-to-repo-info': '' }}>
+          <p>{SAVE_EXPLAINED}</p>
+          <label className="map-replace">
+            <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} /> Take mine where the repository lists the same person differently
+          </label>
+        </InfoTip>
       </Cluster>
-      <details>
-        <summary>What does this change?</summary>
-        <p className="note">
-          Saves the people (names, kinds, emails and the login or id each system shows) into this Toil project's copy in the repository Toil UI was started in, so teammates who get it share the mapping. No password or token is ever in it. If a copy already exists only its people change, and people only it lists are kept. Nothing is committed for you.
-        </p>
-        <label className="map-replace">
-          <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} /> Take mine where the repository lists the same person differently
-        </label>
-      </details>
       <OutcomeLine outcome={outcome} />
     </Stack>
   );

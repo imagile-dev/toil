@@ -1,0 +1,14 @@
+[
+  {
+    "name": "team",
+    "tool": "sample_team",
+    "description": "Print a sample software team (work items, pull requests, a toil project) to try toil with, or write it to a folder (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--as-of <time>",
+      "--part <part>",
+      "--out <dir>"
+    ]
+  }
+]

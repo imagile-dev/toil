@@ -1,0 +1,31 @@
+/* The drawer that lists several items (#567), on the item drawer's own frame (briefing.css). */
+.toil-project-shell[data-side][data-items] .toil-project-body { grid-template-columns: minmax(0, 1fr) minmax(0, min(44rem, 54%)); }
+.drill-drawer .l-table table { font-size: 0.8125rem; }
+.drill-drawer .l-table th, .drill-drawer .l-table td { text-align: left; vertical-align: top; padding: 0.3rem 0.4rem; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+/* Sort headers are quiet: the heading's own text, a small arrow on the sorted column, and the app's hover and focus. */
+.drill-sort { display: inline-flex; align-items: baseline; gap: 0.2rem; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
+/* A theme that draws every button as a framed sign (Harvest, Overworld) would frame each column heading too; a heading stays a heading. */
+[data-theme] .drill-sort { min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.drill-sort:hover { text-decoration: underline; text-underline-offset: 0.2em; }
+.drill-sort:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.drill-sort__arrow { display: inline-block; min-width: 0.7em; font-size: 0.75em; color: var(--muted); }
+.drill-sortmenu { display: flex; }
+.drill-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+/* At the drawer's own width the columns share it and the Title takes what is left, so the list never needs a sideways scroll (stacked below 28rem, as every DataTable is). */
+@container l-table (min-width: 28.01rem) {
+  .drill-drawer .l-table[data-wide] table.drill-fit, .drill-drawer .l-table.drill-table[data-wide] table { min-width: 0; table-layout: fixed; width: 100%; }
+  .drill-table .drill-col--category { width: 21%; }
+  .drill-table .drill-col--key { width: 12%; }
+  .drill-table .drill-col--status { width: 12%; }
+  .drill-table .drill-col--assignee { width: 13%; }
+  .drill-table .drill-col--estimate { width: 14%; }
+  .drill-table .drill-col--dim { width: 12%; }
+}
+.cat-chip { display: inline-flex; align-items: baseline; gap: 0.15rem; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid var(--line); background: var(--raised); font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+/* In the drawer the category's name breaks only between words (a wide theme face may need two lines) and what decided it sits under it, so a long name never breaks into a column of single words. */
+.drill-drawer .cat-chip { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0; max-width: 100%; white-space: normal; overflow-wrap: break-word; text-align: left; border-radius: 0.6rem; padding-block: 0.15rem; }
+.cat-chip--unsure { color: var(--muted); border-style: dashed; }
+.cat-chip__how { font-weight: 400; color: var(--muted); }
+.cat-name { text-decoration: underline dotted; text-underline-offset: 0.2em; cursor: help; }
+.drill-drawer .l-table th { overflow-wrap: normal; }
+.drill-drawer .l-table .chip { display: inline-block; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }

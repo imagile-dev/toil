@@ -20,13 +20,16 @@ import { canArchive, type ArchiveNotice } from './components/archive.tsx';
 import { SkinProvider, ThemeProvider, skinsFor } from './skins.tsx';
 import { THEMES, themeNamed, tokenCss } from './themes.ts';
 import { useResolvedScheme, useThemeChoice } from './theme-choice.ts';
-import type { Call, Execute } from './toil.ts';
+import type { Call, Execute, WorkItem } from './toil.ts';
 import { ChatScope } from './components/ask.tsx';
 import { AnalyzeAfterSync } from './components/briefing.tsx';
 import { ServerStale } from './components/stale.tsx';
 import { Notices, NotifyProvider, remembering, useMine } from './components/notify.tsx';
 import type { ServerStatus } from './fingerprint.ts';
 import { CommandCenter } from './views/CommandCenter.tsx';
+import { Classify } from './views/Classify.tsx';
+import { ClassifyProvider } from './classify-state.tsx';
+import type { ClassifyApi, LedgerView } from './classify-api.ts';
 import { Dashboard } from './views/Dashboard.tsx';
 import { ToilProjectShell, type ToilProjectTab } from './views/ToilProjectShell.tsx';
 import { ToilProjects, type SyncedAt } from './views/ToilProjects.tsx';
@@ -40,8 +43,12 @@ import { startReadyWith } from './assign/start.ts';
 import type { AssignmentsApi } from './assign/model.ts';
 import { memoryAnalyses, type AnalysesApi } from './analyses.ts';
 import { People } from './views/People.tsx';
+import { Charts } from './views/Charts.tsx';
+import { Analyses } from './views/Analyses.tsx';
+import { parseFilters, type Filters } from './filters.ts';
 import { PullRequests } from './views/PullRequests.tsx';
 import { JobPage } from './components/jobs.tsx';
+import { Diagram } from './views/Diagram.tsx';
 import { jobForSegment, type JobId } from './model/jobs.ts';
 import { Settings } from './views/Settings.tsx';
 import { Standup } from './views/Standup.tsx';
@@ -61,6 +68,7 @@ import type { WordKey } from './wording.ts';
 import { useFontApplied } from './fonts.ts';
 import { usePlain, wordsFor } from './plain-words.ts';
 import { viewHelpHref } from './help.ts';
+import { LeaveSample } from './sample-mode.tsx';
 import { Setup, type SetupProps } from './views/Setup.tsx';
 import { NewProject, type NewProjectProps } from './views/NewProject.tsx';
 import { Loader, MomentsProvider, Splash, useMomentPlayer } from './moments/Moments.tsx';
@@ -76,6 +84,9 @@ import { Bell } from './components/bell.tsx';
 import { ProjectLinks, ProjectSwitcher } from './components/project-switcher.tsx';
 import { NewDot, WhatsNewModal, useWhatsNew } from './components/whats-new.tsx';
 import type { Release, Versions } from './whats-new.ts';
+import { MenuIcon } from './components/icons.tsx';
+
+const ChartkitGallery = lazy(() => import('./components/chartkit/gallery.tsx'));
 
 const PowershellMan = lazy(() => import('./game/PowershellMan.tsx').then((module) => ({ default: module.PowershellMan })));
 const POWERSHELL_MAN_HASH = '#/powershell-man';
@@ -90,15 +101,20 @@ type RouteOf =
   /** `at`: where an edit link lands on the page (#346): a connection's name, a toil project and its section, or `rates`. */
   | { view: 'settings'; page: SettingsPage; at?: string[] }
   /**
-   * A toil project's own tabs (#394): the Overview when `tab` is absent, else the Board, Dependencies or Analyses.
+   * A toil project's own tabs (#394): the Summary when `tab` is absent, else the Board or Dependencies.
    * `person`: the board filtered to one person, by the People view's key for them (#292).
-   * `analysis`: one analysis opened from the Analyses tab (#395), by its id.
    */
-  | { view: 'dashboard'; toilProject: string; tab?: 'board' | 'dependencies' | 'analyses'; person?: string; analysis?: string }
+  | { view: 'dashboard'; toilProject: string; tab?: 'board' | 'dependencies'; person?: string }
+  /** Earlier briefings, a step in from the Summary's briefing (#395): `…/summary/briefings`, or one of them by its id. */
+  | { view: 'briefings'; toilProject: string; id?: string }
   | { view: 'prs'; toilProject: string }
   | { view: 'people'; toilProject: string }
+  /** A chart's full page, under the Summary (#567): `…/summary/<dashboard>`. */
+  | { view: 'charts'; toilProject: string; dashboard?: string }
   /** Every work item with its readiness verdict (#307). */
   | { view: 'command-center'; toilProject: string }
+  /** The Board's third view (#566): the items that need a person to say what category they are. */
+  | { view: 'classify'; toilProject: string }
   | { view: 'worklog'; toilProject: string; day: string | null }
   /** The stand-up (#345): a range of days, or since the last working day when it names none. */
   /** `ignored`: what the URL named that isn't a day, said on the page rather than dropped quietly. */
@@ -106,11 +122,17 @@ type RouteOf =
   | { view: 'item'; toilProject: string; id: string }
   /** A workflow job's own page (#532): `#/project/<name>/job/<review|ship|diagram>?target=<change id or repository>`. */
   | { view: 'job'; toilProject: string; job: JobId; target: string | null }
+  /** The architecture diagram (#582), one step in from the Summary: `#/project/<name>/summary/diagram[/<view>]`. */
+  | { view: 'diagram'; toilProject: string; key: string | null }
   /** One agent assignment (#293). */
   | { view: 'assignment'; toilProject: string; id: string };
 
-/** A route, and on any toil project page the item its drawer shows (#494): `?item=<owi id>` after the path, so the peek has an address of its own. */
-export type Route = RouteOf & { peek?: string };
+/**
+ * A route, and on any toil project page the item its drawer shows (#494): `?item=<owi id>` after the path, so the peek has an address of its own.
+ * `items` is the drawer that lists several items (#567: `?items=<how to find them>`, model/drill.ts) and `filters` the period and dimension
+ * filters the address carries (filters.ts); both ride along on any toil project page, so a drawer opening or closing never drops a filter.
+ */
+export type Route = RouteOf & { peek?: string; items?: string; filters?: Filters };
 
 /**
  * Addresses from before dossiers were renamed (#555), kept so a bookmark or a link in a chat still lands: `#/dossier/<name>/…` is
@@ -121,6 +143,11 @@ export function upgradeHash(hash: string): string {
     .replace(/^#\/dossier(?=\/|\?|$)/, '#/project')
     .replace(/^#\/settings\/dossiers(?=\/|\?|$)/, '#/settings/projects')
     .replace(/^#\/dossiers(?=\/|\?|$)/, '#/')
+    // The Charts and Past briefings tabs went into the Summary (#567): a shared link to either still lands, on its new address.
+    .replace(/^(#\/project\/[^/?]+)\/charts(?=\/|\?|$)/, '$1/summary')
+    // The stand-up is a tab of its own: its old address under the worklog redirects, days and all.
+    .replace(/^(#\/project\/[^/?]+)\/worklog\/standup(?=\/|\?|$)/, '$1/standup')
+    .replace(/^(#\/project\/[^/?]+)\/analyses(?=\/|\?|$)/, '$1/summary/briefings')
     // Creating a Toil project has its own short wizard; the two addresses that used to open the first-run wizard's project step go there.
     .replace(/^#\/setup\/project(?=\/|\?|$)/, '#/new-project')
     .replace(/^#\/settings\/projects\/\+new(?=\/|\?|$)/, '#/new-project');
@@ -133,8 +160,20 @@ export function parseRoute(rawHash: string): Route {
   const query = at < 0 ? null : new URLSearchParams(hash.slice(at + 1));
   const peek = query?.get('item') ?? null;
   if (route.view === 'job') return { ...route, target: query?.get('target') || null };
-  return peek && 'toilProject' in route && route.view !== 'item' ? { ...route, peek } : route;
+  if (!('toilProject' in route) || route.view === 'item') return route;
+  const items = query?.get('items') || null;
+  const filters = query ? parseFilters(query) : null;
+  return { ...route, ...(peek ? { peek } : {}), ...(items ? { items } : {}), ...(filters && (filters.where.length > 0 || filters.from || filters.to) ? { filters } : {}) };
 }
+
+/** A path part, decoded; a malformed escape is kept as typed, so the page says it found nothing by that name. */
+const decodeKept = (part: string): string => {
+  try {
+    return decodeURIComponent(part);
+  } catch {
+    return part;
+  }
+};
 
 function parsePath(hash: string): RouteOf {
   const parts = hash.replace(/^#\/?/, '').split('/');
@@ -163,15 +202,19 @@ function parsePath(hash: string): RouteOf {
     if (parts[2] === 'item' && parts[3]) return { view: 'item', toilProject, id: decodeURIComponent(parts.slice(3).join('/')) };
     if (parts[2] === 'assignment' && parts[3]) return { view: 'assignment', toilProject, id: decodeURIComponent(parts[3]) };
     if (parts[2] === 'job' && parts[3] && jobForSegment(parts[3])) return { view: 'job', toilProject, job: jobForSegment(parts[3])!, target: null };
+    if (parts[2] === 'summary' && parts[3] === 'diagram') return { view: 'diagram', toilProject, key: parts[4] ? decodeKept(parts[4]) : null };
     if (parts[2] === 'prs') return { view: 'prs', toilProject };
     if (parts[2] === 'people') return { view: 'people', toilProject };
+    if (parts[2] === 'summary' && parts[3] === 'briefings') return parts[4] ? { view: 'briefings', toilProject, id: decodeURIComponent(parts.slice(4).join('/')) } : { view: 'briefings', toilProject };
+    if (parts[2] === 'summary' && parts[3]) return { view: 'charts', toilProject, dashboard: decodeURIComponent(parts[3]) };
     if (parts[2] === 'command-center') return { view: 'command-center', toilProject };
+    // `board/classify` is a view of the Board, not a person's name, so it is read before the person filter is.
+    if (parts[2] === 'classify' || (parts[2] === 'board' && parts[3] === 'classify' && parts.length === 4)) return { view: 'classify', toilProject };
     if (parts[2] === 'board') return parts[3] ? { view: 'dashboard', toilProject, tab: 'board', person: decodeURIComponent(parts.slice(3).join('/')) } : { view: 'dashboard', toilProject, tab: 'board' };
-    if (parts[2] === 'analyses' && parts[3]) return { view: 'dashboard', toilProject, tab: 'analyses', analysis: decodeURIComponent(parts.slice(3).join('/')) };
-    if (parts[2] === 'dependencies' || parts[2] === 'analyses') return { view: 'dashboard', toilProject, tab: parts[2] };
-    if (parts[2] === 'worklog' && parts[3] === 'standup') {
+    if (parts[2] === 'dependencies') return { view: 'dashboard', toilProject, tab: 'dependencies' };
+    if (parts[2] === 'standup') {
       // One day names a one-day stand-up; anything that isn't a day is named on the page, which shows the default range instead.
-      const [from, to] = [parts[4], parts[5]].map((p) => (p ? decodeURIComponent(p) : undefined));
+      const [from, to] = [parts[3], parts[4]].map((p) => (p ? decodeURIComponent(p) : undefined));
       const bad = [from, to].filter((p): p is string => p !== undefined && p !== '' && !isDay(p));
       if (bad.length || (!from && to)) return { view: 'standup', toilProject, from: null, to: null, ignored: bad.join(', ') || to! };
       return { view: 'standup', toilProject, from: from ?? null, to: to || from || null };
@@ -185,21 +228,30 @@ function parsePath(hash: string): RouteOf {
 /**
  * Which of a toil project's tabs a route shows (#394). The old addresses keep
  * working on the tab they belong to: the Command Center is the Board's
- * readiness view, the stand-up is the Worklog's, and an item lands on the
+ * readiness view, and an item lands on the
  * Board it came from. An assignment belongs to no tab: the Agents sidebar is its home.
  */
 export function tabOf(route: Route): ToilProjectTab | null {
   switch (route.view) {
     case 'dashboard':
       return route.tab ?? 'overview';
+    // A page one step in from the Summary keeps the Summary's tab lit.
+    case 'diagram':
+      return 'overview';
     case 'prs':
       return 'prs';
     case 'people':
       return 'people';
+    // The charts' full pages and the earlier briefings are steps in from the Summary, so the Summary stays selected.
+    case 'charts':
+    case 'briefings':
+      return 'overview';
     case 'worklog':
-    case 'standup':
       return 'worklog';
+    case 'standup':
+      return 'standup';
     case 'command-center':
+    case 'classify':
     case 'item':
       return 'board';
     default:
@@ -299,6 +351,8 @@ export interface AppProps {
   assignments?: AssignmentsApi;
   /** The history of analyses (#395): the server's, or the preview's sample. Without one, the App keeps this page's in memory. */
   analyses?: AnalysesApi;
+  /** Sorting work into categories (#566): the person's ledger and the steps around it; the server's, or the sample's script. Without one, categories show and nothing can be changed. */
+  classify?: ClassifyApi;
   /** Each toil project's last sync, from the sync panel (#342), for its card; absent where nothing syncs (the preview). */
   synced?: Record<string, SyncedAt>;
   /** After a toil project's name or description changed in place, so the shell can read the sync status again under the new name. */
@@ -315,12 +369,14 @@ export interface AppProps {
   onSync?: () => void;
   /** The toil and Toil UI this page runs on, for What's new (#417): the server's, or, absent, the ones this build pins. */
   versions?: Versions;
+  /** Where the app was opened on sample data from a real install (src/sample-mode.ts): the banner then offers a way back. Absent in the site preview and in `toil-ui --sample`, which have nowhere to go back to. */
+  onLeaveSample?: () => void;
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, themeSetting, now, preview, agentSettings, setupKeep, newProjectKeep, feedback, modelUsage, cache, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, syncedAt, news, versions }: AppProps) {
+export function App({ execute, agent, config, themeSetting, now, preview, agentSettings, setupKeep, newProjectKeep, feedback, modelUsage, cache, worklog, startReady, assignments: given, analyses: givenAnalyses, classify: classifyApi, synced, afterDescribe, serverStatus, onSync, syncing, syncedAt, news, versions, onLeaveSample }: AppProps) {
   const [ownAnalyses] = useState(() => memoryAnalyses());
   const analyses = givenAnalyses ?? ownAnalyses;
   const route = useRoute();
@@ -356,6 +412,9 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   const [toilProjects, setToilProjects] = useState<Record<string, Loaded<ToilProjectData>>>({});
   // What the toil project on screen is waiting on, for its loading screen (#419): the real calls, as they go.
   const [progress, setProgress] = useState<Record<string, CallProgress>>({});
+  // The person's classification ledger for the toil project on screen (#566): the scheme toil resolved and each item's last word. Read again after every change of mind.
+  const [ledger, setLedger] = useState<{ toilProject: string; view: LedgerView | null; error: string | null; version: number } | null>(null);
+  const ledgerVersion = useRef(0);
   const choice = useThemeChoice(themeSetting ?? null);
   const scheme = useResolvedScheme(choice.scheme);
   const theme = themeNamed(choice.theme);
@@ -367,6 +426,31 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   }, []);
   const first = useRef(true);
   const wanted = route.view === 'toilProjects' || route.view === 'settings' || route.view === 'setup' || route.view === 'newProject' ? null : route.toilProject;
+  // The items of a toil project, for the Classification editor's rule counts: the ones already loaded, else a read of that toil project.
+  const loadItems = useCallback(
+    async (name: string): Promise<WorkItem[]> => {
+      const had = toilProjects[name];
+      return had?.ok ? had.value.items : (await loadToilProject(execute, name)).items;
+    },
+    [toilProjects, execute],
+  );
+  // Reading the ledger: once when a toil project opens, and again whenever something changed it. A failure is kept, never turned into an empty ledger.
+  const readLedger = useCallback(
+    async (name: string) => {
+      if (!classifyApi) return;
+      const version = ++ledgerVersion.current;
+      try {
+        const view = await classifyApi.ledger(name);
+        setLedger((cur) => (cur && cur.version > version ? cur : { toilProject: name, view, error: null, version }));
+      } catch (e) {
+        setLedger((cur) => (cur && cur.version > version ? cur : { toilProject: name, view: null, error: e instanceof Error ? e.message : String(e), version }));
+      }
+    },
+    [classifyApi],
+  );
+  useEffect(() => {
+    if (wanted) void readLedger(wanted);
+  }, [wanted, readLedger]);
   // The command palette and the shortcuts sheet (#416), hidden until called up; `focused` is the item the focus was on when the palette opened.
   const [palette, setPalette] = useState<{ open: boolean; focused: string | null }>({ open: false, focused: null });
   const [sheet, setSheet] = useState(false);
@@ -520,7 +604,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
 
   // A new view moves focus to its heading, so a screen reader hears where it
   // landed and the next Tab starts from the top of the content. A dashboard
-  // still loading has no heading yet, so the move waits until it renders one.
+  // still loading has no heading yet, so the move waits until it renders one. A tab's page carries no title that repeats the tab (#567), so where it has no heading the focus lands on the page itself, which its tab names.
   const routeKey = JSON.stringify(route);
   const pending = useRef(false);
   // An edit link's target (#346) is focused by its own page once it has loaded (useLandOn), so the heading doesn't take it first.
@@ -535,7 +619,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   useEffect(() => {
     // A board filtered to one person (#292) takes focus at the filter's line instead, which is what the link was for.
     if (game.open) return;
-    const h1 = pending.current ? (main.current?.querySelector<HTMLElement>('#board-filter') ?? main.current?.querySelector<HTMLElement>('h1')) : null;
+    const h1 = pending.current ? (main.current?.querySelector<HTMLElement>('#board-filter') ?? main.current?.querySelector<HTMLElement>('h1') ?? main.current?.querySelector<HTMLElement>('[data-tab-panel]')) : null;
     if (h1) {
       pending.current = false;
       h1.focus({ preventScroll: h1.id === 'board-filter' });
@@ -544,7 +628,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
 
   const skip = (e: MouseEvent) => {
     e.preventDefault();
-    main.current?.querySelector<HTMLElement>('h1')?.focus();
+    (main.current?.querySelector<HTMLElement>('h1') ?? main.current?.querySelector<HTMLElement>('[data-tab-panel]'))?.focus();
   };
 
   const skins = skinsFor(theme.name);
@@ -597,12 +681,19 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   );
 
   let body;
-  if (route.view === 'setup') {
+  if (/^#\/chartkit(\?|$)/.test(window.location.hash)) {
+    // The chart kit's gallery (#567): no screen links to it; it is for review and for the layout check.
+    body = (
+      <Suspense fallback={null}>
+        <ChartkitGallery />
+      </Suspense>
+    );
+  } else if (route.view === 'setup') {
     body = <Setup config={config ?? null} agent={agentSettings} keep={setupKeep} guide={agent.guide ? (request, history, signal, style) => agent.guide!(request, history, signal, style) : undefined} onSync={onSync} />;
   } else if (route.view === 'newProject') {
     body = <NewProject config={config ?? null} keep={newProjectKeep} />;
   } else if (route.view === 'settings') {
-    body = <Settings page={route.page} {...(route.at ? { at: route.at } : {})} config={config ?? null} modelUsage={modelUsage ?? null} {...(cache ? { cache } : {})} {...(agentSettings ? { agent: agentSettings } : {})} />;
+    body = <Settings page={route.page} {...(route.at ? { at: route.at } : {})} classify={classifyApi} loadItems={loadItems} config={config ?? null} modelUsage={modelUsage ?? null} {...(cache ? { cache } : {})} {...(agentSettings ? { agent: agentSettings } : {})} />;
   } else if (route.view === 'toilProjects') {
     body = !list ? <Loader message={words('loading.toilProjects')} detail="Reading them." /> : list.ok ? <ToilProjects toilProjects={list.value.toilProjects} calls={list.value.calls} loaded={toilProjects} now={now} synced={synced ?? (preview ? null : {})} config={config ?? null} onDescribed={described} onSync={onSync} archived={list.value.archived} notice={archiveNotice} onDismissNotice={() => setArchiveNotice(null)} {...(config && canArchive(config) ? { onArchive: archive } : {})} /> : failure(list.message);
   } else if (!current) {
@@ -610,15 +701,17 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   } else if (!current.ok) {
     body = failure(current.message);
   } else {
-    const data: Data = { ...(onSync ? { sync: onSync } : {}), ...(worklog ? { worklog } : {}), toilProject: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, ...(preview ? { viewedAt: new Date(Date.parse(now) + 2 * 3_600_000).toISOString() } : {}), execute, analyses, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.toilProject) } : {}), refresh: () => setToilProjects(({ [route.toilProject]: _, ...rest }) => rest), described };
+    const data: Data = { ...(preview ? { preview: true } : {}), ...(onSync ? { sync: onSync } : {}), ...(worklog ? { worklog } : {}), toilProject: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, ...(preview ? { viewedAt: new Date(Date.parse(now) + 2 * 3_600_000).toISOString() } : {}), execute, analyses, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.toilProject) } : {}), refresh: () => setToilProjects(({ [route.toilProject]: _, ...rest }) => rest), described, ...(classifyApi ? { classification: { api: classifyApi, view: ledger?.toilProject === route.toilProject ? ledger.view : null, error: ledger?.toilProject === route.toilProject ? ledger.error : null, loading: ledger?.toilProject !== route.toilProject, version: ledger?.toilProject === route.toilProject ? ledger.version : 0, reload: () => readLedger(route.toilProject) } } : {}) };
     body = (
       <DataContext value={data}>
         {/* The Ask bar (#343), on every toil project page; its chat is keyed by toil project, so a conversation lasts across that toil project's views. */}
         <ChatScope key={route.toilProject}>
           <AnalyzeAfterSync syncedAt={syncedAt ?? null} />
-          <ToilProjectShell tab={tabOf(route)} peek={route.peek ?? null} heading={route.view === 'dashboard'} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
-            {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'job' ? <JobPage id={route.job} target={route.target} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} {...(route.analysis ? { analysis: route.analysis } : {})} />}
+          <ClassifyProvider>
+          <ToilProjectShell tab={tabOf(route)} peek={route.peek ?? null} items={route.items ?? null} heading={route.view === 'dashboard'} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'classify' ? { boardView: 'classify' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
+            {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'job' ? <JobPage id={route.job} target={route.target} /> : route.view === 'diagram' ? <Diagram viewKey={route.key} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'charts' ? <Charts dashboard={route.dashboard ?? null} /> : route.view === 'briefings' ? <Analyses {...(route.id ? { open: route.id } : {})} /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : route.view === 'classify' ? <Classify /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} />}
           </ToilProjectShell>
+          </ClassifyProvider>
         </ChatScope>
       </DataContext>
     );
@@ -640,12 +733,12 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
         <header className="app-header" inert={game.open} aria-hidden={game.open || undefined}>
           {preview && phoneBanner && (
             <p className="banner" role="note" data-banner-merged="">
-              <strong>{plain.pw('Toil UI beta, on sample data.', 'Toil UI beta, showing sample data.')}</strong> Read {dateTime(now)}.
+              <strong>{plain.pw('Toil UI beta, on sample data.', 'Toil UI beta, showing sample data.')}</strong> Read {dateTime(now)}.{onLeaveSample && <LeaveSample onLeave={onLeaveSample} />}
             </p>
           )}
           {preview && !phoneBanner && (
             <p className="banner" role="note">
-              <strong>{plain.pw('Toil UI beta, on sample data.', 'Toil UI beta, showing sample data.')}</strong> {plain.pw('Nothing here connects to a tracker.', 'Nothing here connects to your real tools.')}
+              <strong>{plain.pw('Toil UI beta, on sample data.', 'Toil UI beta, showing sample data.')}</strong> {plain.pw('Nothing here connects to a tracker.', 'Nothing here connects to your real tools.')}{onLeaveSample && <LeaveSample onLeave={onLeaveSample} />}
             </p>
           )}
           <div className="top" data-one-row="" ref={top}>
@@ -843,9 +936,7 @@ function HeaderMenu({ suspended, projects, links, feedback, controls, help, fres
     <>
       <DialogTrigger isOpen={open && !suspended} onOpenChange={setOpen}>
         <Button className="btn menu-button" data-menu-button="">
-          <span aria-hidden="true" className="menu-button__icon">
-            ☰
-          </span>
+          <MenuIcon size={18} className="menu-button__icon" />
           Menu
           {/* Help, with its dot (#417), is inside the Menu here, so the Menu carries the dot. */}
           {fresh && <NewDot />}

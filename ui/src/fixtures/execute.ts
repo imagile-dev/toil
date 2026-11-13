@@ -15,17 +15,19 @@
  */
 
 import { ADO_FEED_FIELDS } from '../ado-revisions.ts';
-import { CODEOWNERS_PATHS, JQL, jiraSearchFields, PR_INCLUDE, WIQL } from '../load.ts';
+import { CODEOWNERS_PATHS, JQL, PR_INCLUDE, WIQL, jiraMoreFields } from '../load.ts';
 import type { Call, Envelope, Execute, ExecuteOptions } from '../toil.ts';
 import { ADO_CI_RUNS, ADO_DEPLOY_RUNS, ADO_PR_GETS, ADO_PRS, BITBUCKET_CLOUD_PR_GETS, BITBUCKET_CLOUD_PRS, BITBUCKET_PR_GETS, BITBUCKET_PRS, GITHUB_CODEOWNERS, GITHUB_PR_GETS, GITHUB_PRS, JENKINS_RUNS, OPENSHIFT } from './delivery.ts';
+import { SAMPLE_AS_OF, SAMPLE_CODEOWNERS, SAMPLE_GITHUB, SAMPLE_JIRA_SEARCH, SAMPLE_PR_GETS, SAMPLE_PR_LIST } from './sample-team.ts';
+import { SAMPLE_DIAGRAMS, diagramShow } from './diagrams.ts';
 import { TOIL_PROJECTS, archivedListData, fileOf, listData, showData, type ToilProjectFile } from './toil-projects.ts';
 import {
   ADO_BATCH, ADO_FEED, ADO_FEED_GAPS, ADO_IDS, ADO_ITERATIONS, ADO_REVISIONS, ADO_WIQL, GITHUB_EVENTS, GITHUB_ISSUES, GITHUB_NUMBERS, GITHUB_PROJECT_ITEMS,
-  ADO_STATES, JIRA_CHANGELOGS, JIRA_CUT_SHORT, JIRA_SEARCH_WITH_CHANGELOGS, JIRA_TRANSITIONS,
+  ADO_STATES, JIRA_CHANGELOGS, jiraTransitionsFor, JIRA_CUT_SHORT, JIRA_SEARCH_WITH_CHANGELOGS, JIRA_TRANSITIONS,
 } from './work.ts';
 
 /** The moment the sample data was read: day seven of Sprint 42. */
-export const FIXTURE_NOW = '2026-10-13T08:00:00.000Z';
+export const FIXTURE_NOW = SAMPLE_AS_OF;
 const VERSION = '0.1.0-alpha.1';
 
 export interface Canned {
@@ -47,12 +49,17 @@ export const JIRA_REGISTERED = [
   { id: 'customfield_10020', name: 'Sprint', type: 'sprint' },
 ];
 
-/** The `fields` the loader asks card-payments' Jira search for: what that connection registers, and the field its section keeps acceptance criteria in. */
-export const CARD_JIRA_FIELDS = jiraSearchFields(JIRA_REGISTERED, { acceptanceCriteria: 'customfield_10500' });
-
 const card = 'card-payments';
 const settle = 'settlement';
 const checkout = 'checkout-web';
+const team = 'sample-team';
+/** The fields a Jira search for a toil project asks for, from the toil project's own file, as the loader works them out. */
+const jiraFields = (name: string, registered: readonly { id: string; name: string }[] = []) => {
+  const file = TOIL_PROJECTS.find((d) => d.name === name) as ToilProjectFile;
+  return jiraMoreFields(file, file.jira as Record<string, unknown>, registered).join(',');
+};
+/** The `moreFields` the loader sends card-payments' Jira search: what that connection registers is in toil's default set, so only the Toil project's own pointers and what mapOwi reads are named. */
+export const CARD_JIRA_FIELDS = jiraFields(card, JIRA_REGISTERED);
 /** The repository the sample's GitHub calls name outright: the loader passes owner and repo for every repository it reads. */
 const GH = { owner: 'imagile', repo: 'payments-web' };
 const at = (toilProject: string, area: string, env?: string, deployment?: string) => ({ toilProject, area, ...(env ? { env } : {}), ...(deployment ? { deployment } : {}) });
@@ -60,16 +67,26 @@ const at = (toilProject: string, area: string, env?: string, deployment?: string
 const gets = (toilProject: string, area: string, field: string, byNumber: Record<number, unknown>, deployment?: string, scope: Record<string, unknown> = {}): Canned[] =>
   Object.entries(byNumber).map(([n, data]) => ({ command: `${area} pr get`, input: { toilProject, ...scope, [field]: Number(n), include: PR_INCLUDE }, data, ...at(toilProject, area, undefined, deployment) }));
 
+/** `projects diagram show` for each sample diagram, with no view and with each of its views. */
+function diagramReads(): Canned[] {
+  return Object.entries(SAMPLE_DIAGRAMS).flatMap(([name, d]) => [
+    { command: 'projects diagram show', input: { toilProject: name }, data: diagramShow(name) },
+    ...d.model.views.map((v) => ({ command: 'projects diagram show', input: { toilProject: name, view: v.key }, data: diagramShow(name, v.key) })),
+  ]);
+}
+
 export const CANNED: Canned[] = [
   { command: 'projects list', input: {}, data: listData() },
   { command: 'projects list', input: { archived: true }, data: archivedListData() },
   ...TOIL_PROJECTS.map((d) => ({ command: 'projects show', input: { toilProject: d.name }, data: showData(d) })),
+  // The stored architecture diagram (#582), read live by its own page: with no view for the first look, and with each view for its picture.
+  ...diagramReads(),
 
   // card-payments
   // The search carries each issue's history (toil's --changelog); the sample cuts one short, and that issue is read with its own call.
-  // The connection registers the two fields the sample's sprint and points are read from, so the search asks for them by id and gets them back by name.
+  // The connection registers the two fields the sample's sprint and points are read from; the search gets them back by name, and the loader copies them under their ids.
   { command: 'jira issue fields', input: { toilProject: card }, data: JIRA_REGISTERED, ...at(card, 'jira') },
-  { command: 'jira issue search', input: { toilProject: card, jql: JQL('PAY'), changelog: true, fields: CARD_JIRA_FIELDS }, data: JIRA_SEARCH_WITH_CHANGELOGS, ...at(card, 'jira') },
+  { command: 'jira issue search', input: { toilProject: card, jql: JQL('PAY'), changelog: true, moreFields: CARD_JIRA_FIELDS }, data: JIRA_SEARCH_WITH_CHANGELOGS, ...at(card, 'jira') },
   ...JIRA_CUT_SHORT.map((key) => ({ command: 'jira issue history', input: { toilProject: card, key }, data: JIRA_CHANGELOGS[key], ...at(card, 'jira') })),
   // The readiness gate's one live read (#307), made only when a person presses for it on an item's page.
   ...Object.entries(JIRA_TRANSITIONS).map(([key, data]) => ({ command: 'jira issue transitions', input: { toilProject: card, key }, data, ...at(card, 'jira') })),
@@ -103,6 +120,17 @@ export const CANNED: Canned[] = [
   ...gets(checkout, 'bitbucket', 'id', BITBUCKET_CLOUD_PR_GETS, 'cloud'),
   { command: 'openshift deployment list', input: { toilProject: checkout, env: 'staging', namespace: 'checkout-staging' }, data: OPENSHIFT['checkout-staging'], ...at(checkout, 'openshift', 'staging') },
   { command: 'openshift deployment list', input: { toilProject: checkout, env: 'prod', namespace: 'checkout-prod' }, data: OPENSHIFT['checkout-prod'], ...at(checkout, 'openshift', 'prod') },
+
+  // sample-team: generated by toil's own sampleTeam() (fixtures/sample-team.ts). Every issue's history comes with the search, so no per-issue history call is made.
+  { command: 'jira issue fields', input: { toilProject: team }, data: [], ...at(team, 'jira') },
+  { command: 'jira issue search', input: { toilProject: team, jql: JQL('SHOP'), changelog: true, moreFields: jiraFields(team) }, data: SAMPLE_JIRA_SEARCH, ...at(team, 'jira') },
+  // The toil project names a repository, so the loader asks for its GitHub issues too; the sample's tracker is Jira, so the repository has none.
+  { command: 'github issue list', input: { toilProject: team, ...SAMPLE_GITHUB, state: 'all' }, data: [], ...at(team, 'github') },
+  // The readiness gate's one live read, on a press, for each open item.
+  ...Object.entries(jiraTransitionsFor(SAMPLE_JIRA_SEARCH.issues as Array<{ key?: unknown }>)).map(([key, data]) => ({ command: 'jira issue transitions', input: { toilProject: team, key }, data, ...at(team, 'jira') })),
+  { command: 'github pr list', input: { toilProject: team, ...SAMPLE_GITHUB, state: 'all' }, data: SAMPLE_PR_LIST, ...at(team, 'github') },
+  ...gets(team, 'github', 'number', SAMPLE_PR_GETS, undefined, SAMPLE_GITHUB),
+  { command: 'github repo file', input: { toilProject: team, ...SAMPLE_GITHUB, path: CODEOWNERS_PATHS[0] }, data: SAMPLE_CODEOWNERS, ...at(team, 'github') },
 ];
 
 /** One string per command and input, whatever order the input's keys came in. */

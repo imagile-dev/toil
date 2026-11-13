@@ -88,6 +88,18 @@ const revision = (rev: number, state: string) => ({
 // Invented from Comments - Get Comments (7.1-preview.4).
 export const comment = (id: number) => ({ workItemId: 42, id, version: 1, text: `Comment ${id}`, createdBy: identity(ME, 'Jane Doe'), createdDate: `2026-09-0${id}T12:00:00Z`, modifiedBy: identity(ME, 'Jane Doe'), modifiedDate: `2026-09-0${id}T12:00:00Z`, isDeleted: false, url: `${ORG_URL}/abc12345-0000-0000-0000-000000000070/_apis/wit/workItems/42/comments/${id}` });
 
+// Written from the Classification Nodes - Get reference (structureType area), not captured from a server.
+const areas = {
+  id: 3,
+  identifier: 'abc12345-0000-0000-0000-000000000103',
+  name: 'Imagile',
+  structureType: 'area',
+  hasChildren: true,
+  path: '\\Imagile\\Area',
+  children: [{ id: 4, identifier: 'abc12345-0000-0000-0000-000000000104', name: 'Web', structureType: 'area', hasChildren: false, path: '\\Imagile\\Area\\Web' }],
+  url: `${ORG_URL}/Imagile/_apis/wit/classificationNodes/Areas`,
+};
+
 const iterations = {
   id: 1,
   identifier: 'abc12345-0000-0000-0000-000000000101',
@@ -311,13 +323,22 @@ export const routes: Route[] = [
   },
   { path: `${ORG}/_apis/wit/workItems/42/revisions`, respond: skipped([revision(1, 'New'), revision(2, 'Active')]) },
   { path: `${ORG}/Imagile/_apis/wit/reporting/workitemrevisions`, respond: feedBatch },
-  // With errorPolicy omit, an id that doesn't exist (404 here) comes back as null, in place.
+  { path: `${PROJ}/_apis/wit/workitemtypes/Bug/fields/Custom.WorkCategory`, respond: { json: { referenceName: 'Custom.WorkCategory', name: 'Work Category', alwaysRequired: false, allowedValues: ['KTLO', 'Feature'] } } },
+  // With errorPolicy omit, an id that doesn't exist (404 here) comes back as null, in place. categorize's read
+  // (errorPolicy Omit, a field list) gets only the fields it asked for, with the project and type of each item.
   {
     method: 'POST',
     path: `${ORG}/_apis/wit/workitemsbatch`,
     respond: (r) => {
-      const ids = (JSON.parse(r.body ?? '{}') as { ids: number[] }).ids;
-      const value = ids.map((id) => (id === 404 ? null : workItem(id)));
+      const asked = JSON.parse(r.body ?? '{}') as { ids: number[]; errorPolicy?: string };
+      const ids = asked.ids;
+      const value = ids.map((id) =>
+        id === 404
+          ? null
+          : asked.errorPolicy === 'Omit'
+            ? { id, rev: 3, fields: { 'System.Id': id, 'System.Rev': 3, 'System.Tags': 'ui; backend', 'System.WorkItemType': 'Bug', 'System.TeamProject': 'Imagile' }, url: `${ORG_URL}/_apis/wit/workItems/${id}` }
+            : workItem(id),
+      );
       return { json: { count: value.length, value } };
     },
   },
@@ -330,6 +351,7 @@ export const routes: Route[] = [
         : { json: { totalCount: 3, count: 2, comments: [comment(3), comment(2)], continuationToken: 'abc12345', nextPage: `${ORG_URL}/Imagile/_apis/wit/workItems/42/comments?continuationToken=abc12345` } },
   },
   { method: 'POST', path: `${PROJ}/_apis/wit/workItems/42/comments`, respond: { json: comment(4) } },
+  { path: `${PROJ}/_apis/wit/classificationnodes/areas`, respond: { json: areas } },
   { path: `${PROJ}/_apis/wit/classificationnodes/iterations`, respond: { json: iterations } },
   // The passthrough's second read.
   { path: `${PROJ}/_apis/wit/workitemtypes`, respond: { json: { count: 1, value: [{ name: 'Bug', referenceName: 'Microsoft.VSTS.WorkItemTypes.Bug', states: [{ name: 'New' }, { name: 'Active' }] }] } } },
@@ -374,5 +396,13 @@ export const routes: Route[] = [
   { method: 'PATCH', path: `${REPO}/pullrequests/42/threads/7`, respond: (r) => ({ json: thread(7, [threadComment(1, 5)], JSON.parse(r.body ?? '{}') as Record<string, unknown>) }) },
 ];
 
-export const files = { 'patch.json': '[{"op":"add","path":"/fields/System.Title","value":"From the passthrough"}]' };
+/**
+ * 'patch.json' is the passthrough's body. 'categorize-plan-cloud.json' is a classification plan as toil classify run
+ * writes it; the reads and answers it meets are shaped from the vendor's documentation (Work Items - Get Work Items
+ * Batch, Work Item Types Field - Get, Work Items - Update, REST API 7.1), not captured from a live instance.
+ */
+export const files = {
+  'patch.json': '[{"op":"add","path":"/fields/System.Title","value":"From the passthrough"}]',
+  'categorize-plan-cloud.json': JSON.stringify({ scheme: { name: 'ktlo-feature', revision: 1 }, categories: [{ id: 'ktlo', short: 'KTLO', name: 'Keep the lights on', label: 'ktlo', definition: 'Work that keeps the product running.' }, { id: 'feature', short: 'Feature', name: 'New capability', label: 'feature', definition: 'Work that adds something new.' }], plan: [{ area: 'ado', connection: 'ado-cloud', labels: { ktlo: 'ktlo', feature: 'feature' }, field: { name: 'Custom.WorkCategory' }, items: [{ id: 'ado-cloud:42', key: '42', category: 'ktlo', labels: { add: ['ktlo'], remove: [] }, field: { value: 'KTLO' } }, { id: 'ado-cloud:7', key: '7', category: 'feature', labels: { add: ['feature'], remove: [] }, field: { value: 'Feature' } }] }] }),
+};
 

@@ -137,13 +137,13 @@ try {
   check(asset.body.includes('api/info') && !asset.body.includes('The preview has no sample answer'), `the app's script ${script} is the preview's build, not the local app's`);
   check(info.store === 'fixture' && info.sample === true && info.toil.version === toilInstalled && !('session' in info) && !('csrf' in info), `the server's info was ${JSON.stringify(info)}`);
   const list = JSON.parse((await s.call('projects list')).body);
-  check(list.ok && list.data.toilProjects.length === 3, `projects list over the API returned ${JSON.stringify(list).slice(0, 200)}`);
+  check(list.ok && list.data.toilProjects.length === 4, `projects list over the API returned ${JSON.stringify(list).slice(0, 200)}`);
   const refused = await s.call('jira issue create', { project: 'PAY' });
   check(refused.status === 403 && JSON.parse(refused.body).ok === false, `a write command got ${refused.status}`);
   const all = [foreign, foreignApi, foreignOrigin, formPost, noCookie, crossSite, asset, refused];
   check(all.every((r) => !r.headers['set-cookie']), 'a response set a cookie');
   check(all.every((r) => !Object.keys(r.headers).some((h) => h.startsWith('access-control-'))), 'a response carried a CORS header');
-  steps.push(`--sample on ${origin}: plain URL, foreign Host 403 (page and API), foreign Origin 403, text/plain POST 415, no cookie 401, cross-site with the cookie 403, app and script 200 and the API answering to the navigation cookie alone, 3 Toil projects over the API, a write refused, no CORS header`);
+  steps.push(`--sample on ${origin}: plain URL, foreign Host 403 (page and API), foreign Origin 403, text/plain POST 415, no cookie 401, cross-site with the cookie 403, app and script 200 and the API answering to the navigation cookie alone, 4 Toil projects over the API, a write refused, no CORS header`);
 
   // Every view in every theme, at 375, 768 and 1440, in real Chrome (scripts/layout-check.mjs).
   const layout = await checkLayout({

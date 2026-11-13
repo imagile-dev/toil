@@ -152,6 +152,13 @@
       "toil": "The flags are --creator <id> and --reviewer <id>, and their help says the value is an identity id (a GUID, from ado whoami). Server sends it as the identity id filter, exactly as recorded; the value was never resolved from an alias",
       "why": "Azure DevOps Server and Azure DevOps Services are one area now (#495), so one idea has one flag. The recorded placeholder named a kind of value the command never looked up, and Services takes the identity id the same way.",
       "principle": "10"
+    },
+    {
+      "allows": [],
+      "old": "ado work-item untag sending a JSON Patch `add` on /fields/System.Tags with the tags that remain",
+      "toil": "It sends `replace` with the tags that remain, which sets the whole list, and `remove` on /fields/System.Tags when the last tag comes off (the REST API's way to clear a field). A tag the item doesn't hold changes nothing and still sends `add` with the list it had, as recorded. The request body is the only change; the flags and data are as recorded",
+      "why": "Azure DevOps reads `add` on System.Tags as add these tags, so the recorded request reported success and removed nothing. Confirmed live on Azure DevOps Services on 11 November 2026, through `ado work-item categorize`, which had the same fault; not yet run against an Azure DevOps Server, and the `remove` case for the last tag has not met a live server at all.",
+      "principle": "4"
     }
   ]
 }

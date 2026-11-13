@@ -3,7 +3,7 @@ import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
 import { fixtureWorklog } from '../src/fixtures/worklog.ts';
 import type { PersonEntry } from '../src/model/people.ts';
 import {
-  allLines, buildStandup, daysBetween, defaultRange, factsCited, lastWorkingDay, MAX_STANDUP_DAYS, rangeProblem, standupMarkdown, standupText, standupWriteUp,
+  allLines, buildStandup, chipsOf, commentsReadFor, daysBetween, defaultRange, factsCited, lastWorkingDay, MAX_STANDUP_DAYS, presetOf, presetRange, rangeProblem, shorten, standupMarkdown, standupText, standupWriteUp, topRows, waitText,
   type StandupInput,
 } from '../src/model/standup.ts';
 import { buildDay, eventsFrom, type AgentRun, type SyncRun, type WorklogEvent } from '../src/model/worklog.ts';
@@ -144,7 +144,7 @@ describe('the fold', () => {
   it('lists everyone in the Toil project, empty or not, and an unmapped account only with lines; nobody is left out', () => {
     const r = buildStandup(input({ people: [...PEOPLE, { name: 'Linus', kind: 'human', email: null, ids: {} }] }));
     expect(r.people.map((p) => p.name)).toEqual(['Ada Lovelace', 'Bob', 'Claude', 'Grace Hopper', 'Linus']);
-    expect(r.people.find((p) => p.name === 'Linus')!.lines).toEqual({ done: [], progress: [], blocked: [], next: [] });
+    expect(r.people.find((p) => p.name === 'Linus')!.lines).toEqual({ done: [], progress: [], blocked: [], next: [], comments: [] });
   });
 
   it('orders lines with no time by their ids as numbers, so #9 comes before #10', () => {
@@ -203,7 +203,8 @@ describe('the fold', () => {
     const r = buildStandup(input({ asOf: null }));
     expect(r.team.some((l) => l.subject.startsWith('sprint:'))).toBe(false);
     expect(r.people.flatMap((p) => p.lines.next)).toEqual([]);
-    expect(standupText(r)).toContain('Review waits, the sprint and Next come from a sync, and none has run yet, so there are none.');
+    expect(standupText(r)).toMatch(/^Stand-up · /);
+    expect(r.sprintLine).toBeNull();
     expect(r.sprint).toBeNull();
     expect(standupMarkdown(r)).toContain('No current sprint to take it from.');
     expect(standupMarkdown(buildStandup(input()))).toContain('Nothing assigned and not started in Sprint 42.');
@@ -219,18 +220,16 @@ describe('the text', () => {
     expect(md).toContain('- [PAY-2](https://jira.imagile.dev/browse/PAY-2) Title of PAY-2: blocked by [PAY-3](https://jira.imagile.dev/browse/PAY-3) (13 Oct 2026 07:00 UTC)');
     expect(md).toContain('## Claude (agent)');
     expect(md).toContain("## Bob (github bob), not in the Toil project's people");
-    const text = standupText(r);
-    expect(text).toContain('- PAY-2 Title of PAY-2: blocked by PAY-3 (13 Oct 2026 07:00 UTC) https://jira.imagile.dev/browse/PAY-2');
-    expect(text).not.toMatch(/\]\(/);
+    // The Markdown keeps its links; the copied text has none.
+    expect(standupText(r)).not.toMatch(/\]\(|https?:/);
   });
 
-  it('keeps every plain-text line on one line, whatever line breaks a title, a name or a gap has', () => {
-    const s = input({ notes: ['A note\nover two lines.'], people: [{ name: 'Ada\nLovelace', kind: 'human', email: null, ids: { github: 'ada', jira: 'alovelace' } }] });
+  it('keeps every line of the copied text on one line, whatever line breaks a title or a name has', () => {
+    const s = input({ people: [{ name: 'Ada\nLovelace', kind: 'human', email: null, ids: { github: 'ada', jira: 'alovelace' } }] });
     const pages = s.pages.map((p) => ({ ...p, work: p.work.map((e) => ({ ...e, title: 'First line\r\nsecond line' })) }));
     const text = standupText(buildStandup({ ...s, pages }));
-    expect(text).toContain('- PAY-1 First line second line: In Review → Done');
-    expect(text).toContain('- A note over two lines.');
-    expect(text).toContain('\nAda Lovelace\n');
+    expect(text).toContain('PAY-1 First line second line (In Review → Done)');
+    expect(text.split('\n').some((l) => l.startsWith('Ada Lovelace — '))).toBe(true);
     expect(text).not.toMatch(/\nsecond line/);
   });
 
@@ -285,5 +284,152 @@ describe('sinceText', () => {
     expect(sinceText({ from: '2026-10-09', to: '2026-10-12' }, '2026-10-12')).toBe('Since Friday (9 Oct 2026)');
     expect(sinceText({ from: '2026-10-13', to: '2026-10-13' }, '2026-10-13')).toBe('Today');
     expect(sinceText({ from: '2026-10-01', to: '2026-10-02' }, '2026-10-13')).toBe('1 Oct 2026 to 2 Oct 2026');
+  });
+});
+
+describe('comments', () => {
+  const comment = (id: string, who: { id: string; name: string | null; email: string | null }, when: string, text: string) => ({ id, author: who, at: when, text, url: `https://jira.imagile.dev/browse/PAY-1?focusedCommentId=${id}` });
+  const ghopper = { id: 'ghopper', name: 'G. Hopper', email: null };
+  const OLD = '2026-10-05T09:00:00.000Z';
+
+  /** Ada asked one question that Grace answered, and two nobody answered long ago; Grace asked one yesterday that nobody answered. */
+  function withComments(items: WorkItem[]): WorkItem[] {
+    const by: Record<string, WorkItem['comments']> = {
+      'jira:PAY-1': [comment('1', adaJira, at('09:00'), 'Why did this fail?'), comment('2', ghopper, at('11:00'), 'The config was stale.'), comment('3', adaJira, at('12:00'), 'Thanks, fixed.')],
+      'jira:PAY-2': [comment('4', ghopper, at('10:00'), 'Is the retry safe to ship?')],
+      'jira:PAY-3': [comment('5', adaJira, OLD, 'Ping?'), comment('6', adaJira, '2026-10-06T09:00:00.000Z', 'Ping again, anyone?')],
+      'jira:PAY-4': [],
+    };
+    return items.map((i) => ({ ...i, comments: by[i.id] ?? [] }));
+  }
+  const report = () => buildStandup(input({ items: withComments(input().items) }));
+  const mine = (name: string) => report().people.find((p) => p.name === name)!.lines.comments;
+
+  it("lists a person's comments in the range, their unanswered questions first however old", () => {
+    const lines = mine('Ada Lovelace');
+    expect(lines.map((l) => [l.label, l.text, l.comment!.outstanding])).toEqual([
+      ['PAY-3', 'Ping?', true],
+      ['PAY-3', 'Ping again, anyone?', true],
+      ['PAY-1', 'Why did this fail?', false],
+      ['PAY-1', 'Thanks, fixed.', false],
+    ]);
+    // Counted in UTC days to the sync (13 Oct 07:00): 8 and 7.
+    expect(lines.map((l) => l.comment!.ageDays)).toEqual([8, 7, null, null]);
+    expect(lines[0]!.url).toContain('focusedCommentId=5');
+  });
+
+  it("does not call a question outstanding once someone else answered it, and an author's own later comment is no answer", () => {
+    // Grace answered Ada's question on PAY-1; Ada's own "Thanks" under it changes nothing; Ada's two pings on PAY-3 answer each other not at all.
+    expect(mine('Ada Lovelace').filter((l) => l.comment!.outstanding).map((l) => l.text)).toEqual(['Ping?', 'Ping again, anyone?']);
+    // Grace's own answer is a comment, not a question; her question from yesterday has no reply.
+    const grace = mine('Grace Hopper');
+    expect(grace.map((l) => [l.text, l.comment!.question, l.comment!.outstanding, l.comment!.ageDays])).toEqual([
+      ['Is the retry safe to ship?', true, true, 1],
+      ['The config was stale.', false, false, null],
+    ]);
+  });
+
+  it('says which trackers came with their comments, and which did not, so a dash is never a quiet zero', () => {
+    expect(report().comments).toEqual({ read: ['jira'], notRead: [] });
+    const unread = buildStandup(input());
+    expect(unread.comments).toEqual({ read: [], notRead: ['jira'] });
+    expect(unread.people.flatMap((p) => p.lines.comments)).toEqual([]);
+  });
+
+  it("decides read or not read for each person from the trackers their lines come from, so a GitHub-only person's empty Comments is not a quiet zero", () => {
+    const r = report();
+    const bobGroup = r.people.find((p) => p.name === 'Bob')!;
+    // Bob only reviewed a GitHub pull request, and no GitHub comments were read.
+    expect(bobGroup.areas).toEqual(['github']);
+    expect(commentsReadFor(r, bobGroup)).toBe(false);
+    expect(commentsReadFor(r, r.people.find((p) => p.name === 'Grace Hopper')!)).toBe(true);
+    // A mapped person with no lines yet stands for the trackers their accounts are in.
+    const linus = buildStandup(input({ items: withComments(input().items), people: [...PEOPLE, { name: 'Linus', kind: 'human', email: null, ids: { jira: 'linus' } }] })).people.find((p) => p.name === 'Linus')!;
+    expect(commentsReadFor(r, linus)).toBe(true);
+    const md = standupMarkdown(r);
+    const bobBlock = md.slice(md.indexOf('## Bob'));
+    expect(bobBlock.slice(bobBlock.indexOf('**Comments**'))).toContain('Comments not read yet.');
+    expect(bobBlock.slice(bobBlock.indexOf('**Comments**'))).not.toContain('No comments.');
+  });
+
+  it('keeps tracker text as text: a citation marker in a comment is spaced out so it cannot name an item', () => {
+    const s = input();
+    const items = s.items.map((i) => (i.id === 'jira:PAY-2' ? { ...i, comments: [comment('9', ghopper, at('10:00'), 'See [[jira:PAY-1]] <b>now</b>?')] } : i));
+    const line = buildStandup({ ...s, items }).people.find((p) => p.name === 'Grace Hopper')!.lines.comments[0]!;
+    expect(line.text).toBe('See [ [jira:PAY-1]] <b>now</b>?');
+    expect(line.cites).toEqual(['jira:PAY-2']);
+  });
+
+  it('folds lines about one item into one chip, and keeps each comment as its own', () => {
+    const ada = report().people.find((p) => p.name === 'Ada Lovelace')!;
+    expect(chipsOf(ada.lines.progress).map((c) => c.label)).toEqual(['payments-web#41', 'PAY-2']);
+    expect(chipsOf(ada.lines.blocked).find((c) => c.label === 'PAY-2')!.texts).toEqual(['blocked by PAY-3']);
+    expect(chipsOf(ada.lines.comments)).toHaveLength(4);
+  });
+
+  it('copies as one line per person, tight, with the team line first and the questions marked', () => {
+    const text = standupText(report());
+    const lines = text.split('\n');
+    expect(lines[0]).toBe('Sprint 42: day 7 of 10, 1 of 4 done · 12 Oct 2026 to 13 Oct 2026 · Team: PAY-2 added to Sprint 42, by Bob; CI #2 passing again after a failure; CI #3 failed (failure (test))');
+    expect(lines).toContain('Grace Hopper — Next: PAY-3 Title of PAY-3 (To Do, in Sprint 42). Comments: PAY-2 "Is the retry safe to ship?" (1 day, no reply), PAY-1 "The config was stale."');
+    expect(lines.find((l) => l.startsWith('Ada Lovelace — '))).toBe(
+      'Ada Lovelace — Done: PAY-1 Title of PAY-1 (In Review → Done), payments-web#41 Change 41 (merged into main). In progress: payments-web#41 Change 41 (opened), PAY-2 Title of PAY-2 (To Do → In Progress). Blocked: CI #1 for payments-web#41 (failed (failure (test))), PAY-2 Title of PAY-2 (blocked by PAY-3), payments-web#39 Change 39 (waiting on review for 3.9 working days:…). Comments: PAY-3 "Ping?" (8 days, no reply), PAY-3 "Ping again, anyone?" (7 days, no reply), PAY-1 "Why did this fail?", PAY-1 "Thanks, fixed."',
+    );
+    expect(lines.some((l) => l.startsWith('Claude (agent) — '))).toBe(true);
+    // Not a paragraph of boilerplate: a header and a line a person.
+    expect(lines).toHaveLength(1 + report().people.length);
+    expect(text).not.toMatch(/Review waits|Built by Toil UI/);
+  });
+
+  it('caps a bucket at five items in the copied text, with the rest counted', () => {
+    const s = input();
+    const sprint = s.items[0]!.iteration;
+    const more = ['PAY-10', 'PAY-11', 'PAY-12', 'PAY-13', 'PAY-14', 'PAY-15', 'PAY-16'].map((k) => item(k, { status: 'To Do', statusCategory: 'TODO', assignee: { id: 'ghopper', name: 'G. Hopper', email: null }, iteration: sprint }));
+    const text = standupText(buildStandup({ ...s, items: [...s.items, ...more] }));
+    expect(text).toContain('Next: PAY-3 Title of PAY-3 (To Do, in Sprint 42), PAY-10 Title of PAY-10 (To Do, in Sprint 42), PAY-11 Title of PAY-11 (To Do, in Sprint 42), PAY-12 Title of PAY-12 (To Do, in Sprint 42), PAY-13 Title of PAY-13 (To Do, in Sprint 42), +3 more');
+  });
+
+  it('puts a person with nothing at all on one short line', () => {
+    const text = standupText(buildStandup(input({ people: [...PEOPLE, { name: 'Linus', kind: 'human', email: null, ids: {} }] })));
+    expect(text.split('\n')).toContain('Linus — nothing recorded');
+  });
+
+  it('is the same report however its comments are ordered', () => {
+    const a = report();
+    const s = input({ items: withComments(input().items).map((i) => ({ ...i, comments: [...(i.comments ?? [])].reverse() })) });
+    expect(buildStandup(s)).toEqual(a);
+  });
+
+  it('shortens a long text on one line, and says how long a question has waited', () => {
+    expect(shorten('a   b\n c', 10)).toBe('a b c');
+    expect(shorten('abcdefghij', 6)).toBe('abcde…');
+    expect(waitText(0)).toBe('today, no reply');
+    expect(waitText(1)).toBe('1 day, no reply');
+    expect(waitText(4)).toBe('4 days, no reply');
+  });
+});
+
+describe('days', () => {
+  it('maps each preset to its range, and a range back to its preset', () => {
+    const today = '2026-10-13';
+    expect(presetRange('default', today, null)).toEqual({ from: '2026-10-12', to: today });
+    expect(presetRange('today', today, null)).toEqual({ from: today, to: today });
+    expect(presetRange('week', today, null)).toEqual({ from: '2026-10-07', to: today });
+    expect(presetRange('sprint', today, '2026-10-05')).toEqual({ from: '2026-10-05', to: today });
+    expect(presetRange('sprint', today, null)).toBeNull();
+    expect(presetRange('sprint', today, '2026-10-14')).toBeNull();
+    expect(presetRange('custom', today, null)).toBeNull();
+    expect(presetOf({ from: '2026-10-12', to: today }, false, today, null)).toBe('default');
+    expect(presetOf({ from: today, to: today }, true, today, null)).toBe('today');
+    expect(presetOf({ from: '2026-10-07', to: today }, true, today, null)).toBe('week');
+    expect(presetOf({ from: '2026-10-05', to: today }, true, today, '2026-10-05')).toBe('sprint');
+    expect(presetOf({ from: '2026-10-01', to: '2026-10-02' }, true, today, null)).toBe('custom');
+  });
+
+  it('picks the Summary rows that matter first: unanswered questions, then blocked, done, in progress', () => {
+    const s = input();
+    const items = s.items.map((i) => (i.id === 'jira:PAY-2' ? { ...i, comments: [{ id: '4', author: { id: 'ghopper', name: 'G. Hopper', email: null }, at: at('10:00'), text: 'Is the retry safe to ship?', url: null }] } : i));
+    const rows = topRows(buildStandup({ ...s, items }), 4);
+    expect(rows.map((r) => [r.group.name, r.bucket])).toEqual([['Grace Hopper', 'comments'], ['Ada Lovelace', 'blocked'], ['Ada Lovelace', 'done'], ['Claude', 'done']]);
   });
 });

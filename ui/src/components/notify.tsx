@@ -19,6 +19,7 @@ import { Card } from './layout.tsx';
 import { toilProjectHref } from '../format.ts';
 import { history } from '../history.ts';
 import { Coalescer, HHMM, inQuiet, NOTABLE_LABEL, NOTABLES, parseNotify, summaryOf, transitionOf, type NotifySettings, type Transition } from '../notify.ts';
+import { CheckIcon } from './icons.tsx';
 
 const SETTINGS_KEY = 'toil-ui.notify';
 const MINE_KEY = 'toil-ui.notify.mine';
@@ -271,7 +272,7 @@ function Check({ on, set, children }: { on: boolean; set: (on: boolean) => void;
   return (
     <Checkbox className="check" isSelected={on} onChange={set}>
       <span className="box" aria-hidden="true">
-        {on ? '✓' : ''}
+        {on ? <CheckIcon size={14} /> : null}
       </span>
       {children}
     </Checkbox>

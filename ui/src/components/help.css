@@ -1,8 +1,8 @@
-/* Help and edit links (#346). The (i) and the pencil are the same 2rem square in every theme, past WCAG 2.2's 24px
+/* Help and edit links (#346). The (i), an icon from icons.tsx, and the pencil are the same 2rem square in every theme, past WCAG 2.2's 24px
    target, quiet beside the text they explain or edit: themes frame buttons, and a framed box beside every term is a
    lot of boxes. The tooltip and the popover take the theme's own raised surface and ink, so their contrast is the
    theme's body contrast. */
-[data-theme] .btn.help-button, .btn.help-button {
+[data-theme] .btn.info-trigger, .btn.info-trigger {
   display: inline-flex;
   min-width: 2rem;
   min-height: 2rem;
@@ -17,23 +17,11 @@
   box-shadow: none;
   color: var(--link);
 }
-[data-theme] .btn.help-button:hover, [data-theme] .btn.help-button[data-hovered] { border-color: var(--line); }
-.help-button[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
-.help-button__mark {
-  display: inline-grid;
-  place-items: center;
-  width: 1.15rem;
-  height: 1.15rem;
-  border: 2px solid currentColor;
-  border-radius: 999px;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 0.8125rem;
-  font-style: italic;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-}
+[data-theme] .btn.info-trigger:hover, [data-theme] .btn.info-trigger[data-hovered] { border-color: var(--line); }
+.info-trigger[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* The icon is an SVG on a pixel grid, so it is centred by the box and no theme's font touches it. */
+.info-trigger { align-items: center; justify-content: center; }
+.info-trigger .icon { display: block; flex: none; }
 .help-tooltip {
   max-width: min(20rem, calc(100vw - 2rem));
   padding: 0.5rem 0.7rem;

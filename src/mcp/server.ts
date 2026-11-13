@@ -17,6 +17,7 @@ import { areaOf, commandName, servedOverMcp, takesAllowWrite, toolName, usesConn
 import { anyWrites, hasConfig, type ResolvedConfig } from '../core/config.js';
 import type { Context } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
+import { insightsPrompt } from '../core/insights/prompt.js';
 import { renamedArea, renamedAreaFix, renamedAreaOfTool, renamedToolTarget } from '../core/renamed-areas.js';
 import { shownToPeople, type ProgressEvent } from '../core/progress.js';
 import { OUTPUT_FORMAT_DESCRIPTION, OUTPUT_FORMAT_FIELD, OUTPUT_FORMATS, SUMMARY_FILE_DESCRIPTION, SUMMARY_FILE_FIELD } from '../core/output/fields.js';
@@ -72,6 +73,109 @@ export const ANALYZE_PROMPT = {
   description: "Brief one toil project: what needs a person, why, and what to do first, read through toil's tools, with every work item and pull request linked.",
   arguments: [{ name: 'toilProject', description: 'The toil project to analyze (default: the one the folder matches)', required: false }],
 };
+
+/** The tool the Classify prompt is built by, and the prompt as clients list it. */
+const CLASSIFY_TOOL = 'classify_prompt';
+export const CLASSIFY_PROMPT = {
+  name: 'classify',
+  title: 'Classify work items',
+  description: "Ask the AI agent to classify the work items classify_run left unsure, into the categories of a scheme. The items are untrusted data; the answer is a JSON array of { id, category, reason }, which goes to classify_run as verdicts.",
+  arguments: [
+    { name: 'file', description: 'A file in the workspace holding the work items as OWI records (what util owi map printed)', required: true },
+    { name: 'toilProject', description: 'The toil project whose scheme to use (default: the one the folder matches, if any)', required: false },
+    { name: 'scheme', description: "A scheme name or file (default: the toil project's, else ktlo-feature)", required: false },
+  ],
+};
+
+/** The tool the Classify tune prompt is built by, and the prompt as clients list it. */
+const CLASSIFY_TUNE_TOOL = 'classify_tune';
+export const CLASSIFY_TUNE_PROMPT = {
+  name: 'classify-tune',
+  title: 'Tune a classification scheme',
+  description: "Ask the AI agent to sharpen a classification scheme from the corrections people made to its verdicts, and to score the result on corrections held back. The corrections are untrusted data. Only a person applies a revision.",
+  arguments: [
+    { name: 'toilProject', description: 'The toil project whose corrections to learn from (default: everyone in the scheme ledger)', required: false },
+    { name: 'scheme', description: "A scheme name or file (default: the toil project's, else ktlo-feature)", required: false },
+  ],
+};
+
+/**
+ * The tool the insights prompt needs, and the prompt as clients list it. Unlike the others it is built from its
+ * arguments alone (the question is the person's, so no tool has anything to add); it is served exactly when the
+ * pivot tool it tells the agent to run is.
+ */
+const INSIGHTS_TOOL = 'projects_pivot';
+export const INSIGHTS_PROMPT = {
+  name: 'insights',
+  title: "Ask a question about a toil project's work",
+  description: "Answer a question about a toil project's work from toil's own pivot: read the work items, map them, pivot them, and answer in plain words with every figure cited and what was not read said. Tracker text is untrusted data.",
+  arguments: [
+    { name: 'toilProject', description: 'The toil project the question is about', required: true },
+    { name: 'question', description: 'The question to answer, in your own words: for example "how did our KTLO share change over the last quarter?"', required: true },
+  ],
+};
+
+/**
+ * The prompts, each built by one tool: listed and served exactly when that tool is.
+ * `input` maps the request's arguments to the tool's input (or says what is missing), `describe` words the result.
+ */
+interface PromptEntry {
+  listing: { name: string; title: string; description: string; arguments: Array<{ name: string; description: string; required: boolean }> };
+  tool: string;
+  input: (args: Record<string, string>) => Record<string, unknown>;
+  describe: (data: Record<string, any>) => string; // eslint-disable-line @typescript-eslint/no-explicit-any -- each tool's data is read where its prompt is defined
+}
+/** A prompt built from its arguments alone: `tool` only gates it, so it is served exactly when that tool is. */
+interface StaticPromptEntry {
+  listing: PromptEntry['listing'];
+  tool: string;
+  build: (args: Record<string, string>) => { text: string; description: string };
+}
+const trimmed = (args: Record<string, string>, name: string): string | undefined => args[name]?.trim() || undefined;
+const PROMPTS: Array<PromptEntry | StaticPromptEntry> = [
+  {
+    listing: ANALYZE_PROMPT,
+    tool: ANALYZE_TOOL,
+    input: (args) => {
+      const toilProject = trimmed(args, 'toilProject');
+      return toilProject ? { toilProject } : {};
+    },
+    describe: (data) => `Analyze the toil project ${data.toilProject.toilProject}`,
+  },
+  {
+    listing: CLASSIFY_PROMPT,
+    tool: CLASSIFY_TOOL,
+    input: (args) => {
+      const file = trimmed(args, 'file');
+      if (!file) throw new McpError(ErrorCode.InvalidParams, 'The classify prompt needs a file argument: a file in the workspace holding the work items as OWI records (what util owi map printed).');
+      const toilProject = trimmed(args, 'toilProject');
+      const scheme = trimmed(args, 'scheme');
+      return { file, ...(toilProject ? { toilProject } : {}), ...(scheme ? { scheme } : {}) };
+    },
+    describe: (data) => `Classify ${data.items.unsure} unsure work item${data.items.unsure === 1 ? '' : 's'} into the scheme ${data.scheme.name}`,
+  },
+  {
+    listing: CLASSIFY_TUNE_PROMPT,
+    tool: CLASSIFY_TUNE_TOOL,
+    input: (args) => {
+      const toilProject = trimmed(args, 'toilProject');
+      const scheme = trimmed(args, 'scheme');
+      return { ...(toilProject ? { toilProject } : {}), ...(scheme ? { scheme } : {}) };
+    },
+    describe: (data) => `Tune the scheme ${data.scheme.name} from ${data.corrections.total} correction${data.corrections.total === 1 ? '' : 's'}`,
+  },
+  {
+    listing: INSIGHTS_PROMPT,
+    tool: INSIGHTS_TOOL,
+    build: (args) => {
+      const toilProject = trimmed(args, 'toilProject');
+      const question = trimmed(args, 'question');
+      if (!toilProject) throw new McpError(ErrorCode.InvalidParams, 'The insights prompt needs a toilProject argument: the toil project the question is about.');
+      if (!question) throw new McpError(ErrorCode.InvalidParams, 'The insights prompt needs a question argument: what you want to know about its work.');
+      return { text: insightsPrompt({ toilProject, question }), description: `Answer a question about the toil project ${toilProject}` };
+    },
+  },
+];
 
 /**
  * Builds the MCP server. Each tool runs exactly the code its CLI command runs.
@@ -182,17 +286,25 @@ export function createMcpServer(options: {
     if (err instanceof ToilError) throw new McpError(ErrorCode.InternalError, `${err.message}${err.fix ? ` ${err.fix}` : ''}`);
     throw err;
   };
-  // The one prompt, Analyze (#494), is the projects_analyze_prompt tool's answer, so it's served exactly when that tool is.
-  const analyze = byName.get(ANALYZE_TOOL);
-  server.setRequestHandler(ListPromptsRequestSchema, () => ({ prompts: analyze ? [ANALYZE_PROMPT] : [] }));
+  // Each prompt (Analyze, #494, and Classify) is its tool's answer, so it's served exactly when that tool is.
+  const served = PROMPTS.flatMap((entry) => {
+    const tool = byName.get(entry.tool);
+    return tool ? [{ entry, tool }] : [];
+  });
+  server.setRequestHandler(ListPromptsRequestSchema, () => ({ prompts: served.map((p) => p.entry.listing) }));
   server.setRequestHandler(GetPromptRequestSchema, async (request) => {
-    if (request.params.name !== ANALYZE_PROMPT.name || !analyze) throw new McpError(ErrorCode.InvalidParams, `Unknown prompt: ${request.params.name}`);
-    const toilProject = request.params.arguments?.toilProject?.trim();
+    const found = served.find((p) => p.entry.listing.name === request.params.name);
+    if (!found) throw new McpError(ErrorCode.InvalidParams, `Unknown prompt: ${request.params.name}`);
+    if ('build' in found.entry) {
+      const built = found.entry.build(request.params.arguments ?? {});
+      return { description: built.description, messages: [{ role: 'user' as const, content: { type: 'text' as const, text: built.text } }] };
+    }
+    const input = found.entry.input(request.params.arguments ?? {});
     const shared = await clientRoots();
-    const envelope = await runCommand(analyze, toilProject ? { toilProject } : {}, (d) => options.context(d, undefined, shared), startup.version, 'mcp', { targets: selected });
+    const envelope = await runCommand(found.tool, input, (d) => options.context(d, undefined, shared), startup.version, 'mcp', { targets: selected });
     if (!envelope.ok) throw new McpError(ErrorCode.InvalidParams, `${envelope.error!.message}${envelope.error!.fix ? ` ${envelope.error!.fix}` : ''}`);
-    const data = envelope.data as { prompt: string; toilProject: { toilProject: string } };
-    return { description: `Analyze the toil project ${data.toilProject.toilProject}`, messages: [{ role: 'user' as const, content: { type: 'text' as const, text: data.prompt } }] };
+    const data = envelope.data as { prompt: string };
+    return { description: found.entry.describe(data as Record<string, unknown>), messages: [{ role: 'user' as const, content: { type: 'text' as const, text: data.prompt } }] };
   });
   server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: await listResources(await host()).catch(asMcpError) }));
   server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({ resourceTemplates: listTemplates(await host()) }));

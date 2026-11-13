@@ -17,9 +17,12 @@ import { sendCommand } from '../commands.ts';
 import type { ConfigApi, ConnectionRow, ConnectionsData } from '../config.ts';
 import { useData } from '../data.ts';
 import { useChatScope } from './ask.tsx';
-import { prName, toilProjectHref } from '../format.ts';
+import { Help } from './help.tsx';
+import { useStoredDiagram } from '../diagram-saved.ts';
+import { diagramHref, prName, toilProjectHref } from '../format.ts';
 import { FACE, availability, jobOf, jobPrompt, jobLabel, type Availability, type Face, type JobId } from '../model/jobs.ts';
 import type { Change } from '../toil.ts';
+import { MoreIcon } from './icons.tsx';
 import './jobs.css';
 
 /** The address of a job: its own page, which says what it does and has the Run button. */
@@ -94,11 +97,7 @@ export function PullRequestActions({ change, info, plain }: { change: Change; in
   return (
     <MenuTrigger>
       <Button className="btn jobs-trigger" aria-label={`Actions for ${prName(change.id)}`} data-job-actions="">
-        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-          <circle cx="3" cy="8" r="1.4" fill="currentColor" />
-          <circle cx="8" cy="8" r="1.4" fill="currentColor" />
-          <circle cx="13" cy="8" r="1.4" fill="currentColor" />
-        </svg>
+        <MoreIcon size={16} />
       </Button>
       <Popover className="popover menu-popover" placement="bottom end" offset={6}>
         <Menu
@@ -130,14 +129,26 @@ export function PullRequestActions({ change, info, plain }: { change: Change; in
 /** The repositories a Toil project's pull requests name, for Diagram's target. */
 export const repositoriesOf = (prs: readonly Change[]): string[] => [...new Set(prs.map((c) => c.repo))].sort();
 
-/** A link to Diagram on a Toil project's overview: one line, since the page it opens says the rest. */
+/**
+ * A link on a Toil project's overview: the picture when a diagram is kept
+ * (Architecture), the job that draws one when none is, and, while that is
+ * unread or can't be told, the job, whose page says the rest. One line.
+ */
 export function DiagramLink() {
   const { toilProject } = useData();
+  const stored = useStoredDiagram();
+  const kept = stored.known && stored.kept;
   return (
     <p className="note jobs-link">
-      <a href={jobHref(toilProject.name, 'map-codebase')} data-job-link="map-codebase" className="nowrap">
-        Draw its architecture
-      </a>
+      {kept ? (
+        <a href={diagramHref(toilProject.name)} data-diagram-link="" className="nowrap">
+          Architecture
+        </a>
+      ) : (
+        <a href={jobHref(toilProject.name, 'map-codebase')} data-job-link="map-codebase" className="nowrap">
+          Draw its architecture
+        </a>
+      )}
     </p>
   );
 }
@@ -167,7 +178,7 @@ export function JobPage({ id, target }: { id: JobId; target: string | null }) {
   const targets = face.on === 'pull request' ? prs.filter((c) => c.state === 'OPEN' || c.state === 'DRAFT') : repositoriesOf(prs);
   const subject = target ?? '';
   // A pull request job runs only on an open pull request of this Toil project, and Ship only on a person's.
-  const runnable = face.on === 'repository' || (change !== undefined && (change.state === 'OPEN' || change.state === 'DRAFT') && (id !== 'ship' || change.authorKind === 'HUMAN'));
+  const runnable = face.on !== 'pull request' || (change !== undefined && (change.state === 'OPEN' || change.state === 'DRAFT') && (id !== 'ship' || change.authorKind === 'HUMAN'));
   const canRun = ready.ready && runnable && !busy;
   return (
     <div className="job-page" data-job={id}>
@@ -180,7 +191,8 @@ export function JobPage({ id, target }: { id: JobId; target: string | null }) {
           {subject ? <span className="job-page__target"> {change ? change.title : subject}</span> : null}
         </h1>
         <p className="lede">
-          {face.gist}
+          {face.short}{' '}
+          <Help topic="jobs" note={`${face.gist}${ready.absent.length > 0 ? ` It reads more with ${ready.absent.join(', ')} connected: without ${ready.absent.length === 1 ? 'it' : 'them'} those steps are reported as unchecked.` : ''}`} />
         </p>
       </div>
 
@@ -202,13 +214,14 @@ export function JobPage({ id, target }: { id: JobId; target: string | null }) {
           {ready.why?.replace(' Add one in Settings, Connections.', '')} <a href="#/settings/connections">Add one in Settings, Connections.</a>
         </p>
       )}
-      {ready.absent.length > 0 && (
-        <p className="note">
-          It reads more with {ready.absent.join(', ')} connected: without {ready.absent.length === 1 ? 'it' : 'them'} those steps are reported as unchecked.
-        </p>
-      )}
 
-      {face.on === 'repository' ? (
+      {face.on === 'toil project' ? (
+        <p>
+          <Button className="btn btn--accent" isDisabled={!canRun} onPress={() => runJob(id, '')} data-job-run="">
+            {face.label} in {toilProject.name}
+          </Button>
+        </p>
+      ) : face.on === 'repository' ? (
         <>
           <p>
             <Button className="btn btn--accent" isDisabled={!canRun} onPress={() => runJob(id, subject)} data-job-run="">

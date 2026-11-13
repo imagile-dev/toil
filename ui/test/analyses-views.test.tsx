@@ -30,23 +30,27 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-const list = () => screen.findByRole('list', { name: 'Analyses, newest first' });
+const list = () => screen.findByRole('list', { name: 'Briefings, newest first' });
 
 describe('the Analyses tab', () => {
   it('lists every analysis newest first, with its time, who wrote it, its recommendation, and what changed since the one before', async () => {
-    await open('#/project/card-payments/analyses');
+    await open('#/project/card-payments/summary/briefings');
     const entries = within(await list()).getAllByRole('listitem').filter((li) => li.classList.contains('analysis'));
     expect(entries).toHaveLength(2);
     const [latest, first] = entries as [HTMLElement, HTMLElement];
-    expect(latest.textContent).toContain('13 Oct 2026, 07:30 UTC, by the scripted preview, not a model.');
-    expect(latest.querySelector('.analysis__rec')!.textContent).toContain("Fix");
-    // The recommendation's citations are chips: key, title and status.
-    const chip = within(latest.querySelector('.analysis__rec') as HTMLElement).getAllByRole('link')[0]!;
-    // Its name is its visible words, key, title and status, so voice control finds it by what it shows (WCAG 2.5.3).
-    expect(chip.getAttribute('aria-label')).toBeNull();
-    expect(chip.textContent).toMatch(/^Jira PAY-101 .+, In Progress$/);
+    // One muted line: when, who, what it cites.
+    expect(latest.querySelector('.analysis__meta')!.textContent).toBe('13 Oct 2026, 07:30 UTC · the scripted preview, not a model · cites 7 items');
+    // The headline is the one link to the briefing, with its citations as plain keys inside it, and no separate Open.
+    const head = latest.querySelector('.analysis__rec') as HTMLElement;
+    expect(head.textContent).toContain("Fix PAY-101's failing checks first");
+    expect(within(head).getAllByRole('link')).toHaveLength(1);
+    expect(within(head).getByRole('link').getAttribute('href')).toBe('#/project/card-payments/summary/briefings/sample-analysis-2');
+    expect(within(latest).queryByText(/^Open/)).toBeNull();
+    expect(latest.textContent).not.toMatch(/analysis/i);
     expect(latest.textContent).toContain('Since the one before: 1 newly blocked, 1 cleared, points moved on 1 item, sprint points moved');
-    expect(first.textContent).toContain('The first analysis kept, so there is nothing to compare it with.');
+    // The first has nothing to compare with, and says nothing about it.
+    expect(first.textContent).not.toContain('nothing to compare');
+    expect(first.querySelector('.analysis__changes')).toBeNull();
 
     // What changed, opened: the newly blocked item with what blocks it, the cleared one, the points and the sprint.
     await userEvent.click(within(latest).getByText(/^Since the one before/));
@@ -56,33 +60,46 @@ describe('the Analyses tab', () => {
     expect(within(changes).getByText('Cleared').nextElementSibling!.textContent).toContain('PAY-104');
     expect(within(changes).getByText('Points moved').nextElementSibling!.textContent).toMatch(/PAY-102.*\d+ points? to \d+ points?/s);
     expect(within(changes).getByText('The sprint').nextElementSibling!.textContent).toBe('Sprint 42: 0 done, 21 left, then Sprint 42: 3 done, 18 left.');
-    expect(latest.querySelector('.analysis__open a')!.textContent).toBe('Open the analysis of 13 Oct 2026, 07:30 UTC');
-    expect(latest.querySelector('.analysis__open a')!.getAttribute('href')).toBe('#/project/card-payments/analyses/sample-analysis-2');
+  });
+
+  it('says what the page is in its (i), not in a sentence under the heading, and tags a briefing that changed nothing', async () => {
+    await open('#/project/card-payments/summary/briefings');
+    const page = await list();
+    expect(document.body.textContent).not.toContain('Every briefing kept for');
+    expect(screen.getByRole('button', { name: 'About earlier briefings' })).toBeTruthy();
+    expect(page.querySelector('.analysis__tag')).toBeNull();
+    cleanup();
+    // The same briefing kept twice: the newer one changed nothing, so it carries a short tag and no sentence.
+    const [one] = await sampleAnalysisRecords();
+    await open('#/project/card-payments/summary/briefings', memoryAnalyses([one!, { ...one!, id: 'again', at: '2026-10-14T09:00:00.000Z' }]));
+    const tagged = (await list()).querySelector('.analysis__tag');
+    expect(tagged!.textContent).toBe('No change');
+    expect(document.body.textContent).not.toContain('Nothing changed since the one before');
   });
 
   it('says so when a Toil project has none yet', async () => {
-    await open('#/project/settlement/analyses');
+    await open('#/project/settlement/summary/briefings');
     expect(await screen.findByText(/No briefing (kept|in the filing cabinet) for this Toil project yet/)).toBeTruthy();
   });
 
   it('opens one again, top-down, with its evidence folded and what changed', async () => {
-    await open('#/project/card-payments/analyses/sample-analysis-2');
-    const panel = await screen.findByRole('region', { name: /^Analysis of 13 Oct 2026/ });
-    expect(within(panel).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Recommendation', 'Reasons', 'What changed since the one before']);
+    await open('#/project/card-payments/summary/briefings/sample-analysis-2');
+    const panel = await screen.findByRole('region', { name: /^Briefing of 13 Oct 2026/ });
+    expect(within(panel).getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['Recommendation', 'Reasons', 'What changed since the one before']);
     const reasons = within(panel).getByRole('region', { name: 'Reasons' }).querySelectorAll('ol > li');
     expect([...reasons].map((li) => li.querySelector('strong')?.textContent)).toEqual(['Failing checks: ', 'Blocked: ', 'Waiting on review: ']);
     expect(panel.querySelector('.analysis-next')?.textContent).toContain('Next:');
     const evidence = panel.querySelector('details.analysis-evidence') as HTMLDetailsElement;
     expect(evidence.open).toBe(false);
     expect(evidence.querySelector('summary')!.textContent).toMatch(/^Evidence \(\d+ paragraphs\)$/);
-    expect(within(panel).getByRole('link', { name: 'All analyses' }).getAttribute('href')).toBe('#/project/card-payments/analyses');
+    expect(within(panel).getByRole('link', { name: 'Earlier briefings' }).getAttribute('href')).toBe('#/project/card-payments/summary/briefings');
     expect(panel.textContent).toContain('Newly blocked');
   });
 
   it('says plainly when the history no longer has one', async () => {
-    await open('#/project/card-payments/analyses/gone');
-    expect(await screen.findByRole('heading', { level: 2, name: 'Analysis not found' })).toBeTruthy();
-    expect(document.body.textContent).toContain('card-payments has no analysis by that id');
+    await open('#/project/card-payments/summary/briefings/gone');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Briefing not found' })).toBeTruthy();
+    expect(document.body.textContent).toContain('card-payments has no briefing by that id');
   });
 });
 
@@ -92,7 +109,7 @@ describe("the Toil project's briefing (#494)", () => {
     const b = await screen.findByRole('region', { name: 'Briefing' });
     await waitFor(() => expect(b.dataset.recSource).toBe('analysis'));
     expect(b.textContent).toContain('Written by an AI agent, the scripted preview, not a model, 13 Oct 2026, 07:30 UTC');
-    expect(within(b).getByRole('link', { name: 'Open that briefing' }).getAttribute('href')).toBe('#/project/card-payments/analyses/sample-analysis-2');
+    expect(within(b).getByRole('link', { name: 'Open that briefing' }).getAttribute('href')).toBe('#/project/card-payments/summary/briefings/sample-analysis-2');
     expect(b.querySelector('.briefing__head')!.textContent).toContain('Fix');
     // The first reason is open, the rest folded.
     const reasons = [...b.querySelectorAll<HTMLDetailsElement>('details[data-reason]')];
@@ -122,7 +139,7 @@ describe("the Toil project's briefing (#494)", () => {
     await waitFor(() => expect(b.textContent).toContain('The latest Analyze is older than the data.'));
     expect(b.dataset.recSource).toBe('code');
     expect(b.textContent).toContain("Worked out by the app's own rules, no AI");
-    expect(within(b).getByRole('link', { name: 'Open that briefing' }).getAttribute('href')).toBe('#/project/card-payments/analyses/sample-analysis-2');
+    expect(within(b).getByRole('link', { name: 'Open that briefing' }).getAttribute('href')).toBe('#/project/card-payments/summary/briefings/sample-analysis-2');
   });
 
   it("is the code's, and says so, where there is no analysis", async () => {
@@ -174,7 +191,7 @@ describe('Analyze in the chat', () => {
 
     await userEvent.click(kept);
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ask about checkout-web' })).toBeNull());
-    expect(await screen.findByRole('region', { name: /^Analysis of / })).toBeTruthy();
+    expect(await screen.findByRole('region', { name: /^Briefing of / })).toBeTruthy();
     window.location.hash = '#/project/checkout-web';
     await waitFor(() => expect(screen.getByRole('region', { name: 'Briefing' }).dataset.recSource).toBe('analysis'));
   });
@@ -182,8 +199,9 @@ describe('Analyze in the chat', () => {
 
 describe('a citation chip', () => {
   it('shows its detail on focus: type and status, assignee, estimate, sprint', async () => {
-    await open('#/project/card-payments/analyses');
-    const chip = within((await list()).querySelector('.analysis__rec') as HTMLElement).getAllByRole('link')[0]!;
+    await open('#/project/card-payments/summary/briefings');
+    await open('#/project/card-payments/summary/briefings/sample-analysis-2');
+    const chip = within(await screen.findByRole('region', { name: 'Recommendation' })).getAllByRole('link')[0]!;
     await userEvent.tab();
     chip.focus();
     await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
@@ -204,8 +222,8 @@ describe('the sidebar', () => {
     const recent = within(side).getByRole('region', { name: 'Recent briefings' });
     await waitFor(() => expect(within(recent).getAllByRole('listitem')).toHaveLength(2));
     const links = within(recent).getAllByRole('link');
-    expect(links[0]!.getAttribute('href')).toBe('#/project/card-payments/analyses/sample-analysis-2');
+    expect(links[0]!.getAttribute('href')).toBe('#/project/card-payments/summary/briefings/sample-analysis-2');
     expect(links[0]!.textContent).toContain('Fix PAY-101');
-    expect(links.at(-1)!.textContent).toBe('All past briefings');
+    expect(links.at(-1)!.textContent).toBe('All earlier briefings');
   });
 });

@@ -2,9 +2,15 @@
  * A proposal as a card to review (#252, #253): what would change, why, and
  * the toil command that applies it through the write gate. The card can copy
  * the command or be dismissed. It has no button of its own that applies
- * anything (principle 2): the one place Toil UI applies a proposal is an
- * agent assignment's page (#293), which passes its Apply in `actions` and
- * asks the server to run the proposal it stored, through toil's own gate.
+ * anything (principle 2): an Apply is passed in `actions` by the one place
+ * that may offer it, which asks the server to run it through toil's own gate:
+ * an agent assignment's page (#293), which runs the proposal the server stored,
+ * and the Board, whose Apply is a person's press on a move they made.
+ *
+ * The Board's card is the tidy form (`why` given): what would change, one line
+ * on why it wasn't applied, the primary action when there is one, and the
+ * command a step further in, under "Show the command". Every other card keeps
+ * its command in view, since the command is what it asks to have run.
  */
 
 import { useState, useSyncExternalStore, type ReactNode } from 'react';
@@ -39,13 +45,15 @@ function setShell(shell: Shell) {
 const subscribe = (l: () => void) => (listeners.add(l), () => listeners.delete(l));
 export const useShell = () => useSyncExternalStore(subscribe, shellNow, shellNow);
 
-export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not applied', actions, children }: { proposal: Proposal; onDismiss?: () => void; kind?: string; actions?: ReactNode; children?: ReactNode }) {
+export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not applied', actions, why, detail, children }: { proposal: Proposal; onDismiss?: () => void; kind?: string; actions?: ReactNode; /** Tidy form: the one line saying why this wasn't applied, in place of the proposal's own reason. */ why?: string; /** Tidy form: what else toil said, such as the moves the workflow offers. */ detail?: string; children?: ReactNode }) {
   const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
   const shell = useShell();
   const { line, reason, mcp } = commandLine(proposal, shell);
   const hint = proposal.hint ? { text: proposal.hint.text, ...readLine(proposal.hint, shell) } : null;
+  // A second write, run after the first has worked: its own line, with its own --allow-write.
+  const then = proposal.then ? { text: proposal.then.text, ...commandLine(proposal.then, shell) } : null;
   // The toggle stays even when this shell can't carry a value, so the card can switch to one that can.
-  const showShells = Boolean(proposal.command || proposal.hint);
+  const showShells = Boolean(proposal.command || proposal.hint || proposal.then);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(line!);
@@ -54,6 +62,96 @@ export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not
       setCopied('no');
     }
   };
+  if (why !== undefined) {
+    return (
+      <article className="proposal proposal--tidy" aria-label={`Proposal: ${proposal.title}`}>
+        <p className="proposal-kind">{kind}</p>
+        <h3>{proposal.title}</h3>
+        <p className="proposal-why" data-proposal-why="">
+          {why}
+        </p>
+        {detail && <p className="note">{detail}</p>}
+        <div className="proposal-actions">
+          {actions}
+          {onDismiss && (
+            <Button className="btn btn--quiet" onPress={onDismiss}>
+              Dismiss
+            </Button>
+          )}
+          <span className="note" role="status">
+            {copied === 'yes' ? 'Copied.' : copied === 'no' ? "Couldn't copy: select the command instead." : ''}
+          </span>
+        </div>
+        {(showShells || proposal.note) && (
+          <details className="proposal-command" data-proposal-command="">
+            <summary>Show the command</summary>
+            <p className="note">{proposal.reason}</p>
+            {showShells && (
+              <RadioGroup className="shells" orientation="horizontal" value={shell} onChange={(v) => setShell(v as Shell)} aria-label="Show the command for">
+                {(['powershell', 'posix'] as const).map((s) => (
+                  <Radio key={s} value={s} className="shell-choice">
+                    {SHELL_LABEL[s]}
+                  </Radio>
+                ))}
+              </RadioGroup>
+            )}
+            {line ? (
+              <>
+                <p className="note">
+                  Apply it yourself through toil's write gate: <Help topic="proposal" />
+                </p>
+                <pre className="command">
+                  <code>{line}</code>
+                </pre>
+                <div>
+                  <Button className="btn" onPress={copy}>
+                    Copy command
+                  </Button>
+                </div>
+              </>
+            ) : (
+              proposal.command && (
+                <>
+                  <p className="failure">{reason}</p>
+                  {mcp && (
+                    <pre className="command" aria-label={`MCP call to ${mcp.tool}`}>
+                      <code>{JSON.stringify({ tool: mcp.tool, input: mcp.input }, null, 2)}</code>
+                    </pre>
+                  )}
+                </>
+              )
+            )}
+            {then && (
+              <>
+                <p className="note">{then.text}</p>
+                {then.line ? (
+                  <pre className="command" data-then="">
+                    <code>{then.line}</code>
+                  </pre>
+                ) : (
+                  <p className="failure">{then.reason}</p>
+                )}
+              </>
+            )}
+            {proposal.note && <p className="note">{proposal.note}</p>}
+            {hint && (
+              <>
+                <p className="note">{hint.text}</p>
+                {hint.line ? (
+                  <pre className="command">
+                    <code>{hint.line}</code>
+                  </pre>
+                ) : (
+                  <p className="failure">{hint.reason}</p>
+                )}
+              </>
+            )}
+            {children}
+          </details>
+        )}
+      </article>
+    );
+  }
   return (
     <article className="proposal" aria-label={`Proposal: ${proposal.title}`}>
       <p className="proposal-kind">{kind}</p>
@@ -90,6 +188,18 @@ export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not
             )}
           </>
         )
+      )}
+      {then && (
+        <>
+          <p className="note">{then.text}</p>
+          {then.line ? (
+            <pre className="command" data-then="">
+              <code>{then.line}</code>
+            </pre>
+          ) : (
+            <p className="failure">{then.reason}</p>
+          )}
+        </>
       )}
       {proposal.note && <p className="note">{proposal.note}</p>}
       {hint && (

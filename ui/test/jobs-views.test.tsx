@@ -6,6 +6,7 @@ import { App, parseRoute } from '../src/App.tsx';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { CONFIG_CANNED, FIXTURE_CONNECTIONS, fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
+import { FACE } from '../src/model/jobs.ts';
 
 /**
  * The workflow jobs where they apply (#532): Review and Ship in a pull
@@ -21,7 +22,7 @@ const onlyJira = CONFIG_CANNED.map((a) => (a.command === 'connections list' ? { 
 async function open(hash: string, canned = CONFIG_CANNED) {
   window.location.hash = hash;
   const view = render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig(canned)} now={FIXTURE_NOW} preview />);
-  await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
+  await waitFor(() => expect(document.querySelector('h1, [data-tab-panel]')).toBeTruthy(), { timeout: 3000 });
   return view;
 }
 
@@ -86,12 +87,25 @@ describe('a job page', () => {
     await open('#/project/card-payments/job/diagram');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Diagram');
     expect(document.querySelector('[data-job-missing]')).toBeNull();
+    // One short line on the face; the rest is in the (i).
+    const lede = document.querySelector('.job-page .lede')!;
+    expect(lede.textContent).toContain(FACE['map-codebase'].short);
+    expect(lede.textContent).not.toContain(FACE['map-codebase'].gist);
+    expect(document.querySelector('.job-page')!.textContent).not.toContain('reported as unchecked');
+    await userEvent.click(lede.querySelector('[data-help="jobs"]')!);
+    const info = await screen.findByRole('dialog', { name: /About jobs/ });
+    expect(info.textContent).toContain(FACE['map-codebase'].gist);
+    await userEvent.keyboard('{Escape}');
     const details = document.querySelector('.job-page__more') as HTMLDetailsElement;
     expect(details.open).toBe(false);
     expect(within(details).getAllByText(/^toil /).length).toBeGreaterThan(0);
     await userEvent.click(screen.getByRole('button', { name: /^Draw / }));
     const dialog = await screen.findByRole('dialog', { name: /Ask about card-payments/ }, { timeout: 3000 });
-    await waitFor(() => expect(dialog.textContent).toContain('C4Container'), { timeout: 3000 });
+    // The answer ends in a card to Save, not in Mermaid (#582); in the sample, which changes nothing, it says so.
+    await waitFor(() => expect(dialog.querySelector('[data-diagram-card]')).not.toBeNull(), { timeout: 3000 });
+    expect(dialog.textContent).not.toMatch(/C4Container|```/);
+    expect(dialog.querySelector('[data-diagram-off]')!.textContent).toContain('on sample data');
+    expect(dialog.querySelector('[data-diagram-save]')).toBeNull();
   });
 
   it('asks which pull request when Review is opened without one, and shows Ship’s round limit', async () => {
@@ -108,9 +122,10 @@ describe('a job page', () => {
     expect(document.querySelector<HTMLButtonElement>('[data-job-run]')!.disabled).toBe(true);
   });
 
-  it('shows Diagram on a Toil project’s overview, as a link and not another button', async () => {
+  it('shows Diagram on a Toil project’s overview, as a link and not another button: the picture when one is kept', async () => {
     await open('#/project/card-payments');
-    const link = document.querySelector<HTMLAnchorElement>('[data-job-link="map-codebase"]')!;
-    expect(link.getAttribute('href')).toBe('#/project/card-payments/job/diagram');
+    await waitFor(() => expect(document.querySelector('.jobs-link [data-diagram-link]')).not.toBeNull());
+    expect(document.querySelector('.jobs-link [data-diagram-link]')!.getAttribute('href')).toBe('#/project/card-payments/summary/diagram');
+    expect(document.querySelector('.jobs-link button')).toBeNull();
   });
 });

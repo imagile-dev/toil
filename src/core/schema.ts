@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { envBoolean } from './env-boolean.js';
 
 type Def = { type: string; innerType?: z.ZodType; element?: z.ZodType; options?: readonly z.ZodType[] };
 const defOf = (schema: z.ZodType): Def => (schema as unknown as { _zod: { def: Def } })._zod.def;
@@ -72,14 +73,21 @@ export function flagRepeats(schema: z.ZodType): { element: z.ZodType; single: bo
  *   accepts number or string on purpose, so `parseInt` keeps the reading
  *   of "10x" the contract specifies.
  *
+ * `{ env: true }` is for a value that came from an environment variable: a
+ * boolean field there also reads `1` and `0`, any case, spaces ignored
+ * (`envBoolean`). Argv never takes that, and nothing else changes.
+ *
  * Text that doesn't parse is left alone, so the schema rejects it with the
  * same message through both front doors.
  */
-export function fromText(schema: z.ZodType, value: unknown): unknown {
+export function fromText(schema: z.ZodType, value: unknown, options: { env?: boolean } = {}): unknown {
   if (typeof value !== 'string') return value;
   const type = baseType(schema);
   if (type === 'number' && /^-?\d+(\.\d+)?$/.test(value)) return Number(value);
-  if (type === 'boolean' && (value === 'true' || value === 'false')) return value === 'true';
+  if (type === 'boolean') {
+    if (options.env) return envBoolean(value) ?? value;
+    if (value === 'true' || value === 'false') return value === 'true';
+  }
   if (type === 'array' || type === 'object' || type === 'record') {
     try {
       return JSON.parse(value) as unknown;

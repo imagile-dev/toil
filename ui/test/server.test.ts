@@ -11,6 +11,7 @@ import { letIn } from './let-in.ts';
 import { COOKIE_MAX_AGE_SECONDS, issueCookie } from '../server/machine-secret.ts';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { fixtureAgent, noAgent, type Agent } from '../server/agent.ts';
+import { sampleContext } from './view-context-kit.ts';
 import { AgentError } from '../server/agents/cli.ts';
 import type { AnalysisKeeper } from '../server/analyses.ts';
 import type { RequestContext } from '../server/context.ts';
@@ -22,9 +23,9 @@ import { Cache, CacheError, RUNNING_MESSAGE, cachePaths, liveLock, pidAlive, wip
 import { spawn, spawnSync } from 'node:child_process';
 import { CALLER, READ_COMMANDS, fixtureStore, sqliteStore, toilStore, type Access, type Store } from '../server/store.ts';
 import { SyncService } from '../server/sync.ts';
+import { cardSearch } from './harness.ts';
 import { stubToil } from './toil-stub.ts';
-import { CANNED, CARD_JIRA_FIELDS } from '../src/fixtures/execute.ts';
-import { JQL } from '../src/load.ts';
+import { CANNED } from '../src/fixtures/execute.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
 
 /**
@@ -471,6 +472,33 @@ describe('the API', () => {
     expect(JSON.parse(failed.body).error.fix).toContain('Settings, AI agent');
   });
 
+  it('checks the chart a question is about before the agent sees it, and refuses a bad one with its problems (#567)', async () => {
+    const seen: Array<{ title?: string } | undefined> = [];
+    const agent: Agent = { ...fixtureAgent(), ask: async (ctx, toilProject, prompt, style, chat, extra) => (seen.push(extra?.context), fixtureAgent().ask(ctx, toilProject, prompt, style, chat, extra)) };
+    const { origin } = await start({ agent });
+    const context = sampleContext();
+    const ok = await post(origin, '/api/agent/ask', { toilProject: 'sample-team', prompt: 'Why?', context });
+    expect(ok.status).toBe(200);
+    expect(seen).toEqual([context]);
+    // A key the model does not have, a spec the insights model refuses, an id that is not an id: each is a 400 naming the problem, and nothing is asked.
+    /* eslint-disable @typescript-eslint/no-explicit-any -- each case edits a context by key */
+    for (const [change, problem] of [
+      [(c: any) => (c.extra = 1), 'unknown key "extra"'],
+      [(c: any) => (c.spec.measure = 'velocity'), 'context.spec.measure'],
+      [(c: any) => (c.cells[0].items = ['not an id']), 'item ids'],
+      [(c: any) => (c.title = 'x'.repeat(121)), 'context.title'],
+    ] as const) {
+      /* eslint-enable @typescript-eslint/no-explicit-any */
+      const bad = JSON.parse(JSON.stringify(context));
+      change(bad);
+      const res = await post(origin, '/api/agent/ask', { toilProject: 'sample-team', prompt: 'Why?', context: bad });
+      expect(res.status).toBe(400);
+      expect(JSON.parse(res.body).error.message).toContain(problem);
+    }
+    expect((await post(origin, '/api/agent/ask', { toilProject: 'sample-team', prompt: 'Why?', context: 'a chart' })).status).toBe(400);
+    expect(seen).toHaveLength(1);
+  });
+
   it('streams an answer as NDJSON, each line the answer so far, ending done; a failure partway ends with the error', async () => {
     const versions = (n: number) => ({ prompt: 'q', parts: [{ text: 'x'.repeat(n) }], citations: [], by: 'stub', proposals: [] });
     const agent: Agent = {
@@ -713,7 +741,7 @@ describe('the sync API', () => {
     let release!: () => void;
     const { origin, get } = await withSync(new Promise((r) => (release = r)));
     expect((await info(origin)).info).toMatchObject({ store: 'sqlite', sync: true, sample: false });
-    const before = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { toilProject: 'card-payments', jql: JQL('PAY'), changelog: true, fields: CARD_JIRA_FIELDS } })).body) as Envelope;
+    const before = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: cardSearch() })).body) as Envelope;
     expect(before.ok).toBe(false);
 
     const started = await post(origin, '/api/sync', {});
@@ -728,11 +756,11 @@ describe('the sync API', () => {
       await new Promise((r) => setTimeout(r, 10));
       status = JSON.parse((await get('/api/sync')).body);
     }
-    expect(status.job).toMatchObject({ running: false, error: null, toilProjectsDone: 3, by: 'local' });
+    expect(status.job).toMatchObject({ running: false, error: null, toilProjectsDone: 4, by: 'local' });
     expect(status.retentionDays).toBe(30);
-    expect(status.toilProjects.map((d: { name: string; status: string }) => `${d.name}:${d.status}`)).toEqual(['card-payments:ok', 'checkout-web:ok', 'settlement:ok']);
+    expect(status.toilProjects.map((d: { name: string; status: string }) => `${d.name}:${d.status}`)).toEqual(['card-payments:ok', 'checkout-web:ok', 'sample-team:ok', 'settlement:ok']);
 
-    const after = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { toilProject: 'card-payments', jql: JQL('PAY'), changelog: true, fields: CARD_JIRA_FIELDS } })).body) as Envelope;
+    const after = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: cardSearch() })).body) as Envelope;
     expect(after.ok).toBe(true);
     const one = await post(origin, '/api/sync', { toilProject: 7 });
     expect(one.status).toBe(400);
@@ -826,8 +854,10 @@ describe('toil-ui wipe and a running server', () => {
 
   it("the page's wipe empties the open cache in the server, and the next sync works", async () => {
     const dataDir = mkdtempSync(join(tmpdir(), 'toil-ui-lock-'));
+    let open: { close(): void } | undefined;
     try {
       const { origin, cache, sync } = await serving(dataDir);
+      open = cache;
       await sync.run(ctx);
       const wiped = await post(origin, '/api/cache/wipe', { confirm: 'wipe' });
       expect(wiped.status).toBe(200);
@@ -835,11 +865,14 @@ describe('toil-ui wipe and a running server', () => {
       expect(liveLock(dataDir)?.pid).toBe(process.pid);
       const job = await sync.run(ctx);
       expect(job.error).toBeNull();
-      expect(cache.states().map((d) => d.status)).toEqual(['ok', 'ok', 'ok']);
-      const search = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { toilProject: 'card-payments', jql: JQL('PAY'), changelog: true, fields: CARD_JIRA_FIELDS } })).body) as Envelope;
+      // Every sample toil project synced again, however many the sample holds.
+      expect(cache.states().length).toBeGreaterThan(0);
+      expect(cache.states().filter((d) => d.status !== 'ok')).toEqual([]);
+      const search = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: cardSearch() })).body) as Envelope;
       expect(search.ok).toBe(true);
-      cache.close();
     } finally {
+      // Closed here, not in the body: an open cache makes the folder's removal fail on Windows, which hid the assertion that had failed.
+      open?.close();
       while (running.length) await running.pop()!();
       rmSync(dataDir, { recursive: true, force: true, maxRetries: 3 });
     }
@@ -882,6 +915,25 @@ describe('the Stores', () => {
     // The sample has no Azure DevOps Services toil project; test/ado-seed.test.ts reads one through toil, its work items and its board, with the same ado commands.
     const noSampleToilProject = ['github issue list'];
     expect([...READ_COMMANDS].sort()).toEqual([...new Set([...CANNED.map((c) => c.command), ...noSampleToilProject])].sort());
+  });
+
+  it('reads a stored architecture diagram live, never from the cache, so a Toil project that was never synced still has its own (#582)', async () => {
+    const calls: unknown[] = [];
+    const execute: Execute = async (command, input, options) => (calls.push([command, input, options]), { ok: true, data: { revision: 1 }, error: null, meta: { command, durationMs: 0, version: 'x', contractVersion: 1 } } as Envelope);
+    const dir = mkdtempSync(join(tmpdir(), 'toil-ui-diagram-live-'));
+    const cache = await Cache.open(dir, { retentionDays: 30 });
+    try {
+      const store = sqliteStore(() => cache, execute, { version: 'x', contractVersion: 1 });
+      const ctx: RequestContext = { viewer: { id: 'local', name: 'you', via: 'loopback' }, signal: new AbortController().signal };
+      const reply = await store.execute(ctx, 'projects diagram show', { toilProject: 'never-synced', view: 'containers' }, 'read');
+      expect(reply).toMatchObject({ ok: true, data: { revision: 1 } });
+      expect(calls).toEqual([['projects diagram show', { toilProject: 'never-synced', view: 'containers' }, { readOnly: true, caller: CALLER, signal: ctx.signal }]]);
+      // Any other command that the cache never stored is still the cache's refusal, so the live list is no loophole.
+      expect(await store.execute(ctx, 'jira issue search', { toilProject: 'never-synced' }, 'read')).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } });
+    } finally {
+      cache.close();
+      rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+    }
   });
 
   it("toil's own execute() gets every read read-only, and every call named toil-ui", async () => {
@@ -1064,7 +1116,7 @@ describe('the worklog (#308)', () => {
     expect(ok.status).toBe(200);
     const body = JSON.parse(ok.body) as { markdown: string; text: string; report: { from: string; to: string } };
     expect(body.markdown).toMatch(/^# Stand-up: card-payments, 12 Oct 2026 to 13 Oct 2026/);
-    expect(body.text).toMatch(/^Stand-up: card-payments, 12 Oct 2026 to 13 Oct 2026/);
+    expect(body.text).toMatch(/^[^\n]+ · 12 Oct 2026 to 13 Oct 2026\n/);
     expect(body.report).toMatchObject({ from: '2026-10-12', to: '2026-10-13' });
     const future = await get(origin, '/api/worklog/standup?toilProject=card-payments&from=2026-10-12&to=2026-10-14');
     expect(future.status).toBe(400);

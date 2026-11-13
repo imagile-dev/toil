@@ -9,6 +9,9 @@ beforeEach(resetBrowserState);
 describe('every view', () => {
   it.each(ROUTES)('%s carries the preview banner, the views and when the data was read', async (hash) => {
     await open(hash);
+    // One page: a second shell left behind a remount would show as a second main and header.
+    expect(document.querySelectorAll('main')).toHaveLength(1);
+    expect(document.querySelectorAll('header.app-header')).toHaveLength(1);
     expect(screen.getByRole('note')?.textContent).toContain('Toil UI beta, showing sample data.');
     const nav = screen.getByRole('navigation', { name: 'Views' });
     expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(['Settings']);

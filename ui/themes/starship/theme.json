@@ -38,6 +38,20 @@
       "bannerInk": "#00506b"
     }
   },
+  "series": {
+    "light": [
+        {"name":"HUD frame","fill":"#cfeaf2","stroke":"#00708f","detail":"#00708f","style":"solid","frame":"hud"},
+        {"name":"Hull plating","fill":"#e3e8ef","stroke":"#3d566f","detail":"#7f9bb9","style":"double","frame":"plating"},
+        {"name":"Hex shield","fill":"#e3dcf7","stroke":"#5a3fb8","detail":"#5a3fb8","style":"dotted","frame":"hexshield"},
+        {"name":"Star-chart scale","fill":"#f3d6e8","stroke":"#9a2a6e","detail":"#9a2a6e","style":"dashed","frame":"ruler"}
+      ],
+    "dark": [
+        {"name":"HUD frame","fill":"#06283a","stroke":"#36d6ff","detail":"#36d6ff","style":"solid","frame":"hud"},
+        {"name":"Hull plating","fill":"#1c2638","stroke":"#c9d6e6","detail":"#5a7392","style":"double","frame":"plating"},
+        {"name":"Hex shield","fill":"#1e1a40","stroke":"#b3a2ff","detail":"#b3a2ff","style":"dotted","frame":"hexshield"},
+        {"name":"Star-chart scale","fill":"#3a1430","stroke":"#ff8fd0","detail":"#ff8fd0","style":"dashed","frame":"ruler"}
+      ]
+  },
   "fonts": {
     "body": "'Exo 2', system-ui, -apple-system, 'Segoe UI', sans-serif",
     "display": "'Orbitron', 'Exo 2', system-ui, sans-serif",
@@ -48,6 +62,7 @@
   "ambient": { "particles": "stars" },
   "sounds": {},
   "assets": {
+    "series": "assets/series.svg",
     "starfield": "assets/starfield.svg",
     "chart": "assets/star-chart.svg",
     "computer": "assets/computer.svg",

@@ -38,6 +38,20 @@
       "bannerInk": "#ffe7a3"
     }
   },
+  "series": {
+    "light": [
+        {"name":"Solid","fill":"#dbe9f8","stroke":"#0b5cad","detail":"#0b5cad","style":"solid"},
+        {"name":"Dashed","fill":"#fbe3d3","stroke":"#b5470b","detail":"#b5470b","style":"dashed"},
+        {"name":"Dotted","fill":"#d5f0ea","stroke":"#0b7261","detail":"#0b7261","style":"dotted"},
+        {"name":"Double","fill":"#e7e2fa","stroke":"#5b45b8","detail":"#5b45b8","style":"double"}
+      ],
+    "dark": [
+        {"name":"Solid","fill":"#1d3550","stroke":"#8cc4ff","detail":"#8cc4ff","style":"solid"},
+        {"name":"Dashed","fill":"#4a2a17","stroke":"#ffa66b","detail":"#ffa66b","style":"dashed"},
+        {"name":"Dotted","fill":"#133b35","stroke":"#5fd6be","detail":"#5fd6be","style":"dotted"},
+        {"name":"Double","fill":"#2c2550","stroke":"#b7a8ff","detail":"#b7a8ff","style":"double"}
+      ]
+  },
   "fonts": {
     "body": "'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
     "display": "'Fredoka', ui-rounded, system-ui, -apple-system, 'Segoe UI', sans-serif",

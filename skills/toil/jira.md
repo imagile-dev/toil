@@ -70,7 +70,7 @@ search as no results. When a call that should work finds nothing, check `email` 
 | `project` | `TOIL_JIRA_PROJECT` | no | Default project for `issue create` |
 | `issueType` | `TOIL_JIRA_ISSUE_TYPE` | no | Default issue type for `issue create` (`Task` when unset) |
 | `priority` | `TOIL_JIRA_PRIORITY` | no | Default priority for `issue create` |
-| `writes` | `TOIL_JIRA_WRITES` | no | `true` lets write commands run (with `--allow-write`) |
+| `writes` | `TOIL_JIRA_WRITES` | no | `true` or `1` lets write commands run (with `--allow-write`) |
 
 Environment variables (CI, or a one-off shell):
 
@@ -135,8 +135,9 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 | `issue comment` ✎ | `<key> --body` | The comment (on Cloud plus `bodyText`) |
 | `issue comments` | `<key> --limit --cursor` | Every comment, or a page of them (on Cloud each with `bodyText`) |
 | `issue log-work` ✎ | `<key> --time-spent --comment --started` | The worklog (on Cloud plus `commentText`) |
-| `issue search` | `--jql` or `--jql-file`, `--limit --start-at --cursor --updated-since --changelog --fields` | Data Center: `{ issues, total, startAt, maxResults }`. Cloud: `{ issues, maxResults, isLast }`. `--start-at` is Data Center only |
+| `issue search` | `--jql` or `--jql-file`, `--limit --start-at --cursor --updated-since --changelog --fields --more-fields` | Data Center: `{ issues, total, startAt, maxResults }`. Cloud: `{ issues, maxResults, isLast }`. `--start-at` is Data Center only |
 | `issue label` ✎ / `issue unlabel` ✎ | `<key> --labels a,b` | `{ updated, labelsAdded }` / `{ updated, labelsRemoved }` |
+| `issue categorize` ✎ | `--from <file>` | `{ connection, scheme, field, changed, unchanged, failed, skipped, counts }`: applies a classification plan; see **Categorizing issues** |
 | `issue assign` ✎ | `<key> --assignee <user>` | `{ assigned, assignee }`: a username on Data Center, an accountId on Cloud |
 | `issue link` ✎ | `<key> --target --type` | `{ linked, to, type }` |
 | `issue attach` ✎ | `<key> --file` | The attachments created |
@@ -150,6 +151,8 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 | `user search` (Cloud) | `--query --limit --cursor` | One page of matching users, with `accountId` |
 | `board list` | `--project --limit --cursor` | Boards (id, name, scrum or kanban) |
 | `sprint list` | `--board` or `--project`, `--state active,future,closed`, `--limit --cursor` (with `--board`) | Sprints with dates and goal |
+| `version list` | `--project --limit --cursor` | The project's versions as Jira records them (`id`, `name`, `released`, `archived`, `startDate`, `releaseDate`, `overdue`), the values a fix version can take |
+| `component list` | `--project --limit --cursor` | The project's components as Jira records them (`id`, `name`, `description`, `lead`, `assigneeType`) |
 | `sprint get` (Cloud) | `<sprint>` | The sprint as Jira returns it (state, dates, goal, board) |
 | `sprint create` ✎ (Cloud) | `<name> --board <id> --start --end --goal` | The new sprint, state `future` |
 | `sprint update` ✎ (Cloud) | `<sprint> --name --start --end --goal` | The sprint; only what you pass changes |
@@ -170,6 +173,7 @@ flags (`key`, `issueType`, `limit`, `attachmentId`). Cloud has no tools of its o
 toil jira issue get ABC-123
 toil jira issue search --jql 'project = ABC AND status = "In Progress"' --limit 20
 toil jira issue search --jql-file query.jql --fields summary,status,"Story Points"
+toil jira issue search --jql 'project = ABC' --more-fields fixVersions,components
 toil jira issue create --project ABC --type Bug --summary "Login broken on Safari" --priority High --allow-write
 toil jira issue transition ABC-123 --transition "In Progress" --allow-write
 toil jira issue transition ABC-123 --to review --allow-write
@@ -300,7 +304,7 @@ These are what a sync needs: read everything once, then only what changed.
 the connection's `project`, and `meta.context.inputs.project` says which: `input` for
 the flag or the file, `connection` for the setting (`TOIL_JIRA_PROJECT` and
 `defaults.jira.project` both report `connection`, not `default`). The `--project` on `issue fields`,
-`board list` and `sprint list` never falls back to the connection.
+`board list` and `sprint list` never falls back to the connection. `version list` and `component list` take `--project` the way `issue create` does: the flag, a toil project's `project`, then the connection's setting; one without a project is refused.
 `--time-spent` takes Jira durations (`1d`, `2h 30m`); `--started` takes Jira's datetime
 format (`2024-01-15T09:00:00.000+0000`) and defaults to now on Data Center. Cloud requires it.
 
@@ -455,6 +459,43 @@ old names are gone, not deprecated:
   person's `ids`), with a `TOIL_PROJECT_RENAMED_AREA` warning to rename it (`toil projects check`
   reports it). With both, `jira` wins. A toil project has one `jira` section, so it picks one Jira
   connection: a body of work that uses both a Data Center and a Cloud Jira takes two toil projects.
+
+## Categorizing issues
+
+`issue categorize` applies a classification plan, the result of `toil classify run`, to Jira
+issues. It never classifies: the plan says which category each issue belongs to, and this
+command writes that down.
+
+```bash
+toil jira issue search --jql "project = PAY AND statusCategory != Done" --fields summary,description,issuetype,labels,parent,customfield_10042 | toil util owi map | toil classify run --toil-project payments --summary-file plan.json
+toil jira issue categorize --from plan.json --allow-write
+```
+
+- **Labels.** Each issue gets its category's label, and loses the scheme's other labels.
+  Labels are compared without regard to case, so `KTLO` already there counts as `ktlo`; a
+  label to remove is spelled as the issue spells it. No label the plan doesn't name is touched; `toil classify run` builds that list from the scheme.
+- **A field, when the plan names one.** The toil project's `classify` target names it by
+  alias, by id (`customfield_10042`) or by name, looked up in Jira's field list. A select
+  field is set to the option whose value or name matches the category's value, sent as the
+  option's id; a text field is sent the value. toil never creates a field or an option. The field is looked up only when the plan sets a value on some issue, so a plan that changes labels alone doesn't need it.
+- **Read first, write once.** Every issue is read before any is changed, and one update
+  carries an issue's label and field changes together. An issue that already matches is left
+  alone and listed in `unchanged`, so running a plan twice changes nothing.
+- **Refused before anything is written:** a field Jira has no such name for (`NOT_FOUND`),
+  two fields with the name (`INVALID_INPUT`, which names the ids), and an option the field
+  doesn't offer (`INVALID_INPUT`, which lists the options).
+- **An issue type without the field** gets the label only, and `CATEGORIZE_FIELD_NOT_ON_TYPE`
+  names the types; an admin adds the field to them, and the same plan applied again fills it in.
+- **An issue that fails** (not found, no permission to edit) is in `failed` with Jira's reason
+  and a `CATEGORIZE_FAILED` warning; the rest are applied, and the command still succeeds.
+  A refused token, a network failure or a cancel stops the whole call; its error carries what was done by then in `details.categorize` (`planned`, `changed`, `unchanged`, `failed`).
+- **One connection per call.** Entries in the plan for other connections are left alone
+  (`skipped`, `CATEGORIZE_SKIPPED`); a plan with entries but none for this connection is refused.
+
+It is a write: the connection needs `writes: true` and the call `--allow-write`. It sends
+no `notifyUsers` option, so Jira's own notification settings decide who is told. Over MCP it
+is `jira_issue_categorize`, and `from` must name a file in the workspace, since there is no
+stdin.
 
 ## Ticket the work
 

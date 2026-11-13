@@ -30,24 +30,34 @@ import { AgentsSidebar, useAgentsSummary } from '../assign/sidebar.tsx';
 import { AssignModal } from '../assign/views.tsx';
 import { useUiCommand } from '../commands.ts';
 import { useData, useDerived } from '../data.ts';
-import { analysesHref, boardHref, commandCenterHref, dependenciesHref, toilProjectEditHref, toilProjectHref, peopleHref, prsHref, worklogHref } from '../format.ts';
+import { writeFilters } from '../filters.ts';
+import { useAddress } from '../insights-data.ts';
+import { ItemsDrawer } from '../components/items-drawer.tsx';
+import { ClassifyNoticeLine } from '../components/reclassify.tsx';
+import { boardHref, classifyHref, commandCenterHref, dependenciesHref, standupHref, toilProjectEditHref, toilProjectHref, peopleHref, prsHref, worklogHref } from '../format.ts';
+import { Help } from '../components/help.tsx';
+import type { HelpTopicId } from '../help.ts';
 import { needingAttention } from '../model/insights.ts';
-import { useTerm, useTheme } from '../skins.tsx';
+import { useTerm, useTheme, useWords } from '../skins.tsx';
 import { usePlain } from '../plain-words.ts';
 import { momentsOf, useEnter } from '../moments/Moments.tsx';
 import './toil-project-shell.css';
 
-export type ToilProjectTab = 'overview' | 'board' | 'dependencies' | 'prs' | 'people' | 'worklog' | 'analyses';
+export type ToilProjectTab = 'overview' | 'board' | 'dependencies' | 'prs' | 'people' | 'standup' | 'worklog';
 
-/** A toil project's tabs, in order: the command palette (#416) jumps to each of them in every toil project. */
-export const TOIL_PROJECT_TABS: ReadonlyArray<{ id: ToilProjectTab; label: string; plain: string; href: (toilProject: string) => string }> = [
-  { id: 'overview', label: 'Overview', plain: 'Summary', href: toilProjectHref },
-  { id: 'board', label: 'Board', plain: 'Board', href: (d) => boardHref(d) },
-  { id: 'dependencies', label: 'Dependencies', plain: 'What blocks what', href: dependenciesHref },
-  { id: 'prs', label: 'Pull requests', plain: 'Code reviews', href: prsHref },
-  { id: 'people', label: 'People', plain: 'People', href: peopleHref },
-  { id: 'worklog', label: 'Worklog', plain: 'What happened', href: (d) => worklogHref(d) },
-  { id: 'analyses', label: 'Analyses', plain: 'Past briefings', href: analysesHref },
+/**
+ * A toil project's tabs, in order: the command palette (#416) jumps to each of them in every toil project. One tab is one page and the
+ * page does not repeat the tab's name as a title (#567): the tab is the title, and its (i) says what the page is. `help` is that (i).
+ * The charts and the earlier briefings are no tabs: they are steps in from the Summary (`…/summary/<chart>`, `…/summary/briefings`).
+ */
+export const TOIL_PROJECT_TABS: ReadonlyArray<{ id: ToilProjectTab; label: string; plain: string; help: HelpTopicId; href: (toilProject: string) => string }> = [
+  { id: 'overview', label: 'Overview', plain: 'Summary', help: 'briefing', href: toilProjectHref },
+  { id: 'board', label: 'Board', plain: 'Board', help: 'board', href: (d) => boardHref(d) },
+  { id: 'dependencies', label: 'Dependencies', plain: 'What blocks what', help: 'dashboard', href: dependenciesHref },
+  { id: 'prs', label: 'Pull requests', plain: 'Code reviews', help: 'prs', href: prsHref },
+  { id: 'people', label: 'People', plain: 'People', help: 'people', href: peopleHref },
+  { id: 'standup', label: 'Stand-up', plain: 'Stand-up', help: 'standup', href: (d) => standupHref(d) },
+  { id: 'worklog', label: 'Worklog', plain: 'What happened', help: 'worklog', href: (d) => worklogHref(d) },
 ];
 
 /** Below this width the Agents panel is a drawer behind a button; at 1200px and wider the button opens it beside the view. */
@@ -62,10 +72,11 @@ export const PHONE_BAR = '(max-width: 599px)';
  * their own (Overview, Board, Dependencies, Analyses); the others keep theirs.
  * `boardView` says which of the Board tab's two views is showing.
  */
-export function ToilProjectShell({ tab, heading, boardView, peek = null, children }: { tab: ToilProjectTab | null; heading: boolean; boardView?: 'board' | 'readiness'; peek?: string | null; children: ReactNode }) {
+export function ToilProjectShell({ tab, heading, boardView, peek = null, items = null, children }: { tab: ToilProjectTab | null; heading: boolean; boardView?: 'board' | 'readiness' | 'classify'; peek?: string | null; items?: string | null; children: ReactNode }) {
   const { toilProject, config, described } = useData();
   const { health: h, insights } = useDerived();
   const term = useTerm();
+  const words = useWords();
   const wide = useMediaQuery(SIDEBAR_WIDE);
   // On a phone the description and the source badges sit behind a button beside the name, one tap away.
   const phone = useMediaQuery(PHONE_BAR);
@@ -84,6 +95,14 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, childre
   );
   const plain = usePlain();
   const { pw } = plain;
+  // The Board and Ready to start? share one filter bar, so a filter chosen on one is still there on the other.
+  const { filters } = useAddress();
+  const carry = (href: string) => {
+    const q = new URLSearchParams();
+    writeFilters(q, { where: filters.where });
+    const text = q.toString();
+    return text ? `${href}?${text}` : href;
+  };
   const tabs: Array<{ id: ToilProjectTab; href: string; label: string; title?: string; count?: { n: number; label: string } }> = TOIL_PROJECT_TABS.map((t) => ({
     id: t.id,
     href: t.href(toilProject.name),
@@ -92,7 +111,7 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, childre
     ...(t.id === 'board' ? { count: { n: attention, label: attention === 1 ? 'item needs attention' : 'items need attention' } } : {}),
   }));
   return (
-    <div className="toil-project-shell" data-wide-sidebar={wide || undefined} data-side={(wide && (sideOpen || Boolean(peek))) || undefined} ref={shell}>
+    <div className="toil-project-shell" data-wide-sidebar={wide || undefined} data-side={(wide && (sideOpen || Boolean(peek) || Boolean(items))) || undefined} data-items={(Boolean(items) && !peek) || undefined} ref={shell}>
       <div className="toil-project-bar">
         <div className="toil-project-bar__id">
           <div className="toil-project-bar__line">
@@ -143,7 +162,7 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, childre
             <ul>
               {tabs.map((t) => (
                 <li key={t.id}>
-                  <a href={t.href} aria-current={t.id === tab ? 'page' : undefined} data-tab={t.id} title={t.title}>
+                  <a href={t.href} id={`tab-${t.id}`} aria-current={t.id === tab ? 'page' : undefined} data-tab={t.id} title={t.title}>
                     {t.label}
                     {t.count && t.count.n > 0 && (
                       <span className="tab-count" title={`${t.count.n} ${t.count.label}`}>
@@ -156,27 +175,40 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, childre
                   </a>
                 </li>
               ))}
+              {/* What this page is, one press away: the page itself carries no title that repeats the tab (#567). In the list, so a narrow row scrolls it with the tabs rather than squeezing them. */}
+              {tab && (
+                <li className="toil-project-tabs__help" data-tab-help={tab}>
+                  <Help topic={TOIL_PROJECT_TABS.find((t) => t.id === tab)!.help} />
+                </li>
+              )}
             </ul>
           </nav>
         </Scroller>
       </div>
       {tab === 'board' && boardView && (
         <nav className="board-views" aria-label="Board views">
-          <a href={boardHref(toilProject.name)} aria-current={boardView === 'board' ? 'page' : undefined}>
+          <a href={carry(boardHref(toilProject.name))} aria-current={boardView === 'board' ? 'page' : undefined}>
             Board
           </a>
-          <a href={commandCenterHref(toilProject.name)} aria-current={boardView === 'readiness' ? 'page' : undefined} title={plain.title('Readiness (Command Center)')}>
+          <a href={carry(commandCenterHref(toilProject.name))} aria-current={boardView === 'readiness' ? 'page' : undefined} title={plain.title('Readiness (Command Center)')}>
             {pw('Readiness (Command Center)', 'Ready to start?')}
+          </a>
+          <a href={carry(classifyHref(toilProject.name))} aria-current={boardView === 'classify' ? 'page' : undefined} title={plain.title('Classify')} data-board-view="classify">
+            {words('classify.title')}
           </a>
         </nav>
       )}
+      <ClassifyNoticeLine />
       <PaletteAssign />
       <div className="toil-project-body">
-        <div className="toil-project-main" ref={view}>
+        {/* The page is labelled by its tab, so it needs no heading of its own to be named; focus lands here when a page has none (App.tsx). */}
+        <div className="toil-project-main" ref={view} data-tab-panel="" tabIndex={-1} {...(tab ? { role: 'group', 'aria-labelledby': `tab-${tab}` } : {})}>
           {children}
         </div>
         {peek ? (
           <ItemDrawer id={peek} />
+        ) : items ? (
+          <ItemsDrawer spec={items} />
         ) : wide && sideOpen && (
           <aside className="agents-side" aria-labelledby="agents">
             <div className="agents-side__scroll">

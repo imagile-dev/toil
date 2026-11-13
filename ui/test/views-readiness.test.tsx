@@ -18,8 +18,9 @@ describe('the readiness gate (#307)', () => {
     const fixture = fixtureExecute();
     await open(item('card-payments', 'corp-jira:PAY-102'), { execute: fixture.execute });
     const box = panel('Ready for an agent?');
-    expect(box.querySelector('.verdict')!.textContent).toBe('✕ Blocked');
-    expect(rows().map((r) => /^.(Acceptance criteria|Description|Done state|Blockers|Scope) (Passes|Thin|Fails)/.exec(r)?.slice(1).join(' '))).toEqual([
+    expect(box.querySelector('.verdict')!.textContent!.trim()).toBe('Blocked');
+    expect(box.querySelector('.verdict [data-icon="close"]')).not.toBeNull();
+    expect(rows().map((r) => /^(Acceptance criteria|Description|Done state|Blockers|Scope) (Passes|Thin|Fails)/.exec(r)?.slice(1).join(' '))).toEqual([
       'Acceptance criteria Passes',
       'Description Thin',
       'Done state Passes',

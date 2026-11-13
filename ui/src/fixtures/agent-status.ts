@@ -9,7 +9,7 @@
 
 import type { AdapterStatus } from '../server-client.ts';
 import { beforeDate, TESTED } from '../../server/agents/tested.ts';
-import { FIXTURE_NOW } from './execute.ts';
+import { SAMPLE_AS_OF as FIXTURE_NOW } from './now.ts';
 
 const version = (name: keyof typeof TESTED) => TESTED[name][0]!.slice(TESTED[name][0]!.lastIndexOf('@') + 1);
 const prefix = '/home/you/.npm-global';

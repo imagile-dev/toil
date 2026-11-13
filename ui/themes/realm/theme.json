@@ -38,6 +38,20 @@
       "bannerInk": "#e6dcc6"
     }
   },
+  "series": {
+    "light": [
+        {"name":"Tooled leather","fill":"#e3cfb4","stroke":"#6b4423","detail":"#b08a3a","style":"dashed","frame":"leather"},
+        {"name":"Iron chain","fill":"#d6d0c4","stroke":"#2e2a26","detail":"#2e2a26","style":"dotted","frame":"chain"},
+        {"name":"Knotwork","fill":"#e6d3dd","stroke":"#5e2347","detail":"#a0628a","style":"double","frame":"knot"},
+        {"name":"Map neatline","fill":"#ece4d2","stroke":"#2b3f52","detail":"#2b3f52","style":"solid","frame":"neatline"}
+      ],
+    "dark": [
+        {"name":"Tooled leather","fill":"#3b2a1c","stroke":"#d4a06c","detail":"#c9a24a","style":"dashed","frame":"leather"},
+        {"name":"Iron chain","fill":"#2e2924","stroke":"#cfc4b0","detail":"#cfc4b0","style":"dotted","frame":"chain"},
+        {"name":"Knotwork","fill":"#3a1f30","stroke":"#d897bf","detail":"#8a4a6e","style":"double","frame":"knot"},
+        {"name":"Map neatline","fill":"#1f2a35","stroke":"#8fb4d4","detail":"#8fb4d4","style":"solid","frame":"neatline"}
+      ]
+  },
   "fonts": {
     "body": "'EB Garamond', Georgia, 'Times New Roman', serif",
     "display": "'Grenze Gotisch', Georgia, 'Times New Roman', serif",
@@ -50,6 +64,7 @@
   },
   "sounds": {},
   "assets": {
+    "series": "assets/series.svg",
     "vellum": "assets/vellum.webp",
     "frame": "assets/iron-band.svg",
     "rule": "assets/rule.svg",

@@ -1,12 +1,20 @@
 import { Validator } from '@cfworker/json-schema';
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { execute, mapOwi as apiMapOwi, registry } from '../../src/api.ts';
+import { VIEW_LIMITS, computeView, pickView } from '../../src/areas/util/c4/model.ts';
+import { countsOf as toilCountsOf, createDiagramCatalog, loadStorable, viewsOf } from '../../src/core/diagrams.ts';
+import { SAMPLE_DIAGRAMS, countsOf, diagramShow } from '../src/fixtures/diagrams.ts';
+import { SAMPLE_VIEWS } from '../src/fixtures/diagram-views.ts';
+import { DRAW_LIMITS } from '../src/model/diagram.ts';
 import { CANNED, callKey, fixtureExecute } from '../src/fixtures/execute.ts';
 import { loadToilProject, loadToilProjects } from '../src/load.ts';
 import { workflowRead } from '../src/model/readiness.ts';
 import { WORKFLOW_READS } from '../server/store.ts';
 import { mapOwi } from '../src/owi.ts';
-import type { Execute } from '../src/toil.ts';
+import type { Execute, WorkItem } from '../src/toil.ts';
 import { NAMES } from './harness.ts';
 
 /**
@@ -59,7 +67,8 @@ describe('the dashboards', () => {
     expect([...options]).toEqual([JSON.stringify({ readOnly: true, caller: 'toil-ui' })]);
     const asked = new Set(fixture.calls.map((c) => callKey(c.command, c.input)));
     // The readiness gate's workflow reads (#307) are made on a person's press, never by a load.
-    const onPress = (command: string) => (WORKFLOW_READS as readonly string[]).includes(command);
+    // The stored diagram (#582) is read by its own page, not by a load.
+    const onPress = (command: string) => (WORKFLOW_READS as readonly string[]).includes(command) || command === 'projects diagram show';
     for (const c of CANNED.filter((x) => !onPress(x.command))) expect(asked.has(callKey(c.command, c.input)), `${c.command} ${JSON.stringify(c.input)} is never asked for`).toBe(true);
     expect(fixture.calls.filter((c) => onPress(c.command))).toEqual([]);
   });
@@ -83,7 +92,7 @@ describe('the dashboards', () => {
 describe("the browser's mapOwi", () => {
   it.each(NAMES)("maps %s's work exactly as the API's mapOwi does", async (name) => {
     const browser = await loadToilProject(fixtureExecute().execute, name, { mapOwi });
-    const api = await loadToilProject(fixtureExecute().execute, name, { mapOwi: (input) => apiMapOwi(input) });
+    const api = await loadToilProject(fixtureExecute().execute, name, { mapOwi: (input, options) => apiMapOwi(input, options) });
     expect(browser.items.length).toBeGreaterThan(0);
     expect(browser.items).toEqual(api.items);
   });
@@ -184,5 +193,120 @@ describe("the worklog's two calls to toil beyond the reads (#308)", () => {
     expect(def.writesLocal).toBe(false);
     expect(def.writesDependOnInput).toBe(true);
     expect(new Validator(def.inputSchema as object, '2020-12', false).validate({ scheme: 'base64', decode: true, text: 'IyBXb3JrbG9n', out: 'worklog-card-payments-2026-10-12.md' }).errors).toEqual([]);
+  });
+});
+
+describe("the Board's drop (ui/server/board.ts) against the real registry", () => {
+  const valid = (command: string, input: Record<string, unknown>) => new Validator(byName.get(command)!.inputSchema as object, '2020-12', false).validate(input).errors;
+
+  it('reads the item and connections with read-only commands, and writes with one transition command per tracker', () => {
+    for (const read of ['projects list', 'connections list', 'projects show', 'jira issue get', 'ado work-item get', 'github issue get', 'github project items', 'github project fields', 'github project list']) {
+      const def = byName.get(read);
+      expect(def, read).toBeDefined();
+      expect(def!.writes || def!.writesLocal, read).toBe(false);
+    }
+    for (const write of ['jira issue transition', 'ado work-item transition']) expect(byName.get(write)!.writes, write).toBe(true);
+  });
+
+  it('sends input those commands accept, the column as the intent toil resolves', () => {
+    for (const to of ['reopen', 'start', 'done']) {
+      expect(valid('jira issue transition', { toilProject: 'card-payments', key: 'PAY-102', to, allowWrite: true })).toEqual([]);
+      expect(valid('ado work-item transition', { toilProject: 'card-payments', id: 2304, to, allowWrite: true })).toEqual([]);
+    }
+    expect(valid('jira issue get', { toilProject: 'card-payments', key: 'PAY-102' })).toEqual([]);
+    expect(valid('ado work-item get', { toilProject: 'card-payments', id: 2304 })).toEqual([]);
+  });
+
+  it("writes a GitHub move with one of three commands, with the input the server sends (owner, repository and number from the item's id)", () => {
+    for (const write of ['github project status', 'github project add', 'github issue close', 'github issue reopen']) expect(byName.get(write)!.writes, write).toBe(true);
+    expect(valid('github issue get', { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: [7] })).toEqual([]);
+    expect(valid('github project items', { toilProject: 'card-payments', owner: 'acme', project: 3 })).toEqual([]);
+    expect(valid('github project fields', { toilProject: 'card-payments', owner: 'acme', project: 3 })).toEqual([]);
+    expect(valid('github project status', { toilProject: 'card-payments', item: 'PVTI_abc12345', to: 'In Progress', allowWrite: true })).toEqual([]);
+    expect(valid('github project add', { toilProject: 'card-payments', owner: 'acme', repo: 'shop', project: 3, number: 7, allowWrite: true })).toEqual([]);
+    expect(valid('github project list', { toilProject: 'card-payments', owner: 'acme' })).toEqual([]);
+    expect(valid('github issue close', { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7, allowWrite: true })).toEqual([]);
+    expect(valid('github issue reopen', { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7, allowWrite: true })).toEqual([]);
+  });
+
+  it('makes the proposal for a plain GitHub issue the command the server would run', async () => {
+    const { proposeMove } = await import('../src/model/board.ts');
+    const issue = { id: 'github:acme/shop#7', source: { area: 'github', connection: 'github', key: 'acme/shop#7' }, native: {}, status: 'open', statusCategory: 'TODO', typeName: null, url: null } as unknown as WorkItem;
+    const done = proposeMove(issue, 'DONE', [issue], 'card-payments')!;
+    expect(done).toMatchObject({ command: 'github issue close', input: { toilProject: 'card-payments', owner: 'acme', repo: 'shop', number: 7 } });
+    const reopened = proposeMove({ ...issue, status: 'closed', statusCategory: 'DONE' } as WorkItem, 'TODO', [issue], 'card-payments')!;
+    expect(reopened).toMatchObject({ command: 'github issue reopen', input: { owner: 'acme', repo: 'shop', number: 7 } });
+    expect(proposeMove(issue, 'IN_PROGRESS', [issue], 'card-payments')).toMatchObject({ command: null, input: null });
+    for (const p of [done, reopened]) expect(valid(p.command!, { ...p.input!, allowWrite: true })).toEqual([]);
+  });
+
+  it('makes the proposal for a card off its named board two real commands: github project add, then github project status by number', async () => {
+    const { proposeMove } = await import('../src/model/board.ts');
+    const issue = { id: 'github:acme/shop#7', source: { area: 'github', connection: 'github', key: 'acme/shop#7' }, native: {}, status: 'open', statusCategory: 'TODO', typeName: null, url: null } as unknown as WorkItem;
+    const p = proposeMove(issue, 'IN_PROGRESS', [issue], 'card-payments', { projects: [3], unread: [] }, { project: 3, number: 7, status: 'In Progress', canApply: true })!;
+    expect(p.command).toBe('github project add');
+    expect(p.then?.command).toBe('github project status');
+    expect(valid(p.command!, { ...p.input!, allowWrite: true })).toEqual([]);
+    expect(valid(p.then!.command, { ...p.then!.input, allowWrite: true })).toEqual([]);
+  });
+});
+
+describe('the sample architecture diagrams (#582)', () => {
+  const homes: string[] = [];
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    for (const h of homes.splice(0)) rmSync(h, { recursive: true, force: true });
+  });
+  /** A temp home holding the sample diagram as toil would have stored it, so the real `projects diagram show` reads it. */
+  const keep = (name: string) => {
+    const home = mkdtempSync(join(tmpdir(), 'toil-ui-diagram-'));
+    homes.push(home);
+    vi.stubEnv('HOME', home);
+    vi.stubEnv('USERPROFILE', home);
+    const d = SAMPLE_DIAGRAMS[name]!;
+    const model = loadStorable(JSON.stringify(d.model), name, d.notMapped);
+    createDiagramCatalog({ home, protect: [] }).save(name, { model, notMapped: d.notMapped, toilVersion: 'test', mode: 'create' });
+    return model;
+  };
+
+  it.each(Object.keys(SAMPLE_DIAGRAMS))('%s passes the stored-diagram checks, and its counts and views are what toil counts', (name) => {
+    const model = keep(name);
+    expect(countsOf(SAMPLE_DIAGRAMS[name]!.model)).toEqual(toilCountsOf(model));
+    expect(diagramShow(name).views).toEqual(viewsOf(model));
+  });
+
+  it("holds every computed view to what toil's own projects diagram show prints, view by view", async () => {
+    const computed: Record<string, Record<string, unknown>> = {};
+    for (const name of Object.keys(SAMPLE_DIAGRAMS)) {
+      const model = keep(name);
+      computed[name] = {};
+      for (const v of model.views) {
+        const real = await execute('projects diagram show', { toilProject: name, view: v.key }, { readOnly: true, caller: 'toil-ui-test' });
+        expect(real.ok, JSON.stringify(real.error)).toBe(true);
+        const data = real.data as { model: unknown; views: unknown; counts: unknown; view: unknown; notMapped: unknown };
+        const shown = diagramShow(name, v.key);
+        expect(data.model, name).toEqual(JSON.parse(JSON.stringify(shown.model)));
+        expect(data.notMapped).toEqual(shown.notMapped);
+        expect(data.views).toEqual(shown.views);
+        expect(data.counts).toEqual(shown.counts);
+        computed[name]![v.key] = data.view;
+        // And toil's own function, with no warning: a relationship the view cannot draw would be a hole in the picture.
+        const warnings: unknown[] = [];
+        expect(computeView(model, pickView(model, v.key), (w) => warnings.push(w))).toEqual(data.view);
+        expect(warnings).toEqual([]);
+      }
+    }
+    // A model changed without its views refreshed fails here: UPDATE_DIAGRAM_VIEWS=1 rewrites the file from what toil printed.
+    if (process.env.UPDATE_DIAGRAM_VIEWS === '1') {
+      const file = join(import.meta.dirname, '..', 'src', 'fixtures', 'diagram-views.ts');
+      const { readFileSync } = await import('node:fs');
+      const text = readFileSync(file, 'utf8');
+      writeFileSync(file, text.slice(0, text.indexOf('= {') + 2) + JSON.stringify(computed) + ';\n');
+    }
+    expect(JSON.parse(JSON.stringify(SAMPLE_VIEWS))).toEqual(JSON.parse(JSON.stringify(computed)));
+  });
+
+  it("draws no more than toil's own drawer does: the page's limits are VIEW_LIMITS", () => {
+    expect(DRAW_LIMITS).toEqual(VIEW_LIMITS);
   });
 });

@@ -30,7 +30,7 @@ no CI fallback variable.
 | `npmRepo` | `TOIL_ARTIFACTORY_NPM_REPO` | no | npm repository key for `package outdated` and `package license-check` |
 | `nugetRepo` | `TOIL_ARTIFACTORY_NUGET_REPO` | no | NuGet repository key for `package outdated` and `package license-check` |
 | `mavenRepo` | `TOIL_ARTIFACTORY_MAVEN_REPO` | no | Maven repository key for `package outdated` |
-| `writes` | `TOIL_ARTIFACTORY_WRITES` | no | `true` lets `artifact set-properties` run (with `--allow-write`) |
+| `writes` | `TOIL_ARTIFACTORY_WRITES` | no | `true` or `1` lets `artifact set-properties` run (with `--allow-write`) |
 
 Environment variables (CI, or a one-off shell):
 

@@ -81,8 +81,12 @@ inside the workspace.
    element share one id. Every element and every relationship is either **observed**
    (read from source or a command; put the file and line or the command in its
    `description`) or **inferred** (your reading; begin the `description` with
-   `(inferred)` and the reason). The model has no field for observed or inferred yet, so the `(inferred)` prefix is
-   how the diagram shows it. A relationship that ends on a components view's boundary
+   `(inferred)` and the reason). The model has fields for it: `how` (`observed` or
+   `inferred`) on every person, system, container, component and relationship, with
+   `source` (the file and line, or the command; a relationship's is `evidence`) for an
+   observed one and `reason` for an inferred one. Set them, and the diagram shows the
+   difference: an inferred box is dashed, an inferred arrow dotted, and Mermaid and D2
+   begin its description with `(inferred)`. A relationship that ends on a components view's boundary
    element is not drawn in that view (`C4_RELATIONSHIP_NOT_DRAWN`); point it at a
    component inside to show it there. Find the **hubs**: the modules most others
    depend on, and the ones most often changed together, so a reader knows where
@@ -145,6 +149,21 @@ inside the workspace.
       on the person's yes, replace the committed files and record the new `commit`.
 
    Without git, there is no changed-file list: re-map from step 1.
+
+   **Keep it in toil too.** When a toil project applies, the model can also be kept in
+   the person's own toil storage, `~/.toil/diagrams/<toil-project>.json`, where Toil UI
+   and other agents find it. Check it first, so every problem is fixed before anyone is
+   asked, then save it on the person's yes (a local write, so no `--allow-write`; a
+   diagram holds no URL, no host with a port and nothing shaped like a credential, so
+   cite a file and line or a command, never an address):
+
+   ```bash
+   toil projects diagram check <model.json> --not-mapped dist/
+   toil projects diagram save <toil-project> <model.json> --not-mapped dist/
+   toil projects diagram show <toil-project> --view containers
+   ```
+
+   A later run adds `--replace`, and the revision goes up by one.
 
    Answer questions from the file rather than the code. `--select` works on a toil
    command's output, not on a file, so query the file with your own tools.

@@ -185,7 +185,8 @@
       "--cursor <cursor>",
       "--updated-since <iso>",
       "--changelog",
-      "--fields <list>"
+      "--fields <list>",
+      "--more-fields <list>"
     ]
   },
   {
@@ -274,6 +275,30 @@
     ]
   },
   {
+    "name": "version list",
+    "tool": "jira_version_list",
+    "description": "List a Jira project's versions (releases)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--project <key>"
+    ]
+  },
+  {
+    "name": "component list",
+    "tool": "jira_component_list",
+    "description": "List a Jira project's components",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--project <key>"
+    ]
+  },
+  {
     "name": "field discover",
     "tool": "jira_field_discover",
     "description": "Find the custom fields your issues use, by sampling one issue of each type (read only)",
@@ -308,6 +333,17 @@
     "writes": false,
     "connection": true,
     "flags": []
+  },
+  {
+    "name": "issue categorize",
+    "tool": "jira_issue_categorize",
+    "description": "Apply a classification plan to Jira issues: add each issue's category label, remove the scheme's other labels, and set the category field when the plan names one.",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--from <file>",
+      "--allow-write"
+    ]
   },
   {
     "name": "project list",

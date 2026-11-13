@@ -420,11 +420,15 @@
                 "github issue search",
                 "github issue get",
                 "github issue history",
+                "github milestone list",
                 "github issue create",
                 "github issue label",
                 "github issue unlabel",
+                "github issue categorize",
                 "github issue assign",
                 "github issue unassign",
+                "github issue close",
+                "github issue reopen",
                 "github repo file",
                 "github repo create",
                 "github commit status",
@@ -447,9 +451,11 @@
               "name": "project",
               "required": "write",
               "commands": [
-                "github project status"
+                "github project status",
+                "github project add",
+                "github issue categorize"
               ],
-              "note": "Changing a project item's Status. It includes read:project."
+              "note": "Adding an item to a project, changing its Status, or the field issue categorize sets (needed only when the plan names a field). It includes read:project."
             }
           ]
         },
@@ -565,7 +571,8 @@
                 "github issue list",
                 "github issue search",
                 "github issue get",
-                "github issue history"
+                "github issue history",
+                "github milestone list"
               ]
             },
             {
@@ -576,8 +583,11 @@
                 "github issue create",
                 "github issue label",
                 "github issue unlabel",
+                "github issue categorize",
                 "github issue assign",
-                "github issue unassign"
+                "github issue unassign",
+                "github issue close",
+                "github issue reopen"
               ]
             },
             {
@@ -605,9 +615,11 @@
               "access": "write",
               "required": "write",
               "commands": [
-                "github project status"
+                "github project status",
+                "github project add",
+                "github issue categorize"
               ],
-              "note": "Changing a project item's Status. Only an organization's projects."
+              "note": "Adding an item to a project, changing its Status, or the field issue categorize sets (needed only when the plan names a field). Only an organization's projects."
             },
             {
               "name": "Projects (organization permission)",

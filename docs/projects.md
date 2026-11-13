@@ -11,6 +11,12 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
 - `toil projects list | show | check | context`, which read
 - `toil projects init | add-repo | link | env | field | person | people suggest | people save | wip-limit | describe | archive | unarchive | export | import | unlink | remove`, which
   build and share (`src/core/toil-project.ts`, `src/projects/`)
+- `toil projects diagram check | save | show | list | remove`, the architecture diagram a toil project
+  keeps in your own folder, `~/.toil/diagrams/<toil-project>.json` (#582, `src/projects/diagram.ts`,
+  `src/core/diagrams.ts`): a C4 model whose elements and relationships say how they are known
+  (`how`, `source`, `reason`), holding no host and no secret. `check` runs every check `save` runs;
+  `save` is a local write, served over MCP, `--replace` raising the revision; `remove` is CLI only.
+  `toil projects remove` keeps a toil project's diagram and says so (`DIAGRAM_KEPT`)
 - `toil projects migrate`, which moves your own `~/.toil/dossiers/*.json` to `~/.toil/projects/` (#555, `src/projects/migrate.ts`)
 - `toil projects onboard`, which sets a reader up for a repository's toil project (#333,
   `src/projects/onboard.ts`)
@@ -18,6 +24,12 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
   caller passes, and `toil projects analyze set | show | prompt`, its Analyze settings
   and the prompt an agent runs, also served by `toil mcp` as the prompt `analyze`
   (#494, `src/projects/brief.ts`, `src/core/brief/`)
+- `toil projects classify set`, which sets its `classify` key: the scheme that sorts its work and
+  where each tracker keeps the category (#566, `src/classify/project-commands.ts`; the schemes
+  themselves are `toil classify scheme …`, `src/core/classify/`)
+- `toil projects pivot` and `toil projects view list | show | set | remove`, which split Open Work
+  Items by any dimension and keep named views (#567, `src/projects/pivot.ts`,
+  `src/projects/views.ts`, `src/core/insights/`)
 - field aliases on Jira's `--field` (Data Center and Cloud)
 - `toil repos scan` (`src/repos/`)
 - `toil <area> check-toil-project` for every area a toil project describes: `jira`,
@@ -188,14 +200,37 @@ TOIL_CONN_OCP_PROD_TOKEN=...
 - **`env`** names the environment the toil project works in by default; it must be a key of
   `environments`.
 - **`people`** (#292) lists the team, agents included: `{ "name": "Pat Example",
-  "kind": "human", "email": "you@example.com", "ids": { "jira": "pat", "github":
-  "pat-ex", "ado": "you@example.com" } }`. `kind` is `human` (the default) or `agent`;
+  "kind": "human", "email": "you@example.com", "team": "Checkout", "ids": { "jira": "pat",
+  "github": "pat-ex", "ado": "you@example.com" } }`. `kind` is `human` (the default) or `agent`;
+  `team` (#567) is the team they work in, one short line of text (at most 100 characters),
+  which a split by team takes an item's assignee to;
   `ids` maps an area to the account it knows the person by. Names and identities are
   unique (an identity compares without case), and a value shaped like a token is
   refused by key path, never echoed: an identity is a name, not a credential.
   `wipLimit`, a whole number above 0, is how many items one person may have in
   progress at once. toil reads `wipLimit` only in `toil projects brief`, for its load
   lens, and reads `people` not at all; Toil UI's People view reads both.
+- **`dimensions`** (#567) names extra dimensions to split work by, once: `{ "customer": {
+  "jira": "customfield_10500", "ado": "Custom.Customer" } }`. The key is a dimension name
+  (lowercase letters, digits and single hyphens) and each value maps an area to the field that
+  holds it there: a field id or name the tracker shows, or on GitHub the name of a Projects
+  field. Mapping copies each onto every item as `dims` (`docs/owi/spec.md`), so a team can
+  split by its own fields without toil knowing them. toil reads any other unknown top-level key
+  as an area's section, so `dimensions` is reserved, and it never holds a dimension named
+  `fields`, `connection`, `host`, `transitions` or `writes` (an error by key path), so it
+  picks no connection and turns on no writes. Each field is one line of at most 200 characters,
+  never shaped like a credential; an area toil doesn't have is kept with a warning.
+- **`views`** (#567) keeps saved pivots by name: `{ "release-mix": { "measure": "items",
+  "split": "release", "share": true, "top": 4, "title": "Fix versions" } }`. A view holds the
+  keys of `toil projects pivot` (`measure`, `split`, `across`, `where` as a list of
+  `{ dimension, op, values }`, `from`, `to`, `share`, `top`, `pin`, `includeParents`) plus a
+  `title` and a `chart` form for Toil UI. The key is a view name (lowercase letters, digits and
+  hyphens, starting with a letter, at most 41 characters; at most 50 views). `toil projects view
+  set | show | list` and `toil projects pivot --view <name>` read and write it. toil reads any
+  other unknown top-level key as an area's section, so `views` is reserved, and it never holds a
+  view named `fields`, `connection`, `host`, `transitions` or `writes`. A view that fails its
+  checks is an error by key path and stops the file loading, so no rewrite drops one quietly.
+  A view holds no connection, host or secret.
 - **`analyze`** holds how Analyze briefs the toil project (#494): `goal`, `audience`
   (`lead`, `engineer` or `stakeholder`), `lenses` (each `{ id, on, threshold }`, in the
   order to apply them; any not listed follow in the standard order), and `watchFor`
@@ -203,6 +238,19 @@ TOIL_CONN_OCP_PROD_TOKEN=...
   like a credential. Absent, the standard applies. A focus from a toil project the reader
   hasn't adopted still applies, labelled with where it came from (the maintainer's
   decision on #494).
+- **`classify`** names the scheme that sorts the work, and where each tracker keeps the
+  category besides a label (#566): `{ "scheme": "ktlo-feature", "targets": { "jira": { "field":
+  "workCategory" }, "github": { "project": "imagile/7", "field": "Category", "values": { "ktlo":
+  "Keep the lights on" } } } }`. `scheme` is a scheme name (yours, the repository's, or built in) or
+  a path relative to the toil project's own file ending in `.json`. A target is `field` (a field
+  alias from that tracker's section, a field id, or on GitHub the name of a Projects v2 field),
+  `project` (GitHub only, `<owner>/<number>`) and `values` (category id to the field's option,
+  where it isn't the category's short name). It never holds `connection`, `host`, `fields`,
+  `transitions` or `writes`, which are errors there, so it can't pick a connection or turn on
+  writes, and an older toil still loads the file. Each text is one line of at most 200
+  characters and never shaped like a credential; an unknown key is a
+  `TOIL_PROJECT_UNKNOWN_KEY` warning and is ignored. Absent, the built-in `ktlo-feature` scheme
+  applies and only labels are written. `toil projects classify set` sets it.
 - **Remotes are only for matching.** toil never contacts a remote URL. Before storing,
   comparing or printing one, toil strips any userinfo
   (`https://user:<token>@host/...` becomes `https://host/...`), so a token embedded in
@@ -508,7 +556,7 @@ files directly:
     `environments.<env>.<area>`. `--default` makes it the toil project's `env`.
   - `toil projects field <toil-project> <area> <alias> <field-id>` names a field.
   - `toil projects person <toil-project> <name> [--id area=identity ...] [--kind human|agent]
-    [--email <address>]` adds someone to the toil project's `people`, or more identities to
+    [--email <address>] [--team <name>]` adds someone to the toil project's `people`, or more identities to
     someone already there: the user name, login or email each area knows them by. A
     value shaped like a token is refused, as is an identity already another person's.
     `--remove` takes the person out, or with `--id` only those identities; it's a
@@ -532,6 +580,11 @@ files directly:
     <ids>] [--on <id>] [--off <id>] [--threshold <id=n>] [--watch-for <text>]
     [--leave-out <text>]` tunes how Analyze briefs it. A value already set needs
     `--replace`; `--clear <setting>` and `--reset` are deletes, on the CLI only.
+  - `toil projects classify set <toil-project> [--scheme <name|./file.json>] [--target
+    <area>.<key>=<value>] [--clear <scheme|jira|github|ado>] [--replace]` sets its `classify` key
+    (#566). `--target` takes `<area>.field=<alias or id>`, `github.project=<owner>/<number>` and
+    `<area>.value.<category id>=<option>`. A value already set needs `--replace`; `--clear` is a
+    delete, on the CLI only.
   - `toil projects describe <toil-project> [--name <new name>] [--description <text>]`
     renames one of your own toil projects or replaces its description, or both. A rename
     writes `~/.toil/projects/<new name>.json` with everything the toil project held, checked

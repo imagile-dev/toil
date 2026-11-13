@@ -488,8 +488,17 @@ export const workRemoveTagCommand = adoArea.command({
     const { collection } = where(ctx);
     const id = toInt(input.id);
     const drop = new Set(tagList(input.tags).map((t) => t.toLowerCase()));
-    const remaining = currentTags(await getWorkItem(ctx, collection, id)).filter((t) => t && !drop.has(t.toLowerCase()));
-    return updateWorkItem(ctx, collection, id, [{ op: 'add', path: '/fields/System.Tags', value: remaining.join('; ') }]);
+    const have = currentTags(await getWorkItem(ctx, collection, id)).filter(Boolean);
+    const remaining = have.filter((t) => !drop.has(t.toLowerCase()));
+    // Azure DevOps reads `add` on System.Tags as "add these tags", so a tag left out of the value stays on the item (confirmed live
+    // on Services through `categorize`, 11 November 2026; not yet run on a Server): taking one off needs `replace`, which sets the
+    // whole list. Removing the last tag leaves nothing to replace with, and the REST API documents `remove` as the way to clear a
+    // field, so that case sends `remove` (this case has not met a live server). A tag the item doesn't hold changes nothing, and
+    // keeps sending the list it already had, as before.
+    const op: JsonPatchOp = remaining.length === have.length ? { op: 'add', path: '/fields/System.Tags', value: remaining.join('; ') }
+      : remaining.length === 0 ? { op: 'remove', path: '/fields/System.Tags' }
+      : { op: 'replace', path: '/fields/System.Tags', value: remaining.join('; ') };
+    return updateWorkItem(ctx, collection, id, [op]);
   },
 });
 

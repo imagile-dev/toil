@@ -131,7 +131,7 @@ The request it sent was
     "prod": { "openshift": { "host": "api.ocp.imagile.dev", "namespace": "payments-prod" } }
   },
   "people": [                                   // who is who in each system
-    { "name": "Pat Example", "email": "you@example.com",
+    { "name": "Pat Example", "email": "you@example.com", "team": "Checkout",
       "ids": { "jira": "pat", "github": "pat-ex", "ado": "you@example.com" } },
     { "name": "Claude", "kind": "agent", "ids": { "github": "claude" } }
   ],
@@ -171,7 +171,7 @@ The request it sent was
 - **`environments`**: per environment, sections that replace the area's own section
   when that environment applies (`--env prod`, or the toil project's `env`).
 - **`people`**: the team, agents included, each with a `name`, an optional `kind`
-  (`human`, the default, or `agent`), an optional `email`, and `ids`: the account each
+  (`human`, the default, or `agent`), an optional `email`, an optional `team` (the team they work in, one short line), and `ids`: the account each
   area knows them by, keyed by area. An identity is the user name, login or email that
   system shows (a Jira user name, a GitHub login, an Azure DevOps unique name or
   email, a Bitbucket Cloud account id); a `jira` or `ado` identity covers the Cloud
@@ -184,8 +184,20 @@ The request it sent was
 - **`wipLimit`**: how many items one person may have in progress at once, as the team
   agreed. Toil UI counts each person's work in progress against it, and `toil projects
   brief` flags anyone over it (**Brief**).
+- **`dimensions`**: extra dimensions to split work by, named once: `{ "customer": { "jira":
+  "customfield_10500", "ado": "Custom.Customer" } }`. A key is a dimension name (lowercase letters,
+  digits and hyphens); each value maps an area to the field that holds it (a field id or name, or a
+  GitHub Projects field's name). Mapping copies each onto every item as `dims`. It holds no
+  connection, host, `fields`, `transitions` or `writes`, and a dimension can't be named for one
+  of those.
 - **`analyze`**: how Analyze briefs the toil project: its goal, reader, lenses and what to
   watch for or leave out (**Analyze**). Absent, the standard applies.
+- **`classify`**: the classification scheme that sorts the toil project's work, and where each
+  tracker keeps the category besides a label: `{ "scheme": "ktlo-feature", "targets": { "jira":
+  { "field": "workCategory" } } }`. It names a scheme (`classify.md`) and holds no connection,
+  host or `writes`. Set it with `toil projects classify set <toil-project> --scheme <name|./file.json>
+  --target jira.field=workCategory`; `--clear <scheme|jira|github|ado>` removes a part, on the CLI
+  only, and a value already set needs `--replace`.
 
 ## Where toil projects live
 
@@ -230,7 +242,7 @@ toil projects link card-payments jira --host jira.imagile.dev --set project=PAY
 toil projects link card-payments bitbucket --host bitbucket.imagile.dev --set project=PAY --set repo=payments-core
 toil projects env card-payments dev openshift --host api.ocp-nonprod.imagile.dev --default
 toil projects field card-payments jira storyPoints customfield_10002
-toil projects person card-payments "Pat Example" --id jira=pat --id github=pat-ex --email you@example.com
+toil projects person card-payments "Pat Example" --id jira=pat --id github=pat-ex --email you@example.com --team Checkout
 toil projects person card-payments Claude --kind agent --id github=claude
 toil projects wip-limit card-payments 3
 toil projects describe card-payments --name payments-v2 --description "Card payments v2"
@@ -394,6 +406,100 @@ A focus from a toil project you haven't adopted (one checked into a repository) 
 applies, and the prompt says where it came from and that you haven't adopted it.
 The agent is told to list anything `--leave-out` hid, so nothing drops off the
 briefing unsaid.
+
+### Pivots and saved views
+
+`toil projects pivot` counts one thing, splits it by one dimension and, if you ask, spreads
+it across another, which is how "how much of our work is keep-the-lights-on, month by
+month?" becomes a table. It reads the same Open Work Items `brief` does and contacts no
+service. The toil project supplies its people (for `team`), its scheme (for `category`) and
+its saved views.
+
+```bash
+toil jira issue search --toil-project card-payments --jql "project = PAY AND resolved >= -90d" --changelog --fields summary,description,issuetype,status,labels,parent,fixVersions,versions,components,resolutiondate | toil util owi map > work.owi.json
+toil projects pivot card-payments --file work.owi.json --measure throughput --split category --across resolved:month --share
+toil projects view set card-payments release-mix --split release --share --top 4
+toil projects pivot card-payments --file work.owi.json --view release-mix
+```
+
+| Command | Flags | What it does |
+|---------|-------|--------------|
+| `toil projects pivot [toil-project]` | `--file`, `--text`, `--measure`, `--split`, `--across`, `--where`, `--from`, `--to`, `--share`, `--top`, `--pin`, `--include-parents`, `--as-of`, `--view`, `--scheme`, `--markdown`, `--cwd` | The table: `rows`, `columns`, `cells[row][column]` each with its `value`, `share`, the `items` behind it and how many were `measured`, plus totals, `coverage` and `notable` |
+| `toil projects view set <toil-project> <name>` | the pivot flags, `--title`, `--chart`, `--replace` | Save a pivot as a named view in the toil project's `views` key |
+| `toil projects view show <toil-project> <name>` | | One view, and the pivot it runs |
+| `toil projects view list <toil-project>` | | The toil project's views |
+| `toil projects view remove <toil-project> <name>` | | Delete a view (CLI only, like every delete) |
+
+`--measure` is one of `items` (the default), `estimate`, `days` (person-days in progress),
+`throughput` (items finished in the period), `cycleTime`, `wip` or `aging`.
+`--split` makes the rows and `--across` the columns, each one dimension:
+
+- single-valued: `category`, `type`, `status`, `statusCategory`, `priority`, `assignee`,
+  `team`, `iteration`, `project`, `tracker`, `connection`, `area` or `area:<depth>`;
+- parent: `parent`, `parent:top`, `parent:<TypeName>` such as `parent:Epic`;
+- multi-valued, so an item counts in each value it holds: `label` or `label:<prefix>`,
+  `component`, `release`, `affects`, `sprint`, and `dim:<name>` for a dimension the toil
+  project's `dimensions` key names;
+- time: `created`, `started` or `resolved`, each with `:week`, `:month` or `:quarter`;
+- derived: `age`, `size`, `planned`, `hasEpic`, `carried`, `reopened`.
+
+`--where "<dimension> = a, b"` or `"<dimension> != a"` keeps matching items (repeatable);
+`--from` and `--to` are days (`YYYY-MM-DD`), the period defaulting to the 90 days up to
+`--as-of`. `--top <n>` keeps that many rows and folds the rest into **Other** (default 4, `0`
+keeps all); a release or sprint axis keeps its latest values, in date order. `--pin
+<label>` keeps a row whatever its size. Splitting by a parent dimension leaves the parents
+out so their children carry the work, until you pass `--include-parents`. `--view <name>`
+runs a saved view, and any flag you pass overrides the view's field (`--where` replaces its
+filters). `--markdown` adds the table as Markdown in `data.markdown`.
+
+**Unread is not none.** A figure nobody read is `null`, never `0`. A dimension the read
+never fetched (no `components` on the records, no status history) puts those items in no
+row and says so in `coverage.notes`, and in `meta.warnings` as `PIVOT_UNREAD`; an item that
+was read and holds nothing goes in the "none" row (`No component`, `Unassigned`,
+`Unsure`). A cell that is `0` was counted and is empty; a cell that is `null` could not be
+counted, and carries a `reason`. `coverage` also says how many items an estimate, or a
+history, was read for. Each cell lists the OWI ids behind it, so a cell can be cited as
+`[[cell:<column key>/<row key>]]`.
+
+A saved view is the pivot's own fields under a name, plus a `title` and a `chart` form for
+Toil UI. `view set` checks every part before writing, refuses a different view of a name
+that is taken unless `--replace`, and holds no connection, host or secret, so an agent may
+run it over MCP. `view remove` deletes, so it is CLI only. Views live under `"views"` in
+the toil project file.
+
+The `insights` prompt, which `toil mcp` serves when `projects_pivot` is served, walks an
+agent through answering a question this way: read the toil project, read its work items
+with the fields a split needs, map them, pivot, and answer with every figure cited and
+what was not read said.
+### Diagrams
+
+A toil project can keep one architecture diagram: a C4 model, the same JSON
+`toil util c4` draws (see `util.md`), in your own folder at
+`~/.toil/diagrams/<toil-project>.json`, never in a repository. Each person, system,
+container, component and relationship in it says how it is known: `how` is `observed`
+(read from a file or a command, named in `source`) or `inferred` (concluded, with the
+`reason`), and an inferred one is drawn dashed or dotted. A diagram holds no URL, no
+host with a port and nothing shaped like a credential (a bare host name is allowed): a
+string with one, or anything shaped like a token, is refused, by path, so a
+fact cites a file and line or a command instead of an address. The file also records
+its `revision`, when it was saved, the toil version, and `notMapped`, the paths the
+mapping left out on purpose.
+
+```bash
+toil projects diagram check model.json --not-mapped dist/
+toil projects diagram save card-payments model.json --not-mapped dist/
+toil projects diagram show card-payments --view containers
+toil projects diagram list
+toil projects diagram remove card-payments
+```
+
+| Command | What it does |
+|---------|--------------|
+| `toil projects diagram check [file] [--text <json>] [--view <key>] [--not-mapped <path>]` | Runs every check `save` runs and keeps nothing: the model's own checks, then the stored-diagram checks. Returns the views, the counts (elements, relationships, `observed`, `inferred`, `unmarked`) and, with `--view`, that view as computed. Fix a model here before asking for a save |
+| `toil projects diagram save <toil-project> [file] [--text <json>] [--not-mapped <path>] [--replace]` | Keeps the diagram. A toil project that has one is refused, naming it, unless `--replace`, which replaces only a valid diagram and raises the revision by one. A local write: no `--allow-write`, and an agent may run it over MCP, on your yes |
+| `toil projects diagram show <toil-project> [--view <key>]` | The stored model with its revision, views and counts, and with `--view` that view computed. `toil projects diagram show card-payments --select model` feeds `toil util c4 render -` |
+| `toil projects diagram list` | Every diagram kept, with whether its toil project still resolves (`known`). A file that isn't a valid diagram is a `DIAGRAM_SKIPPED` warning naming the file and why, and is skipped |
+| `toil projects diagram remove <toil-project>` | Deletes a diagram, only a valid one. CLI only: a delete is never an MCP tool. `toil projects remove` keeps the diagram and says so |
 
 ### Share
 

@@ -6,9 +6,10 @@
  */
 
 import { Button, Label, ListBox, ListBoxItem, Popover, Select, SelectValue } from 'react-aria-components';
+import { ChevronDownIcon } from './icons.tsx';
 
 /** `faces` sets the font-family of an option's line, so a list of typefaces shows each in its own (Settings, Font). */
-export function Choice({ label, value, options, onChange, faces }: { label: string; value: string; options: Array<{ id: string; label: string }>; onChange: (id: string) => void; faces?: Record<string, string> }) {
+export function Choice({ label, value, options, onChange, faces }: { label: string; value: string; options: Array<{ id: string; label: string; /** Greyed and not pickable, with the reason in its label ("not read yet"). */ disabled?: boolean }>; onChange: (id: string) => void; faces?: Record<string, string> }) {
   return (
     <Select className="choice" selectedKey={value} onSelectionChange={(k) => k !== null && onChange(String(k))}>
       <Label>{label}</Label>
@@ -17,12 +18,12 @@ export function Choice({ label, value, options, onChange, faces }: { label: stri
             placeholder until its collection is built, a render later, and the header measures
             whether its row is full on that first render (#387). */}
         <SelectValue>{() => options.find((o) => o.id === value)?.label ?? value}</SelectValue>
-        <span aria-hidden="true">▾</span>
+        <ChevronDownIcon size={14} />
       </Button>
       <Popover className="popover">
         <ListBox className="menu">
           {options.map((o) => (
-            <ListBoxItem key={o.id} id={o.id} className="menu-item" {...(faces?.[o.id] ? { style: { fontFamily: faces[o.id] } } : {})}>
+            <ListBoxItem key={o.id} id={o.id} className="menu-item" textValue={o.label} {...(o.disabled ? { isDisabled: true } : {})} {...(faces?.[o.id] ? { style: { fontFamily: faces[o.id] } } : {})}>
               {o.label}
             </ListBoxItem>
           ))}

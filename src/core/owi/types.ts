@@ -102,6 +102,47 @@ export interface History {
   iterations: IterationChange[];
 }
 
+/**
+ * A release, or a version an item affects: Jira's fix and affects versions,
+ * a GitHub milestone, and a field an Azure DevOps toil project names.
+ * `released` is null where the source can't say (a text field), and `date` is
+ * the day the release is due or went out, null when it has none.
+ */
+export interface Release {
+  id: string | null;
+  name: string;
+  released: boolean | null;
+  date: string | null;
+  /**
+   * Optional. The day (`YYYY-MM-DD`) work on the release started, where the source says
+   * (Jira's version `startDate`); null when the source carries the field but it is empty.
+   * Absent: the source has no such field, or the read never fetched it.
+   */
+  start?: string | null;
+}
+
+/** One level of an item's parent chain, as `ancestors` holds it, nearest parent first. */
+export interface Ancestor {
+  id: string;
+  type: WorkItemType;
+  typeName: string | null;
+  title: string;
+}
+
+/** An Azure DevOps area path (`Imagile\Payments\Web`), kept whole so a split can cut it at any depth. */
+export interface AreaPath {
+  path: string;
+}
+
+/**
+ * The extra dimensions a toil project names, `dimensions` in its file: a
+ * dimension's name to the field that holds it in each area (`{ customer: {
+ * jira: 'customfield_10500', ado: 'Custom.Customer' } }`). A caller hands it
+ * to the mapper the way it hands field overrides; no mapper reads a toil
+ * project.
+ */
+export type DimensionMap = Record<string, Record<string, string>>;
+
 export interface Unmapped {
   field: string;
   reason: string;
@@ -110,6 +151,18 @@ export interface Unmapped {
 export interface Body {
   format: 'markdown' | 'wiki' | 'adf' | 'html';
   content: string | Record<string, unknown>;
+}
+
+/** One comment on a work item, as a stand-up reads it: who wrote it, when, and its text as plain text on one line. */
+export interface Comment {
+  id: string;
+  author: Person | null;
+  /** UTC, as `toISOString` writes it. */
+  at: string;
+  /** Plain text, markup taken out, capped; never HTML. */
+  text: string;
+  /** A link to the comment where the tracker gives one, else null. */
+  url: string | null;
 }
 
 export interface WorkItem {
@@ -141,6 +194,28 @@ export interface WorkItem {
   history: History | null;
   unmapped: Unmapped[];
   native: Record<string, unknown>;
+  /*
+   * The fields people split work by. All optional, and for all of them absent
+   * means the read never fetched it (a Jira search that didn't ask for
+   * fixVersions); an empty list, or null for `area`, means it was read and the
+   * item has none. A missing key is never the same as an empty one.
+   */
+  /** Fix versions (Jira), the milestone (GitHub), or the field `fields release` names (Azure DevOps). */
+  releases?: Release[];
+  /** Affected versions: Jira's `versions`, or the field `fields affects` names (Azure DevOps). */
+  affects?: Release[];
+  /** Jira components, by name. */
+  components?: string[];
+  /** Azure DevOps' area path; null when the record carries none. */
+  area?: AreaPath | null;
+  /** Every sprint or iteration the item has been in, where the source lists them; `iteration` stays the current one. */
+  sprints?: Iteration[];
+  /** The values of each dimension a toil project names, by dimension name; a value is always a list, since a field may hold several. */
+  dims?: Record<string, string[]>;
+  /** The parent chain among the records mapped together, nearest first. It ends where a parent isn't in the input. */
+  ancestors?: Ancestor[];
+  /** The comments the read returned, oldest first, the newest 20 at most. Absent: not read (a Jira search that didn't ask for `comment`). []: read, none. */
+  comments?: Comment[];
 }
 
 /** A history mapped for an item that wasn't in the same input. */
@@ -155,7 +230,7 @@ export interface OrphanHistory {
  * the label pattern that holds an estimate (`points: {n}`), and
  * `iterationDays`, how long a milestone's sprint runs.
  */
-export const OVERRIDABLE = ['estimate', 'estimateUnit', 'priority', 'type', 'team', 'dueDate', 'iteration', 'estimateLabel', 'iterationDays'] as const;
+export const OVERRIDABLE = ['estimate', 'estimateUnit', 'priority', 'type', 'team', 'dueDate', 'iteration', 'release', 'affects', 'estimateLabel', 'iterationDays'] as const;
 export type Overridable = (typeof OVERRIDABLE)[number];
 export type FieldOverrides = Partial<Record<Overridable, string>>;
 

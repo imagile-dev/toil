@@ -10,6 +10,10 @@
 export const VIEW_TYPES = ['systemContext', 'container', 'component'] as const;
 export type ViewType = (typeof VIEW_TYPES)[number];
 
+/** How a fact in the model is known: read from something, or concluded. */
+export const HOW = ['observed', 'inferred'] as const;
+export type How = (typeof HOW)[number];
+
 export type ElementKind = 'person' | 'system' | 'container' | 'component';
 
 export interface Element {
@@ -20,6 +24,10 @@ export interface Element {
   technology?: string | undefined;
   external: boolean;
   database: boolean;
+  /** How it is known, and the evidence: `source` for an observed one, `reason` for an inferred one. */
+  how?: How | undefined;
+  source?: string | undefined;
+  reason?: string | undefined;
   /** The id of the system or container it sits in. */
   parent?: string | undefined;
   /** Where it is in the model, for error messages: `systems[0].containers[1]`. */
@@ -31,6 +39,10 @@ export interface ViewEdge {
   to: string;
   description?: string | undefined;
   technology?: string | undefined;
+  /** The relationship's own `how`, `evidence` (as `source`) and `reason`, kept on the arrow drawn for it, implied ones included. */
+  how?: How | undefined;
+  source?: string | undefined;
+  reason?: string | undefined;
 }
 
 /** What one view draws, in model order, the same for every renderer. */

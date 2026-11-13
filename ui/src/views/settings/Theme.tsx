@@ -22,6 +22,7 @@ import { loadFonts, pairProperties, useFont } from '../../fonts.ts';
 import { useTheme, useThemeChoiceContext } from '../../theme-context.ts';
 import { THEMES } from '../../themes.ts';
 import { MomentsPreview } from '../../moments/Preview.tsx';
+import { CheckIcon } from '../../components/icons.tsx';
 
 export function ThemeSetting() {
   const theme = useTheme();
@@ -91,7 +92,7 @@ function Box({ label, on, disabled, onChange, describedBy }: { label: string; on
   return (
     <Checkbox className="check" isSelected={on} isDisabled={disabled} onChange={onChange} aria-describedby={describedBy}>
       <span className="box" aria-hidden="true">
-        {on ? '✓' : ''}
+        {on ? <CheckIcon size={14} /> : null}
       </span>
       {label}
     </Checkbox>

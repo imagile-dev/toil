@@ -1,6 +1,8 @@
 /**
  * A proposal: a change to a tracker that the UI or the agent suggests and a
- * person applies (#206, principle 2). Toil UI never writes. A proposal names
+ * person applies (#206, principle 2). A proposal alone writes nothing; where an
+ * Apply is offered it is a person's press, run through toil's own gate
+ * (a Board drop, an assignment's proposal). A proposal names
  * the toil command that would make the change and its exact input, and shows
  * the command line to run through toil's write gate (`writes: true` on the
  * connection, `--allow-write` on the call). test/registry.test.ts holds every
@@ -29,6 +31,8 @@ export interface Proposal {
   note: string | null;
   /** A read-only toil command that helps, such as listing the workflow's transitions, rendered like the main one. */
   hint?: Hint | null;
+  /** A second write, run after the command succeeds (put a card on the board, then set its Status), shown after it with its own --allow-write. */
+  then?: Hint | null;
 }
 
 /** A read-only command a proposal points to, and what it is for. */
@@ -206,8 +210,8 @@ export const POSITIONAL_FIELDS: ReadonlyMap<string, readonly string[]> = new Map
     'github pr reply',
   ),
   ...positional(['number'],
-    'github issue assign', 'github issue get', 'github issue history', 'github issue label',
-    'github issue unassign', 'github issue unlabel', 'github pr add-reviewers', 'github pr approve',
+    'github issue assign', 'github issue close', 'github issue get', 'github issue history', 'github issue label',
+    'github issue reopen', 'github issue unassign', 'github issue unlabel', 'github pr add-reviewers', 'github pr approve',
     'github pr close', 'github pr comment', 'github pr comment-inline', 'github pr comments',
     'github pr diff', 'github pr disable-auto-merge', 'github pr draft', 'github pr enable-auto-merge',
     'github pr enqueue', 'github pr files', 'github pr get', 'github pr merge', 'github pr ready',
@@ -231,7 +235,7 @@ export const POSITIONAL_FIELDS: ReadonlyMap<string, readonly string[]> = new Map
     'openshift pod logs',
   ),
   ...positional(['project', 'number'],
-    'github project status',
+    'github project add', 'github project status',
   ),
   ...positional(['project'],
     'github project fields', 'github project items', 'jira project get',

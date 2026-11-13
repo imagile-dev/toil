@@ -28,6 +28,7 @@ export const search = jiraArea.command({
     updatedSince: updatedSinceField,
     changelog: changelogField,
     fields: z.string().optional().describe('Comma-separated fields to return instead of the default set (names or ids, e.g. summary,status,"Story Points")'),
+    moreFields: z.string().optional().describe('Comma-separated fields to return in addition to the default set, or to --fields when that is given (names or ids, e.g. fixVersions,components)'),
   }),
   writes: false,
   // POST /search, as Jira recommends for JQL too long for a URL. It only reads.
@@ -41,6 +42,7 @@ export const search = jiraArea.command({
     updatedSinceOption,
     changelogOption,
     { flags: '--fields <list>', field: 'fields', description: 'Comma-separated fields to return instead of the default set (names or ids, e.g. summary,status,"Story Points")' },
+    { flags: '--more-fields <list>', field: 'moreFields', description: 'Comma-separated fields to return in addition to the default set, or to --fields when that is given (names or ids, e.g. fixVersions,components)' },
   ],
   examples: [
     { jql: 'project = PROJ AND status = "In Progress"', limit: 2 },
@@ -50,6 +52,7 @@ export const search = jiraArea.command({
     { jqlFile: 'query.jql', updatedSince: '2026-10-01T09:30:00Z', limit: 2 },
     { updatedSince: '2026-10-01' },
     { jql: 'project = PROJ', limit: 2, changelog: true },
+    { jql: 'project = PROJ', limit: 2, moreFields: 'fixVersions,components' },
   ],
   run: async (input, ctx) => {
     const fieldMap = buildFieldMap(ctx.connection.customFields);
@@ -71,6 +74,17 @@ export const search = jiraArea.command({
       if (fields.length === 0) throw new ToilError('INVALID_INPUT', '--fields must list at least one field.', { fix: 'Pass --fields summary,status.' });
     } else {
       fields = [...client.STANDARD_SEARCH_FIELDS, ...ctx.connection.customFields.map((f) => f.id)];
+    }
+    // --more-fields adds to whichever set the call would have asked for, so
+    // the default stays the default when a caller only wants one field extra.
+    if (input.moreFields !== undefined) {
+      const extra = commaList(input.moreFields).map((name) => {
+        const id = resolveFieldKey(name, fieldMap);
+        if (id === undefined) throw new ToilError('INVALID_INPUT', `Unknown field in --more-fields: "${name}".`, { fix: 'Use a field id, or a custom field name registered in customFields.' });
+        return id;
+      });
+      if (extra.length === 0) throw new ToilError('INVALID_INPUT', '--more-fields must list at least one field.', { fix: 'Pass --more-fields fixVersions,components.' });
+      fields = [...new Set([...fields, ...extra])];
     }
     // As the contract specifies: an empty --limit means all, and a
     // non-number reaches the request as null. --start-at is digits only.

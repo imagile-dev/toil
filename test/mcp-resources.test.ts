@@ -104,6 +104,7 @@ describe('MCP resources', () => {
       'toil://skill/jira',
       'toil://skill/upgrading',
       'toil://skill/workflows/README',
+      'toil://skill/workflows/classify',
       'toil://skill/workflows/map-codebase',
       'toil://skill/workflows/review',
       'toil://skill/workflows/ship',

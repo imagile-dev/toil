@@ -3,10 +3,11 @@
  * ticked off from toil's own state rather than from anything this page
  * remembers: a connection to a tracker (`toil connections list`, which counts
  * one made by env vars), a toil project (`toil projects list`), and a first sync
- * (the sync panel's status). Beside them, the command that restarts Toil UI on
- * the sample data. Each step's explanation is its (i), never a paragraph, and
- * the list goes once the first sync has finished. Onboarding, in three boxes,
- * none of them a training module.
+ * (the sync panel's status). Beside the guided setup sits one quiet way to look
+ * around on a sample team first (src/sample-mode.tsx), with nothing connected,
+ * restarted or written. Each step's explanation is its (i), never a paragraph,
+ * and the list goes once the first sync has finished. Onboarding, in three
+ * boxes, none of them a training module.
  */
 
 import { useEffect, useState, type ReactNode } from 'react';
@@ -17,7 +18,9 @@ import { ADD_CONNECTION_HREF, CREATE_TOIL_PROJECT_HREF } from '../views/Settings
 import { SETUP_HREF } from '../views/Setup.tsx';
 import { OWI_SOURCES } from '../../../src/core/owi/types.ts';
 import { usePlain } from '../plain-words.ts';
+import { LookAround } from '../sample-mode.tsx';
 import { Help } from './help.tsx';
+import { CheckIcon } from './icons.tsx';
 import './first-run.css';
 
 /** The areas a toil project reads work items from: a connection to one of these is a tracker. */
@@ -73,6 +76,7 @@ export function FirstRun({ toilProjects, synced, config, onSync, lede }: FirstRu
         <a className="btn btn--accent" href={SETUP_HREF} data-first-run-step="wizard">
           Set it up step by step
         </a>
+        <LookAround />
       </p>
       <div className="first-run__body">
         <ol className="first-run__steps">
@@ -104,7 +108,7 @@ function Step({ n, title, precise, topic, done, detail, children }: { n: number;
   return (
     <li className={`first-run__step${done ? ' first-run__step--done' : ''}`} data-done={done || undefined}>
       <span className="first-run__mark" aria-hidden="true">
-        {done ? '✓' : n}
+        {done ? <CheckIcon size={14} /> : n}
       </span>
       <div className="first-run__what">
         <div className="first-run__head">

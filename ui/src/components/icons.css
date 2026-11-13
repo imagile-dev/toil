@@ -1,0 +1,5 @@
+/* The icon set's base (icons.tsx). An icon sits on the text's baseline like a letter would, never stretches in a flex row,
+   and takes its colour from the text around it: that is the only thing a theme gets to change. */
+.icon { display: inline-block; flex: none; vertical-align: -0.15em; }
+.icon--after { margin-inline-start: 0.3em; }
+.icon--before { margin-inline-end: 0.3em; }

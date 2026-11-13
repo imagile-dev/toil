@@ -100,7 +100,7 @@ export function stubToil(): StubToil {
 
     if (command === 'jira issue search') {
       // The ids-only listing (fields: 'key') carries no changelog, and is answered from the one canned search the dashboard asks.
-      // A search that names its fields is the canned one with those fields (the loader asks for the connection's own); the listing is answered from it whatever they were.
+      // The loader's search names the fields it adds (`moreFields`, part of the canned input); the ids-only listing names none and is answered from that same canned search whatever they were.
       const hit = fields === 'key' ? canned.find((c) => c.command === command && c.input.toilProject === rest.toilProject && c.input.jql === rest.jql) : find(command, { ...rest, ...(fields === undefined ? {} : { fields }) });
       if (!hit) return fail(command, 'INVALID_INPUT', `No canned ${command}.`, 'Add it.');
       // fields: 'key' is the sync's ids-only listing (#493): the key and nothing else.

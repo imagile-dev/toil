@@ -36,7 +36,8 @@ import { ChatUsage, UsageFooter } from './usage.tsx';
 import type { AnswerUsage } from '../model-usage.ts';
 import type { ChatSession } from '../fingerprint.ts';
 import { StaleNote } from './stale.tsx';
-import { Glossary } from './help.tsx';
+import { Glossary, InfoTip } from './help.tsx';
+import { ChevronDownIcon, CloseIcon } from './icons.tsx';
 import { HELP } from '../help.ts';
 import { useNotify } from './notify.tsx';
 import { analysisHref, toilProjectHref } from '../format.ts';
@@ -44,10 +45,12 @@ import type { AnalysisSummary } from '../model/analysis.ts';
 import { AnalysisBody } from './analysis.tsx';
 import { Loader } from '../moments/Moments.tsx';
 import { useUiCommand } from '../commands.ts';
+import type { ViewContext } from '../view-context.ts';
 import { usePlain } from '../plain-words.ts';
 import { STANDARD_THINKING, thinkingPhrase } from '../thinking.ts';
 import { ThinkingIcon, useNow, useThinkingPhrases } from './thinking.tsx';
 import { AnswerChecks, GuidedStart, PHONE } from './guided.tsx';
+import { DiagramCard, FoldedCode } from './diagram-card.tsx';
 import { GROUPS, QUESTIONS, type GuidedQuestion } from '../guided-questions.ts';
 
 /** A new chat's id: one per toil project's conversation, so the server can add up the chat (#295). */
@@ -69,6 +72,8 @@ export interface Turn {
   ms?: number;
   /** What a run that failed or was stopped used (#295): counted in the chat as the server counts it. */
   usage?: AnswerUsage;
+  /** The chart the question was about (#567), which its cell citations are read against. */
+  context?: ViewContext;
 }
 /** The chat switched agent (#344): said in the log, where it happened. */
 interface Switch {
@@ -157,6 +162,8 @@ function useChat() {
   const [adapters, setAdapters] = useState<AdapterList | null>(null);
   const [session, setSession] = useState<ChatSession | null>(null);
   const [renewProblem, setRenewProblem] = useState<string | null>(null);
+  // The chart the next question is about (#567): attached by a Charts view or the palette, shown as a chip, sent with each question until removed.
+  const [attached, setAttached] = useState<ViewContext | null>(null);
   const next = useRef(0);
   const chatId = useRef(newChatId());
   const abort = useRef<AbortController | null>(null);
@@ -207,11 +214,11 @@ function useChat() {
     // A picked agent goes as it is; an unpicked chat sends the toil project's remembered one (#494) or the first ready one when the default can't run, and the Settings default as before: by sending nothing.
     const from = defaultAgent(list);
     const sent = adapter ?? (from && from.source !== 'settings' ? from.name : null);
-    const extra = { ...(sent ? { adapter: sent } : {}), ...(!adapter && from?.source === 'ready' ? { fallback: true } : {}), ...(history.length ? { history } : {}) };
+    const extra = { ...(sent ? { adapter: sent } : {}), ...(!adapter && from?.source === 'ready' ? { fallback: true } : {}), ...(history.length ? { history } : {}), ...(attached ? { context: attached } : {}) };
     const controller = new AbortController();
     abort.current = controller;
     const started = Date.now();
-    setEntries((es) => [...es, { kind: 'turn', id, prompt: shown, answer: null, error: null, done: false, started, ...(prompt === ANALYZE ? { analyze: true } : {}) }]);
+    setEntries((es) => [...es, { kind: 'turn', id, prompt: shown, answer: null, error: null, done: false, started, ...(prompt === ANALYZE ? { analyze: true } : {}), ...(attached ? { context: attached } : {}) }]);
     try {
       let last: Answer | null = null;
       if (agent.stream) {
@@ -306,7 +313,7 @@ function useChat() {
     }
   };
 
-  return { entries, turns, busy, ask, stop, adapter, adapters, refreshAdapters, switchTo, session, checkSession, renew, renewProblem, history: past };
+  return { entries, turns, busy, ask, stop, adapter, adapters, refreshAdapters, switchTo, session, checkSession, renew, renewProblem, history: past, attached, attach: setAttached, detach: () => setAttached(null) };
 }
 
 export type Chat = ReturnType<typeof useChat>;
@@ -372,6 +379,11 @@ export function AskBar() {
     else if (c.kind === 'job' && !chat.busy) {
       openView();
       void chat.ask(c.prompt, c.label);
+    } else if (c.kind === 'ask-about') {
+      // The chart attaches and the suggested question waits in the box: nothing is sent until the person presses Ask (#567).
+      chat.attach(c.context);
+      if (c.question !== undefined) setText(c.question);
+      openView();
     }
   });
 
@@ -385,6 +397,7 @@ export function AskBar() {
           Ask
         </Button>
       </form>
+      {chat.attached && !open && <AboutChip context={chat.attached} onRemove={chat.detach} />}
       {chat.session?.stale && !open && <StaleNote stale={chat.session.stale} className="ask-bar__stale" />}
       {last && !open && (
         <p className="ask-bar__resume note">
@@ -598,12 +611,18 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                         {e.analyze ? (
                           <AnalysisBody parts={e.answer.parts} briefing={e.answer.briefing} done={e.done} />
                         ) : (
-                          e.answer.parts.map((p, i) => (
-                            <p key={i}>
-                              <Cited text={p.text} chips />
-                            </p>
-                          ))
+                          e.answer.parts.map((p, i) =>
+                            p.fence !== undefined ? (
+                              <FoldedCode key={i} part={p} />
+                            ) : (
+                              <p key={i}>
+                                <Cited text={p.text} chips cells={e.context} />
+                              </p>
+                            ),
+                          )
                         )}
+                        {/* The Diagram job's draft (#582): the model its last passing check was given, one press from kept, straight under what it says about it. */}
+                        {e.done && !e.stopped && e.answer.diagram && <DiagramCard draft={e.answer.diagram} />}
                         {e.done && !e.stopped && <AnswerChecks answer={e.answer} prompt={e.prompt} {...(e.analyze ? { analyze: true } : {})} {...(e.ms !== undefined ? { ms: e.ms } : {})} safe={e.id === firstAnswered} />}
                         {/* Who answered is the header's to say; this line is for what is different about this answer. */}
                         {e.done && (e.stopped || (e.answer.unverified && e.answer.unverified.length > 0) || labelOf(e.answer) !== answering || e.answer.carried || e.answer.analysis) && (
@@ -680,6 +699,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
             </Popover>
           </MenuTrigger>
         )}
+        {chat.attached && <AboutChip context={chat.attached} onRemove={chat.detach} />}
         <form className="ask-form" onSubmit={submit}>
           <TextField className="field-text" value={text} onChange={setText} isDisabled={busy} autoFocus>
             <Label>Your question</Label>
@@ -691,6 +711,23 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
         </form>
       </div>
     </Dialog>
+  );
+}
+
+/**
+ * The chart a question is about (#567), in sight before anything is sent, with
+ * the way to stop sending it. A quiet line, not a banner: it says what is
+ * attached and nothing else.
+ */
+export function AboutChip({ context, onRemove }: { context: ViewContext; onRemove: () => void }) {
+  const words = useWords();
+  return (
+    <p className="ask-about note" data-ask-about="">
+      <span>{words('ask.about', { title: context.title })}</span>
+      <Button className="btn btn--small" onPress={onRemove} aria-label={words('ask.about.remove')} data-ask-about-remove="">
+        <CloseIcon size={14} />
+      </Button>
+    </p>
   );
 }
 
@@ -707,7 +744,7 @@ function AgentSwitch({ label, list, current, onPick, compact = false }: { label:
     <DialogTrigger>
       <Button className="btn btn--small agent-switch" data-agent-switch="">
         {compact ? 'Change' : plain.text(label)}
-        <span aria-hidden="true"> ▾</span>
+        <ChevronDownIcon size={14} className="icon--after" />
         <span className="sr-only">{plain.text(', change the agent for this chat')}</span>
       </Button>
       <Popover className="popover agent-switch__popover" placement="bottom start" offset={6}>
@@ -786,27 +823,14 @@ export function AskInfo({ agentLabel }: { agentLabel: string | undefined }) {
       ? `Themed agent voice is off, so answers are in plain wording, whatever the theme.`
       : `${theme.label} has no voice of its own, so answers are in plain wording.`;
   return (
-    <DialogTrigger>
-      <Button className="btn info-button" data-ask-info="">
-        <span aria-hidden="true" className="info-button__mark">
-          i
-        </span>
-        <span className="sr-only">About these answers</span>
-      </Button>
-      <Popover className="popover ask-info" placement="bottom end" offset={6}>
-        <Dialog className="ask-info__dialog" aria-labelledby="ask-info-title">
-          <Heading slot="title" id="ask-info-title" className="ask-info__title">
-            About these answers
-          </Heading>
-          <p>{voice}</p>
-          <p>{plain.text(`Answered by ${agentLabel ?? 'the agent chosen in Settings'}. The chat starts on the agent last used for this Toil project, else your default under Settings, AI agent, else the first agent that's ready.`)}</p>
-          <p>{plain.text("The agent only reads: its tools can't change a ticket, and anything it suggests comes back as a proposal for you to apply.")}</p>
-          <p>
-            Change the voice under <a href="#/settings/appearance">Settings, Appearance</a>, and add your own instructions or voice under <a href="#/settings/agent">Settings, AI agent</a>.
-          </p>
-          <Glossary entries={HELP.answers.glossary} />
-        </Dialog>
-      </Popover>
-    </DialogTrigger>
+    <InfoTip label="these answers" tip={voice} placement="bottom end" triggerProps={{ 'data-ask-info': '' }}>
+      <p>{voice}</p>
+      <p>{plain.text(`Answered by ${agentLabel ?? 'the agent chosen in Settings'}. The chat starts on the agent last used for this Toil project, else your default under Settings, AI agent, else the first agent that's ready.`)}</p>
+      <p>{plain.text("The agent only reads: its tools can't change a ticket, and anything it suggests comes back as a proposal for you to apply.")}</p>
+      <p>
+        Change the voice under <a href="#/settings/appearance">Settings, Appearance</a>, and add your own instructions or voice under <a href="#/settings/agent">Settings, AI agent</a>.
+      </p>
+      <Glossary entries={HELP.answers.glossary} />
+    </InfoTip>
   );
 }

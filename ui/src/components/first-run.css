@@ -3,6 +3,7 @@
 
 .first-run { display: grid; gap: 1rem; margin-block: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); color: var(--ink); min-width: 0; }
 .first-run__head { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.first-run__guided { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0; }
 .first-run__head h2 { font-size: 1.25rem; }
 .first-run__head h3 { font-size: 1rem; }
 .first-run__body { display: grid; gap: 1rem; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }

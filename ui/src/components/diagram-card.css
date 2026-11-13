@@ -1,0 +1,7 @@
+/* The Diagram job's Save card (#582): a card in the answer, quiet until there is something to press. */
+.diagram-card { border: 1px solid var(--line); border-radius: var(--radius, 6px); background: var(--raised); padding: 0.75rem 1rem; display: grid; gap: 0.4rem; margin-top: 0.5rem; min-width: 0; overflow-wrap: anywhere; }
+.diagram-card h3 { margin: 0; font-size: 1rem; }
+.diagram-card p { margin: 0; }
+.diagram-card__act { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
+.ask-code { margin: 0.25rem 0; }
+.ask-code pre { margin: 0; padding: 0.5rem 0.75rem; background: var(--surface); font-size: 0.8rem; white-space: pre; }

@@ -10,7 +10,7 @@ import { toilProjectConnection } from '../core/call-context.js';
 import { CONNECTION_NAME, connectionWrites, defaultConnectionName, type ResolvedConfig } from '../core/config.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
 import {
-  toilProjectContent, EMAIL, hasSecretUserinfo, identityKey, identityProblem, normalizeRemote, PERSON_KINDS, samePath, selectorHost, stripUserinfo,
+  toilProjectContent, EMAIL, hasSecretUserinfo, identityKey, identityProblem, teamProblem, normalizeRemote, PERSON_KINDS, samePath, selectorHost, stripUserinfo,
   type ToilProject, type ToilProjectCatalog, type ToilProjectFile, type ToilProjectPerson, type Section,
 } from '../core/toil-project.js';
 import { isLensId, LENSES, type LensId } from '../core/brief/brief.js';
@@ -267,7 +267,7 @@ export function toilProjectBuildCommands(areas: readonly AnyArea[]): AnyCommand[
     path: ['projects', 'person'],
     description: "Add someone to a toil project's people, with the identity each system knows them by",
     toolDescription:
-      "Adds a person (or an agent, kind agent) to the toil project's people list, or adds to one already there: the identity each area knows them by (id github=pat-ex, id jira=pat), and an email used only to suggest matches. An identity is a user name, login or email, never a credential, and one account can be only one person's. Refuses to change an identity, kind or email already set unless replace is set. Removing a person or an identity (remove) is a delete: a person does that on the CLI. A local write: no allowWrite.",
+      "Adds a person (or an agent, kind agent) to the toil project's people list, or adds to one already there: the identity each area knows them by (id github=pat-ex, id jira=pat), an email used only to suggest matches, and the team they work in (team). An identity is a user name, login or email, never a credential, and one account can be only one person's. Refuses to change an identity, kind, email or team already set unless replace is set. Removing a person or an identity (remove) is a delete: a person does that on the CLI. A local write: no allowWrite.",
     input: z.object({
       toilProject: toilProjectField,
       name: z.string().min(1).describe('The person\'s name as the team writes it, e.g. Pat Example'),
@@ -278,6 +278,7 @@ export function toilProjectBuildCommands(areas: readonly AnyArea[]): AnyCommand[
       bitbucket: z.string().min(1).optional().describe('Their Bitbucket user name or account id. The same as id bitbucket=<identity>'),
       kind: z.enum(PERSON_KINDS).optional().describe('human (the default) or agent'),
       email: z.string().min(1).optional().describe('Their email, compared only to suggest which unmapped identities are theirs'),
+      team: z.string().min(1).optional().describe('The team they work in, as the team writes it (at most 100 characters). Splits by team take the assignee of an item to this'),
       remove: z.boolean().optional().describe('Remove the person, or with id only those identities. A delete: CLI only.'),
       replace: replaceField,
     }),
@@ -293,11 +294,12 @@ export function toilProjectBuildCommands(areas: readonly AnyArea[]): AnyCommand[
       { flags: '--bitbucket <identity>', field: 'bitbucket', description: 'Their Bitbucket user name or account id, as --id bitbucket=<identity>' },
       { flags: '--kind <kind>', field: 'kind', description: 'human (the default) or agent' },
       { flags: '--email <address>', field: 'email', description: 'Their email, used only to suggest matches' },
+      { flags: '--team <name>', field: 'team', description: 'The team they work in, for splits by team' },
       { flags: '--remove', field: 'remove', description: 'Remove the person, or with --id only those identities (CLI only)' },
       replaceOption,
     ],
     examples: [
-      { toilProject: 'payments', name: 'Pat Example', id: ['jira=pat', 'github=pat-ex'], email: 'you@example.com' },
+      { toilProject: 'payments', name: 'Pat Example', id: ['jira=pat', 'github=pat-ex'], email: 'you@example.com', team: 'Checkout' },
       { toilProject: 'payments', name: 'Sam Example', github: 'sam-ex', jira: 'sam', ado: 'sam@example.com', bitbucket: 'sam.example' },
       { toilProject: 'payments', name: 'Claude', kind: 'agent', id: ['github=claude'], replace: true },
       // A removal is off MCP, so the example that sets the field keeps it false, as parity runs every example through both doors.
@@ -361,6 +363,13 @@ export function toilProjectBuildCommands(areas: readonly AnyArea[]): AnyCommand[
       if (input.email !== undefined) {
         if (next.email !== undefined && next.email.toLowerCase() !== input.email.toLowerCase() && !input.replace) throw refuse(`${next.name}'s email is already ${next.email}`, 'Pass --replace to change it.');
         next.email = input.email;
+      }
+      if (input.team !== undefined) {
+        const team = input.team.trim();
+        if (teamProblem(team)) throw refuse("--team isn't a team name", 'Give the name as one short line of text, such as Checkout, and never a token.');
+        if (next.team !== undefined && next.team.toLowerCase() !== team.toLowerCase() && !input.replace) throw refuse(`${next.name}'s team is already ${next.team}`, 'Pass --replace to change it.');
+        // The same team in another case is the same team: the file keeps it as first written.
+        if (next.team === undefined || next.team.toLowerCase() !== team.toLowerCase()) next.team = team;
       }
       if (current) toilProject.people[at] = next;
       else toilProject.people.push(next);
@@ -636,6 +645,11 @@ export function toilProjectBuildCommands(areas: readonly AnyArea[]): AnyCommand[
       const mine = catalog.scan().files.find((f) => f.source === 'user' && (f.toilProject?.name === input.name || (!f.toilProject && basename(f.file).replace(/\.json$/i, '') === input.name)));
       if (!mine) throw new ToilError('INVALID_INPUT', `You have no toil project named "${input.name}" in ${forwardSlashes(catalog.places().user)}.`, { fix: 'Run toil projects list to see the names. Only your own toil projects can be removed here.' });
       rmSync(mine.file);
+      // A diagram outlives its toil project on purpose; the person is told, and decides.
+      const diagram = ctx.manage?.diagrams;
+      if (diagram && existsSync(diagram.fileFor(input.name))) {
+        ctx.warn({ code: 'DIAGRAM_KEPT', message: `Toil project ${input.name} had a stored diagram (${diagram.fileFor(input.name)}), and it was kept. To delete it too: toil projects diagram remove ${input.name}.` });
+      }
       return { name: input.name, file: forwardSlashes(mine.file), deleted: true };
     },
   });
@@ -891,14 +905,14 @@ export function toilProjectBuildCommands(areas: readonly AnyArea[]): AnyCommand[
   }
 }
 
-interface Access {
+export interface Access {
   catalog: ToilProjectCatalog;
   config: ResolvedConfig;
   via: ConfigAccess['via'];
   prompt: ConfigAccess['prompt'];
 }
 
-function access(ctx: CommandContext<unknown>): Access {
+export function access(ctx: CommandContext<unknown>): Access {
   if (!ctx.manage) throw new Error('A toil projects command ran without ctx.manage; define it with defineConfigCommand.');
   if (!ctx.manage.toilProjects) throw new ToilError('NOT_CONFIGURED', 'Toil projects are not available here.', { fix: 'Run toil projects from the CLI or toil mcp.' });
   return { catalog: ctx.manage.toilProjects, config: ctx.manage.config, via: ctx.manage.via, prompt: ctx.manage.prompt };
@@ -945,7 +959,7 @@ async function sharedBinding<T extends { connection?: string | undefined; host?:
  * of the file, and an edit that reaches here always does: that's said, in a
  * warning and in `credentialsRemoved`, and counts as a change.
  */
-function saved(ctx: CommandContext<unknown>, catalog: ToilProjectCatalog, file: ToilProjectFile & { toilProject: ToilProject }, toilProject: ToilProject, changed: boolean, extra: Record<string, unknown>) {
+export function saved(ctx: CommandContext<unknown>, catalog: ToilProjectCatalog, file: ToilProjectFile & { toilProject: ToilProject }, toilProject: ToilProject, changed: boolean, extra: Record<string, unknown>) {
   const removed = credentialPaths(file);
   const write = changed || removed.length > 0;
   const written = write ? catalog.save(file.file, toilProject, 'edit') : forwardSlashes(file.file);
@@ -963,7 +977,7 @@ function credentialPaths(file: ToilProjectFile): string[] {
  * flag whose value may be something that shouldn't be repeated (`--id`, where a
  * pasted token is the mistake being refused).
  */
-function keyValue(pair: string, flag: string, { example = 'project=PAY', quiet = false }: { example?: string; quiet?: boolean } = {}): [string, string] {
+export function keyValue(pair: string, flag: string, { example = 'project=PAY', quiet = false }: { example?: string; quiet?: boolean } = {}): [string, string] {
   const at = pair.indexOf('=');
   if (at <= 0 || at === pair.length - 1) throw new ToilError('INVALID_INPUT', quiet ? `${flag} takes key=value, and one value given isn't.` : `${flag} takes key=value, and "${pair}" isn't.`, { fix: `For example ${flag} ${example}.` });
   return [pair.slice(0, at), pair.slice(at + 1)];

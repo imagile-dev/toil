@@ -4,6 +4,7 @@
  * terminfo, no package. Terminals have been parsing these escape sequences
  * since before most change-approval boards were formed, and with fewer meetings.
  */
+import { envSwitch } from '../core/env-boolean.js';
 
 export type Rgb = readonly [number, number, number];
 
@@ -63,7 +64,7 @@ export interface TermLike {
 
 /** Reduced motion: TOIL_REDUCED_MOTION, or TOIL_NO_ANIMATION, its older name. The splash is then drawn once. */
 export function reducedMotion(env: NodeJS.ProcessEnv): boolean {
-  return Boolean(env.TOIL_REDUCED_MOTION || env.TOIL_NO_ANIMATION);
+  return envSwitch(env.TOIL_REDUCED_MOTION) || envSwitch(env.TOIL_NO_ANIMATION);
 }
 
 /**
@@ -78,7 +79,7 @@ export function detectCaps(out: TermLike, env: NodeJS.ProcessEnv, platform: Node
   const raw = noColor ? 1 : (out.getColorDepth?.(env) ?? 1);
   const colorDepth = raw >= 24 ? 24 : raw >= 8 ? 8 : raw >= 4 ? 4 : 1;
   const modernHost = isModernHost(env, platform);
-  const unicode = env.TOIL_ASCII ? false : modernHost;
+  const unicode = envSwitch(env.TOIL_ASCII) ? false : modernHost;
   const columns = out.columns ?? 80;
   const rows = out.rows ?? 24;
   const animate =

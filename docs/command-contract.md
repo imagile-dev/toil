@@ -91,9 +91,12 @@ fails when the two differ.
 It's a whole number, bumped by one, in the same change, whenever the contract breaks:
 a command, flag, `data` field or envelope key is removed, renamed or repurposed, or an
 error code changes meaning. Those are exactly the changes Delivery in `CLAUDE.md`
-declares with `feat!:` and a `BREAKING CHANGE:` footer. An additive change (a new
-command, flag, field, error code, warning or `meta` key) leaves it alone, so a
-caller built against version N works with every toil that reports N.
+declares with `feat!:` and a `BREAKING CHANGE:` footer: a breaking change is one that
+makes something that used to work stop working (principle 7). An additive change (a new
+command, flag, field, error code, warning or `meta` key) leaves it alone, and so does
+something that never worked starting to work (a value toil could not read before, a
+call it refused), so a caller built against version N works with every toil that
+reports N.
 
 The contract is stable from the first beta, `0.1.0-beta.1` (principle 7). The alphas
 before it all report 1, the first beta ships 1, and every breaking change from then

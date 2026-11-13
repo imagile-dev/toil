@@ -1,0 +1,240 @@
+/**
+ * The wrapper every chart sits in (docs/work-insights-proposal.md, "What every
+ * chart does"), so no form has to remember any of it:
+ *
+ *   <ChartFrame title source result onDrill onFilter ...>{(view) => <StackedColumns view={view} />}</ChartFrame>
+ *
+ * Props:
+ *  - `title`        the chart's heading, plain words.
+ *  - `result`       the `PivotResult` it draws.
+ *  - `source`       the source line, always on screen: "From Jira and GitHub, read today".
+ *  - `coverage?`    what was left out and why; default `result.coverage.notes`.
+ *  - `scheme?`, `pins?`  how rows get marks (assign.ts).
+ *  - `modes?`       show the Count / Share toggle (default true); `defaultMode?`.
+ *  - `legend?`      `'swatch'` (default), `'line'` (dashed-line chips) or `'none'` (a heatmap).
+ *  - `onDrill?(cell)` a click, Enter or Space on a mark; `onFilter?(cell)` Shift-click.
+ *  - `actions?`     a slot beside the toggles, for the chart's menu.
+ *  - `unreadAction?` the action that reads an unread dimension; shown in the unread state.
+ *  - `children(view)` draws the chart from the `ChartView` (view.tsx).
+ *
+ * It owns: the tooltip and keyboard (tip.tsx), the legend (click isolates one
+ * series, Alt-click, the context menu or M opens a small menu to hide it or show
+ * all), Count / Share, "Show the figures" (the pivot as a table, an unread cell
+ * a dash titled "not read yet", totals), the source and coverage line, and the
+ * unread state: when the split or the across was never read the frame says
+ * "<Dimension> wasn't read" with `unreadAction` and draws no chart at all.
+ *
+ * The source is one short line ("From Jira, read 13 Oct 2026", always on screen). What else the chart has to confess, the
+ * date range the items go back to and everything it left out, is a count beside it that opens the full sentences on a
+ * press: layered, never deleted. The committee can read it, once it asks.
+ */
+
+import { useId, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import { ALL_KEY, type PivotResult } from '../../../../src/core/insights/types.ts';
+import { matches, matchesAny } from '../../shortcuts.ts';
+import { useWords } from '../../theme-context.ts';
+import { Figures } from '../charts.tsx';
+import { ChevronDownIcon, ChevronRightIcon } from '../icons.tsx';
+import { Unread } from '../unread.tsx';
+import type { AssignOptions } from './assign.ts';
+import { axisName, num, percent, seriesText, shareOf, type ChartMode } from './describe.ts';
+import { Swatch } from './marks.tsx';
+import { useChartView, type CellRef, type ChartView } from './view.tsx';
+import './chartkit.css';
+
+export interface ChartFrameProps extends AssignOptions {
+  title: string;
+  result: PivotResult;
+  source: string;
+  coverage?: string[];
+  modes?: boolean;
+  defaultMode?: ChartMode;
+  legend?: 'swatch' | 'line' | 'none';
+  /** A legend entry for the neutral dashed line a burn-up draws ("Scope"), beside the series. */
+  scopeLabel?: string;
+  onDrill?: (cell: CellRef) => void;
+  onFilter?: (cell: CellRef) => void;
+  actions?: ReactNode;
+  unreadAction?: ReactNode;
+  children: (view: ChartView) => ReactNode;
+}
+
+/** The dimension a result could not read, if any: the split first, then the across. */
+export function unreadDimension(result: PivotResult): string | null {
+  if (result.split && !result.split.read) return result.split.label;
+  if (result.across && !result.across.read) return result.across.label;
+  return null;
+}
+
+/** The pivot as table rows for "Show the figures": a dash titled "not read yet" for a null, totals last. */
+export function figureRows(result: PivotResult): { head: string[]; rows: ReactNode[][] } {
+  const cell = (c: { value: number | null }, share: number | null) => (c.value === null ? <Unread titled /> : share === null ? num(c.value) : `${num(c.value)} (${percent(share)})`);
+  const many = result.columns.length > 1;
+  const head = [result.split?.label ?? 'All', ...result.columns.map(axisName), ...(many ? ['Total'] : [])];
+  const body = result.rows.map((r, ri) => [axisName(r), ...result.columns.map((_, ci) => cell(result.cells[ri]![ci]!, many || result.columns[ci]!.key !== ALL_KEY ? shareOf(result, ri, ci) : null)), ...(many ? [cell(result.rowTotals[ri]!, null)] : [])]);
+  const totals = ['Total', ...result.columns.map((_, ci) => cell(result.columnTotals[ci]!, null)), ...(many ? [cell(result.total, null)] : [])];
+  return { head, rows: [...body, totals] };
+}
+
+/** The source line's first sentence, and the rest of it. A source without a second sentence has no rest. */
+export function splitSource(source: string): { line: string; rest: string } {
+  const m = /^(.*?\.)\s+(\S.*)$/s.exec(source.trim());
+  return m ? { line: m[1]!, rest: m[2]! } : { line: source.trim(), rest: '' };
+}
+
+/** What the count beside the source says: the items the table left out when it can tell, else how many notes there are. */
+export function notesLabel(result: PivotResult, notes: string[]): string {
+  const c = result.coverage;
+  // `items - measured` already holds the items whose split or across was never read (only eligible items are measured), so those are not added again.
+  // Cycle time and aging read only the items that apply (the finished, the open): the rest are not applicable, not left out, so only the parents count.
+  const appliesToAll = result.measure.id !== 'cycleTime' && result.measure.id !== 'aging';
+  const left = c.parentsLeftOut + (appliesToAll ? Math.max(0, c.items - c.measured) : 0);
+  const drawn = result.rows.length > 0;
+  if (drawn && left > 0) return `${num(left)} ${left === 1 ? 'item' : 'items'} left out`;
+  return `${notes.length} ${notes.length === 1 ? 'note' : 'notes'}`;
+}
+
+function SourceLine({ id, source, notes, result }: { id: string; source: string; notes: string[]; result: PivotResult }) {
+  const [open, setOpen] = useState(false);
+  const { line, rest } = splitSource(source);
+  const all = [...(rest ? [rest] : []), ...notes];
+  return (
+    <div className="ck-source note">
+      <p className="ck-source__line">
+        {line}
+        {all.length > 0 && (
+          <button type="button" className="ck-source__more" aria-expanded={open} aria-controls={`${id}-notes`} onClick={() => setOpen((o) => !o)} data-source-notes="">
+            {open ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
+            {notes.length > 0 ? notesLabel(result, notes) : 'About this data'}
+          </button>
+        )}
+      </p>
+      {open && (
+        <p id={`${id}-notes`} className="ck-source__notes">
+          {all.join(' ')}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function ChartFrame({ title, result, source, coverage, modes = true, defaultMode = 'count', legend = 'swatch', scopeLabel, onDrill, onFilter, actions, unreadAction, scheme, pins, children }: ChartFrameProps) {
+  const words = useWords();
+  const [mode, setMode] = useState<ChartMode>(defaultMode);
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
+  const [isolated, setIsolated] = useState<string | null>(null);
+  const [menu, setMenu] = useState<string | null>(null);
+  const id = useId();
+  const view = useChartView({ result, mode, hidden, isolated, onDrill, onFilter, ...(scheme ? { scheme } : {}), ...(pins ? { pins } : {}) });
+  const unread = unreadDimension(result);
+  const notes = coverage ?? result.coverage.notes;
+  const narrowed = hidden.size > 0 || isolated !== null;
+
+  const isolate = (key: string) => setIsolated((cur) => (cur === key ? null : key));
+  const toggleHide = (key: string) => {
+    setIsolated(null);
+    setHidden((h) => {
+      const next = new Set(h);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+  const showAll = () => {
+    setHidden(new Set());
+    setIsolated(null);
+    setMenu(null);
+  };
+  const legendClick = (key: string) => (e: MouseEvent) => {
+    if (e.altKey) {
+      e.preventDefault();
+      setMenu(key);
+    } else isolate(key);
+  };
+  const legendKey = (key: string) => (e: KeyboardEvent) => {
+    if (matches('chartClose', e)) setMenu(null);
+    if (matchesAny('chartMenu', e)) {
+      e.preventDefault();
+      setMenu(key);
+    }
+  };
+
+  const { head, rows } = figureRows(result);
+  return (
+    <figure className="ck-chart" ref={view.host.hostRef} {...view.host.hostProps} aria-labelledby={`${id}-t`}>
+      <header className="ck-chart__head">
+        <h3 id={`${id}-t`}>{title}</h3>
+        {!unread && modes && (
+          <div className="ck-toggle" role="group" aria-label="Show as">
+            {(['count', 'share'] as const).map((m) => (
+              <button key={m} type="button" className="btn ck-toggle__btn" aria-pressed={mode === m} onClick={() => setMode(m)}>
+                {words(m === 'count' ? 'chart.count' : 'chart.share')}
+              </button>
+            ))}
+          </div>
+        )}
+        {actions}
+      </header>
+      {unread ? (
+        <div className="ck-unread-state">
+          <p>
+            <Unread /> {words('chart.unread', { dimension: unread })}
+          </p>
+          {unreadAction}
+        </div>
+      ) : (
+        <>
+          {children(view)}
+          {legend !== 'none' && result.rows.length > 0 && (
+            <ul className="ck-legend" aria-label="Series">
+              {result.rows.map((r, ri) => {
+                const off = hidden.has(r.key) || (isolated !== null && isolated !== r.key);
+                const { mark, kind } = view.look(ri);
+                const text = seriesText(result, ri);
+                return (
+                  <li key={r.key} className="ck-legend__item" data-off={off || undefined}>
+                    <button type="button" className="ck-legend__btn" aria-label={text} aria-pressed={isolated === r.key} onClick={legendClick(r.key)} onContextMenu={(e) => { e.preventDefault(); setMenu(r.key); }} onKeyDown={legendKey(r.key)} {...view.host.tipHandlers(`legend-${ri}`, text)}>
+                      <Swatch mark={mark} kind={kind} frames={view.frames} line={legend === 'line'} />
+                      <span className="ck-legend__name">{r.label}</span>
+                    </button>
+                    {menu === r.key && (
+                      <div className="ck-menu" role="menu">
+                        <button type="button" role="menuitem" onClick={() => { setIsolated(r.key); setMenu(null); }}>{words('chart.showOnly')}</button>
+                        {!hidden.has(r.key) && (
+                          <button type="button" role="menuitem" onClick={() => { toggleHide(r.key); setMenu(null); }}>{words('chart.hide')}</button>
+                        )}
+                        {narrowed && (
+                          <button type="button" role="menuitem" onClick={showAll}>{words('chart.showAll')}</button>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+              {scopeLabel && (
+                <li className="ck-legend__item">
+                  <span className="ck-legend__static">
+                    <svg className="ck-swatch" width="28" height="22" viewBox="0 0 28 22" aria-hidden="true">
+                      <line className="ck-scope" x1="2" y1="11" x2="26" y2="11" />
+                    </svg>
+                    <span className="ck-legend__name">{scopeLabel}</span>
+                  </span>
+                </li>
+              )}
+              {narrowed && (
+                <li>
+                  <button type="button" className="btn ck-legend__all" onClick={showAll}>
+                    {words('chart.showAll')}
+                  </button>
+                </li>
+              )}
+            </ul>
+          )}
+          <Figures caption={`${title}, as a table`} head={head} rows={rows} />
+        </>
+      )}
+      {view.host.tip}
+      <SourceLine id={id} source={source} notes={notes} result={result} />
+    </figure>
+  );
+}

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { analyzeSettings } from '../../src/core/brief/settings.ts';
-import { jiraSearchFields, loadToilProject, registeredFields } from '../src/load.ts';
+import { jiraMoreFields, loadToilProject, registeredFields } from '../src/load.ts';
 import { briefingOf } from '../src/model/briefing.ts';
 import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
 import { TOKEN_WORD } from '../src/setup.ts';
@@ -44,14 +44,15 @@ describe('the fields sync asks Jira search for', () => {
     { id: 'customfield_10020', name: 'Sprint' },
   ];
 
-  it('adds what mapOwi reads, every registered field and the ids the Toil project names, once each', () => {
-    const list = jiraSearchFields(registered, { estimate: 'customfield_10016', iteration: 'Sprint', team: 'customfield_10700', acceptanceCriteria: 'customfield_10500' }).split(',');
-    expect(list).toEqual(expect.arrayContaining(['summary', 'status', 'description', 'parent', 'subtasks', 'issuelinks', 'customfield_10016', 'customfield_10020', 'customfield_10700', 'customfield_10500']));
+  it('adds what mapOwi reads and the ids the Toil project names, once each, and leaves the standard and registered fields to search', () => {
+    const list = jiraMoreFields({}, { fields: { estimate: 'customfield_10016', iteration: 'Sprint', team: 'customfield_10700', acceptanceCriteria: 'customfield_10500' } }, registered);
+    expect(list).toEqual(expect.arrayContaining(['description', 'parent', 'subtasks', 'issuelinks', 'timeoriginalestimate', 'customfield_10016', 'customfield_10020', 'customfield_10700', 'customfield_10500']));
+    expect(list).not.toContain('Sprint');
     expect(new Set(list).size).toBe(list.length);
   });
 
   it('leaves out a name search would refuse, so one bad field does not cost the whole read', () => {
-    const list = jiraSearchFields([], { estimate: 'Story Points', iteration: 'customfield_10020' }).split(',');
+    const list = jiraMoreFields({}, { fields: { estimate: 'Story Points', iteration: 'customfield_10020' } });
     expect(list).not.toContain('Story Points');
     expect(list).toContain('customfield_10020');
   });
@@ -79,7 +80,8 @@ describe('the fields sync asks Jira search for', () => {
     };
     const data = await loadToilProject(execute, 'p');
     const search = calls.find((c) => c.command === 'jira issue search')!;
-    expect(String(search.input.fields).split(',')).toEqual(expect.arrayContaining(['customfield_10016', 'customfield_10020', 'issuelinks', 'parent', 'description']));
+    expect(search.input).not.toHaveProperty('fields');
+    expect(String(search.input.moreFields).split(',')).toEqual(expect.arrayContaining(['customfield_10016', 'customfield_10020', 'issuelinks', 'parent', 'description']));
     const order = calls.map((c) => c.command);
     expect(order.indexOf('jira issue fields')).toBeLessThan(order.indexOf('jira issue search'));
     const item = data.items[0]!;

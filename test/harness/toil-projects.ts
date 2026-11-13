@@ -2,6 +2,9 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import type { ResolvedConfig } from '../../src/core/config.js';
+import { createSchemeCatalog, type SchemeCatalog } from '../../src/core/classify/catalog.js';
+import { Ledger } from '../../src/core/classify/ledger.js';
+import { createDiagramCatalog, type DiagramCatalog } from '../../src/core/diagrams.js';
 import { createToilProjectCatalog, stripUserinfo, type ToilProjectArea, type ToilProjectCatalog } from '../../src/core/toil-project.js';
 import { findGitRepo, readGitContext, readGitRemotes } from '../../src/core/git-repo.js';
 
@@ -22,6 +25,12 @@ export interface ToilProjectDisk {
   reset: () => void;
   /** A catalog over this disk, for `testContext({ toilProjects })` or a direct call. */
   catalog: (config: ResolvedConfig, options?: { env?: NodeJS.ProcessEnv; mcp?: boolean; workspace?: string | null; areas?: readonly ToilProjectArea[] }) => ToilProjectCatalog;
+  /** A scheme catalog over the same disk, for `testContext({ schemes })` or a direct call. */
+  schemes: (config: ResolvedConfig, options?: { env?: NodeJS.ProcessEnv; mcp?: boolean; workspace?: string | null }) => SchemeCatalog;
+  /** The classification ledger in this disk's home, for `testContext({ ledger })` or a direct call. */
+  ledger: () => Ledger;
+  /** A diagram catalog over the same disk's home, for `testContext({ diagrams })` or a direct call. */
+  diagrams: () => DiagramCatalog;
   cleanup: () => void;
 }
 
@@ -105,6 +114,23 @@ export function toilProjectDisk(files: Record<string, unknown> = {}): ToilProjec
         }),
       });
     },
+    schemes: (config, options = {}) => {
+      const dir = options.workspace === null ? undefined : (options.workspace ?? workspace);
+      return createSchemeCatalog({
+        home,
+        env: options.env ?? {},
+        config,
+        workspace: dir ? { dir, source: options.mcp ? 'mcp-root' : 'cwd' } : { source: 'none' },
+        base: dir,
+        protect: [join(home, '.toil')],
+        git: (folder) => ({
+          gitRemote: async () => [],
+          repo: () => readGitContext(folder, { home }),
+        }),
+      });
+    },
+    ledger: () => new Ledger({ home }),
+    diagrams: () => createDiagramCatalog({ home, protect: [join(home, '.toil')] }),
     cleanup: () => rmSync(root, { recursive: true, force: true }),
   };
 }

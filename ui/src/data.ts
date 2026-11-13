@@ -7,6 +7,7 @@
 
 import { createContext, useContext } from 'react';
 import type { Agent } from './agent.ts';
+import type { ClassifyApi, LedgerView } from './classify-api.ts';
 import type { AnalysesApi } from './analyses.ts';
 import type { AssignmentsApi } from './assign/model.ts';
 import type { ConfigApi } from './config.ts';
@@ -27,6 +28,18 @@ import type { WorklogApi } from './worklog.ts';
  */
 export type StartReady = (plan: { id: string; items: string[] }) => Promise<string>;
 
+/** The person's classification ledger as the page last read it (#566), and how to read it again. */
+export interface ClassificationState {
+  api: ClassifyApi;
+  /** Null while it loads or where it could not be read: the page then classifies with the built-in scheme and no one's word, and says so. */
+  view: LedgerView | null;
+  error: string | null;
+  loading: boolean;
+  /** Goes up each time the ledger was read again, so a memoized figure is worked out afresh. */
+  version: number;
+  reload(): Promise<void>;
+}
+
 export interface Data {
   toilProject: ToilProjectData;
   byId: Map<string, WorkItem>;
@@ -37,6 +50,8 @@ export interface Data {
   now: string;
   /** The moment the age of that data is read against (#552): absent, the wall clock. The preview's data stands still, so it sets a fixed one. */
   viewedAt?: string;
+  /** True on sample data, in the preview and under `toil-ui --sample`: nothing here changes anything, whatever the config path says (#582). */
+  preview?: boolean;
   /** toil's config commands, for a change a person approves on a view (the People view's suggested matches); absent where there are none. */
   config?: ConfigApi;
   /** Reads the toil project again, after a person changed it from a view; absent where nothing can change. */
@@ -57,6 +72,8 @@ export interface Data {
   startReady?: StartReady;
   /** Starts a sync, where the local app keeps a cache: the action an empty panel that a sync fills offers (#417). Absent in the preview. */
   sync?: () => void;
+  /** The classification ledger (#566), where the app can read one; absent in a view rendered on its own. */
+  classification?: ClassificationState;
   /** The worklog (#308), which the Summary's stand-up card reads through; absent where nothing keeps one. */
   worklog?: WorklogApi;
 }

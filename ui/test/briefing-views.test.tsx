@@ -44,6 +44,7 @@ describe('Customize', () => {
     act(() => setPrefs({ opensIn: 'page' }));
     expect(b.querySelector('a[data-row="corp-jira:PAY-101"]')!.getAttribute('href')).toBe('#/project/card-payments/item/corp-jira%3APAY-101');
     // The panel offers the way to the toil project's own Analyze settings: one more path there.
+    await userEvent.click(b.querySelector('[data-full-toggle]')!);
     const panel = b.querySelector('details.customize')!;
     expect(within(panel as HTMLElement).getByRole('link', { name: 'How briefings are made for card-payments' }).getAttribute('href')).toBe('#/settings/projects/card-payments/analyze');
   });

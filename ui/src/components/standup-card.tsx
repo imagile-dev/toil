@@ -1,51 +1,53 @@
 /**
  * The stand-up on the Summary: the same report the stand-up page folds for its
- * default range (since the last working day), a few lines of it, and a way in to
- * the rest. It loads and words everything through the stand-up page's own parts
- * (`useStandupReport`, `Line`, `NotRead`), so the two can't disagree. With no
- * sync behind it, the lines are a dash and "not read yet", never "nothing
+ * default range (since the last working day), as the same compact rows, a few of
+ * them, and a way in to the rest. It loads and words everything through the
+ * stand-up page's own parts (`useStandupReport`, `BucketRow`, `PersonName`,
+ * `Dash`), so the two can't disagree. The rows are the ones that matter first:
+ * questions nobody has answered, then what is blocked, done, in progress. With
+ * no sync behind it, the rows are a dash that says "not read yet", never "nothing
  * happened" (principle 12).
  */
 
-import { useState } from 'react';
-import { Button } from 'react-aria-components';
 import { useData } from '../data.ts';
 import { standupHref } from '../format.ts';
-import { BUCKETS, defaultRange, groupTitle, sinceText, type StandupLine, type StandupReport } from '../model/standup.ts';
+import { defaultRange, groupTitle, sinceText, topRows, type StandupGroup } from '../model/standup.ts';
+import { PersonGlyph } from './icons.tsx';
 import { dayOf } from '../model/worklog.ts';
-import { Line, NotRead, useStandupReport } from '../views/Standup.tsx';
+import { BucketRow, NotRead, useStandupReport } from '../views/Standup.tsx';
 import type { WorklogApi } from '../worklog.ts';
+import '../views/standup.css';
 
-/** How many lines show before "Show more". */
-export const CARD_LINES = 5;
+/** How many rows the card shows; the page has the rest. */
+export const CARD_ROWS = 5;
 
-interface Entry {
-  heading: string;
-  line: StandupLine;
-}
+const NONE = new Set<string>();
 
-/** The report's lines in the order the page shows them, each under the heading of its section: the team, then each person. */
-function entriesOf(r: StandupReport): Entry[] {
-  return [
-    ...r.team.map((line) => ({ heading: 'Team', line })),
-    ...r.people.flatMap((g) => BUCKETS.flatMap((b) => g.lines[b]).map((line) => ({ heading: groupTitle(g), line }))),
-  ];
+/**
+ * A person on the card: the name on one line, then the account the stand-up page writes after it ("bitbucket achen") in small
+ * muted text that truncates, with the whole text on hover. The words are the model's own `groupTitle`, split at its parenthesis.
+ */
+function CardName({ group }: { group: StandupGroup }) {
+  const full = groupTitle({ ...group, kind: 'human' });
+  const m = /^(.*?)\s*\(([^()]*)\)$/.exec(full);
+  const name = m ? m[1]! : full;
+  const suffix = m ? m[2]! : '';
+  return (
+    <span className="sum-person" data-kind={group.kind} title={suffix ? full : undefined}>
+      <PersonGlyph agent={group.kind === 'agent'} />
+      <span className="sum-person__name">{name}</span>
+      {suffix && <span className="sum-person__account" title={suffix} data-truncate="">{suffix}</span>}
+      {group.kind === 'agent' && <span className="sr-only"> (agent)</span>}
+    </span>
+  );
 }
 
 export function StandupCard({ api }: { api: WorklogApi }) {
   const { toilProject, now } = useData();
   const today = dayOf(now)!;
   const [loaded] = useStandupReport(api, defaultRange(today));
-  const [all, setAll] = useState(false);
   const report = loaded?.ok ? loaded.value.report : null;
-  const entries = report ? entriesOf(report) : [];
-  const shown = all ? entries : entries.slice(0, CARD_LINES);
-  const groups: Array<{ heading: string; lines: StandupLine[] }> = [];
-  for (const e of shown) {
-    const last = groups.at(-1);
-    if (last && last.heading === e.heading) last.lines.push(e.line);
-    else groups.push({ heading: e.heading, lines: [e.line] });
-  }
+  const rows = report ? topRows(report, CARD_ROWS) : [];
   return (
     <section className="sum-standup" aria-labelledby="sum-standup-title" data-standup-card="">
       <div className="sum-standup__head">
@@ -65,24 +67,28 @@ export function StandupCard({ api }: { api: WorklogApi }) {
         <p role="alert" className="failure">
           {loaded.message}
         </p>
-      ) : entries.length === 0 ? (
-        report!.asOf === null ? <NotRead /> : <p className="note">Nothing recorded since then.</p>
       ) : (
         <>
-          {groups.map((g, i) => (
-            <div key={`${g.heading}-${i}`}>
-              <h3>{g.heading}</h3>
-              <ul className="rows worklog-lines">
-                {g.lines.map((l) => (
-                  <Line key={l.fact} report={report!} line={l} highlight={false} />
-                ))}
-              </ul>
-            </div>
-          ))}
-          {entries.length > CARD_LINES && (
-            <Button className="btn btn--small" onPress={() => setAll(!all)} data-standup-more="" aria-expanded={all}>
-              {all ? 'Show less' : `Show more (${entries.length - CARD_LINES})`}
-            </Button>
+          <p className="sum-standup__line" data-standup-team="">
+            {report!.sprintLine ?? (report!.asOf ? 'No current sprint' : 'Sprint not read yet')}
+          </p>
+          {rows.length === 0 ? (
+            report!.asOf === null ? (
+              <NotRead />
+            ) : (
+              <p className="note">Nothing recorded since then.</p>
+            )
+          ) : (
+            <ul className="sum-standup__rows">
+              {rows.map((r) => (
+                <li key={`${r.group.key}/${r.bucket}`} className="sum-standup__row">
+                  <CardName group={r.group} />
+                  <dl className="standup-rows">
+                    <BucketRow report={report!} group={r.group} bucket={r.bucket} lines={r.group.lines[r.bucket].filter((l) => r.bucket !== 'comments' || l.comment?.outstanding)} cited={NONE} />
+                  </dl>
+                </li>
+              ))}
+            </ul>
           )}
         </>
       )}

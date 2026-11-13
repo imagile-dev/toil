@@ -6,6 +6,7 @@
 
 import { Avatar, Outcome, PLAIN_INSIGHT_LABEL, StatusChip } from '../components/bits.tsx';
 import { Cited, ItemLink, typeText } from '../components/items.tsx';
+import { ReclassifyChip } from '../components/reclassify.tsx';
 import { ReadinessPanel } from '../components/readiness.tsx';
 import { Card, DataTable } from '../components/layout.tsx';
 import { EditLink } from '../components/help.tsx';
@@ -62,7 +63,7 @@ export function ItemView({ id }: { id: string }) {
         </p>
         <h1 tabIndex={-1}>{item.title}</h1>
         <p className="item-meta">
-          <StatusChip category={item.statusCategory} status={item.status} /> <Avatar person={item.assignee} /> {personText(item.assignee)}
+          <StatusChip category={item.statusCategory} status={item.status} /> <ReclassifyChip item={item} /> <Avatar person={item.assignee} /> {personText(item.assignee)}
           {item.url && (
             <>
               {' · '}

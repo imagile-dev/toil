@@ -17,6 +17,7 @@ import { clearTokenCache, watchTokenExchanges } from '../../src/core/token.js';
 import { argvFor, routedArgvFor } from '../../src/program.js';
 import { areas as registeredAreas, commands, routedAliases } from '../../src/registry.js';
 import { EXAMPLE_BRIEF_RECORDS } from '../../src/projects/brief.js';
+import { BOOKSHOP_C4 as DIAGRAM_MODEL } from '../fixtures/util.fixture.js';
 import { EXAMPLE_PEOPLE_RECORDS } from '../../src/projects/build.js';
 import { demoCommands } from '../fixtures/demo-commands.js';
 import { runCli } from '../harness/cli.js';
@@ -81,7 +82,7 @@ export async function defineParity(shard: number, shards: number): Promise<void>
   // Config, files and routes are read from the fixture when each test runs, after setup.
   // Two connections the toil project build examples bind to, both with writes off, and the
   // OWI records `toil projects brief` reads from a file.
-  const outside: LoadedFixture = { area: '', routes: [], config: { jira: { baseUrl: 'https://jira.imagile.dev' }, openshift: { baseUrl: 'https://api.ocp.imagile.dev:6443' } }, files: { 'owi/brief.owi.json': EXAMPLE_BRIEF_RECORDS, 'owi/people.owi.json': EXAMPLE_PEOPLE_RECORDS }, commands: [], trace: [] };
+  const outside: LoadedFixture = { area: '', routes: [], config: { jira: { baseUrl: 'https://jira.imagile.dev' }, openshift: { baseUrl: 'https://api.ocp.imagile.dev:6443' } }, files: { 'owi/brief.owi.json': EXAMPLE_BRIEF_RECORDS, 'owi/people.owi.json': EXAMPLE_PEOPLE_RECORDS, 'diagrams/payments.c4.json': DIAGRAM_MODEL, 'owi/verdicts.json': JSON.stringify([{ id: 'corp-jira:PAY-101', category: 'feature', reason: 'New capability at the edge.' }, { id: 'corp-jira:PAY-102', category: 'feature', reason: 'Part of the same feature.' }, { id: 'corp-jira:PAY-105', category: 'ktlo', reason: 'Keeps receipts compliant.' }]) }, commands: [], trace: [] };
   // A group of standalone commands that read files or run git (`util`) brings
   // its own fixture, named after the group, and runs in that suite instead.
   const grouped = new Set(fixtures.map((f) => f.area));
@@ -98,6 +99,20 @@ export async function defineParity(shard: number, shards: number): Promise<void>
   // The toil projects and repos commands sit outside any area and read and write
   // toil projects on disk: a temp home and workspace, put back as made before each
   // run, so the CLI and MCP runs of a writing example start from the same files.
+  /** A checked-in scheme in the fixture workspace, in the shape `classify scheme set` and `import` read. */
+  const TEAM_SCHEME = {
+    name: 'team',
+    revision: 1,
+    categories: [
+      { id: 'ktlo', short: 'KTLO', name: 'Keep the lights on', label: 'ktlo', definition: 'Fixes, patches and upgrades that keep the product supported.' },
+      { id: 'feature', short: 'Feature', name: 'Feature', label: 'feature', definition: 'New user-facing capability.' },
+    ],
+    guidance: [],
+    examples: [],
+    rules: [],
+    signals: true,
+    labels: {},
+  };
   const outsideDisk = toilProjectDisk({
     'home/.toil/projects/payments.json': {
       name: 'payments',
@@ -107,16 +122,24 @@ export async function defineParity(shard: number, shards: number): Promise<void>
         { name: 'ledger-svc', remotes: ['https://bitbucket.imagile.dev/scm/pay/ledger-svc.git'] },
       ],
       jira: { project: 'PAY', projects: ['PAY', 'LEDG'] },
-      people: [{ name: 'Pat Example', email: 'you@example.com', ids: { jira: 'pat' } }],
+      people: [{ name: 'Pat Example', email: 'you@example.com', ids: { jira: 'pat' }, team: 'Checkout' }],
+      // The saved views `projects view show | list | remove` and `projects pivot --view` read.
+      views: { 'release-mix': { measure: 'items', split: 'release', share: true, top: 4 }, 'by-status': { measure: 'items', split: 'status' } },
     },
     'work/.git/HEAD': 'ref: refs/heads/main\n',
+    // A stored diagram, for the projects diagram commands: `show`, `list` and `save --replace` have one to find.
+    'home/.toil/diagrams/payments.json': { schemaVersion: 1, toilProject: 'payments', revision: 1, savedAt: '2026-11-01T09:00:00.000Z', toilVersion: '0.0.0-test', model: JSON.parse(DIAGRAM_MODEL) as unknown, notMapped: ['dist/'] },
+    // The classify scheme commands: a checked-in scheme, and revised files for `set` to read (one with no name, which takes the scheme's).
+    'work/.toil/classify/team.json': TEAM_SCHEME,
+    'work/schemes/team-v2.json': { ...TEAM_SCHEME, guidance: ['A bug fix is KTLO.'], rules: [{ id: 'escalations', when: { label: ['customer-escalation'] }, then: 'ktlo' }] },
+    'work/schemes/ktlo-feature-v2.json': { ...TEAM_SCHEME, name: undefined, guidance: ['Say it once.'] },
     'work/.toil/projects/team.json': { name: 'team', description: 'Shared by the team', repos: [{ name: 'payments-api', remotes: ['https://bitbucket.imagile.dev/scm/pay/payments-api.git'] }] },
   });
   afterAll(() => outsideDisk.cleanup());
   // An area fixture's own toil project (`toil-project`), as your own and named by TOIL_PROJECT, for its check-toil-project.
   const fixtureDisks = new Map<LoadedFixture, ReturnType<typeof toilProjectDisk>>();
   afterAll(() => fixtureDisks.forEach((d) => d.cleanup()));
-  type Local = { repo?: GitContext; git?: GitRunner; home?: Record<string, string>; toilProjects?: ReturnType<typeof toilProjectDisk>['catalog']; configFile?: string };
+  type Local = { repo?: GitContext; git?: GitRunner; home?: Record<string, string>; toilProjects?: ReturnType<typeof toilProjectDisk>['catalog']; schemes?: ReturnType<typeof toilProjectDisk>['schemes']; ledger?: ReturnType<typeof toilProjectDisk>['ledger']; diagrams?: ReturnType<typeof toilProjectDisk>['diagrams']; configFile?: string };
   function localOf(f: LoadedFixture): Local {
     const local: Local = { ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}), ...(f.home ? { home: f.home } : {}) };
     if (f === outside) {
@@ -126,6 +149,9 @@ export async function defineParity(shard: number, shards: number): Promise<void>
         outsideDisk.reset();
         return outsideDisk.catalog(config, { areas: toilProjectAreas });
       };
+      local.schemes = (config) => outsideDisk.schemes(config);
+      local.diagrams = () => outsideDisk.diagrams();
+      local.ledger = () => outsideDisk.ledger();
     } else if (f.toilProject) {
       const name = String(f.toilProject.name);
       if (!fixtureDisks.has(f)) fixtureDisks.set(f, toilProjectDisk({ [`home/.toil/projects/${name}.json`]: f.toilProject }));
@@ -179,10 +205,12 @@ export async function defineParity(shard: number, shards: number): Promise<void>
     return out;
   }
 
-  /** Timing is the only field allowed to differ between two runs of the same call. */
+  /** Timing, and the moment a diagram was saved, are the only fields allowed to differ between two runs of the same call. */
   function comparable(envelope: Envelope | undefined): unknown {
     if (!envelope) return envelope;
-    return { ...envelope, meta: { ...envelope.meta, durationMs: 0, ...(envelope.meta.wait ? { wait: { ...envelope.meta.wait, elapsedMs: 0 } } : {}) } };
+    const timed = { ...envelope, meta: { ...envelope.meta, durationMs: 0, ...(envelope.meta.wait ? { wait: { ...envelope.meta.wait, elapsedMs: 0 } } : {}) } };
+    // `projects diagram save` stamps the time it ran, in data or in the toon text of it.  A name's value is replaced, wherever it sits.
+    return JSON.parse(JSON.stringify(timed).replace(/(savedAt[\\"]*:\s*[\\"]*)\d{4}-\d\d-\d\dT[\d:.]+Z/g, '$1<time>')) as unknown;
   }
 
   /** The config with writes switched off on every connection of one area, credentials untouched. */

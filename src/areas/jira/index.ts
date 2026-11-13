@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { apiCommand } from '../../core/passthrough.js';
 import { jiraArea, jiraSupported, DEPLOYMENTS } from './area.js';
+import { cloudCategorize, serverCategorize } from './categorize.js';
 import { overrides } from './overrides.js';
 import { agileCommands as cloudAgile } from './cloud/agile.js';
 import { attachmentCommands as cloudAttachments } from './cloud/attachments.js';
@@ -10,6 +11,7 @@ import { JIRA_CLOUD_INPUT_FILE_EXAMPLE, JIRA_CLOUD_INPUT_FILE_SCHEMA } from './c
 import { issueCommands as cloudIssues } from './cloud/issues.js';
 import { projectCommands as cloudProjects } from './cloud/projects.js';
 import { searchCommands as cloudSearch } from './cloud/search.js';
+import { valueListCommands as cloudValueLists } from './cloud/value-lists.js';
 import { agileCommands as serverAgile } from './server/agile.js';
 import { attachmentCommands as serverAttachments } from './server/attachments.js';
 import { checkToilProject as serverCheckToilProject } from './server/check-toil-project.js';
@@ -17,6 +19,7 @@ import { discover as serverDiscover } from './server/discover.js';
 import { JIRA_INPUT_FILE_EXAMPLE, JIRA_INPUT_FILE_SCHEMA } from './server/input-schema.js';
 import { issueCommands as serverIssues } from './server/issues.js';
 import { searchCommands as serverSearch } from './server/search.js';
+import { valueListCommands as serverValueLists } from './server/value-lists.js';
 
 /** `jira api`: any /rest/api/2 or Agile endpoint, through the same request hook as every other jira command. Data Center only. */
 const jiraApi = apiCommand(jiraArea, {
@@ -66,8 +69,8 @@ export const supported = jiraSupported;
 export const commands = [
   ...jiraArea.byDeployment(
     {
-      server: [...serverIssues, ...serverSearch, ...serverAttachments, ...serverAgile, serverDiscover, jiraApi, serverCheckToilProject],
-      cloud: [...cloudIssues, ...cloudSearch, ...cloudAttachments, ...cloudProjects, ...cloudAgile, cloudDiscover, cloudCheckToilProject],
+      server: [...serverIssues, ...serverSearch, ...serverAttachments, ...serverAgile, ...serverValueLists, serverDiscover, jiraApi, serverCheckToilProject, serverCategorize],
+      cloud: [...cloudIssues, ...cloudSearch, ...cloudAttachments, ...cloudProjects, ...cloudAgile, ...cloudValueLists, cloudDiscover, cloudCheckToilProject, cloudCategorize],
     },
     { overrides },
   ),

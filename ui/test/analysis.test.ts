@@ -78,6 +78,21 @@ describe('structureOf', () => {
   });
 });
 
+describe('the sample team\'s scripted briefing', () => {
+  it('parses as a briefing with a recommendation and reasons that cite items the sample has, so Get a briefing lands a real one', async () => {
+    const read = readBriefing(analyzeParts('sample-team').join('\n\n'));
+    expect(read.problems).toEqual([]);
+    expect(read.briefing!.recommendation).toContain('[[');
+    expect(read.briefing!.reasons.length).toBeGreaterThanOrEqual(2);
+    expect(read.briefing!.reasons.every((r) => r.items.every((i) => i.why && i.next))).toBe(true);
+    const { data } = await loaded('sample-team');
+    const known = new Set([...data.items.map((i) => i.id), ...(data.changes ?? []).map((c) => c.id)]);
+    const cited = [...analyzeParts('sample-team').join('\n').matchAll(/\[\[([^\]]+)\]\]/g)].map((m) => m[1]!);
+    expect(cited.length).toBeGreaterThan(3);
+    expect(cited.filter((id) => !known.has(id))).toEqual([]);
+  });
+});
+
 describe('snapshotOf', () => {
   it("takes what is blocked and by what, every item's points, and the sprint's points done and left", async () => {
     const { data } = await loaded('card-payments');

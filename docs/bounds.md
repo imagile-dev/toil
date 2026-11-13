@@ -59,7 +59,12 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | `skills.reinstall` | `files.no-overwrite` | `src/skills/folders.ts`, `src/skills/bundled.ts` | `skills marketplace add` and `sync` replacing a skill folder that toil itself installed from the same marketplace and plugin, which is what refreshing it means, and `skill install` and the automatic rewrite replacing the `toil` folder toil recorded as `bundled`. Any other folder is left as found. |
 | `projects.read` | `files.workspace` | `src/core/toil-project.ts` | Reading toil project files (`docs/projects.md`) from your own folder (`~/.toil/projects/`), the folders you list in `projectPaths` or `TOIL_PROJECT_PATHS`, and `.toil/projects/` at the root of the repository the call's folder is in. A toil project file named on the call (`--toil-project <file>`) must be one of those, or inside the workspace. |
 | `projects.write` | `files.workspace` | `src/core/toil-project.ts` | The `toil projects` commands writing a toil project to your own folder, a listed folder, or `.toil/projects/` at the root of a git working tree (`export --repo`). Anywhere else, the file must be inside the workspace. |
-| `projects.replace` | `files.no-overwrite` | `src/core/toil-project.ts` | Rewriting a toil project: an edit (`link`, `field`, `add-repo`, `env`) rewrites the file it read, and `export`/`import` with `--replace` replace one. Only a file that is already a valid toil project is ever replaced. |
+| `projects.replace` | `files.no-overwrite` | `src/core/toil-project.ts` | Rewriting a toil project: an edit (`link`, `field`, `add-repo`, `env`, `view set`, `view remove`, `classify set`) rewrites the file it read, and `export`/`import` with `--replace` replace one. Only a file that is already a valid toil project is ever replaced. |
+| `classify.write` | `files.workspace` | `src/core/classify/catalog.ts` | The `toil classify scheme` commands writing a scheme to your own folder (`~/.toil/classify/`), to `.toil/classify/` at the root of a git working tree (`export --repo`), or, for `set` on a scheme that lives there, beside the toil project that names it. Anywhere else, the file must be inside the workspace. |
+| `classify.replace` | `files.no-overwrite` | `src/core/classify/catalog.ts` | Rewriting a scheme: `set` rewrites the file the scheme was read from, and `export` and `import` with `--replace` replace one. Only a file that is already a valid scheme is ever replaced. |
+| `classify.ledger` | `files.own` | `src/core/classify/ledger.ts` | `toil classify run`, `stats`, `tune` and `mix` and `toil projects pivot` reading the classification ledger, and `classify run --record` and `classify correct` appending to it, `~/.toil/classify/<scheme>.jsonl`, inside toil's own folder, which the file service refuses. Only that one file per scheme, named for it, and nothing outside the folder after realpath. Bounded below. |
+| `diagrams.write` | `files.workspace` | `src/core/diagrams.ts` | The `toil projects diagram save` command writing a toil project's architecture diagram to `~/.toil/diagrams/<toil-project>.json`, in your own folder and nowhere else, whatever the workspace is. |
+| `diagrams.replace` | `files.no-overwrite` | `src/core/diagrams.ts` | `save --replace` replacing that file, and `toil projects diagram remove` deleting it. Only a file that is already a valid diagram is ever replaced or deleted. |
 | `connections.import` | `files.workspace` | `src/connections/import-command.ts` | `toil connections import` reading one other tool's connection list (DBeaver's `data-sources.json`, a `.regsrvr`, `servers.json`, `pg_service.conf`, ...) from that tool's default location on this OS, or from a path the person names, outside the workspace. Bounded below. |
 | `db.tls-ca-file` | `files.workspace` | `src/core/db/tls.ts` | A `db` connection's `tlsCaFile` (with `"ssl": true`) reading one PEM file of CA certificates, named by an absolute path in the connection's own settings (config or env), never by a command's input, so it may sit outside the workspace. The person sets it, or an agent proposes it through `connections add --set` and the person approves it (principle 2). Bounded below. |
 | `feedback.send` | `commands.read-only` | `src/feedback/command.ts`, `src/api.ts` | `toil feedback` sending one report to Imagile's feedback endpoint, which files it as a public GitHub issue, with no connection holding `writes: true` and no `--allow-write`. Its gate is the approval of that exact report instead, and it is the one request toil makes to a host the user didn't configure. Bounded below. |
@@ -205,6 +210,32 @@ that isn't already a valid toil project is never replaced, and an existing one n
 `--replace` (except the one an edit read). Files in your own folder are written as
 user-only (`0600`, in a `0700` folder). A toil project holds no secret, and writing one
 contacts nothing.
+
+`classify.write` and `classify.replace` write only schemes, in the JSON toil itself reads back, and mirror
+`projects.write` and `projects.replace`. Each scheme is validated before it's written, and written alongside the
+old file, then renamed into place. The file must end in `.json`, and it may never be under `~/.toil` outside
+`~/.toil/classify/` (or, for a scheme beside a toil project, that toil project's folder), the `--config` file,
+`/proc` or `/sys`. In a scheme folder the file is named for the scheme. A file that isn't already a valid scheme
+is never replaced, and an existing one needs `--replace` (except the one `set` read). Files in your own folder are
+written as user-only (`0600`, in a `0700` folder). A scheme holds no secret, and writing one contacts nothing.
+Reading follows the same rule: a scheme file a call names must end in `.json` and be inside the workspace or a
+scheme folder.
+
+`classify.ledger` reads and appends one file per scheme, `~/.toil/classify/<scheme>.jsonl`, in the JSON toil itself
+reads back. The scheme name is held to the scheme-name rule and the path is judged after realpath, so a link can't
+lead out of `~/.toil/classify/`. Lines are only ever appended, in one write to a file opened for append; the folder
+is user-only (`0700`) and the file `0600`. A line holds an item's id, title, category, source, scheme and revision,
+and for a correction who made it, through which door and why: never an item's body, a host or a credential. Titles
+and reasons are cut to 300 characters, lose control characters, and have anything shaped like a credential replaced
+with `[redacted]` before they are written. A ledger over 32 MiB is refused with the way to start a new one (rename
+the old file). The ledger stays on the machine and is never sent anywhere.
+`diagrams.write` and `diagrams.replace` write only diagrams, in the JSON toil itself reads back, to the one place a diagram
+lives, `~/.toil/diagrams/`, named for a toil project (`<name>.json`, the same name rule as a connection). The folder and
+every file are resolved through realpath, so a link that leads out of `~/.toil/diagrams/` is refused, and so is anything
+on toil's own files, `/proc` or `/sys`. A diagram is validated before it's written (the C4 model's checks, and no string
+in it may hold a URL, a host with a port, or anything shaped like a credential), written alongside the old file, then renamed into place. A file
+that isn't already a valid diagram is never replaced or deleted, and an existing one needs `--replace`. Files are
+written as user-only (`0600`, in a `0700` folder). A diagram holds no URL, no host with a port and nothing shaped like a credential (a bare host name is not refused, since it can't be told from a product name), and writing one contacts nothing.
 
 `projects.read` is read only, and only of toil project files: JSON that toil validates as a
 toil project before using or showing any of it. A toil project holds no secret and can't add a

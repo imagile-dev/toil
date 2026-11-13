@@ -20,7 +20,11 @@ import type { AdapterList, Agent } from '../agent.ts';
 import type { AnalysesApi } from '../analyses.ts';
 import type { Route } from '../App.tsx';
 import { sendCommand, type UiCommand } from '../commands.ts';
-import { analysisHref, dateTime, toilProjectHref, itemHref, shortKey, standupHref, STATUS_CATEGORY_LABEL, toilProjectEditHref } from '../format.ts';
+import { useCurrentChart } from '../current-chart.ts';
+import type { ViewContext } from '../view-context.ts';
+import { analysesHref, analysisHref, chartsHref, dateTime, diagramHref, toilProjectHref, itemHref, shortKey, standupHref, STATUS_CATEGORY_LABEL, toilProjectEditHref } from '../format.ts';
+import { DASHBOARDS } from '../views/charts/index.ts';
+import { exploreHref, viewSpec } from '../model/explore.ts';
 import { fuzzyRank } from '../fuzzy.ts';
 import type { ToilProjectData } from '../load.ts';
 import type { AnalysisSummary } from '../model/analysis.ts';
@@ -38,7 +42,7 @@ export type PaletteGroup = 'commands' | 'toilProjects' | 'tabs' | 'items' | 'ana
 
 const GROUP_LABEL: Record<PaletteGroup, string> = { commands: 'Commands', toilProjects: 'Toil projects', tabs: 'Tabs', items: 'Items', analyses: 'Analyses', settings: 'Settings', themes: 'Themes' };
 /** The groups plain words (src/plain-words.ts) renames. */
-const PLAIN_GROUP_LABEL: Partial<Record<PaletteGroup, string>> = { toilProjects: 'Toil projects', tabs: 'Pages', analyses: 'Past briefings' };
+const PLAIN_GROUP_LABEL: Partial<Record<PaletteGroup, string>> = { toilProjects: 'Toil projects', tabs: 'Pages', analyses: 'Earlier briefings' };
 /** The order with nothing typed. With a query, the groups go in the order of their best match. */
 const GROUP_ORDER: PaletteGroup[] = ['commands', 'toilProjects', 'tabs', 'items', 'analyses', 'settings', 'themes'];
 /** The most results a group shows for a query: enough to choose from, few enough to read. */
@@ -107,6 +111,8 @@ export interface EntriesInput {
   openShortcuts: () => void;
   /** Whether a worklog is kept, which the stand-up is folded from. */
   hasWorklog?: boolean;
+  /** The chart a Charts view is showing, when one is (#567): "Ask about this chart" is offered only then. */
+  chart?: ViewContext | null;
 }
 
 /** Every entry the palette can show, before any query. */
@@ -118,13 +124,16 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
   if (x.onSync) out.push({ id: 'cmd:sync', group: 'commands', label: 'Sync now', detail: 'Read every Toil project through toil into the cache', go: { run: x.onSync } });
   if (here && current?.ok) {
     out.push({ id: 'cmd:ask', group: 'commands', label: `Ask about ${here}`, detail: 'Focus the Ask bar', go: { command: { kind: 'ask' } } });
+    if (x.chart) out.push({ id: 'cmd:ask-chart', group: 'commands', label: 'Ask about this chart', detail: x.chart.title, text: 'ask chart figures explain graph', go: { command: { kind: 'ask-about', context: x.chart } } });
     out.push({ id: 'cmd:analyze', group: 'commands', label: pw(`Analyze ${here}`, `Get a briefing on ${here}`), detail: pw("The agent's pulse check of the Toil project", "An AI agent writes a briefing of what needs attention"), go: { command: { kind: 'analyze' } } });
     out.push({ id: 'cmd:agents', group: 'commands', label: pw('Open the Agents panel', 'Open the AI agents panel'), detail: pw('Assignments, the inbox and limits', 'What the AI agents are doing, and what waits on you'), text: 'agents ai agents assignments inbox', go: { command: { kind: 'agents' } } });
     if (x.hasWorklog) out.push({ id: 'cmd:standup', group: 'commands', label: 'Open the stand-up', detail: `Since the last working day, in ${here}`, text: 'stand-up standup daily meeting since yesterday what happened', go: { href: standupHref(here) } });
     // The workflow jobs (#532): each opens its own page, which says what it needs and has the Run button.
     out.push({ id: 'cmd:job:review', group: 'commands', label: pw('Review a pull request', 'Check a code change'), detail: FACE.review.gist, text: 'review pull request code review job', go: { href: jobHref(here, 'review') } });
     out.push({ id: 'cmd:job:ship', group: 'commands', label: pw('Ship: answer a review', 'Answer the review of my code change'), detail: FACE.ship.gist, text: 'ship answer review pull request job author', go: { href: jobHref(here, 'ship') } });
+    out.push({ id: 'cmd:diagram', group: 'commands', label: `Architecture diagram of ${here}`, detail: 'The saved C4 diagram, drawn', text: 'architecture diagram c4 picture saved system containers', go: { href: diagramHref(here) } });
     out.push({ id: 'cmd:job:diagram', group: 'commands', label: pw(`Diagram ${here}`, `Draw the architecture of ${here}`), detail: FACE['map-codebase'].gist, text: 'diagram draw architecture c4 map codebase job', go: { href: jobHref(here, 'map-codebase') } });
+    out.push({ id: 'cmd:job:classify', group: 'commands', label: pw(`Sort the work in ${here} into categories`, `Sort the work in ${here} into categories`), detail: FACE.classify.gist, text: 'classify sort categories ktlo keep the lights on feature label work job', go: { href: jobHref(here, 'classify') } });
     const item = x.focused ? current.value.items.find((i) => i.id === x.focused) : undefined;
     if (item && x.canAssign) out.push({ id: 'cmd:assign', group: 'commands', label: pw(`Assign ${shortKey(item)} to an agent`, `Give ${shortKey(item)} to an AI agent`), detail: item.title, go: { command: { kind: 'assign', id: item.id } } });
     for (const o of x.adapters?.options ?? []) {
@@ -151,6 +160,15 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
   for (const d of x.toilProjects) {
     // With plain words on, a tab is found by either name: its plain label shows, and its own term still matches a search.
     for (const t of TOIL_PROJECT_TABS) out.push({ id: `tab:${d}:${t.id}`, group: 'tabs', label: pw(t.label, t.plain), detail: d, text: `${pw(t.label, t.plain)} ${t.label} ${d}`, go: { href: t.href(d) } });
+    // The charts are items on the Summary (#567), so each full page, the earlier briefings and the views the team saved are found by typing, not listed: one more way in to each, never a tab.
+    for (const c of DASHBOARDS) out.push({ id: `chart:${d}:${c.id}`, group: 'tabs', label: c.title, detail: `${d}, a chart`, text: `${c.title} chart dashboard ${d}`, typed: true, go: { href: chartsHref(d, c.id) } });
+    out.push({ id: `briefings:${d}`, group: 'tabs', label: pw('Earlier analyses', 'Earlier briefings'), detail: d, text: `earlier briefings analyses past ${d}`, typed: true, go: { href: analysesHref(d) } });
+    const l = x.loaded[d];
+    if (l?.ok) {
+      for (const [name, view] of Object.entries(l.value.views ?? {})) {
+        out.push({ id: `view:${d}:${name}`, group: 'tabs', label: view.title ?? name, detail: `${d}, saved by your team`, text: `saved view chart ${view.title ?? name} ${name} ${d}`, typed: true, go: { href: exploreHref(chartsHref(d, 'explore'), viewSpec(view), view.chart) } });
+      }
+    }
     // How Analyze briefs it (#494): its page in Settings, one more way in.
     out.push({ id: `settings:analyze:${d}`, group: 'settings', label: 'How Analyze briefs it', detail: d, text: `analyze settings ${d}`, go: { href: toilProjectEditHref(d, 'analyze') } });
   }
@@ -231,7 +249,8 @@ export function CommandPalette({ isOpen, onOpenChange, agent, analysesApi, readi
   // Built on each render while it's open, which is cheap next to a keystroke (a few hundred entries), and not at all
   // while it's closed: the App re-renders often (a streaming answer), and every item of every toil project is a lot to list for nothing.
   const plain = usePlain();
-  const entries = isOpen ? paletteEntries({ ...input, analyses, adapters, at }) : [];
+  const chart = useCurrentChart();
+  const entries = isOpen ? paletteEntries({ ...input, analyses, adapters, at, chart }) : [];
   const results = paletteResults(entries, query, here);
   const byId = new Map(entries.map((e) => [e.id, e]));
 
@@ -318,13 +337,23 @@ export function ShortcutsSheet({ isOpen, onOpenChange }: { isOpen: boolean; onOp
                     {list.map((s) => (
                       <div key={s.what} className="shortcuts__row">
                         <dt>
-                          {keys(s.keys)}
-                          {(s.or ?? []).map((o) => (
-                            <span key={o.join('+')}>
-                              {' or '}
-                              {keys(o)}
-                            </span>
-                          ))}
+                          {s.range ? (
+                            <>
+                              <kbd>{s.range[0]}</kbd>
+                              {' to '}
+                              <kbd>{s.range[1]}</kbd>
+                            </>
+                          ) : (
+                            <>
+                              {keys(s.keys)}
+                              {(s.or ?? []).map((o) => (
+                                <span key={o.join('+')}>
+                                  {' or '}
+                                  {keys(o)}
+                                </span>
+                              ))}
+                            </>
+                          )}
                         </dt>
                         <dd>{s.what}</dd>
                       </div>

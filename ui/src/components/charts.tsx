@@ -20,7 +20,7 @@ const W = 560;
 const PAD = { left: 34, right: 12, top: 14, bottom: 26 };
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-function Figures({ caption, head, rows }: { caption: string; head: string[]; rows: ReactNode[][] }) {
+export function Figures({ caption, head, rows }: { caption: string; head: string[]; rows: ReactNode[][] }) {
   return (
     <details className="figures">
       <summary>Show the figures</summary>

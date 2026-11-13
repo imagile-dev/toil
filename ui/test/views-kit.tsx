@@ -5,7 +5,7 @@
  * The split is its Form 27-B: one file per sitting of the committee, and the
  * committee is now allowed to sit at the same time.
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { expect } from 'vitest';
@@ -23,12 +23,12 @@ import type { AnalysesApi } from '../src/analyses.ts';
 import { fixtureAnalyses } from '../src/fixtures/analyses.ts';
 
 export const item = (toilProject: string, id: string) => `#/project/${toilProject}/item/${encodeURIComponent(id)}`;
-export const ROUTES = ['#/', '#/project/card-payments', '#/project/card-payments/board', '#/project/card-payments/dependencies', '#/project/card-payments/analyses', '#/project/card-payments/analyses/sample-analysis-2', '#/project/settlement', '#/project/checkout-web', '#/project/checkout-web/prs', '#/project/card-payments/prs', '#/project/checkout-web/people', '#/project/card-payments/people', '#/project/settlement/people', '#/project/card-payments/board/person%3AJ.%20Smith', '#/project/card-payments/worklog', '#/project/checkout-web/worklog/2026-10-12', item('card-payments', 'corp-jira:PAY-101'), '#/project/card-payments/command-center', '#/project/settlement/command-center', '#/settings', '#/settings/projects', '#/settings/general', '#/settings/usage', '#/settings/agent'];
+export const ROUTES = ['#/', '#/project/sample-team', '#/project/sample-team/board', '#/project/sample-team/dependencies', '#/project/sample-team/prs', '#/project/sample-team/people', '#/project/sample-team/command-center', '#/project/sample-team/board/classify', '#/project/sample-team/job/classify', '#/project/card-payments', '#/project/card-payments/board', '#/project/card-payments/dependencies', '#/project/card-payments/summary/briefings', '#/project/card-payments/summary/briefings/sample-analysis-2', '#/project/settlement', '#/project/checkout-web', '#/project/checkout-web/prs', '#/project/card-payments/prs', '#/project/checkout-web/people', '#/project/card-payments/people', '#/project/settlement/people', '#/project/card-payments/board/person%3AJ.%20Smith', '#/project/card-payments/worklog', '#/project/checkout-web/worklog/2026-10-12', item('card-payments', 'corp-jira:PAY-101'), '#/project/card-payments/command-center', '#/project/settlement/command-center', '#/settings', '#/settings/projects', '#/settings/general', '#/settings/usage', '#/settings/agent'];
 
 export async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent(), config = fixtureConfig(), agentSettings, worklog = fixtureWorklog(), analyses = fixtureAnalyses() }: { preview?: boolean; execute?: Execute; agent?: Agent; config?: ConfigApi; agentSettings?: AgentSettingsPanelProps; worklog?: WorklogApi | null; analyses?: AnalysesApi | null } = {}) {
   window.location.hash = hash;
   const view = render(<App execute={execute} agent={agent} config={config} now={FIXTURE_NOW} preview={preview} {...(agentSettings ? { agentSettings } : {})} {...(worklog ? { worklog } : {})} {...(analyses ? { analyses } : {})} />);
-  await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
+  await waitFor(() => expect(document.querySelector('h1, [data-tab-panel]')).toBeTruthy(), { timeout: 3000 });
   return view;
 }
 
@@ -61,6 +61,9 @@ export const panel = (name: string | RegExp) => screen.getByRole('region', { nam
 export const tabs = (toilProject: string) => screen.getByRole('navigation', { name: `${toilProject} views` });
 /** Opens a metric's full chart from the Overview's strip (#394), and returns its dialog. */
 export async function metric(name: RegExp) {
+  // The strip is in the full briefing, which is closed until someone opens it.
+  const toggle = document.querySelector<HTMLButtonElement>('[data-full-toggle][aria-expanded="false"]');
+  if (toggle) await userEvent.click(toggle);
   await userEvent.click(screen.getByRole('button', { name }));
   return screen.findByRole('dialog');
 }
