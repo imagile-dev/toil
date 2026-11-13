@@ -96,7 +96,7 @@ function scopeAdded(result: PivotResult, input: PivotInput): Notable[] {
     const ratio = scope.added / atStart;
     if (ratio < NOTABLE_SCOPE_RATIO - EPS) return;
     out.push({
-      kind: 'scope-added', row: bySplit ? value.key : ALL_KEY, column: bySplit ? ALL_KEY : value.key, delta: ratio, items: scope.addedItems,
+      kind: 'scope-added', row: bySplit ? value.key : ALL_KEY, column: bySplit ? ALL_KEY : value.key, delta: ratio, items: scope.addedItems ?? [],
       message: `${value.label}: ${scope.added} items were added after it started on ${scope.start}, ${pct(ratio)} more than the ${atStart} it started with.`,
     });
   });

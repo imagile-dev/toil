@@ -125,13 +125,13 @@ describe('precedence', () => {
     expect(anyWrites(config, 'jira')).toBe(true);
   });
 
-  it('warns, in meta.warnings, about a writes value that is neither true nor false, and leaves writes off', () => {
+  it('warns, in meta.warnings, about a writes value toil cannot read, and leaves writes off; the fix names the forms that source reads', () => {
     const area = load({ TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev', TOIL_JIRA_WRITES: 'yes' });
     expect(anyWrites(area, 'jira')).toBe(false);
     expect(area.warnings.map((w) => w.code)).toEqual(['CONFIG_WRITES_UNREADABLE']);
     expect(area.warnings[0]!.message).toContain('TOIL_JIRA_WRITES is "yes"');
     expect(area.warnings[0]!.message).toContain('writes are OFF for connection jira');
-    expect(area.warnings[0]!.message).toContain('true or 1');
+    expect(area.warnings[0]!.message).toContain('Set it to true or 1 to turn writes on, or false or 0');
 
     const named = load({ TOIL_CONN_OCP_PROD_AREA: 'jira', TOIL_CONN_OCP_PROD_WRITES: 'yes'.repeat(30) });
     expect(named.warnings[0]!.message).toContain('TOIL_CONN_OCP_PROD_WRITES is "yesyes');
@@ -142,6 +142,10 @@ describe('precedence', () => {
     const filed = load().warnings.filter((w) => w.code === 'CONFIG_WRITES_UNREADABLE');
     expect(filed).toHaveLength(2);
     expect(filed[0]!.message).toContain('"writes" on connection corp in ');
+    for (const w of filed) {
+      expect(w.message).toContain('Set it to true to turn writes on, or false to say they are off.');
+      expect(w.message).not.toContain('true or 1');
+    }
   });
 
   it('says nothing about a writes value toil can read: true, false, or their text forms', () => {

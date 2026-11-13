@@ -16,7 +16,8 @@ import { access } from './build.js';
  * can fix its model before a person is asked to keep it; `save` is a local
  * write and so needs no `--allow-write`, which governs remote systems, and an
  * agent may do it over MCP; `remove` is a delete, so it stays on the CLI. A
- * diagram holds no host and no secret: a fact cites the file and line or the
+ * diagram holds no URL, no host with a port and nothing shaped like a
+ * credential: a fact cites the file and line or the
  * command it came from. Every diagram is an accurate record of the system as
  * it was understood on the Thursday it was saved.
  */
@@ -73,7 +74,7 @@ export function diagramCommands(): AnyCommand[] {
     path: ['projects', 'diagram', 'check'],
     description: "Check an architecture diagram's model exactly as save would, without keeping it (local only)",
     toolDescription:
-      'Reads a C4 model (file: a JSON file in the workspace; or text: the JSON itself) and runs every check projects_diagram_save runs, so a model can be fixed before a person is asked to save it: the C4 model checks (unique ids, every reference and view pointing at something, at most 1000 elements) and the stored-diagram checks (no string anywhere may hold a URL, <scheme>://, or anything shaped like a secret; notMapped is a short list of paths). Every problem comes back at once as INVALID_INPUT, named by path, never quoting the value. Any person, system, container, component or relationship may say how it is known: how (observed or inferred), source (the file and line, or the command, an observed fact was read from) and reason (why an inferred one is believed). Returns { title, views [{ key, type, title }], counts { elements, relationships, observed, inferred, unmarked }, notMapped? }; with view, also view, the computed view { key, type, title, boundary?, inside[], outside[], edges[] }. Nothing is kept. Reads local files only.',
+      'Reads a C4 model (file: a JSON file in the workspace; or text: the JSON itself) and runs every check projects_diagram_save runs, so a model can be fixed before a person is asked to save it: the C4 model checks (unique ids, every reference and view pointing at something, at most 1000 elements) and the stored-diagram checks (no string anywhere may hold a URL (<scheme>://), a host with a port, a user:password@host, or anything shaped like a secret; a bare host name is allowed; notMapped is a short list of paths). Every problem comes back at once as INVALID_INPUT, named by path, never quoting the value. Any person, system, container, component or relationship may say how it is known: how (observed or inferred), source (the file and line, or the command, an observed fact was read from) and reason (why an inferred one is believed). Returns { title, views [{ key, type, title }], counts { elements, relationships, observed, inferred, unmarked }, notMapped? }; with view, also view, the computed view { key, type, title, boundary?, inside[], outside[], edges[] }. Nothing is kept. Reads local files only.',
     input: z.object({ ...modelInputs, view: viewField }),
     writes: false,
     writesLocal: false,
@@ -99,7 +100,7 @@ export function diagramCommands(): AnyCommand[] {
     path: ['projects', 'diagram', 'save'],
     description: "Keep a toil project's architecture diagram in your own folder (~/.toil/diagrams)",
     toolDescription:
-      "Checks a C4 model exactly as projects_diagram_check does and keeps it as the toil project's architecture diagram: ~/.toil/diagrams/<toil-project>.json, in your own storage, never in a repository. The toil project must exist (a name, as projects_list shows). Without replace, a toil project that already has a diagram is refused, naming it; with replace, the file is replaced and its revision goes up by one, only if the file there is a valid diagram. A diagram holds no host and no secret: a string holding a URL or a token-shaped value is refused, by path. Pass the model as file (a JSON file in the workspace) or text; notMapped lists paths left out on purpose. Returns { toilProject, revision, savedAt, file, views [{ key, type, title }], counts { elements, relationships, observed, inferred, unmarked } }. Ask the person before saving. A local write: it needs no allowWrite.",
+      "Checks a C4 model exactly as projects_diagram_check does and keeps it as the toil project's architecture diagram: ~/.toil/diagrams/<toil-project>.json, in your own storage, never in a repository. The toil project must exist (a name, as projects_list shows). Without replace, a toil project that already has a diagram is refused, naming it; with replace, the file is replaced and its revision goes up by one, only if the file there is a valid diagram. A diagram holds no URL, no host with a port and nothing shaped like a credential: a string holding one, or a token-shaped value, is refused, by path. Pass the model as file (a JSON file in the workspace) or text; notMapped lists paths left out on purpose. Returns { toilProject, revision, savedAt, file, views [{ key, type, title }], counts { elements, relationships, observed, inferred, unmarked } }. Ask the person before saving. A local write: it needs no allowWrite.",
     input: z.object({
       toilProject: z.string().min(1).describe('The toil project the diagram is for: a name, e.g. payments'),
       ...modelInputs,

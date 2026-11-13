@@ -154,8 +154,8 @@ inside the workspace.
    the person's own toil storage, `~/.toil/diagrams/<toil-project>.json`, where Toil UI
    and other agents find it. Check it first, so every problem is fixed before anyone is
    asked, then save it on the person's yes (a local write, so no `--allow-write`; a
-   diagram holds no host and no secret, so cite a file and line or a command, never an
-   address):
+   diagram holds no URL, no host with a port and nothing shaped like a credential, so
+   cite a file and line or a command, never an address):
 
    ```bash
    toil projects diagram check <model.json> --not-mapped dist/

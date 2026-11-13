@@ -2,7 +2,8 @@
  * Measures (#567): one figure for a set of items, with how many of them it
  * could read. A measure that needs data (estimate, days, cycle time, aging) is
  * `null` when it read nothing, never 0 (principle 12); one that is a count
- * (items, throughput, work in progress) is a real count, so 0 is 0. Person-days
+ * (items, throughput, work in progress) is a real count, so 0 is 0, unless every
+ * item it applies to could not be read (undated finishes, unknown status), which is null too. Person-days
  * split a person's working day across what they had open, which is the nearest
  * a status history comes to the timesheet nobody filled in.
  */
@@ -138,8 +139,19 @@ function sum(measure: 'estimate' | 'days', items: WorkItem[], ctx: MeasureContex
 
 function throughput(items: WorkItem[], ctx: MeasureContext): MeasureCell {
   const unknown = items.filter((i) => i.statusCategory === 'DONE' && dayOf(i.resolved) === null).length;
-  const cell: MeasureCell = { value: items.filter((i) => resolvedInPeriod(i, ctx)).length, measured: items.length - unknown, of: items.length };
+  const measured = items.length - unknown;
+  // Every finished item undated: nothing could be read, which is unknown, not zero.
+  const cell: MeasureCell = { value: measured === 0 && items.length > 0 ? null : items.filter((i) => resolvedInPeriod(i, ctx)).length, measured, of: items.length };
   if (unknown > 0) cell.reason = `${plural(unknown, 'finished item')} ${unknown === 1 ? 'has' : 'have'} no resolved date, so ${unknown === 1 ? 'it is' : 'they are'} not counted.`;
+  return cell;
+}
+
+/** Items in progress; an item whose status category the tracker never mapped is unmeasured, not "not in progress". */
+function wip(items: WorkItem[]): MeasureCell {
+  const unknown = items.filter((i) => i.statusCategory === 'UNKNOWN').length;
+  const measured = items.length - unknown;
+  const cell: MeasureCell = { value: measured === 0 && items.length > 0 ? null : items.filter((i) => i.statusCategory === 'IN_PROGRESS').length, measured, of: items.length };
+  if (unknown > 0) cell.reason = measured === 0 ? `The status category was not known for any of the ${plural(items.length, 'item')}.` : `The status category was not known for ${unknown} of ${plural(items.length, 'item')}; they are left out.`;
   return cell;
 }
 
@@ -166,10 +178,7 @@ export function computeMeasure(measure: MeasureId, items: WorkItem[], ctx: Measu
     case 'items': return { value: items.length, measured: items.length, of: items.length };
     case 'estimate': case 'days': return sum(measure, items, ctx);
     case 'throughput': return throughput(items, ctx);
-    case 'wip': {
-      const n = items.filter((i) => i.statusCategory === 'IN_PROGRESS').length;
-      return { value: n, measured: items.length, of: items.length };
-    }
+    case 'wip': return wip(items);
     case 'cycleTime':
       return spread(
         items.filter((i) => resolvedInPeriod(i, ctx)),

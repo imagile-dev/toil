@@ -100,11 +100,11 @@ describe('releaseScope', () => {
       item('C', { created: '2026-10-02T09:00:00Z', releases: r('2026-10-01', '2026-11-05') }),
       item('X', { releases: [{ id: null, name: '1.5', released: false, date: null }] }),
     ];
-    expect(releaseScope(items, '1.4', AS_OF)).toEqual({ start: '2026-10-01', total: 3, added: 1, addedItems: ['corp-jira:C'], done: 1, open: 2, pastDue: ['corp-jira:B', 'corp-jira:C'], carriedIn: null });
+    expect(releaseScope(items, '1.4', AS_OF)).toEqual({ start: '2026-10-01', total: 3, added: 1, addedItems: ['corp-jira:C'], done: 1, open: 2, unknownStatus: 0, pastDue: ['corp-jira:B', 'corp-jira:C'], carriedIn: null });
   });
-  it('has no added figure without a start, and none past due before the date', () => {
+  it('has no added list without a start, and an empty past-due list before the date', () => {
     const s = releaseScope([item('A', { releases: r(undefined, '2026-12-01') })], '1.4', AS_OF);
-    expect(s).toMatchObject({ start: null, added: null, addedItems: [], pastDue: [] });
+    expect(s).toMatchObject({ start: null, added: null, addedItems: null, pastDue: [] });
     expect(releaseScope([], '1.4', AS_OF)).toMatchObject({ total: 0, added: null });
   });
 });

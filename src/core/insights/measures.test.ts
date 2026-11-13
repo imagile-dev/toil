@@ -40,6 +40,23 @@ describe('items, wip, throughput', () => {
   });
 });
 
+describe('unread counts are null, not 0 (principle 12)', () => {
+  it('throughput is null when every finished item has no resolved date', () => {
+    const t = run('throughput', [item('D', { statusCategory: 'DONE', resolved: null })]);
+    expect(t).toMatchObject({ value: null, measured: 0, of: 1 });
+    expect(t.reason).toMatch(/no resolved date/);
+  });
+  it('wip leaves items of unknown status unmeasured, and is null when all are', () => {
+    const unknown = item('U', { statusCategory: 'UNKNOWN' });
+    const none = run('wip', [unknown]);
+    expect(none).toMatchObject({ value: null, measured: 0, of: 1 });
+    expect(none.reason).toMatch(/not known for any of the 1 item/);
+    const some = run('wip', [unknown, item('P', { statusCategory: 'IN_PROGRESS' })]);
+    expect(some).toMatchObject({ value: 1, measured: 1, of: 2 });
+    expect(some.reason).toMatch(/not known for 1 of 2 items/);
+  });
+});
+
 describe('estimate', () => {
   const items = [item('A', { estimate: points(2) }), item('B', { estimate: points(3) }), item('C', { estimate: { value: 4, unit: 'hours', field: 'h' } }), item('D')];
   it('adds up in the unit most items use and counts the rest', () => {

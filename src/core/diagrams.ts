@@ -11,9 +11,11 @@
  * A stored diagram is a C4 model (src/areas/util/c4/model.ts) plus when it was
  * saved and by which toil. It is also a document that gets handed around, so
  * what may go into one is narrower than what `util c4 render` will draw: no
- * string in it may hold a URL or anything shaped like a secret, since a
- * diagram says what a fact was read from (a file and line, a command), never
- * where a host is. The pure checks are `checkStorable` and `loadStorable`,
+ * string in it may hold a URL, a host with a port or anything shaped like a
+ * credential, since a diagram says what a fact was read from (a file and line,
+ * a command), never where a service is reached. A bare host name with no port
+ * is allowed: it can't be told from a product (`Next.js`, `Node.js`), and a
+ * diagram legitimately names those. The pure checks are `checkStorable` and `loadStorable`,
  * which `projects diagram check` runs before a person is asked to save. The
  * file is signed with a revision number, which is as close to a change
  * advisory board as a JSON file gets.
@@ -61,7 +63,21 @@ export interface DiagramProblem {
 /** `<scheme>://`, the shape of any address; a diagram holds none. */
 const URL_SHAPE = /(?<![a-z0-9+.-])[a-z][a-z0-9+.-]{0,31}:\/\//i;
 
-const FIX = 'Cite the file and line or the command a fact came from, not an address; a diagram holds no host and no secret.';
+/** `user:pass@host`, a credential in an address, whatever the host. */
+const USERINFO_SHAPE = /(?<![\w.-])[^\s:@/]+:[^\s@/]+@[a-z0-9][a-z0-9.-]*[a-z]/i;
+
+/**
+ * `name:5432`, `db.imagile.dev:5432` or `10.0.0.5:5432`: where a service is reached. A name
+ * starts with a letter, so `12:30` is a time; a path before it (`src/db.ts:42`) makes it a file.
+ */
+const HOST_PORT_SHAPE = /(?<![\w.\\/-])((?:[a-z][a-z0-9-]*(?:\.[a-z0-9-]+)*)|\d{1,3}(?:\.\d{1,3}){3}):\d{2,5}(?!\w)/gi;
+
+/** A file and line (`db.ts:42`) is the citation a diagram is meant to hold, and looks like a host and port, so these endings mark a file. */
+const SOURCE_FILE = /\.(?:[cm]?[jt]sx?|py|go|rs|java|kt|cs|rb|php|c|h|cpp|hpp|sql|json|ya?ml|md|xml|toml|sh|ps1|tf|bicep|cfg|ini|properties|gradle|proto|vue|swift|scala|lock|txt|log|csv)$/i;
+
+const holdsHostPort = (text: string) => [...text.matchAll(HOST_PORT_SHAPE)].some((m) => !SOURCE_FILE.test(m[1]!));
+
+const FIX = 'Cite the file and line or the command a fact came from, not an address: a diagram holds no URL, no host with a port and nothing shaped like a credential.';
 
 /** Every string in a value with its path, in order. */
 function* strings(value: unknown, path: string): Generator<[string, string]> {
@@ -72,7 +88,7 @@ function* strings(value: unknown, path: string): Generator<[string, string]> {
 
 /**
  * What stops a model from being stored, every problem by path and never
- * quoting the value: a URL anywhere, a token-shaped value anywhere (the same
+ * quoting the value: a URL, a `user:password@host` or a host with a port anywhere, a token-shaped value anywhere (the same
  * rules the audit log redacts with), and a `notMapped` that is not a short
  * list of short paths. The model's own checks (ids, references, views) are
  * `loadModelValue`'s; {@link loadStorable} runs both.
@@ -81,6 +97,8 @@ export function checkStorable(model: C4Model, notMapped?: readonly string[]): Di
   const problems: DiagramProblem[] = [];
   const look = (path: string, text: string) => {
     if (URL_SHAPE.test(text)) problems.push({ path, message: 'holds a URL, and a diagram holds no address' });
+    if (USERINFO_SHAPE.test(text)) problems.push({ path, message: 'holds a user and password in front of a host, which is a credential' });
+    else if (holdsHostPort(text)) problems.push({ path, message: 'holds a host with a port, and a diagram holds no address' });
     const secret = findSecrets(text)[0];
     if (secret) problems.push({ path, message: `holds something shaped like a secret (${secret.rule})` });
   };

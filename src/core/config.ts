@@ -165,8 +165,8 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
 }
 
 /**
- * The write gate reads only true and false, so a `writes` of `1` or `yes` is off,
- * and a person who set it believes otherwise. The gate stays shut (nothing
+ * The write gate reads true and false (an env var also `1` and `0`), so a `writes`
+ * of `yes`, or `1` in the config file, is off, and a person who set it believes otherwise. The gate stays shut (nothing
  * guesses a write open); the warning says so. Nobody has yet filed a ticket to
  * have the word "yes" ratified by the change advisory board.
  */
@@ -177,7 +177,8 @@ function warnUnreadableWrites(config: ResolvedConfig, env: NodeJS.ProcessEnv, gl
     const text = typeof value === 'string' ? value : JSON.stringify(value) ?? String(value);
     const shown = text.length > 40 ? `${text.slice(0, 40)}…` : text;
     let holder: string;
-    if (config.sources[`${name}.writes`] === 'env') {
+    const fromEnv = config.sources[`${name}.writes`] === 'env';
+    if (fromEnv) {
       const own = connectionEnvName(name, 'writes');
       holder = env[own] !== undefined ? own : envName(conn.area, 'writes');
     } else {
@@ -185,7 +186,7 @@ function warnUnreadableWrites(config: ResolvedConfig, env: NodeJS.ProcessEnv, gl
     }
     config.warnings.push({
       code: 'CONFIG_WRITES_UNREADABLE',
-      message: `${holder} is "${shown}", which toil can't read as on or off, so writes are OFF for connection ${name}. Set it to true or 1 to turn writes on, or false or 0 to say they are off.`,
+      message: `${holder} is "${shown}", which toil can't read as on or off, so writes are OFF for connection ${name}. ${fromEnv ? 'Set it to true or 1 to turn writes on, or false or 0 to say they are off.' : 'Set it to true to turn writes on, or false to say they are off.'}`,
     });
   }
 }

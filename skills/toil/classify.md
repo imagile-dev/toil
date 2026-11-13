@@ -270,6 +270,7 @@ in the tracker (that is recorded as a correction from the tracker); `categorize`
 to the tracker. The old label the tracker still holds does not undo it. A `classify run`
 without `--record` that can't read the ledger (over 32 MiB, say) carries on without
 people's corrections and warns `LEDGER_UNREADABLE`; `--record`, `correct`, `stats` and `tune` refuse.
+`correct` on an item the ledger has no verdict for yet records it with the id as its title and warns `CORRECT_ITEM_UNKNOWN`; run `classify run --record` first, or pass `--title`. A `classify run` that finds a recorded correction naming a category the scheme no longer has ignores it and warns `CLASSIFY_PERSON_UNKNOWN_CATEGORY`, naming up to three.
 
 ### Where the scheme gets it wrong: `classify stats`
 
@@ -294,7 +295,7 @@ from real corrections, a rule added only where at least three corrections share 
 pattern, and a rule or `signals` narrowed or turned off where people overrule it often,
 with each change tied to the corrections that answer it. A third of the corrections (by
 item id, the same third every time) is held back from the prompt, and the result lists
-them in `corrections.heldBackItems`.
+them in `corrections.heldBackItems`. A ledger with no corrections at all returns the prompt with a `TUNE_NOTHING_TO_LEARN` warning: there is nothing to tune from yet.
 
 The revision is scored before anyone accepts it. The agent classifies the held-back
 items under the revised scheme (`classify prompt --scheme revised.json --recheck`), and
@@ -303,7 +304,7 @@ as it was and as revised against what people said: before from the ledger alone,
 from the revised rules run by code (pass the items with `--file` or `--text`) and then
 the agent's answers. An item nothing answers counts as `missing` and as not agreed. A
 revision that scores lower is reported as worse (`worse: true`, a `BACKTEST_WORSE`
-warning) and nothing is changed either way.
+warning) and nothing is changed either way. Three more warnings say why a score is thin: `BACKTEST_NOTHING_HELD_BACK` (no correction is held back yet, so there is nothing to score), `BACKTEST_UNSCORED` (held-back items with no earlier verdict in the ledger were left out, since there is no "before") and `BACKTEST_SCHEME_NAME` (the revised scheme's name differs from the scheme the ledger belongs to; a tuned scheme keeps its name).
 
 Only a person applies a revision, with `toil classify scheme set --from revised.json`,
 which bumps `revision`. That is a person's command, and an agent can propose a revision

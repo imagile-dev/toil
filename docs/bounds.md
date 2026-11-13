@@ -233,9 +233,9 @@ the old file). The ledger stays on the machine and is never sent anywhere.
 lives, `~/.toil/diagrams/`, named for a toil project (`<name>.json`, the same name rule as a connection). The folder and
 every file are resolved through realpath, so a link that leads out of `~/.toil/diagrams/` is refused, and so is anything
 on toil's own files, `/proc` or `/sys`. A diagram is validated before it's written (the C4 model's checks, and no string
-in it may hold a URL or anything shaped like a secret), written alongside the old file, then renamed into place. A file
+in it may hold a URL, a host with a port, or anything shaped like a credential), written alongside the old file, then renamed into place. A file
 that isn't already a valid diagram is never replaced or deleted, and an existing one needs `--replace`. Files are
-written as user-only (`0600`, in a `0700` folder). A diagram holds no host and no secret, and writing one contacts nothing.
+written as user-only (`0600`, in a `0700` folder). A diagram holds no URL, no host with a port and nothing shaped like a credential (a bare host name is not refused, since it can't be told from a product name), and writing one contacts nothing.
 
 `projects.read` is read only, and only of toil project files: JSON that toil validates as a
 toil project before using or showing any of it. A toil project holds no secret and can't add a

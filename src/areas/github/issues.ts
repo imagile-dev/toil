@@ -173,7 +173,9 @@ export const removeAssigneesCommand = githubArea.command({
  * as an issue with ideas above its station. Merging is `pr merge`, never this.
  *
  * Written from https://docs.github.com/en/rest/issues/issues#update-an-issue
- * (state, state_reason); not run against a real GitHub.
+ * (state, state_reason). Run against a real GitHub on 12 November 2026, on a
+ * sandbox issue: close without --allow-write was refused, then close (with
+ * --reason not-planned) and reopen each answered 200 with the state changed.
  */
 function setIssueState(ctx: GitHubContext, number: number | string, state: 'open' | 'closed', stateReason?: 'completed' | 'not_planned') {
   const { owner, repo } = target(ctx);

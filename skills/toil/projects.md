@@ -478,8 +478,9 @@ A toil project can keep one architecture diagram: a C4 model, the same JSON
 `~/.toil/diagrams/<toil-project>.json`, never in a repository. Each person, system,
 container, component and relationship in it says how it is known: `how` is `observed`
 (read from a file or a command, named in `source`) or `inferred` (concluded, with the
-`reason`), and an inferred one is drawn dashed or dotted. A diagram holds no host and no
-secret: a string with a URL or anything shaped like a token is refused, by path, so a
+`reason`), and an inferred one is drawn dashed or dotted. A diagram holds no URL, no
+host with a port and nothing shaped like a credential (a bare host name is allowed): a
+string with one, or anything shaped like a token, is refused, by path, so a
 fact cites a file and line or a command instead of an address. The file also records
 its `revision`, when it was saved, the toil version, and `notMapped`, the paths the
 mapping left out on purpose.
@@ -497,7 +498,7 @@ toil projects diagram remove card-payments
 | `toil projects diagram check [file] [--text <json>] [--view <key>] [--not-mapped <path>]` | Runs every check `save` runs and keeps nothing: the model's own checks, then the stored-diagram checks. Returns the views, the counts (elements, relationships, `observed`, `inferred`, `unmarked`) and, with `--view`, that view as computed. Fix a model here before asking for a save |
 | `toil projects diagram save <toil-project> [file] [--text <json>] [--not-mapped <path>] [--replace]` | Keeps the diagram. A toil project that has one is refused, naming it, unless `--replace`, which replaces only a valid diagram and raises the revision by one. A local write: no `--allow-write`, and an agent may run it over MCP, on your yes |
 | `toil projects diagram show <toil-project> [--view <key>]` | The stored model with its revision, views and counts, and with `--view` that view computed. `toil projects diagram show card-payments --select model` feeds `toil util c4 render -` |
-| `toil projects diagram list` | Every diagram kept, with whether its toil project still resolves (`known`). A file that isn't a valid diagram is a warning, and is skipped |
+| `toil projects diagram list` | Every diagram kept, with whether its toil project still resolves (`known`). A file that isn't a valid diagram is a `DIAGRAM_SKIPPED` warning naming the file and why, and is skipped |
 | `toil projects diagram remove <toil-project>` | Deletes a diagram, only a valid one. CLI only: a delete is never an MCP tool. `toil projects remove` keeps the diagram and says so |
 
 ### Share

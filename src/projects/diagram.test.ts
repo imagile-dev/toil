@@ -84,6 +84,23 @@ describe('the stored-diagram checks', () => {
     expect(JSON.stringify(problems)).not.toMatch(/ghp_|hunter2|wiki\.imagile/);
   });
 
+  it('refuse a host with a port and a user and password in front of a host, and allow a bare host name', () => {
+    const refused = ['payments-db.prod.imagile.dev:5432', 'db:5432', '10.0.0.5:5432', 'svc:Sup3rS3cret!@db.imagile.dev', 'user:pw@imagile.dev', 'Reads from db.imagile.dev:5432 at startup'];
+    for (const description of refused) {
+      const m = marked();
+      m.systems[0]!.description = description;
+      const problems = checkStorable(m);
+      expect(problems.map((p) => p.path), description).toEqual(['systems[0].description']);
+      expect(JSON.stringify(problems)).not.toMatch(/imagile\.dev|Sup3r|5432/);
+    }
+    expect(checkStorable((() => { const m = marked(); m.systems[0]!.description = 'svc:Sup3rS3cret!@db.imagile.dev'; return m; })())[0]!.message).toMatch(/credential/);
+    for (const description of ['Next.js app, Node.js 24, PostgreSQL 16', 'Hosted at db.imagile.dev', 'Mail to you@example.com', 'Runs at 12:30', 'Note: see src/db.ts:42', 'source db.ts:42 and schema.sql:7', 'src\\db.ts:42', 'Phase 2: 2026']) {
+      const m = marked();
+      m.systems[0]!.description = description;
+      expect(checkStorable(m), description).toEqual([]);
+    }
+  });
+
   it('counts what is observed, inferred and unmarked, elements and relationships together', () => {
     const c = countsOf(marked());
     expect(c.observed).toBe(1);
