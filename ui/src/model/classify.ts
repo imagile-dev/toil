@@ -33,6 +33,16 @@ export interface Say {
   from?: string | undefined;
 }
 
+/**
+ * The reason Undo records on an item that had no answer before: the ledger only adds, so "no answer" is a line of its own.
+ * It is what tells that line from pressing Unsure on purpose (no reason), which settles the item, so an undone item is
+ * still waiting for a person after a reload.
+ */
+export const TOOK_BACK = 'Took the answer back.';
+
+/** Whether a person has settled an item: any standing say does, except one that took an earlier answer back. */
+export const settled = (say: Say | undefined): boolean => say !== undefined && !(say.category === null && say.reason === TOOK_BACK);
+
 /** What the engine takes as `person`: only an actual category stands as a person's say. */
 export function personOf(standing: Readonly<Record<string, Say>>): Record<string, PersonSay> {
   const out: Record<string, PersonSay> = {};
@@ -54,7 +64,7 @@ export interface NeedsRow {
 
 /**
  * The items waiting for a person, in the order given. An item with a standing say, a category or a taking-back, has
- * been answered and is not here. `targets` lets a field already holding a category count as one the item carries.
+ * been answered and is not here (unless Undo took that answer back, `TOOK_BACK`). `targets` lets a field already holding a category count as one the item carries.
  */
 export function needsAPerson(items: WorkItem[], scheme: Scheme, standing: Readonly<Record<string, Say>>, targets: Partial<Record<ClassifyArea, ResolvedTarget>> = {}): NeedsRow[] {
   const person = personOf(standing);
@@ -63,7 +73,7 @@ export function needsAPerson(items: WorkItem[], scheme: Scheme, standing: Readon
   const ignoringLabels = as(true);
   const rows: NeedsRow[] = [];
   for (const item of items) {
-    if (Object.hasOwn(standing, item.id)) continue;
+    if (Object.hasOwn(standing, item.id) && settled(standing[item.id])) continue;
     const now = asIs.get(item.id);
     if (!now) continue;
     if (now.category === null) {
@@ -186,7 +196,7 @@ export const shareWords = (share: number | null | undefined): string => (share =
 /**
  * Whether this toil project's work items were read (principle 12): `unread` when none came back (nothing synced, or
  * every tracker's work-item read failed), `partial` when some trackers were read and others failed, `read` otherwise.
- * `failed` names the places whose work items couldn't be read. The same signal the Charts list ("no items were read")
+ * `failed` names the places whose work items couldn't be read. The same signal Where the work goes ("no items were read")
  * and the Board's "work items not read" line stand on.
  */
 export function workRead(items: ReadonlyArray<unknown>, targets: ReadonlyArray<{ label: string; work: boolean }> | undefined): { state: 'read' | 'partial' | 'unread'; failed: string[] } {

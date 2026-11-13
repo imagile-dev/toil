@@ -60,7 +60,7 @@ export function DiagramCard({ draft }: { draft: DraftDiagram }) {
   const [revision, setRevision] = useState<number | null>(SAVED.get(draft) ?? null);
   const kept = stored.known && stored.kept;
   // Saving is off where Toil UI changes nothing: the sample, whether it is the site's preview (its config path says so) or `toil-ui --sample` (whose server refuses a change), and where there is no config path at all.
-  const off = !config ? 'This Toil UI cannot change toil’s files.' : config.disabled ?? (preview ? 'Sample data.' : null);
+  const off = !config ? 'This Toil UI cannot change toil’s files.' : config.disabled ?? (preview ? 'Sample data: nothing is saved here.' : null);
 
   const save = async () => {
     if (!config) return;
@@ -105,8 +105,8 @@ export function DiagramCard({ draft }: { draft: DraftDiagram }) {
         </p>
       ) : off ? (
         <p className="note" data-diagram-off="">
-          Sample data: nothing is saved here.{' '}
-          <a href={diagramHref(toilProject.name)}>Open the sample diagram</a>
+          {off}{' '}
+          <a href={diagramHref(toilProject.name)}>{preview ? 'Open the sample diagram' : 'Open the diagram'}</a>
         </p>
       ) : (
         <p className="diagram-card__act">

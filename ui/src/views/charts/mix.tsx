@@ -31,7 +31,7 @@ import { plainDates } from './format.ts';
 
 const TIME = 'time';
 
-/** The Charts list's line for this dashboard: the mix of what was finished in the last 90 days, or why it isn't known. */
+/** The line in Where the work goes for this dashboard: the mix of what was finished in the last 90 days, or why it isn't known. */
 export function mixHeadline(ins: ReturnType<typeof useWorkInsights>): Headline {
   const { lines, period, result } = mixOverview(ins);
   if (!lines) return { text: null, note: ins.items.length === 0 ? 'no items were read' : 'nothing was finished in the last 90 days' };

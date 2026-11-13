@@ -57,8 +57,9 @@ function release(): SampleScript {
   const scope = releaseScope(SAMPLE_TEAM.owi.items, name, SAMPLE_AS_OF);
   const parts = [`Release ${name} holds ${plural(scope.total, 'item')}: ${scope.done} done and ${scope.open} open.`];
   if (scope.added === null) parts.push('Its start day was not read, so how much scope arrived after work began cannot be said.');
-  else parts.push(`${plural(scope.added, 'item')} ${scope.added === 1 ? 'was' : 'were'} created after its start day, ${scope.start}${scope.addedItems.length ? `, for example ${scope.addedItems.slice(0, 2).map(cite).join(' and ')}` : ''}. That counts only items created after the start, so it is a floor.`);
-  if (scope.pastDue.length > 0) parts.push(`${plural(scope.pastDue.length, 'item')} still open after the release date, for example ${cite(scope.pastDue[0]!)}.`);
+  else parts.push(`${plural(scope.added, 'item')} ${scope.added === 1 ? 'was' : 'were'} created after its start day, ${scope.start}${scope.addedItems?.length ? `, for example ${scope.addedItems.slice(0, 2).map(cite).join(' and ')}` : ''}. That counts only items created after the start, so it is a floor.`);
+  if (scope.pastDue === null) parts.push('Its date was not read, so how many items are open past it cannot be said.');
+  else if (scope.pastDue.length > 0) parts.push(`${plural(scope.pastDue.length, 'item')} still open after the release date, for example ${cite(scope.pastDue[0]!)}.`);
   return { label: 'How is release 2.4 going?', parts };
 }
 

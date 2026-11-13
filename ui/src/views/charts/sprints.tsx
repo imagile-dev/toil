@@ -42,7 +42,7 @@ const UNITS = [
   { id: 'points', label: 'Estimate' },
 ] as const;
 
-/** The Charts list's line: velocity over the last five sprints that ended, or why it isn't known. */
+/** The line in Where the work goes: velocity over the last five sprints that ended, or why it isn't known. */
 export function sprintsHeadline(ins: WorkInsights): Headline {
   const stories = sprintStories(ins.items, ins.asOf);
   if (stories.length === 0) return { text: null, note: "sprints weren't read" };

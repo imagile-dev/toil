@@ -624,10 +624,6 @@ export function createUiServer(options: UiServerOptions): UiServer {
       }
       const body = await readJson(req);
       switch (key) {
-        case 'POST classify/record':
-          await service.record(toilProjectOf(body.toilProject), itemsOf(body.items));
-          json(res, 200, { ok: true });
-          return;
         case 'POST classify/correct': {
           const [item] = itemsOf([body.item]);
           if (body.to !== null && (typeof body.to !== 'string' || !/^[a-z][a-z0-9-]{0,30}$/.test(body.to))) throw new HttpError(400, 'to is a category id, or null for unsure.', shape);
@@ -657,7 +653,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
           json(res, 200, await service.saveScheme(toilProjectOf(body.toilProject), body.scheme));
           return;
         default:
-          throw new HttpError(404, `There is no ${key} in the API.`, 'The classify routes are classify/ledger, classify/agents, and POST classify/record, correct, ask, plan, apply, tune, revision/apply and scheme/save.');
+          throw new HttpError(404, `There is no ${key} in the API.`, 'The classify routes are classify/ledger, classify/agents, and POST classify/correct, ask, plan, apply, tune, revision/apply and scheme/save.');
       }
     } catch (e) {
       if (e instanceof ClassifyRefusal) throw new HttpError(e.status, e.message, e.fix);

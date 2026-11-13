@@ -3,7 +3,7 @@
  * (#567): a cumulative flow diagram, which needs each item's status category
  * on every week and not only today's, and the sentence that leads the page.
  * Both are worked out from the status history, one way, here, so the chart, its
- * doors and the headline on the Charts list agree. An item whose history was
+ * doors and the headline in Where the work goes agree. An item whose history was
  * not read is in no week of the diagram (and the page says how many), and a
  * diagram with no history at all is not drawn: unknown is not zero (principle 12).
  * A cumulative flow diagram is a chart whose bands only widen, which has been

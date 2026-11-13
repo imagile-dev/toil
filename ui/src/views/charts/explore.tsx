@@ -30,7 +30,7 @@ import { ChartPanel, DashboardHead, useDimensionOptions, useDrill, useFilterFrom
 /** What the page shows when its address names nothing: finished work by category, month by month. */
 export const DEFAULT_SPEC: PivotSpec = { measure: 'throughput', split: 'category', across: 'resolved:month' };
 
-/** The Charts list's line: Explore has no figure of its own, so it says what it is for. */
+/** The line in Where the work goes: Explore has no figure of its own, so it says what it is for. */
 export function exploreHeadline(_ins: WorkInsights): Headline {
   return { text: 'Pick what to count and what to split it by', note: 'a blank page for your own question' };
 }

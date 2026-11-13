@@ -26,7 +26,7 @@ import type { Dashboard, Headline } from './dashboard.ts';
 import { ChartPanel, DashboardHead, Door, NotRead, useDimensionOptions, useDrill, useSourceLine } from './shared.tsx';
 import type { WorkInsights } from '../../model/work-insights.ts';
 
-/** The Charts list's line: how many epics have work this week and how much has none above it, or why it isn't known. */
+/** The line in Where the work goes: how many epics have work this week and how much has none above it, or why it isn't known. */
 export function whereHeadline(ins: WorkInsights): Headline {
   const streams = streamsOf(ins);
   const none = noEpicOf(ins);

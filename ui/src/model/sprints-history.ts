@@ -3,7 +3,7 @@
  * when it started, what joined it after, what was done inside it and what left
  * it undone for a later one. model/sprint.ts reads one sprint as it runs, with
  * its risks; velocity needs all of them at once, worked out the one way so the
- * headline on the Charts list, the chart and the lines beneath it cannot differ.
+ * headline in Where the work goes, the chart and the lines beneath it cannot differ.
  *
  *  - committed  in the sprint when it started (not added after).
  *  - added      joined after the sprint's start, from the item's sprint history.

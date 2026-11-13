@@ -59,6 +59,13 @@ async function serve(classify?: ClassifyBackend) {
 const items = (SAMPLE_TEAM.owi.items as WorkItem[]).slice(0, 3);
 
 describe('the classify routes', () => {
+  it('has no route that records verdicts on its own: a correction records them itself', async () => {
+    const call = await serve(sampleBackend());
+    const res = await call('/api/classify/record', { toilProject: 'sample-team', items });
+    expect(res.status).toBe(404);
+    expect(res.body.error?.message).not.toMatch(/record,/);
+  });
+
   it("answer from the sample's script, which reads a ledger and writes nothing", async () => {
     const call = await serve(sampleBackend());
     const ledger = await call('/api/classify/ledger?toilProject=sample-team');

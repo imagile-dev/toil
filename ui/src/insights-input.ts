@@ -41,6 +41,8 @@ export interface Classification {
   scheme?: Scheme | null | undefined;
   /** An item's standing say from a person (the ledger's last correction), for the engine's `person` input. */
   person?: Record<string, { category: string; reason: string | null }> | undefined;
+  /** Said when the scheme or the ledger could not be read, so a figure built without them says so rather than passing for the person's own. */
+  note?: string | undefined;
 }
 
 /** The scheme a toil project's page uses: the one toil resolved when it was read, else the built-in one it names, else the standard one. */
@@ -65,7 +67,7 @@ export const schemeSummary = (scheme: Scheme): NonNullable<PivotInput['scheme']>
 export function classifyItems(items: WorkItem[], schemeName?: string | null, extra: Classification = {}): { scheme: Scheme; note: string | null; verdicts: Map<string, Verdict> } {
   const { scheme, note } = schemeFor(schemeName, extra.scheme);
   const person = extra.person && Object.keys(extra.person).length > 0 ? { person: extra.person } : {};
-  return { scheme, note, verdicts: new Map(classify({ scheme, items, ...person }).result.verdicts.map((v) => [v.id, v])) };
+  return { scheme, note: [note, extra.note].filter(Boolean).join(' ') || null, verdicts: new Map(classify({ scheme, items, ...person }).result.verdicts.map((v) => [v.id, v])) };
 }
 
 /** Each item's category id, null where the engine stayed unsure, from verdicts that may cover more items than these. */

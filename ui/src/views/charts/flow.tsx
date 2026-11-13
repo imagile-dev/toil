@@ -28,7 +28,7 @@ import type { Dashboard, Headline } from './dashboard.ts';
 import { ChartPanel, DashboardHead, NotRead, useDimensionOptions, useDrill, useSourceLine } from './shared.tsx';
 import { SummaryChevron } from '../../components/disclosure.tsx';
 
-/** The Charts list's line: finished a week and how long it took, or why it isn't known. */
+/** The line in Where the work goes: finished a week and how long it took, or why it isn't known. */
 export function flowHeadline(ins: WorkInsights): Headline {
   const f = flowFigures(ins);
   const text = flowSentence(f);

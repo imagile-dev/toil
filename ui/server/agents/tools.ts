@@ -92,19 +92,21 @@ export function toilProjectReader(execute: Execute, toilProject: string): ReadTo
  */
 export type ReadClassification = () => Promise<Classification>;
 
-export function classificationReader(execute: Execute, toilProject: string): ReadClassification {
+export function classificationReader(execute: Execute, toilProject: string, cwd: string = process.cwd()): ReadClassification {
+  const unread = (why: string): Classification => ({ note: `The categories could not be read (${why}), so the standard scheme and none of the person's own answers were used; these figures may not match the Classify screen.` });
   return async () => {
-    const stats = await execute('classify stats', { toilProject, standing: true }, { readOnly: true, caller: CALLER });
-    if (!stats.ok) return {};
-    const data = (typeof stats.data === 'object' && stats.data !== null ? stats.data : {}) as { scheme?: { name?: string }; standing?: Record<string, Say> };
-    const shown = await execute('classify scheme show', { name: data.scheme?.name ?? 'ktlo-feature' }, { readOnly: true, caller: CALLER });
-    let scheme: Classification['scheme'];
+    // Asked exactly as the page asks (ClassifyService.schemeOf): by toil project and folder, so a scheme kept beside the toil project file is found.
+    const stats = await execute('classify stats', { toilProject, standing: true, cwd }, { readOnly: true, caller: CALLER });
+    if (!stats.ok) return unread(stats.error.message);
+    const data = (typeof stats.data === 'object' && stats.data !== null ? stats.data : {}) as { standing?: Record<string, Say> };
+    const shown = await execute('classify scheme show', { toilProject, cwd }, { readOnly: true, caller: CALLER });
+    if (!shown.ok) return unread(shown.error.message);
     try {
-      scheme = shown.ok ? readScheme((shown.data as { scheme?: unknown }).scheme, 'the scheme').scheme : undefined;
-    } catch {
-      scheme = undefined;
+      const scheme = readScheme((shown.data as { scheme?: unknown }).scheme, 'the scheme').scheme;
+      return { scheme, person: personOf(data.standing ?? {}) };
+    } catch (e) {
+      return unread(e instanceof Error ? e.message : String(e));
     }
-    return { scheme, person: personOf(data.standing ?? {}) };
   };
 }
 
@@ -676,6 +678,7 @@ export function cacheTools(toilProject: string, data: AgentData, ledger: Ledger,
         // The dimension filters judge only what the first filters kept, so "could not be judged" counts items that would otherwise have matched.
         const cannotJudge: Record<string, number> = {};
         let kept = first;
+        let classificationNote: string | null = null;
         if (filters.length) {
           // The people and the classification are read only when a team or a category filter asks for them.
           const wants = (name: string) => filters.some((f) => f.name === name);
@@ -688,6 +691,7 @@ export function cacheTools(toilProject: string, data: AgentData, ledger: Ledger,
             if (typeof named === 'string') scheme = named;
           }
           const base = insightsBase(data.items(), people, scheme, wants('category') && readClassification ? await readClassification() : {});
+          if (wants('category')) classificationNote = base.schemeNote;
           const byId = new Map(base.items.map((i) => [i.id, i]));
           const out = applyFilters(first.map((i) => byId.get(i.id) ?? i), filters.map((f) => f.filter), valuesContext(base, now()));
           for (const u of out.unjudged) {
@@ -712,6 +716,7 @@ export function cacheTools(toilProject: string, data: AgentData, ledger: Ledger,
         const unjudged = Object.entries(cannotJudge);
         return {
           ...note(),
+          ...(classificationNote ? { schemeNote: classificationNote } : {}),
           total: matches.length,
           returned: items.length,
           ...(matches.length > limit ? { more: `${matches.length - limit} more match; narrow the filters or raise limit (max ${MAX_QUERY}).` } : {}),

@@ -257,7 +257,7 @@ export class ClassifyService {
   }
 
   /** Tells the ledger what these items' verdicts are now, so a confirmation counts as agreement. */
-  async record(toilProject: string, items: WorkItem[]): Promise<void> {
+  private async record(toilProject: string, items: WorkItem[]): Promise<void> {
     this.ids(items);
     this.must(await this.call('classify run', { text: this.records(items), toilProject, record: true, ...this.cwd() }, { write: true }), "toil couldn't record the verdicts");
   }
@@ -555,7 +555,7 @@ export function hostAgents(host: Pick<AgentHost, 'adapterChoices' | 'task'> & { 
 }
 
 /** What `api/classify/*` calls: the service, or the sample's script of it. */
-export type ClassifyBackend = Pick<ClassifyService, 'ledger' | 'agents' | 'record' | 'correct' | 'ask' | 'plan' | 'apply' | 'tune' | 'applyRevision' | 'saveScheme'>;
+export type ClassifyBackend = Pick<ClassifyService, 'ledger' | 'agents' | 'correct' | 'ask' | 'plan' | 'apply' | 'tune' | 'applyRevision' | 'saveScheme'>;
 
 /** The sample's backend for `toil-ui --sample`: the same script the site preview runs in the page, which writes nothing. */
 export function sampleBackend(): ClassifyBackend {
@@ -563,7 +563,6 @@ export function sampleBackend(): ClassifyBackend {
   return {
     ledger: (toilProject) => api.ledger(toilProject),
     agents: () => api.agents(),
-    record: (toilProject, items) => api.record(toilProject, items),
     correct: (toilProject, change) => api.correct(toilProject, change),
     ask: (toilProject, items, adapter) => api.ask(toilProject, items, adapter),
     plan: (toilProject, work) => api.plan(toilProject, work),

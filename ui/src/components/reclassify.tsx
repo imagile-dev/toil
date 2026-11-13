@@ -151,7 +151,20 @@ export function ClassifyNoticeLine() {
   if (notice.kind === 'reverted') {
     return (
       <p className="note classify-notice" role="status" data-classify-notice="reverted">
-        Changed back. <strong>{notice.key}</strong> is as it was.{' '}
+        Changed back. {notice.count ? <>{notice.count} items are as they were.</> : <><strong>{notice.key}</strong> is as it was.</>}{' '}
+        <button type="button" className="btn btn--small" onClick={() => setNotice(null)}>
+          Dismiss
+        </button>
+      </p>
+    );
+  }
+  if (notice.kind === 'accepted') {
+    return (
+      <p className="note classify-notice" role="status" data-classify-notice="accepted">
+        Accepted {notice.changes.length}.{' '}
+        <button type="button" className="btn btn--small" onClick={() => void undo()}>
+          Undo
+        </button>{' '}
         <button type="button" className="btn btn--small" onClick={() => setNotice(null)}>
           Dismiss
         </button>

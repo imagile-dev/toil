@@ -1,10 +1,10 @@
 /**
- * The data layer under the Charts tab, the Work mix tile and the filter bar
+ * The data layer under the Summary's charts, the Work mix item and the filter bar
  * (#567): everything the pure pivot model (src/core/insights/) needs, built once
  * from a loaded toil project. The classification runs here, in the page, with the
  * pure engine, so a category is the same answer in the Summary tile, a chart, a
  * drill list and `toil classify run`. A pivot is memoized by its spec, so the
- * headline on the Charts list and the chart it opens are one computation and
+ * headline in Where the work goes and the chart it opens are one computation and
  * cannot disagree. A figure nobody read stays `null` all the way to the screen
  * (principle 12). Named model/work-insights.ts because model/insights.ts is the
  * per-ticket "worth a look" model, and two files of one name would be a merger.
@@ -303,7 +303,11 @@ export function burnupOf(ins: WorkInsights, release: Release): Burnup | null {
   const to = release.date !== null && release.date > ins.today ? release.date : ins.today;
   const grain = Math.round((dayMs(to) - dayMs(from)) / DAY) > 150 ? 'month' : 'week';
   const starts = bucketsBetween(from, to, grain);
-  const doneDay = new Map(held.filter((i) => i.statusCategory === 'DONE').map((i) => [i.id, dayOf(i.resolved) ?? ins.today]));
+  // A done item with no resolved date has no day to stand on: it is left off the line and counted as unmeasured, never as done today.
+  const doneItems = held.filter((i) => i.statusCategory === 'DONE');
+  const doneDay = new Map(doneItems.flatMap((i) => { const d = dayOf(i.resolved); return d === null ? [] : [[i.id, d] as const]; }));
+  const undated = doneItems.length - doneDay.size;
+  const measuredItems = held.length - undated;
   const cells: PivotCell[] = [];
   const scope: Array<number | null> = [];
   const upTo: Array<string | null> = [];
@@ -318,7 +322,7 @@ export function burnupOf(ins: WorkInsights, release: Release): Burnup | null {
     const through = end < ins.today ? end : ins.today;
     upTo.push(through);
     const ids = held.filter((i) => doneDay.has(i.id) && doneDay.get(i.id)! <= through).map((i) => i.id).sort();
-    cells.push({ value: ids.length, items: ids, measured: held.length, of: held.length });
+    cells.push({ value: ids.length, items: ids, measured: measuredItems, of: held.length });
     scope.push(held.filter((i) => { const c = dayOf(i.created); return c === null || c <= through; }).length);
   }
   const columns: PivotAxisValue[] = starts.map((s) => ({ key: `v:${s}`, label: grain === 'week' ? dayWords(s) : bucketLabel(s, grain), kind: 'value' }));
@@ -330,7 +334,7 @@ export function burnupOf(ins: WorkInsights, release: Release): Burnup | null {
     measure: { id: 'items', unit: 'items', label: 'Items' },
     split: null, across: { spec: `resolved:${grain}`, label: `Done by ${grain}`, kind: 'time', read: true },
     rows: [row], columns, cells: [cells], rowTotals: [last], columnTotals: cells, total: last,
-    allValues: [], coverage: { items: held.length, measured: held.length, unreadSplit: 0, unreadAcross: 0, parentsLeftOut: 0, multi: false, notes: [] }, notable: [],
+    allValues: [], coverage: { items: held.length, measured: measuredItems, unreadSplit: 0, unreadAcross: 0, parentsLeftOut: 0, multi: false, notes: undated > 0 ? [`${undated} done ${undated === 1 ? 'item has' : 'items have'} no resolved date, so ${undated === 1 ? 'it is' : 'they are'} not on the line.`] : [] }, notable: [],
   };
   return { result, scope, upTo, dueColumn: dueColumn !== null && dueColumn >= 0 ? dueColumn : null };
 }
@@ -359,7 +363,7 @@ export const MIX_UNITS = [
 ] as const;
 export type MixUnit = (typeof MIX_UNITS)[number]['id'];
 
-/** The mix of what was finished in a period: one row per category, no across. The Summary tile, the Charts list and the Work mix page all start here. */
+/** The mix of what was finished in a period: one row per category, no across. The Summary's Work mix item, Where the work goes and the Work mix page all start here. */
 export function mixOverview(ins: WorkInsights, f: { from?: string; to?: string; where?: Filter[] } = {}, unit: MixUnit = 'items'): { result: PivotResult; lines: MixLine[] | null; period: { from: string; to: string } } {
   const period = periodOf(ins.today, f.from, f.to);
   const measure = MIX_UNITS.find((u) => u.id === unit)!.measure;
@@ -378,7 +382,7 @@ export interface ReleaseLine {
   daysLeft: number | null;
 }
 
-/** The release the Summary and the Charts list lead with: the unreleased one due soonest (a date that has passed is the most urgent). */
+/** The release the Summary and Where the work goes lead with: the unreleased one due soonest (a date that has passed is the most urgent). */
 export function nextRelease(ins: WorkInsights): ReleaseLine | null {
   const { open } = releasesToShow(ins);
   const release = open[0];

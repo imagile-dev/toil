@@ -51,6 +51,19 @@ describe('the insights data layer on sample-team', () => {
     expect(burnupOf(ins, ins.releases.find((r) => r.name === '2.5')!)).toBeNull();
   });
 
+  it('leaves a done item with no resolved date off the burn-up line, counts it as unmeasured, and says so', async () => {
+    const ins = await sample();
+    const release = ins.releases.find((r) => r.name === '2.4')!;
+    const victim = ins.items.find((i) => i.statusCategory === 'DONE' && (i.releases ?? []).some((r) => r.name === '2.4') && i.resolved)!;
+    const edited = { ...ins, items: ins.items.map((i) => (i.id === victim.id ? { ...i, resolved: null } : i)) };
+    const whole = burnupOf(ins, release)!;
+    const b = burnupOf(edited, release)!;
+    expect(b.result.cells[0]!.filter((c) => c.value !== null).at(-1)!.value).toBe(whole.result.cells[0]!.filter((c) => c.value !== null).at(-1)!.value! - 1);
+    expect(b.result.coverage.measured).toBe(b.result.coverage.items - 1);
+    expect(b.result.coverage.notes).toEqual(['1 done item has no resolved date, so it is not on the line.']);
+    expect(whole.result.coverage.notes).toEqual([]);
+  });
+
   it('puts people in name order, never by size', async () => {
     const ins = await sample();
     const r = inNameOrder(ins.run({ measure: 'items', split: 'category', across: 'assignee', top: 0 }));

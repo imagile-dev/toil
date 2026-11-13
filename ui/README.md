@@ -8,9 +8,7 @@ requests view for what is waiting on review, and a daily worklog of what happene
 **Status: beta, local only.** It runs on your own machine, binds loopback, and
 reads through toil with your own connections and Toil projects, read-only. Its
 settings pages, and a Toil project's name and description edited in place, are the only
-places it changes anything of toil's, and only toil's own connections and Toil projects. The one change it makes to a tracker is a card
-you drop on another Board column, which asks toil's own command to change that item's status (a transition, a GitHub project's Status, or closing or reopening a GitHub issue), behind the connection's `writes`
-setting, and only while Settings, General has "Apply board moves when I drop a card" on (it is by default). The worklog keeps its pages and the notes you add in its own
+places it changes anything of toil's, and only toil's own connections and Toil projects. It changes a tracker only when you press for it: a card dropped on another Board column (a status change), **Add to the board and move**, and Classify's **Apply** (`categorize`), each through toil's own command behind the connection's `writes` setting. Classify choices and **Save diagram** write only toil's own files on this computer. The worklog keeps its pages and the notes you add in its own
 data folder, and writes anywhere else only when you export a page. Its Feedback dialog sends a report to Imagile through
 `toil feedback`, only when you approve it. It is a separate package from toil: installing toil
 never installs it. toil's beta commitment to stable commands, flags and output doesn't
@@ -38,7 +36,7 @@ It prints one URL and keeps running until you press Ctrl+C:
 
 ```text
 Toil UI <version> (beta, local only), on toil <version>
-Syncing through toil, read-only, with your own connections and Toil projects. Only its Settings pages, a Toil project's name and description edited in place, and a card dropped on another column of the Board (while Settings, General says to apply board moves) change anything: toil's own connections and Toil projects when you ask, and a status through toil's own command (a transition, a project's Status, or closing or reopening a GitHub issue), behind the connection's writes setting. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
+Syncing through toil, read-only, with your own connections and Toil projects. It changes a tracker only when you press for it (a card dropped on another Board column, Add to the board and move, Classify's Apply), through toil's own command behind the connection's writes setting. Settings, Classify choices and Save diagram write only toil's own files. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
 The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
 Open this URL in your browser. It holds no secret: your browser is let in by a cookie signed with the key in the data folder, and anything running as you on this machine can reach Toil UI too:

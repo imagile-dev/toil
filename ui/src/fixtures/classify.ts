@@ -123,7 +123,6 @@ export function fixtureClassify(): ClassifyApi {
     movesDisabled: SAMPLE_CANNOT_WRITE,
     moveItem: async () => SAMPLE_MOVE,
     ledger: async () => (await wait(), view()),
-    record: async () => undefined,
     // The sample keeps a person's word in memory only, so reclassifying can be tried; it writes no ledger.
     correct: async (_p, { item, to, reason }) => {
       await wait();

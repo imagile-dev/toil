@@ -104,7 +104,7 @@ describe('a job page', () => {
     // The answer ends in a card to Save, not in Mermaid (#582); in the sample, which changes nothing, it says so.
     await waitFor(() => expect(dialog.querySelector('[data-diagram-card]')).not.toBeNull(), { timeout: 3000 });
     expect(dialog.textContent).not.toMatch(/C4Container|```/);
-    expect(dialog.querySelector('[data-diagram-off]')!.textContent).toContain('Sample data: nothing is saved here');
+    expect(dialog.querySelector('[data-diagram-off]')!.textContent).toContain('on sample data');
     expect(dialog.querySelector('[data-diagram-save]')).toBeNull();
   });
 

@@ -23,7 +23,7 @@ import { LEDGER_TEXT_MAX } from '../../src/core/classify/ledger-types.ts';
 import type { AgentAnswers, ClassifyApi } from './classify-api.ts';
 import { useData } from './data.ts';
 import { useWorkInsights } from './insights-data.ts';
-import { needsAPerson, pendingChanges, type NeedsRow, type PendingRow, type Say } from './model/classify.ts';
+import { needsAPerson, pendingChanges, TOOK_BACK, type NeedsRow, type PendingRow, type Say } from './model/classify.ts';
 import type { WorkItem } from './toil.ts';
 
 /** How a ledger line for an accepted suggestion begins; the agent's reason follows. */
@@ -32,7 +32,9 @@ export const ACCEPTED_REASON = "Accepted the AI agent's suggestion: ";
 /** What the line under the tabs says about the last change. */
 export type ClassifyNotice =
   | { kind: 'changed'; id: string; key: string; to: string; previous: Say | null }
-  | { kind: 'reverted'; key: string }
+  /** "Accept all": every item it recorded, so one Undo takes them all back. */
+  | { kind: 'accepted'; changes: Array<{ id: string; key: string; previous: Say | null }> }
+  | { kind: 'reverted'; key: string; count?: number }
   | { kind: 'failed'; message: string };
 
 export interface ClassifyContext {
@@ -104,14 +106,11 @@ export function ClassifyProvider({ children }: { children: ReactNode }) {
   const standing = useMemo(() => classification?.view?.standing ?? {}, [classification]);
   const scheme = classification?.view?.scheme ?? null;
   const [proposed, setProposed] = useState<ReadonlyMap<string, AgentVerdict>>(new Map());
-  // Items an undo returned to the list: their ledger line says "unsure", which would otherwise read as answered.
-  const [reopened, setReopened] = useState<ReadonlySet<string>>(new Set());
   const [notice, setNotice] = useState<ClassifyNotice | null>(null);
   // What an Apply wrote this session, by item: stands for the tracker until a sync reads it back.
   const [writtenNow, setWrittenNow] = useState<ReadonlyMap<string, string>>(new Map());
 
-  const answered = useMemo(() => Object.fromEntries(Object.entries(standing).filter(([id]) => !reopened.has(id))), [standing, reopened]);
-  const needs = useMemo(() => (scheme ? needsAPerson(ins.items, scheme, answered) : []), [ins.items, scheme, answered]);
+  const needs = useMemo(() => (scheme ? needsAPerson(ins.items, scheme, standing) : []), [ins.items, scheme, standing]);
   const pending = useMemo(() => (scheme ? pendingChanges(ins.items, scheme, standing, {}, writtenNow) : []), [ins.items, scheme, standing, writtenNow]);
 
   const reload = classification?.reload;
@@ -132,7 +131,6 @@ export function ClassifyProvider({ children }: { children: ReactNode }) {
         setNotice({ kind: 'failed', message: e instanceof Error ? e.message : String(e) });
         throw e;
       }
-      setReopened((r) => (r.has(item.id) ? new Set([...r].filter((x) => x !== item.id)) : r));
       // A person's word replaces any answer of the agent's they had not yet accepted.
       setProposed((p) => (p.has(item.id) ? new Map([...p].filter(([id]) => id !== item.id)) : p));
       setNotice({ kind: 'changed', id: item.id, key: item.source.key, to: to ?? 'unsure', previous });
@@ -143,24 +141,30 @@ export function ClassifyProvider({ children }: { children: ReactNode }) {
   // correction per request, and a batch route would be a second way to write to it. The reason says whose idea it was and carries the agent's own.
   const accept = useCallback(
     async (ids: string[]) => {
+      const changes: Array<{ id: string; key: string; previous: Say | null }> = [];
       for (const id of ids) {
         const proposal = proposed.get(id);
         const item = ins.items.find((i) => i.id === id);
         if (!proposal || !item) continue;
+        const previous = standing[id] ?? null;
         await reclassify(item, proposal.category === 'unsure' ? null : proposal.category, `${ACCEPTED_REASON}${proposal.reason}`.slice(0, LEDGER_TEXT_MAX));
+        changes.push({ id, key: item.source.key, previous });
       }
+      // Several at once are one change to take back: one line, one Undo.
+      if (changes.length > 1) setNotice({ kind: 'accepted', changes });
     },
-    [proposed, ins.items, reclassify],
+    [proposed, ins.items, standing, reclassify],
   );
   const undo = useCallback(async () => {
-    if (notice?.kind !== 'changed') return;
-    const item = byId.get(notice.id);
-    if (!item) return;
+    if (notice?.kind !== 'changed' && notice?.kind !== 'accepted') return;
+    const changes = notice.kind === 'changed' ? [{ id: notice.id, key: notice.key, previous: notice.previous }] : notice.changes;
     try {
-      // The ledger only appends, so changing back is one more line: what the item stood at, or a taking-back where it had no word.
-      await write(item, notice.previous?.category ?? null, notice.previous?.reason ?? '');
-      if (!notice.previous) setReopened((r) => new Set([...r, item.id]));
-      setNotice({ kind: 'reverted', key: notice.key });
+      // The ledger only appends, so changing back is one more line each: what the item stood at, or a taking-back where it had no word.
+      for (const c of changes) {
+        const item = byId.get(c.id);
+        if (item) await write(item, c.previous?.category ?? null, c.previous ? (c.previous.reason ?? '') : TOOK_BACK);
+      }
+      setNotice({ kind: 'reverted', key: changes[0]!.key, ...(changes.length > 1 ? { count: changes.length } : {}) });
     } catch (e) {
       setNotice({ kind: 'failed', message: e instanceof Error ? e.message : String(e) });
     }

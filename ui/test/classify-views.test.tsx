@@ -120,6 +120,32 @@ describe('the Classify view', () => {
     expect(document.querySelector(`[data-row="${CSS.escape(id)}"]`)).toBeTruthy();
   });
 
+  it('keeps an item whose first answer was undone in the list after a reload, but not one Unsure was pressed on', async () => {
+    const api = fixtureClassify();
+    open(`${TEAM}/board/classify`, api);
+    await waitFor(() => expect(rows().length).toBeGreaterThan(5));
+    const before = rows().length;
+    const all = rows();
+    const id = all[all.length - 1]!.dataset.row!;
+    await act(async () => void fireEvent.keyDown(all[all.length - 1]!, { key: 'f' }));
+    await waitFor(() => expect(rows().length).toBe(before - 1));
+    await act(async () => void fireEvent.click(within(await until<HTMLElement>('[data-classify-notice="changed"]')).getByRole('button', { name: 'Undo' })));
+    await waitFor(() => expect(rows().length).toBe(before));
+    // Remounted: the list is read from the ledger alone, with no memory of the undo.
+    cleanup();
+    open(`${TEAM}/board/classify`, api);
+    await waitFor(() => expect(rows().length).toBe(before));
+    expect(document.querySelector(`[data-row="${CSS.escape(id)}"]`)).toBeTruthy();
+    // Pressing Unsure on purpose settles it, and stays settled after a remount.
+    const row = document.querySelector<HTMLElement>(`[data-row="${CSS.escape(id)}"]`)!;
+    await act(async () => void fireEvent.keyDown(row, { key: 'u' }));
+    await waitFor(() => expect(rows().length).toBe(before - 1));
+    cleanup();
+    open(`${TEAM}/board/classify`, api);
+    await waitFor(() => expect(rows().length).toBe(before - 1));
+    expect(document.querySelector(`[data-row="${CSS.escape(id)}"]`)).toBeNull();
+  });
+
   it('answers on a mouse press of a choice, and U records Unsure as the taking-back it is', async () => {
     const api = fixtureClassify();
     const correct = vi.spyOn(api, 'correct');
@@ -301,6 +327,13 @@ describe('the AI agent on the Classify view', () => {
     // Accept all is one correction per suggestion, by the route a pick takes: no route of its own.
     expect(correct).toHaveBeenCalledTimes(1 + n);
     expect(apply).not.toHaveBeenCalled();
+    // Accept all is one change: one line, one Undo that takes every one of them back.
+    const notice = await until<HTMLElement>('[data-classify-notice="accepted"]');
+    expect(notice.textContent).toBe(`Accepted ${n}. Undo Dismiss`);
+    await act(async () => void fireEvent.click(within(notice).getByRole('button', { name: 'Undo' })));
+    await until('[data-classify-notice="reverted"]');
+    await waitFor(() => expect(waiting()).toBe(already + 1));
+    expect(correct).toHaveBeenCalledTimes(1 + n + n);
   });
 
   it('lets a person overrule a suggestion by pressing another choice, and dismiss one with Not this in the (i)', async () => {

@@ -301,12 +301,16 @@ export const columnSteps =
     return { x: rect.left + Math.max(0, (rect.width - collisionRect.width) / 2), y: rect.top + 48 };
   };
 
-function Card({ item, lane, others, onMove, menuOpen, setMenuOpen, moving }: { item: WorkItem; lane: string; others: StatusCategory[]; onMove: (to: StatusCategory) => void; menuOpen: boolean; setMenuOpen: (open: boolean) => void; moving: boolean }) {
+function Card({ item, lane, others, onMove, menuOpen, setMenuOpen: setMenu, moving }: { item: WorkItem; lane: string; others: StatusCategory[]; onMove: (to: StatusCategory) => void; menuOpen: boolean; setMenuOpen: (open: boolean) => void; moving: boolean }) {
+  // A card whose move is still in flight can't be moved again (the server would answer 409), so its menu stays shut too.
+  const setMenuOpen = (open: boolean) => {
+    if (!open || !moving) setMenu(open);
+  };
   const { toilProject, assignments } = useData();
   const { insights: prepared } = useDerived();
   // Decided up front, by the rule the proposal uses: a card that can't be moved isn't draggable, and says why.
   const can = canMove(item);
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: dragId(lane, item.id), disabled: !can.ok, attributes: { role: 'group', ...(can.ok ? { roleDescription: 'draggable card' } : {}) } });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: dragId(lane, item.id), disabled: !can.ok || moving, attributes: { role: 'group', ...(can.ok ? { roleDescription: 'draggable card' } : {}) } });
   const [assigning, setAssigning] = useState(false);
   const [reclassifying, setReclassifying] = useState(false);
   const { api: classifyApi } = useClassify();
@@ -384,7 +388,7 @@ function Card({ item, lane, others, onMove, menuOpen, setMenuOpen, moving }: { i
         )}
       </div>
       {/* Outside the card's own element: a portal's events still bubble through React, and a press in the menu must not start a drag. */}
-      <Popover triggerRef={grip} isOpen={menuOpen} onOpenChange={closeMenu} placement="bottom start" className="popover">
+      <Popover triggerRef={grip} isOpen={menuOpen && !moving} onOpenChange={closeMenu} placement="bottom start" className="popover">
         <Menu className="menu" aria-label={`${key} ${item.title}`} autoFocus="first" onAction={onAction} disabledKeys={can.ok ? [] : others}>
           <MenuItem id="open" className="menu-item">
             Open
@@ -577,11 +581,20 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
     if (!isMoveColumn(to) || !classifyApi?.moveItem) return;
     const key = shortKey(item);
     const before = shown.get(item.id);
-    // Where the card was shown before this try: a refused second move goes back to the first, not to the data.
-    const restore = () => (before ? setShown((m) => new Map(m).set(item.id, before)) : unshow(item.id));
+    // This try's own marker. A refusal puts the card back only while that marker is still what it shows (a move that settled meanwhile stands),
+    // and never brings back a "moving" marker, whose move is over one way or the other.
+    const mine: Shown = { base, at: to, pending: true };
+    const restore = () =>
+      setShown((m) => {
+        if (m.get(item.id) !== mine) return m;
+        const next = new Map(m);
+        if (before && !before.pending) next.set(item.id, before);
+        else next.delete(item.id);
+        return next;
+      });
     setMoves((list) => list.filter((x) => x.proposal.item !== item.id));
     setNotice(null);
-    setShown((m) => new Map(m).set(item.id, { base, at: to, pending: true }));
+    setShown((m) => new Map(m).set(item.id, mine));
     setSaid(`Moving ${key} to ${label(to)}.`);
     try {
       // The extra argument is sent only for a press on "Add to the board and move": a plain drop never asks to add anything.

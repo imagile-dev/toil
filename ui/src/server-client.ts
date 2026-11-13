@@ -456,7 +456,6 @@ export function httpClassify(base = './', { sample = false }: { sample?: boolean
       if (!res.ok) throw await failure(res, 'Reading the ledger');
       return (await res.json()) as LedgerView;
     },
-    record: async (toilProject, items) => void (await post('record', { toilProject, items: items.map((i) => slim(i, true)) }, 'Recording what is decided')),
     correct: async (toilProject, change) => void (await post('correct', { toilProject, item: slim(change.item, true), context: change.context.map((i) => slim(i, true)), to: change.to, reason: change.reason }, 'Recording the change')),
     agents: async () => {
       const res = await call(base, 'api/classify/agents');

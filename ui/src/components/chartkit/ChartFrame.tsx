@@ -85,8 +85,10 @@ export function splitSource(source: string): { line: string; rest: string } {
 /** What the count beside the source says: the items the table left out when it can tell, else how many notes there are. */
 export function notesLabel(result: PivotResult, notes: string[]): string {
   const c = result.coverage;
-  // Counted from the coverage's own figures, each an item count: parents set aside, items whose split or across was never read, and items the measure could not read.
-  const left = c.parentsLeftOut + c.unreadSplit + c.unreadAcross + Math.max(0, c.items - c.measured);
+  // `items - measured` already holds the items whose split or across was never read (only eligible items are measured), so those are not added again.
+  // Cycle time and aging read only the items that apply (the finished, the open): the rest are not applicable, not left out, so only the parents count.
+  const appliesToAll = result.measure.id !== 'cycleTime' && result.measure.id !== 'aging';
+  const left = c.parentsLeftOut + (appliesToAll ? Math.max(0, c.items - c.measured) : 0);
   const drawn = result.rows.length > 0;
   if (drawn && left > 0) return `${num(left)} ${left === 1 ? 'item' : 'items'} left out`;
   return `${notes.length} ${notes.length === 1 ? 'note' : 'notes'}`;

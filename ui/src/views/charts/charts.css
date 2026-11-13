@@ -1,4 +1,4 @@
-/* The Charts tab (#567): the list of dashboards and the two dashboards' pages. Colours and sizes come from the theme's tokens. */
+/* The charts (#567): the Summary's Where the work goes and the chart pages under /summary/<chart>. Colours and sizes come from the theme's tokens. */
 .charts-cards { margin-top: 1rem; }
 .chart-card { display: grid; gap: 0.4rem; align-content: start; height: 100%; box-sizing: border-box; overflow-wrap: anywhere; }
 .chart-card h2 { margin: 0; font-size: 1.0625rem; }

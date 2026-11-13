@@ -135,8 +135,6 @@ export interface ClassifyApi {
   /** Why nothing here can write (the sample), or null. */
   readonly disabled: string | null;
   ledger(toilProject: string): Promise<LedgerView>;
-  /** Tells the ledger what these items' verdicts are now, so a confirmation counts as agreement (`classify run --record`). */
-  record(toilProject: string, items: WorkItem[]): Promise<void>;
   /**
    * Records a person's word on one item: first what its verdict is now (so a confirmation counts as agreement, which needs
    * a verdict to confirm), then the correction itself. `to` null takes the category back to unsure. Changes nothing in a tracker.

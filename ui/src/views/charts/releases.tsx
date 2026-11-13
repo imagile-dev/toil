@@ -25,7 +25,7 @@ import type { Dashboard, Headline } from './dashboard.ts';
 import { ChartPanel, DashboardHead, Door, NotRead, useDrill, useFilterFromCell, useSourceLine } from './shared.tsx';
 import { SummaryChevron } from '../../components/disclosure.tsx';
 
-/** The Charts list's line: the release due next, or why none can be named. */
+/** The line in Where the work goes: the release due next, or why none can be named. */
 export function releasesHeadline(ins: WorkInsights): Headline {
   if (!ins.releasesRead) return { text: null, note: "fix versions weren't read" };
   const next = nextRelease(ins);
@@ -96,9 +96,9 @@ function Section({ ins, release, initiallyOpen, where, split, onSplit }: { ins: 
             )}
           </li>
           <li data-figure="past-due">
-            {release.date === null ? (
+            {release.date === null || scope.pastDue === null ? (
               <>
-                <Unread /> open past its date <span className="note">this release has no date</span>
+                <Unread /> open past its date <span className="note">{release.date === null ? 'this release has no date' : 'not read yet'}</span>
               </>
             ) : (
               <Door drill={open('pastDue')}>

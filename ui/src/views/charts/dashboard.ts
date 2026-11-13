@@ -1,12 +1,12 @@
 /**
  * What a dashboard is (#567): a small declarative module, so adding one is a
- * file and a line in `index.ts`, never an edit to the Charts tab itself.
+ * file and a line in `index.ts`, never an edit to the Summary's charts themselves.
  *
  *   export const mix: Dashboard = { id: 'mix', title: 'Work mix', headline, View };
  *
  * - `id`        its address segment: `#/project/<name>/charts/<id>`.
  * - `title`     what the card and the page's heading say, in plain words.
- * - `headline`  the ONE figure its card on the Charts list leads with, as a
+ * - `headline`  the ONE figure its card in Where the work goes leads with, as a
  *               sentence, worked out from the data with the default period. When it can't
  *               be known, `text` is null and `note` says why in a few words, which the card shows
  *               beside a dash ("not read yet") and never as 0 (principle 12).

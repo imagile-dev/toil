@@ -23,7 +23,7 @@ import { Help } from '../components/help.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
 import { useData } from '../data.ts';
 import { itemHref, sourceLabel, standupHref, worklogHref } from '../format.ts';
-import { allLines, BUCKETS, BUCKET_TITLE, chipsOf, defaultRange, factsCited, groupTitle, PRESET_LABEL, PRESETS, presetOf, presetRange, rangeProblem, shorten, standupWriteUp, whenText, type Bucket, type Chip, type Preset, type StandupGroup, type StandupLine, type StandupReport } from '../model/standup.ts';
+import { allLines, BUCKETS, BUCKET_TITLE, chipsOf, commentsReadFor, defaultRange, factsCited, groupTitle, PRESET_LABEL, PRESETS, presetOf, presetRange, rangeProblem, shorten, standupWriteUp, whenText, type Bucket, type Chip, type Preset, type StandupGroup, type StandupLine, type StandupReport } from '../model/standup.ts';
 import { health } from '../model/sprint.ts';
 import { dayOf, shortDay, timeOf } from '../model/worklog.ts';
 import { useTheme, useThemeChoiceContext } from '../skins.tsx';
@@ -302,13 +302,13 @@ function ChipView({ report, chip, bucket, cited }: { report: StandupReport; chip
 }
 
 /** One row of a person's block, or of the Summary's list: a short label and its chips, folded after three. */
-export function BucketRow({ report, bucket, lines, cited }: { report: StandupReport; bucket: Bucket; lines: StandupLine[]; cited: Set<string> }) {
+export function BucketRow({ report, group, bucket, lines, cited }: { report: StandupReport; group: StandupGroup; bucket: Bucket; lines: StandupLine[]; cited: Set<string> }) {
   const chips = useMemo(() => chipsOf(lines), [lines]);
   const [all, setAll] = useState(false);
   const hiddenCited = chips.slice(ROW_CHIPS).some((c) => c.lines.some((l) => cited.has(l.fact)));
   const open = all || hiddenCited;
   const shown = open ? chips : chips.slice(0, ROW_CHIPS);
-  const unread = report.asOf === null || (bucket === 'comments' && report.comments.read.length === 0);
+  const unread = report.asOf === null || (bucket === 'comments' && !commentsReadFor(report, group));
   return (
     <div className="standup-row" data-bucket={bucket}>
       <dt>{BUCKET_TITLE[bucket]}</dt>
@@ -363,7 +363,7 @@ function PersonBlock({ report, group, cited }: { report: StandupReport; group: S
       </h2>
       <dl className="standup-rows">
         {BUCKETS.map((b) => (
-          <BucketRow key={b} report={report} bucket={b} lines={group.lines[b]} cited={cited} />
+          <BucketRow key={b} report={report} group={group} bucket={b} lines={group.lines[b]} cited={cited} />
         ))}
       </dl>
     </li>

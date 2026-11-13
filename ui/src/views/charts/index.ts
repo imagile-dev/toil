@@ -1,5 +1,5 @@
 /**
- * The dashboards the Charts tab lists, in the order it lists them (#567). To add
+ * The dashboards the Summary's Where the work goes lists, in that order (#567). To add
  * one, write a module that exports a `Dashboard` (dashboard.ts) and add it here:
  * nothing else changes, because the list, the cards, the routes and the palette
  * all read this array. The list of lists, kept short on purpose.

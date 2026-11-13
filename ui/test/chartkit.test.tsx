@@ -11,6 +11,8 @@ import { BURNUP, BURNUP_FORECAST, BURNUP_SCOPE, PERSON_MIX, RELEASES, UNREAD_SPL
 import { Figure, Unread } from '../src/components/unread.tsx';
 import { resetSimpleMarks, setSimpleMarks, useSimpleMarks } from '../src/simple-marks.ts';
 import { THEMES } from '../src/themes.ts';
+import { pivot } from '../../src/core/insights/pivot.ts';
+import { AS_OF, history, item, move } from '../../src/core/insights/testkit.ts';
 
 /**
  * The chart kit (#567): which mark a value wears, what a mark says, that a cell
@@ -199,17 +201,30 @@ describe('a chart in its frame', () => {
   });
 
   it('counts the items it left out beside the source, and puts the second sentence of the source behind it', () => {
-    // 3 parents set aside, 2 whose split was never read, 1 whose across was never read, and 4 of the 40 the measure could not read: 3 + 2 + 1 + 4 = 10.
-    const coverage = { ...WORK_MIX.coverage, items: 40, measured: 36, unreadSplit: 2, unreadAcross: 1, parentsLeftOut: 3, notes: ['3 parent items are left out so their children carry the work.'] };
-    const result = { ...WORK_MIX, coverage };
-    const left = coverage.parentsLeftOut + coverage.unreadSplit + coverage.unreadAcross + (coverage.items - coverage.measured);
-    expect(notesLabel(result, coverage.notes)).toBe(`${left} items left out`);
+    // A real pivot: 7 items, one whose component was never read. That one item is left out, once.
+    const items = [item('A', { components: ['API'] }), item('B', { components: ['API'] }), item('C', { components: ['Web'] }), item('D', { components: [] }), item('E', { components: ['API'] }), item('F', { components: ['Web'] }), item('G')];
+    const result = pivot({ items, spec: { measure: 'items', split: 'component' }, asOf: AS_OF });
+    expect(result.coverage).toMatchObject({ items: 7, unreadSplit: 1, measured: 6 });
+    expect(notesLabel(result, result.coverage.notes)).toBe('1 item left out');
     const { container } = frame({ result, source: 'From Jira, read 13 Oct 2026. Items go back to 9 Jul 2026.' });
     const source = container.querySelector('.ck-source')!;
-    expect(source.querySelector('.ck-source__line')!.textContent).toBe('From Jira, read 13 Oct 2026.10 items left out');
+    expect(source.querySelector('.ck-source__line')!.textContent).toBe('From Jira, read 13 Oct 2026.1 item left out');
     expect(source.textContent).not.toContain('Items go back');
     fireEvent.click(source.querySelector('[data-source-notes]')!);
-    expect(source.querySelector('.ck-source__notes')!.textContent).toBe('Items go back to 9 Jul 2026. 3 parent items are left out so their children carry the work.');
+    expect(source.querySelector('.ck-source__notes')!.textContent).toContain('Items go back to 9 Jul 2026. Components weren\'t read for 1 of the 7 items');
+  });
+
+  it('counts parents set aside, and does not count an unfinished item as left out of a cycle-time chart', () => {
+    const epic = item('E1', { type: 'EPIC', children: ['corp-jira:C1', 'corp-jira:C2'] });
+    const c1 = item('C1', { parent: epic.id });
+    const c2 = item('C2', { parent: epic.id });
+    const withParent = pivot({ items: [epic, c1, c2], spec: { measure: 'items', split: 'parent' }, asOf: AS_OF });
+    expect(notesLabel(withParent, withParent.coverage.notes)).toBe('1 item left out');
+
+    const done = (key: string) => item(key, { statusCategory: 'DONE', resolved: '2026-11-05T10:00:00Z', history: history(move('2026-11-01T10:00:00Z', 'IN_PROGRESS', 'TODO')) });
+    const cycle = pivot({ items: [done('A'), done('B'), item('C'), item('D'), item('E')], spec: { measure: 'cycleTime' }, asOf: AS_OF });
+    expect(cycle.coverage.items - cycle.coverage.measured).toBe(3);
+    expect(notesLabel(cycle, ['n'])).toBe('1 note');
   });
 
   it('counts only the parents when every other item was read, and says notes when nothing was left out', () => {

@@ -1,5 +1,5 @@
 /**
- * The hooks under the Charts tab, the Work mix tile and the filter bar (#567):
+ * The hooks under the Summary's charts, the Work mix item and the filter bar (#567):
  * `useWorkInsights()` is the pivot data layer for the toil project on screen,
  * built once per project and clock and shared by every view that draws a chart,
  * and `useAddress()` is the address bar's query, live, with the filters read

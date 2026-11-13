@@ -84,7 +84,7 @@ export function StandupCard({ api }: { api: WorklogApi }) {
                 <li key={`${r.group.key}/${r.bucket}`} className="sum-standup__row">
                   <CardName group={r.group} />
                   <dl className="standup-rows">
-                    <BucketRow report={report!} bucket={r.bucket} lines={r.group.lines[r.bucket].filter((l) => r.bucket !== 'comments' || l.comment?.outstanding)} cited={NONE} />
+                    <BucketRow report={report!} group={r.group} bucket={r.bucket} lines={r.group.lines[r.bucket].filter((l) => r.bucket !== 'comments' || l.comment?.outstanding)} cited={NONE} />
                   </dl>
                 </li>
               ))}

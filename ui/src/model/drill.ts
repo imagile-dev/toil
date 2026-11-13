@@ -131,5 +131,7 @@ export function resolveDrill(ins: WorkInsights, drill: Drill): DrillList | null 
     : drill.set === 'done' ? [...held.values()].filter((i) => i.statusCategory === 'DONE').map((i) => i.id)
     : [...held.values()].filter((i) => i.statusCategory === 'DONE' && (dayOf(i.resolved) ?? view.today) <= (drill.day ?? view.today)).map((i) => i.id);
   const about = drill.set === 'doneBy' && drill.day ? `${SET_WORDS.doneBy} ${dayWords(drill.day)}` : SET_WORDS[drill.set];
+  // A list nobody could work out (no start day, no date) has nothing to open.
+  if (ids === null) return null;
   return { title: `${drill.release}: ${about}`, about: 'one release', ids: ids.sort(), dimensions: [], unit: 'items' };
 }

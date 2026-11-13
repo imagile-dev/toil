@@ -111,13 +111,29 @@ describe('the Save card', () => {
     expect((await screen.findByRole('alert')).textContent).toContain('The server did not answer.');
   });
 
-  it('has no button where Toil UI changes nothing: the sample says so, and links its own diagram', async () => {
+  it('has no button where Toil UI changes nothing, and says why in the words the config path gave, not a claim about samples', async () => {
     const { api, calls } = config(() => ok({}), 'The preview changes nothing.');
     await card(api, draft());
-    expect(document.querySelector('[data-diagram-off]')!.textContent).toContain('Sample data: nothing is saved here.');
-    expect(screen.getByRole('link', { name: 'Open the sample diagram' }).getAttribute('href')).toBe('#/project/card-payments/summary/diagram');
+    const off = document.querySelector('[data-diagram-off]')!.textContent!;
+    expect(off).toContain('The preview changes nothing.');
+    expect(off).not.toContain('Sample data');
+    expect(screen.getByRole('link', { name: 'Open the diagram' }).getAttribute('href')).toBe('#/project/card-payments/summary/diagram');
     expect(screen.queryByRole('button')).toBeNull();
     expect(calls).toEqual([]);
+  });
+
+  it('with no config path at all says Toil UI cannot change toil’s files, which is true outside the sample too', async () => {
+    const { data } = await loaded('card-payments');
+    const value: Data = { toilProject: data, byId: new Map(), agent: scriptedAgent(), now: FIXTURE_NOW, execute: fixtureExecute().execute };
+    render(
+      <DataContext value={value}>
+        <DiagramCard draft={draft()} />
+      </DataContext>,
+    );
+    const off = document.querySelector('[data-diagram-off]')!.textContent!;
+    expect(off).toContain('This Toil UI cannot change toil’s files.');
+    expect(off).not.toContain('Sample data');
+    expect(screen.queryByRole('button')).toBeNull();
   });
 
   it('has no button under `toil-ui --sample` either, where the config path is open and the server would refuse the press', async () => {

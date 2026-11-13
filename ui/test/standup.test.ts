@@ -3,7 +3,7 @@ import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
 import { fixtureWorklog } from '../src/fixtures/worklog.ts';
 import type { PersonEntry } from '../src/model/people.ts';
 import {
-  allLines, buildStandup, chipsOf, daysBetween, defaultRange, factsCited, lastWorkingDay, MAX_STANDUP_DAYS, presetOf, presetRange, rangeProblem, shorten, standupMarkdown, standupText, standupWriteUp, topRows, waitText,
+  allLines, buildStandup, chipsOf, commentsReadFor, daysBetween, defaultRange, factsCited, lastWorkingDay, MAX_STANDUP_DAYS, presetOf, presetRange, rangeProblem, shorten, standupMarkdown, standupText, standupWriteUp, topRows, waitText,
   type StandupInput,
 } from '../src/model/standup.ts';
 import { buildDay, eventsFrom, type AgentRun, type SyncRun, type WorklogEvent } from '../src/model/worklog.ts';
@@ -334,6 +334,22 @@ describe('comments', () => {
     const unread = buildStandup(input());
     expect(unread.comments).toEqual({ read: [], notRead: ['jira'] });
     expect(unread.people.flatMap((p) => p.lines.comments)).toEqual([]);
+  });
+
+  it("decides read or not read for each person from the trackers their lines come from, so a GitHub-only person's empty Comments is not a quiet zero", () => {
+    const r = report();
+    const bobGroup = r.people.find((p) => p.name === 'Bob')!;
+    // Bob only reviewed a GitHub pull request, and no GitHub comments were read.
+    expect(bobGroup.areas).toEqual(['github']);
+    expect(commentsReadFor(r, bobGroup)).toBe(false);
+    expect(commentsReadFor(r, r.people.find((p) => p.name === 'Grace Hopper')!)).toBe(true);
+    // A mapped person with no lines yet stands for the trackers their accounts are in.
+    const linus = buildStandup(input({ items: withComments(input().items), people: [...PEOPLE, { name: 'Linus', kind: 'human', email: null, ids: { jira: 'linus' } }] })).people.find((p) => p.name === 'Linus')!;
+    expect(commentsReadFor(r, linus)).toBe(true);
+    const md = standupMarkdown(r);
+    const bobBlock = md.slice(md.indexOf('## Bob'));
+    expect(bobBlock.slice(bobBlock.indexOf('**Comments**'))).toContain('Comments not read yet.');
+    expect(bobBlock.slice(bobBlock.indexOf('**Comments**'))).not.toContain('No comments.');
   });
 
   it('keeps tracker text as text: a citation marker in a comment is spaced out so it cannot name an item', () => {

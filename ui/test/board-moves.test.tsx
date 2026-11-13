@@ -119,6 +119,24 @@ describe('a drop with the setting on', () => {
     expect(moveItem).toHaveBeenCalledTimes(2);
   });
 
+  it('cannot be moved again, or opened in its menu, while its first move is in flight, and a settled move is never put back as moving', async () => {
+    let finish!: (o: MoveOutcome) => void;
+    const moveItem = vi.fn<NonNullable<ClassifyApi['moveItem']>>().mockImplementationOnce(() => new Promise<MoveOutcome>((r) => (finish = r)));
+    const { board, grip } = await openBoard(api(moveItem));
+    await drop(grip(), 'In progress');
+    expect(screen.getByText('Moving…')).toBeTruthy();
+    // The card's menu stays shut and the card cannot be picked up while it moves.
+    fireEvent.contextMenu(grip());
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' }).getAttribute('aria-disabled')).toBe('true');
+    expect(moveItem).toHaveBeenCalledTimes(1);
+    await act(async () => finish({ status: 'applied', transition: 'Start progress', toStatus: 'In Progress' }));
+    await waitFor(() => expect(screen.queryByText('Moving…')).toBeNull());
+    // Settled: the menu opens again.
+    fireEvent.contextMenu(grip());
+    expect(await screen.findByRole('menu', { name: 'PAY-102 Store tokens in the vault' })).toBeTruthy();
+  });
+
   it('says GitHub may close the issue after a move to Done, and says "Reopened and moved" after a reopen', async () => {
     const moveItem = vi.fn<NonNullable<ClassifyApi['moveItem']>>().mockResolvedValueOnce({ status: 'applied', transition: null, toStatus: 'Done', mayClose: true });
     const { grip } = await openBoard(api(moveItem));

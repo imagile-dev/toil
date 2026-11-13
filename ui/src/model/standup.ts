@@ -95,8 +95,14 @@ export interface StandupGroup {
   mapped: boolean;
   /** For an account the toil project doesn't map: the area and id it has there, which tell two accounts of one name apart. */
   account: { area: string; id: string } | null;
+  /** The trackers this person's lines come from (the ones their accounts are in, for someone with no lines): what says whether their comments were read. */
+  areas: string[];
   lines: Record<Bucket, StandupLine[]>;
 }
+
+/** Whether comments were read for this person: some tracker their lines come from came with its comments. Not read yet when none did. */
+export const commentsReadFor = (report: Pick<StandupReport, 'comments'>, group: Pick<StandupGroup, 'areas'>): boolean =>
+  group.areas.length > 0 ? group.areas.some((a) => report.comments.read.includes(a)) : report.comments.read.length > 0;
 
 export interface StandupReport {
   toilProject: string;
@@ -176,20 +182,28 @@ const emptyLines = (): Record<Bucket, StandupLine[]> => ({ done: [], progress: [
 /** Finds or makes the group a line goes in. */
 function grouper(entries: PersonEntry[]) {
   const groups = new Map<string, StandupGroup>();
-  for (const e of entries) groups.set(personKey(e.name), { key: personKey(e.name), name: e.name, kind: e.kind, mapped: true, account: null, lines: emptyLines() });
+  // A mapped person's accounts stand for their trackers until a line says which ones their lines come from.
+  for (const e of entries) groups.set(personKey(e.name), { key: personKey(e.name), name: e.name, kind: e.kind, mapped: true, account: null, areas: Object.keys(e.ids).sort(), lines: emptyLines() });
+  const fromLines = new Map<StandupGroup, Set<string>>();
   const make = (key: string, name: string, kind: 'human' | 'agent', account: StandupGroup['account'] = null) => {
-    if (!groups.has(key)) groups.set(key, { key, name, kind, mapped: false, account, lines: emptyLines() });
+    if (!groups.has(key)) groups.set(key, { key, name, kind, mapped: false, account, areas: [], lines: emptyLines() });
     return groups.get(key)!;
+  };
+  /** Remembers the tracker a line came from, and returns its group. */
+  const from = (group: StandupGroup, area: string) => {
+    (fromLines.get(group) ?? fromLines.set(group, new Set()).get(group)!).add(area);
+    group.areas = [...fromLines.get(group)!].sort();
+    return group;
   };
   return {
     groups,
     /** An account's group: the person the toil project maps it to, else one of its own. */
     of(area: string, who: Person | null): StandupGroup {
-      if (!who) return make('none', 'Not attributed', 'human');
+      if (!who) return from(make('none', 'Not attributed', 'human'), area);
       const id: Identity = { area, id: who.id, name: who.name, email: who.email };
       const entry = entries.find((e) => isPerson(e, id));
-      if (entry) return groups.get(personKey(entry.name))!;
-      return make(`id:${area}:${lower(who.id)}`, who.name ?? who.id, 'human', { area, id: who.id });
+      if (entry) return from(groups.get(personKey(entry.name))!, area);
+      return from(make(`id:${area}:${lower(who.id)}`, who.name ?? who.id, 'human', { area, id: who.id }), area);
     },
     entry(e: PersonEntry): StandupGroup {
       return groups.get(personKey(e.name))!;
@@ -458,7 +472,7 @@ export function standupMarkdown(r: StandupReport): string {
     for (const b of BUCKETS) {
       out.push(`**${BUCKET_TITLE[b]}**`, '');
       if (p.lines[b].length) for (const l of p.lines[b]) out.push(mdLine(r, l));
-      else out.push(bucketNone(b, r.sprint, r.comments.read.length > 0));
+      else out.push(bucketNone(b, r.sprint, commentsReadFor(r, p)));
       out.push('');
     }
   }
