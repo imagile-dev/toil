@@ -121,9 +121,8 @@ updates:
       day: monday
     open-pull-requests-limit: 3
     # Workflows pin every action to a commit SHA with its version in a comment
-    # (the automation skill); Dependabot updates both.
-    cooldown:
-      default-days: 14
+    # (the automation skill); Dependabot updates both. No cooldown here: the
+    # 14-day rule is about npm packages, and an action update is read at its SHA.
     commit-message:
       prefix: chore(deps)
     labels:
