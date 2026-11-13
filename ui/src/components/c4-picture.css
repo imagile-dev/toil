@@ -1,9 +1,8 @@
 /* The architecture picture (#582): toil's C4 layout drawn as SVG. The C4 fills keep their palette and their paired text
    colours; the canvas, arrows, labels and boundary are the theme's tokens, so each follows light and dark. */
 .c4-figure { display: grid; gap: 0.75rem; min-width: 0; }
-.c4-picture { display: block; width: 100%; height: auto; background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius, 6px); }
+.c4-picture { display: block; width: 100%; height: auto; margin-inline: auto; background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius, 6px); }
 .c4-canvas { fill: transparent; }
-.c4-title { fill: var(--ink); }
 .c4-boundary rect { stroke: var(--muted); }
 .c4-boundary-text { fill: var(--muted); }
 .c4-line { stroke: var(--muted); stroke-linecap: round; }

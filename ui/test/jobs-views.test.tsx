@@ -6,6 +6,7 @@ import { App, parseRoute } from '../src/App.tsx';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { CONFIG_CANNED, FIXTURE_CONNECTIONS, fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
+import { FACE } from '../src/model/jobs.ts';
 
 /**
  * The workflow jobs where they apply (#532): Review and Ship in a pull
@@ -86,6 +87,15 @@ describe('a job page', () => {
     await open('#/project/card-payments/job/diagram');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Diagram');
     expect(document.querySelector('[data-job-missing]')).toBeNull();
+    // One short line on the face; the rest is in the (i).
+    const lede = document.querySelector('.job-page .lede')!;
+    expect(lede.textContent).toContain(FACE['map-codebase'].short);
+    expect(lede.textContent).not.toContain(FACE['map-codebase'].gist);
+    expect(document.querySelector('.job-page')!.textContent).not.toContain('reported as unchecked');
+    await userEvent.click(lede.querySelector('[data-help="jobs"]')!);
+    const info = await screen.findByRole('dialog', { name: /About jobs/ });
+    expect(info.textContent).toContain(FACE['map-codebase'].gist);
+    await userEvent.keyboard('{Escape}');
     const details = document.querySelector('.job-page__more') as HTMLDetailsElement;
     expect(details.open).toBe(false);
     expect(within(details).getAllByText(/^toil /).length).toBeGreaterThan(0);

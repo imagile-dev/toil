@@ -17,6 +17,7 @@ import { sendCommand } from '../commands.ts';
 import type { ConfigApi, ConnectionRow, ConnectionsData } from '../config.ts';
 import { useData } from '../data.ts';
 import { useChatScope } from './ask.tsx';
+import { Help } from './help.tsx';
 import { useStoredDiagram } from '../diagram-saved.ts';
 import { diagramHref, prName, toilProjectHref } from '../format.ts';
 import { FACE, availability, jobOf, jobPrompt, jobLabel, type Availability, type Face, type JobId } from '../model/jobs.ts';
@@ -190,7 +191,8 @@ export function JobPage({ id, target }: { id: JobId; target: string | null }) {
           {subject ? <span className="job-page__target"> {change ? change.title : subject}</span> : null}
         </h1>
         <p className="lede">
-          {face.gist}
+          {face.short}{' '}
+          <Help topic="jobs" note={`${face.gist}${ready.absent.length > 0 ? ` It reads more with ${ready.absent.join(', ')} connected: without ${ready.absent.length === 1 ? 'it' : 'them'} those steps are reported as unchecked.` : ''}`} />
         </p>
       </div>
 
@@ -210,11 +212,6 @@ export function JobPage({ id, target }: { id: JobId; target: string | null }) {
       {!ready.ready && (
         <p role="note" className="failure" data-job-missing="">
           {ready.why?.replace(' Add one in Settings, Connections.', '')} <a href="#/settings/connections">Add one in Settings, Connections.</a>
-        </p>
-      )}
-      {ready.absent.length > 0 && (
-        <p className="note">
-          It reads more with {ready.absent.join(', ')} connected: without {ready.absent.length === 1 ? 'it' : 'them'} those steps are reported as unchecked.
         </p>
       )}
 

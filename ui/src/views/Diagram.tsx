@@ -9,7 +9,7 @@
  * The first thing on the page is the picture and a switch between the model's
  * views. Everything that says how sure the diagram is (principle 4) stays on
  * screen as a legend with its counts and a provenance line (saved when, which
- * revision, from which file, and what was left out on purpose); what each box
+ * revision; where it is kept and what was left out on purpose are one step in); what each box
  * was read from, or why it is believed, is one press away (principle 11), and
  * a list says the same in text for a screen reader. No diagram yet is an
  * empty state whose action is the job that draws one. A failure stays on
@@ -21,7 +21,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button } from 'react-aria-components';
-import { C4Picture } from '../components/c4-picture.tsx';
+import { C4Picture, layoutNotice, layoutOf } from '../components/c4-picture.tsx';
 import '../components/c4-picture.css';
 import { Empty, EmptyLink } from '../components/empty.tsx';
 import { Help } from '../components/help.tsx';
@@ -186,15 +186,15 @@ function Ready({ shown, missing, picked, onPick, at, crumbs }: { shown: ShownDia
           {picked && <Detail view={view} picked={picked} onClose={() => onPick(null)} />}
         </div>
       )}
-      <Legend shown={shown} />
+      <Legend shown={shown} notice={view && !tooBig ? layoutNotice(layoutOf(view)) : null} />
       <Provenance shown={shown} at={at} />
       {view && !tooBig && <TextList view={view} />}
     </div>
   );
 }
 
-/** Observed, inferred and not said, as the picture draws them, with how many of each the whole diagram holds. */
-function Legend({ shown }: { shown: ShownDiagram }) {
+/** Observed, inferred and not said, as the picture draws them, with how many of each the whole diagram holds. What the key means is in the (i). */
+function Legend({ shown, notice }: { shown: ShownDiagram; notice: string | null }) {
   const c = shown.counts;
   const swatch = (dash?: string) => (
     <svg viewBox="0 0 28 14" width="28" height="14" aria-hidden="true" focusable="false">
@@ -212,17 +212,21 @@ function Legend({ shown }: { shown: ShownDiagram }) {
           {swatch('4 3')}
           <span>Inferred: {c.inferred}</span>
         </li>
-        <li>
-          {swatch()}
-          <span>Not said: {c.unmarked}</span>
-        </li>
+        {c.unmarked > 0 && (
+          <li>
+            {swatch()}
+            <span>Not said: {c.unmarked}</span>
+          </li>
+        )}
         <li className="note">
-          <Help topic="diagram" />
+          <Help topic="diagram" note={`${countsText(c)}. Observed and not said are drawn alike, so open a box to see which.`} />
         </li>
       </ul>
-      <p className="note">
-        {countsText(c)}. A dashed outline or a dotted arrow is a conclusion, not a reading; observed and not said are drawn alike, so open a box to see which.
-      </p>
+      {notice && (
+        <p role="note" className="failure" data-diagram-notice="">
+          {notice}
+        </p>
+      )}
     </div>
   );
 }
@@ -232,15 +236,15 @@ function Provenance({ shown, at }: { shown: ShownDiagram; at: number }) {
   return (
     <div className="c4-prov-block">
       <p className="note c4-prov" data-diagram-provenance="">
-        <span title={dateTime(shown.savedAt)}>{savedAgo(shown.savedAt, at)}</span> · revision {shown.revision}
-        {shown.file ? (
-          <>
-            {' '}
-            · from <Path value={shown.file} what="file" />
-          </>
-        ) : null}{' '}
-        · <a href={jobHref(toilProject.name, 'map-codebase')}>Draw it again</a>
+        <span title={dateTime(shown.savedAt)}>{savedAgo(shown.savedAt, at)}</span> · revision {shown.revision} · <a href={jobHref(toilProject.name, 'map-codebase')}>Draw it again</a>
       </p>
+      {shown.file && (
+        <details data-diagram-kept="">
+          <summary>Where is this kept?</summary>
+          <p className="note">In your own toil folder on this computer, not in any repository.</p>
+          <Path value={shown.file} what="file" />
+        </details>
+      )}
       {shown.notMapped.length > 0 && (
         <details>
           <summary>Left out on purpose ({shown.notMapped.length})</summary>

@@ -1,8 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App, parseRoute, tabOf } from '../src/App.tsx';
-import { C4Picture } from '../src/components/c4-picture.tsx';
+import { C4Picture, FIT, frameOf, layoutNotice, layoutOf, pathData } from '../src/components/c4-picture.tsx';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { diagramShow } from '../src/fixtures/diagrams.ts';
@@ -102,6 +103,81 @@ describe('the picture', () => {
   });
 });
 
+describe('the picture, fitted', () => {
+  it("does not draw the view's title, which the page's heading says, and keeps it as the accessible name", () => {
+    const v = view('card-payments', 'containers');
+    const { container } = render(<C4Picture view={v} picked={null} onPick={() => undefined} />);
+    const svg = container.querySelector('svg.c4-picture')!;
+    expect(svg.querySelector('text.c4-title')).toBeNull();
+    expect([...svg.querySelectorAll('text')].some((t) => t.textContent === v.title)).toBe(false);
+    expect(svg.getAttribute('aria-label')).toContain(v.title);
+    expect(svg.querySelector('title')!.textContent).toBe(v.title);
+  });
+
+  it("crops the title's band away, from where the layout says the drawing starts", () => {
+    const v = view('card-payments', 'containers');
+    const layout = layoutOf(v);
+    const frame = frameOf(layout);
+    const first = Math.min(...layout.nodes.map((b) => b.y), layout.boundary?.rect.y ?? Infinity);
+    expect(frame.top).toBeGreaterThan(0);
+    expect(frame.top).toBeLessThan(first);
+    expect(first - frame.top).toBeLessThan(40);
+    expect(frame.height).toBe(layout.height - frame.top);
+    const { container } = render(<C4Picture view={v} picked={null} onPick={() => undefined} />);
+    expect(container.querySelector('svg.c4-picture')!.getAttribute('viewBox')).toBe(`0 ${frame.top} ${frame.width} ${frame.height}`);
+  });
+
+  it('scales to its frame, up to 1.5 times and no smaller than 0.7 (then it scrolls inside its own region), and centres', () => {
+    const v = view('settlement', 'containers');
+    const layout = layoutOf(v);
+    const { container } = render(<C4Picture view={v} picked={null} onPick={() => undefined} />);
+    const svg = container.querySelector<SVGElement>('svg.c4-picture')!;
+    expect(svg.style.maxWidth).toBe(`${Math.round(layout.width * FIT.maxScale)}px`);
+    expect(svg.style.minWidth).toBe(`${Math.round(layout.width * FIT.minScale)}px`);
+    expect(FIT.maxScale).toBeGreaterThan(1);
+    expect(FIT.minScale).toBeLessThan(1);
+    const css = readFileSync('src/components/c4-picture.css', 'utf8');
+    expect(css).toMatch(/\.c4-picture \{[^}]*width: 100%[^}]*margin-inline: auto/);
+  });
+
+  it('rounds corners over a short run, so the drawn curve stays beside the checked line and never enters a box', () => {
+    expect(pathData([{ x: 0, y: 0 }, { x: 0, y: 100 }, { x: 100, y: 100 }])).toBe('M0,0 L0,88 Q0,100 12,100 L100,100');
+    // A short segment is rounded over half its length at most.
+    expect(pathData([{ x: 0, y: 0 }, { x: 0, y: 10 }, { x: 50, y: 10 }])).toBe('M0,0 L0,5 Q0,10 12,10 L50,10');
+    for (const [project, key] of [['card-payments', 'containers'], ['settlement', 'containers'], ['checkout-web', 'containers']] as const) {
+      const layout = layoutOf(view(project, key));
+      for (const e of layout.edges) {
+        const nums = pathData(e.points).match(/-?\d+(\.\d+)?/g)!.map(Number);
+        // Every drawn point (the curve's ends and its control) is clear of every box but the two the arrow joins.
+        for (const b of layout.nodes) {
+          if (b.id === e.from || b.id === e.to) continue;
+          for (let i = 0; i < nums.length; i += 2) {
+            const [x, y] = [nums[i]!, nums[i + 1]!];
+            expect(x > b.x + 1 && x < b.x + b.width - 1 && y > b.y + 1 && y < b.y + b.height - 1, `${project} ${e.from}->${e.to} point in ${b.id}`).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it("says so, in one short line, when toil's own layout check fails, and says nothing when it passes", async () => {
+    const v = view('card-payments', 'containers');
+    const layout = layoutOf(v);
+    expect(layoutNotice(layout)).toBeNull();
+    // The same layout with an arrow dragged through the middle of a box it doesn't join.
+    const victim = layout.nodes.find((b) => b.id === 'tokeniser')!;
+    const first = layout.edges[0]!;
+    expect(first.to).not.toBe('tokeniser');
+    const broken = { ...layout, edges: layout.edges.map((e, i) => (i === 0 ? { ...e, points: [{ x: victim.x - 50, y: victim.y + victim.height / 2 }, { x: victim.x + victim.width + 50, y: victim.y + victim.height / 2 }] } : e)) };
+    const notice = layoutNotice(broken)!;
+    expect(notice).toMatch(/passes behind a box.*couldn't draw this view cleanly\.$/);
+    expect(notice.length).toBeLessThan(160);
+    await open('#/project/card-payments/summary/diagram/containers');
+    await waitFor(() => expect(document.querySelector('[data-diagram-legend]')).not.toBeNull());
+    expect(document.querySelector('[data-diagram-notice]')).toBeNull();
+  });
+});
+
 describe('the limits', () => {
   const big = (boxes: number, arrows: number): ComputedView => {
     const el = (i: number) => ({ id: `e${i}`, kind: 'container' as const, name: `E${i}`, external: false, database: false, path: `x[${i}]` });
@@ -176,18 +252,45 @@ describe('the page', () => {
     expect(document.querySelector('[data-c4-picture="context"]')).not.toBeNull();
   });
 
-  it('keeps how sure it is on screen: the legend with its counts, and where it was saved and from what', async () => {
+  it('puts the explanation of the key in the (i), and shows Not said only when something is', async () => {
+    await open('#/project/card-payments/summary/diagram/containers');
+    await waitFor(() => expect(document.querySelector('[data-diagram-legend]')).not.toBeNull());
+    const c = diagramShow('card-payments').counts;
+    await userEvent.click(document.querySelector('[data-diagram-legend] [data-help="diagram"]')!);
+    const dialog = await screen.findByRole('dialog', { name: /About the architecture diagram/ });
+    expect(dialog.textContent).toContain(countsText(c));
+    expect(dialog.textContent).toContain('A dashed outline or a dotted arrow is a conclusion');
+    expect(dialog.textContent).toContain('open a box to see which');
+    cleanup();
+    const shown = diagramShow('card-payments', 'containers');
+    await open('#/project/card-payments/summary/diagram/containers', withDiagram(() => ({ ok: true, data: { ...shown, counts: { ...shown.counts, unmarked: 0 } }, error: null, meta: {} }) as unknown as Envelope));
+    await waitFor(() => expect(document.querySelector('[data-diagram-legend]')).not.toBeNull());
+    expect(document.querySelector('[data-diagram-legend]')!.textContent).not.toContain('Not said');
+  });
+
+  it('keeps how sure it is on screen: the legend with its counts, and when it was saved, with no file path on the face', async () => {
     await open('#/project/card-payments/summary/diagram/containers');
     await waitFor(() => expect(document.querySelector('[data-diagram-legend]')).not.toBeNull());
     const c = diagramShow('card-payments').counts;
     const legend = document.querySelector('[data-diagram-legend]')!;
     expect(legend.textContent).toContain(`Observed: ${c.observed}`);
     expect(legend.textContent).toContain(`Inferred: ${c.inferred}`);
-    expect(legend.textContent).toContain(`Not said: ${c.unmarked}`);
+    if (c.unmarked > 0) expect(legend.textContent).toContain(`Not said: ${c.unmarked}`);
+    // Only the counts: the sentence that explains them is in the (i), not under the picture.
+    expect(legend.textContent).not.toMatch(/things:|dashed outline|drawn alike/);
+    expect(legend.querySelector('[data-help="diagram"]')).not.toBeNull();
     const prov = document.querySelector('[data-diagram-provenance]')!.textContent!;
     expect(prov).toContain('Saved 2 hours ago');
     expect(prov).toContain('revision 2');
-    expect(prov).toContain('card-payments.json');
+    expect(prov).not.toMatch(/card-payments\.json|\.toil|from /);
+    // Where it is kept, in plain words with the path and its Copy, is one step in, and only there.
+    const kept = document.querySelector<HTMLDetailsElement>('[data-diagram-kept]')!;
+    expect(kept.open).toBe(false);
+    expect(kept.querySelector('summary')!.textContent).toBe('Where is this kept?');
+    expect(kept.textContent).toContain('In your own toil folder on this computer, not in any repository.');
+    expect(kept.textContent).toContain('card-payments.json');
+    const page = document.querySelector('.diagram-page')!;
+    expect(page.textContent!.split('card-payments.json')).toHaveLength(2);
     expect(within(document.querySelector('[data-diagram-provenance]') as HTMLElement).getByRole('link', { name: 'Draw it again' }).getAttribute('href')).toBe('#/project/card-payments/job/diagram');
     // What was left out on purpose is behind a disclosure.
     const left = screen.getByText(/^Left out on purpose/).closest('details')!;

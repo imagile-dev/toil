@@ -4,8 +4,11 @@
  * zod-free layout the CLI's own `util c4 render` uses, imported from source
  * as the briefing imports its own) places every box and bends every arrow,
  * and this file draws what it returns as React elements: rectangles, paths
- * and text, never injected markup. The shapes follow `util/c4/svg.ts`, so a
- * picture here and a file there say the same thing.
+ * and text, never injected markup. The shapes follow `util/c4/svg.ts`, with two
+ * differences: the view's title is not drawn (the page's heading is it), and an
+ * arrow's corners are rounded over a short run (RADIUS), so the curve stays
+ * within a few pixels of the line toil's layout checked, where the file's own
+ * corners cut across half of each segment and can clip a box.
  *
  * How each thing is known is on the drawing (principle 4): an inferred box has
  * a dashed outline and an inferred arrow a dotted line, and one that says
@@ -22,6 +25,7 @@
  */
 
 import { useId, useMemo, type KeyboardEvent, type ReactNode } from 'react';
+import { verifyLayout } from '../../../src/areas/util/c4/verify.ts';
 import { DB_CAP, FONT_FAMILY, layoutView, lineHeight, linesHeight, type Layout, type NodeBox, type Point, type TextLine } from '../../../src/areas/util/c4/layout.ts';
 import { edgeName, elementsOf, howWord, pickedKey, type ComputedView, type Picked } from '../model/diagram.ts';
 import './c4-picture.css';
@@ -40,8 +44,29 @@ export const FILL: Record<NodeBox['element']['kind'], { fill: string; stroke: st
 export const EXTERNAL_PERSON = { fill: '#686868', stroke: '#5d5d5d', font: '#ffffff' };
 export const EXTERNAL = { fill: '#999999', stroke: '#8a8a8a', font: '#000000' };
 
-/** The narrowest the picture is drawn: below it the text is too small to read, so a narrow screen scrolls the picture instead of shrinking it. */
-const MIN_WIDTH = 832;
+/**
+ * How the picture sizes itself to its frame: up to 1.5 times its own size, so a
+ * small diagram fills a wide page without its words turning huge, and down to 0.7
+ * (an 11 pixel arrow label is then 8), below which a narrow screen scrolls the
+ * picture inside its own region instead of shrinking it past reading.
+ */
+export const FIT = { maxScale: 1.5, minScale: 0.7 } as const;
+
+/** Space kept between the drawing and the picture's top edge once the title's band is cropped away. */
+const EDGE = 24;
+
+/**
+ * What the picture shows of its layout. The layout reserves a band at the top for
+ * the view's title, which the page's heading already says, so the picture is
+ * cropped from just above the first thing drawn (`top`), found from the layout
+ * and not from a number of its own.
+ */
+export function frameOf(layout: Layout): { top: number; width: number; height: number; maxWidth: number; minWidth: number } {
+  const ys = [...layout.nodes.map((b) => b.y), ...(layout.boundary ? [layout.boundary.rect.y] : []), ...layout.edges.flatMap((e) => [...e.points.map((p) => p.y), ...(e.label ? [e.label.rect.y] : [])])];
+  const top = ys.length ? Math.max(0, Math.floor(Math.min(...ys) - EDGE)) : 0;
+  const height = layout.height - top;
+  return { top, width: layout.width, height, maxWidth: Math.round(layout.width * FIT.maxScale), minWidth: Math.round(layout.width * FIT.minScale) };
+}
 
 const n = (v: number) => Math.round(v * 10) / 10;
 
@@ -63,15 +88,23 @@ function Lines({ lines, cx, top, fill, className, anchor = 'middle' }: { lines: 
   return <>{out}</>;
 }
 
-/** A polyline with its corners rounded, as the CLI's SVG draws it. */
-function pathData(points: Point[]): string {
+/** How far from a corner an arrow starts to turn: short, so the drawn curve stays beside the line the layout checked. */
+const RADIUS = 12;
+
+/** A polyline with its corners rounded over at most `RADIUS`, or half the shorter segment. Exported so a test can follow what is drawn. */
+export function pathData(points: Point[]): string {
   if (points.length < 3) return `M${points.map((p) => `${n(p.x)},${n(p.y)}`).join(' L')}`;
-  const mid = (a: Point, b: Point) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const toward = (p: Point, q: Point, by: number): Point => {
+    const length = Math.hypot(q.x - p.x, q.y - p.y);
+    return length === 0 ? p : { x: p.x + ((q.x - p.x) / length) * by, y: p.y + ((q.y - p.y) / length) * by };
+  };
+  const dist = (p: Point, q: Point) => Math.hypot(q.x - p.x, q.y - p.y);
   let d = `M${n(points[0]!.x)},${n(points[0]!.y)}`;
   for (let i = 1; i < points.length - 1; i++) {
-    const m = mid(points[i - 1]!, points[i]!);
-    const next = mid(points[i]!, points[i + 1]!);
-    d += ` L${n(m.x)},${n(m.y)} Q${n(points[i]!.x)},${n(points[i]!.y)} ${n(next.x)},${n(next.y)}`;
+    const [a, p, b] = [points[i - 1]!, points[i]!, points[i + 1]!];
+    const from = toward(p, a, Math.min(RADIUS, dist(a, p) / 2));
+    const to = toward(p, b, Math.min(RADIUS, dist(p, b) / 2));
+    d += ` L${n(from.x)},${n(from.y)} Q${n(p.x)},${n(p.y)} ${n(to.x)},${n(to.y)}`;
   }
   const last = points.at(-1)!;
   return `${d} L${n(last.x)},${n(last.y)}`;
@@ -128,16 +161,44 @@ function Box({ box, selected, onPick }: { box: NodeBox; selected: boolean; onPic
   );
 }
 
-/** The picture of one view, at the layout's own size. It never lays out a view past the limits: the page checks first. */
+const layouts = new WeakMap<ComputedView, Layout>();
+
+/** The layout of a view, worked out once however many places ask: the picture draws it and the page checks it. */
+export function layoutOf(view: ComputedView): Layout {
+  let layout = layouts.get(view);
+  if (!layout) layouts.set(view, (layout = layoutView(view)));
+  return layout;
+}
+
+/**
+ * toil's own checks of a drawing (`verifyLayout`, the ones `util c4 render` runs), as one short line when any failed,
+ * and null when none did (principle 4: a picture that is wrong says so). It does not look for a label sitting on another
+ * arrow's line, which those checks don't either.
+ */
+export function layoutNotice(layout: Layout): string | null {
+  const failed = (...checks: string[]) => verifyLayout(layout).filter((r) => checks.includes(r.check)).reduce((sum, r) => sum + r.failed, 0);
+  const arrows = failed('edges.clearOfBoxes');
+  const labels = failed('labels.clearOfBoxes');
+  const boxes = failed('boxes.apart', 'children.inBoundary', 'edges.touchBoxes');
+  const found = [
+    arrows ? `${arrows} ${arrows === 1 ? 'arrow passes' : 'arrows pass'} behind a box` : '',
+    labels ? `${labels} ${labels === 1 ? 'label covers' : 'labels cover'} a box` : '',
+    boxes ? `${boxes} ${boxes === 1 ? 'box or arrow is' : 'boxes or arrows are'} out of place` : '',
+  ].filter(Boolean);
+  return found.length ? `${found.join(', ')}: toil's layout couldn't draw this view cleanly.` : null;
+}
+
+/** The picture of one view, fitted to its frame (`FIT`). It does not draw the view's title: the page's heading is that, and the accessible name keeps it. It never lays out a view past the limits: the page checks first. */
 export function C4Picture({ view, picked, onPick }: { view: ComputedView; picked: Picked | null; onPick: (p: Picked | null) => void }) {
-  const layout: Layout = useMemo(() => layoutView(view), [view]);
+  const layout: Layout = useMemo(() => layoutOf(view), [view]);
   const id = useId().replace(/[^\w-]/g, '');
   const arrow = `c4-arrow-${id}`;
   const byId = useMemo(() => elementsOf(view), [view]);
   const selected = picked ? pickedKey(picked) : null;
   const { boundary } = layout;
+  const frame = frameOf(layout);
   return (
-    <svg className="c4-picture" width={layout.width} height={layout.height} viewBox={`0 0 ${layout.width} ${layout.height}`} role="group" aria-label={`${layout.title.text}: ${view.inside.length + view.outside.length} boxes and ${view.edges.length} arrows. Each can be pressed for what it was read from.`} style={{ maxWidth: layout.width, minWidth: Math.min(layout.width, MIN_WIDTH) }} data-c4-picture={view.key}>
+    <svg className="c4-picture" width={frame.width} height={frame.height} viewBox={`0 ${frame.top} ${frame.width} ${frame.height}`} role="group" aria-label={`${layout.title.text}: ${view.inside.length + view.outside.length} boxes and ${view.edges.length} arrows. Each can be pressed for what it was read from.`} style={{ maxWidth: frame.maxWidth, minWidth: frame.minWidth }} data-c4-picture={view.key}>
       <title>{layout.title.text}</title>
       <defs>
         <marker id={arrow} viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
@@ -145,10 +206,7 @@ export function C4Picture({ view, picked, onPick }: { view: ComputedView; picked
         </marker>
       </defs>
       {/* A press on empty canvas puts the detail away. */}
-      <rect className="c4-canvas" width="100%" height="100%" onClick={() => onPick(null)} />
-      <text className="c4-title" x={n(layout.title.x)} y={n(layout.title.y)} fontSize={layout.title.size} fontWeight="bold" textAnchor="middle" fontFamily={FONT_FAMILY}>
-        {layout.title.text}
-      </text>
+      <rect className="c4-canvas" x={0} y={frame.top} width={frame.width} height={frame.height} onClick={() => onPick(null)} />
       {boundary && (
         <g className="c4-boundary">
           <rect x={n(boundary.rect.x)} y={n(boundary.rect.y)} width={n(boundary.rect.width)} height={n(boundary.rect.height)} rx={12} fill="none" strokeWidth={1.5} strokeDasharray="8 5" />

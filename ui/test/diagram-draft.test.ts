@@ -150,6 +150,8 @@ describe('the prompt for the Diagram job', () => {
     expect(q.text).toMatch(/put no Mermaid, JSON or code fence in your answer/);
     expect(q.text).toContain('how: "observed"');
     expect(q.text).toContain('how: "inferred"');
+    // `how` says a thing is inferred, so the description never opens with "(inferred)".
+    expect(q.text).toMatch(/never write "\(inferred\)" or "inferred" in a description/);
     expect(q.text).toMatch(/Never put a URL/);
     expect(q.text).toMatch(/Save diagram button/);
     expect(q.text).not.toMatch(/putting the Mermaid text in your answer|draw it with util_c4_mermaid/);
