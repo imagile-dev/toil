@@ -250,7 +250,7 @@ toil jira issue search --jql "project = PAY" --fields fixVersions,components,lab
   - The code type is named for saved views, not `ToilProjectView`, which is taken
     (`src/core/toil-project.ts:762`).
 - Archived toil projects (`archived: true`) are skipped by default wherever a pivot or the
-  Charts tab spans several toil projects.
+  charts in the Summary span several toil projects.
 - The same figures are on the CLI and MCP for anyone who wants them. They are documented
   in the docs and the skill, not on any screen.
 - An agent outside Toil UI (Claude Code, Copilot, Codex over MCP) gets the same figures the
@@ -269,7 +269,7 @@ toil jira issue search --jql "project = PAY" --fields fixVersions,components,lab
   (cycle time), Work getting old (aging WIP) and the code-review wait, and each opens a
   chart modal. Those modals gain a Split by menu: Finished by category, Time to finish by
   component, Work getting old by team. The modal becomes a small explorer with an "Open
-  in Charts" link.
+  in the chart page" link.
 - **Board.** The Board's filters join the shared filter bar (below), so "release 4.2,
   Keep the lights on" narrows the Board too. A Group by menu groups the Board by any dimension: parent
   feature or epic, release, team, category.
@@ -283,12 +283,12 @@ toil jira issue search --jql "project = PAY" --fields fixVersions,components,lab
   person's open work as one bar, no score. The mix starts by category, and the person
   picks any other dimension.
 
-### A Charts tab
+### Charts, in the Summary
 
-One new tab, working name **Charts** ("Insights" is already Toil UI's word for per-item
+First built as a Charts tab after People; the maintainer folded it into the Summary (Where the work goes, `/summary/<chart>`). The original design follows, as it was proposed: one new tab, working name **Charts** ("Insights" is already Toil UI's word for per-item
 flags, shown on screen as "Worth a look"). Before this work the tabs, in order, were
 Summary, Board, What blocks what, Code reviews, People, What happened and Past
-briefings; Charts now sits after People. Adding one meant:
+briefings; the tab was added after People. Adding one meant:
 - an entry in `TOIL_PROJECT_TABS` (`ui/src/views/ToilProjectShell.tsx:43-51`);
 - `parsePath` and `tabOf` (`ui/src/App.tsx:158-205`);
 - a link in the Summary's "Go to" row.
@@ -330,7 +330,7 @@ focus:
 - **Explore.** Pick a measure, a split, an across and filters, and the chart form follows
   the data (stacked columns over time, stacked bars for categories, a heatmap for two
   dimensions). Its two actions:
-  - **Save to Charts** writes the view into the toil project through
+  - **Save this view** writes the view into the toil project through
     `projects view set`, as a press.
 
   Screen copy never shows a terminal command, an environment variable name or a file path,
@@ -356,7 +356,7 @@ focus:
   `util encode --out` and toil's file service, the path the worklog export already uses.
 - **Item tables**, behind every drill, are sortable by any column, with the split's
   dimensions as columns.
-- **One filter bar** across Charts and the Board holds the date range and dimension
+- **One filter bar** across the charts and the Board holds the date range and dimension
   chips. It lives in the address (`?release=4.2&category=ktlo`), so the back button and a
   shared link both work. That needs routing work (slice 3):
   - Today the item drawer's `peekHref` and `unpeekHref` keep only the path before `?`
@@ -522,7 +522,7 @@ components and categories.
 - **Proposals stay proposals.** An answer may propose "move these 6 items to 4.3" or
   "classify these 4 as Keep the lights on". Each is applied by a press, through the write
   gate, like every proposal today.
-- **"Get a briefing" learns the dashboards.** A kept run can include a Charts section:
+- **"Get a briefing" learns the dashboards.** A kept run can include a section on the charts:
   the notable changes since the last run, each explained and cited. "What changed between
   runs" then covers the mix and the releases too.
 - **Outside Toil UI.** The MCP prompt `insights` gives an agent a toil project and a
@@ -568,7 +568,7 @@ components and categories.
    - `ui/src/wording.ts`, where each new on-screen word key is filed as functional or
      flavour.
 4. **Dashboards:**
-   - the Charts tab with Releases, Sprints, Work mix, Where we're working and Flow;
+   - the charts, first a Charts tab and now the Summary's Where the work goes, with Releases, Sprints, Work mix, Where we're working and Flow;
    - the Summary lines and splittable modals;
    - Group by on the Board, and the mix bar on each person's card in People.
 
@@ -591,7 +591,7 @@ breaking change, but one thing needs care with older toils:
 
 ## Decisions for the maintainer
 
-1. **A new tab.** A Charts tab (working name; "Insights" is taken by the per-item flags
+1. **A new tab.** A Charts tab, since folded into the Summary by the maintainer (working name; "Insights" is taken by the per-item flags
    shown as "Worth a look"), or only richer Summary, Board and People views?
 2. **People.** Splits by person a step in, in name order and never ranked, as the People
    view is today?
@@ -601,15 +601,15 @@ breaking change, but one thing needs care with older toils:
 5. **Release forecasts.** Show a range from recent throughput, labelled as a forecast, or
    no forecast at all?
 6. **Notable changes.** Which thresholds count as notable (a share moving 10 points, scope
-   up 10%), and should Toil UI raise them on the Summary or only inside Charts?
+   up 10%), and should Toil UI raise them on the Summary or only inside the charts?
 7. **Around the marks.** Is four, plus Other and None, enough, with small multiples and
    pinning for longer splits? And should **Simple chart marks** be a setting, or should
    forced colours and small segments be the only fallbacks?
 
-Defaults taken while building, each recorded in the decisions file: 1 a Charts tab; 2
+Defaults taken while building, each recorded in the decisions file: 1 a Charts tab, since folded into the Summary by the maintainer; 2
 people a step in, in name order, never ranked; 3 saved views in the toil project; 4 an
 item counts in each of its values, with the note; 5 no forecast; 6 ten share points and
-ten percent of scope, raised inside Charts only; 7 four marks plus Other and None, with
+ten percent of scope, raised inside the charts only; 7 four marks plus Other and None, with
 Simple chart marks as a setting.
 
 Already settled by the maintainer on 9 November 2026: work insights is an issue of its

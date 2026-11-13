@@ -8,7 +8,7 @@ record and a field is an optional mirror of the label, the maintainer's call, 12
 items, learns from their corrections, and analyses the mix in toil and Toil UI (#566).
 Slices 1 to 3 are built: the scheme, `classify run | prompt | correct | stats | tune |
 mix`, `categorize` in all three trackers, the ledger, the MCP prompts `classify` and
-`classify-tune`, and in Toil UI the Work mix tile and page, the category chip, the
+`classify-tune`, and in Toil UI the Work mix item in the Summary's Where the work goes and its page, the category chip, the
 Classify view and the Classification editor. Slices 4 and 5 are not built. Labels and tags
 were written for real on the GitHub, Jira Cloud and Azure DevOps Services test projects
 on 11 November 2026; a category field, Jira Data Center and Azure DevOps Server have
@@ -247,7 +247,7 @@ away. That is principle 11's rule for words a person acts on, and the maintainer
 
 - Every category carries `name` ("Keep the lights on") and `short` ("KTLO"), and every
   command's output carries both.
-- In Toil UI, everything a person reads to act shows `name`: the chip, the Work mix tile
+- In Toil UI, everything a person reads to act shows `name`: the chip, the Work mix item in the Summary's Where the work goes
   and legend, headings, filters and the Classify view's choices. Hovering any of them
   gives "KTLO", the definition and a Read more link.
 - Typing either word finds the category, in a filter, the search box or the command
@@ -415,7 +415,7 @@ count:
   (Jira's changelog, GitHub's timeline, ADO's revisions), the correction names who made
   it.
 
-Confirming a verdict (`--to` the same category, or Confirm in Toil UI) is recorded too,
+Confirming a verdict (`--to` the same category, or pressing the category an item already has in Toil UI) is recorded too,
 so agreement can be measured and not only disagreement.
 
 **The ledger** is `~/.toil/classify/<scheme>.jsonl`, beside the person's own schemes,
@@ -523,7 +523,7 @@ tune, backtest, ask the person, and set. Toil UI reads its frontmatter (`needs`,
 Following principle 11, nothing new sits on every screen; each piece is a step in.
 
 - **Summary tab, "The numbers":** the project's landing tab reads "Summary" on screen
-  (its id is still `overview`). A Work mix figure goes in "The numbers" (the
+  (its id is still `overview`). As first proposed, a Work mix figure went in "The numbers" (the
   `MetricStrip` inside "Show the full briefing"), as a sixth tile beside Points done,
   Finished, Time to finish, Work getting old and the code-review wait. It reads like
   "Feature 58% · Keep the lights on 34% · Unsure 8%, last 90 days", with a trend
@@ -531,7 +531,7 @@ Following principle 11, nothing new sits on every screen; each piece is a step i
   "Keep the lights on" gives "KTLO" and the definition. An unknown mix (nothing
   classified or read yet) shows a dash, "not read yet", never 0% (principle 12). The tile
   opens the Work mix page.
-- **Work mix page**, reached from that tile, the command palette, or its own address. It
+- **Work mix page**, reached from the Work mix item in the Summary's Where the work goes, the command palette, or its own address. It
   has:
   - a stacked trend by month;
   - a breakdown by team, person, repository or epic;
@@ -619,7 +619,7 @@ KTLO work that repeats is the work worth automating.
    `classify-tune`, and the workflow page's tuning steps.
 3. **Work mix in Toil UI:**
    - `classify mix`;
-   - the Work mix figure on the Summary tab and the Work mix page;
+   - the Work mix item in the Summary's Where the work goes and the Work mix page;
    - the category chip;
    - the Classify view, with How it's doing and Improve with your AI agent;
    - the Classification editor on the toil project's edit page, and the Jira sync

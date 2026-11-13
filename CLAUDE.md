@@ -100,10 +100,16 @@ gets made again in the next place it applies.
    and flags, MCP tool names (which follow the paths), page cursors, the JSON envelope,
    precedence, the `./api` `execute()` surface and exit codes are contracts. **They
    are stable from the first beta, `0.1.0-beta.1`** (the maintainer's call on #478,
-   2026-10-24). From then on, changing one is a declared breaking change: a `feat!:`
-   with a `BREAKING CHANGE:` footer saying why and how to migrate, and, where
-   practical, the old name keeps working with a deprecation warning for at least one
-   beta before it's removed. → Output Contract, Delivery. While toil has no CI users,
+   2026-10-24). **A breaking change is one that makes something that used to work stop
+   working**: a path, flag, field, code, setting or precedence that a working setup
+   relied on is removed, renamed, or gives a different result. Something that never
+   worked starting to work is not one: a value toil could not read before (an env
+   `writes` of `1`), a call it refused, a figure it left out. That is a `feat:` or a
+   `fix:`, and its PR still says plainly what now behaves differently (the maintainer's
+   call on #585, 2026-11-13). From the first beta on, a breaking change to a contract is
+   declared: a `feat!:` with a `BREAKING CHANGE:` footer saying why and how to migrate,
+   and, where practical, the old name keeps working with a deprecation warning for at
+   least one beta before it's removed. → Output Contract, Delivery. While toil has no CI users,
    a fix that only stops toil answering from a source nobody configured (a precedence
    fall-through that reads the wrong repo or project) is a `fix:`, not a declared
    breaking change, and its PR says so (the maintainer's call on #540, 2026-11-02). The alphas
@@ -703,7 +709,8 @@ a breaking change.
 - **`meta.contractVersion`** is on every envelope and in `toil version`: `CONTRACT_VERSION`
   in `src/core/envelope.ts`, equal to `contractVersion` in `docs/command-contract.json`
   (a test holds them together). It goes up by one with every breaking change to the
-  contract and never for an additive one. The alphas all report 1, the first beta
+  contract and never for an additive one, nor for something that never worked
+  starting to work (principle 7). The alphas all report 1, the first beta
   ships 1, and every breaking change from then on raises it (principle 7;
   `docs/command-contract.md`, The contract version).
 - **Three front doors, one `execute()`.** The CLI, MCP, and `@imagile-dev/toil/api`
@@ -1182,8 +1189,9 @@ verify:ui`. They are the only places a live run may write.
 
 - Conventional Commits: `fix:`, `feat:`, `feat!:` with a `BREAKING CHANGE:` footer
   that says why and how to migrate. release-please builds the changelog from them.
-  **From the first beta on, a change to a contract principle 7 lists is a `feat!:`
-  with a `BREAKING CHANGE:` footer** (but see principle 7 on fixes while there are no
+  **From the first beta on, a breaking change to a contract principle 7 lists (one
+  that makes something that used to work stop working) is a `feat!:` with a
+  `BREAKING CHANGE:` footer** (but see principle 7 on fixes while there are no
   CI users), and, where practical, keeps the old name
   working with a deprecation warning for at least one beta before removing it.
   The alphas used a plain `feat:` or `fix:` for contract changes, and their

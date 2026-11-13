@@ -128,7 +128,7 @@ write to a new folder, or delete the files first, to generate again.
 The sample team is the first sample project in `toil-ui --sample`, and it is behind "Look
 around with a sample team" on a fresh install, before any connection or Toil project
 exists. It is generated for the day the sample is pinned to, so its dates stay in step
-with each other. It exercises the Summary's Work mix, the six dashboards on Charts, the
+with each other. It exercises the Summary's Work mix, Where the work goes on the Summary and the six chart pages under it, the
 Board's lanes, and People by team.
 
 Toil UI's sample shows a slightly different mix from the commands above (59% feature,

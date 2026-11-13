@@ -123,7 +123,7 @@ Windows 11 with Node 24.22.1. Nothing here has met a real Jira, GitHub or Azure 
 - **Export the figures is a browser download, not a server write.** The worklog
   export's route writes worklog Markdown only, and a new server write surface wasn't
   worth one CSV.
-- **Save to Charts runs `projects view set` through the same gated path Settings
+- **Save this view (Explore) runs `projects view set` through the same gated path Settings
   uses (`CONFIG_CHANGES`).** Removing a saved view stays on the command line, since
   `view remove` is CLI only.
 - **`jira issue search --more-fields` exists because `--fields` replaces the default
@@ -228,6 +228,12 @@ was built, and the defaults taken where the call left a choice.
   has an Undo; the full briefing is closed on every visit and opens itself only after
   "Get a briefing". Not changed: the Builds list on the Board page and the chart text
   size at wide screens, both noted for the maintainer.
+
+- **Reading `1` as on is not a breaking change** (the maintainer's call, 13 November
+  2026, on #585: "I consider a breaking change something that used to work stops
+  working now"). In `0.1.0-beta.5` an env `writes` of `1` left writes off; it now turns
+  them on. Nothing that worked stopped working, so the change stays a `feat:`, the
+  contract version stays where it is, and principle 7 now carries that definition.
 
 **Still the maintainer's to take**
 
