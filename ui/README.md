@@ -331,7 +331,9 @@ while the page is open, never for the one already there when it opened.
 ### The Dependencies tab
 
 The Dependencies tab opens on the **blocker timeline**, a Gantt chart of every item that
-blocks another or is blocked, on the current sprint's dates, then the dependency graph.
+blocks another or is blocked, on the current sprint's dates, then the dependency graph. Under the drawing one short line
+gives the sprint's dates and says that blocked time is estimated (it stays on the page, because it qualifies every bar);
+how each part is estimated, and which way the graph's arrows run, are in an (i) beside each panel's heading.
 
 - **Each item is a bar.** A solid segment is its time in progress, from its
   transitions. A hatched, outlined segment is its time blocked, from its `blocks`
@@ -423,7 +425,7 @@ If toil refuses or fails, the card goes back to its column and the message, toil
 that timed out may still have been applied, and the message says to check the tracker.
 
 When the move can't be made for you, nothing changes in the tracker and the drop becomes a **proposed move** under the board (the card stays where
-its tracker says, with a dashed ghost in the target column). The card says what would change, **one line on why it wasn't applied**, an **Apply**
+its tracker says, with a dashed ghost in the target column that says only "Not applied yet." beside **Undo** and **How to apply**; in the sample it says "Sample data: this move isn't saved." with **Undo** alone, since nobody can apply a move there). The card says what would change, **one line on why it wasn't applied**, an **Apply**
 button (**Add to the board and move**, for a card off its board) when a press can make it (the setting is off but the connection allows changes), and **Dismiss**; the command to run yourself, in PowerShell or
 bash/zsh with **Copy command**, is a step further in under **Show the command**. Why it can be a proposal: the setting is off; the sample, which can
 show a move and write none; a connection with `writes` off (the card says so and where to turn them on); a status that more than one transition
@@ -505,6 +507,8 @@ changes:
 - **Waiting now:** the open pull requests, longest wait first, each with what it
   waits on (review, changes, checks, merge, or a draft its author holds), since when
   in working days (`32.6 d`, the sentence behind it one press in), who wrote it (the name, and an Agent or Bot badge that opens the signal that said so), the work items it names, and its size, XS to XL by changed lines.
+- **Each panel's explanation** (what Waiting now sorts by, what a flag is, what the flow figures rest on, where suggestions come from)
+  is an (i) beside its heading; what qualifies a figure, such as the weeks it covers and what n counts, stays on the page.
 - **Flags:** no first review in 2 working days, checks failing for over a day, a merge
   conflict, no linked work item, a work item done while its pull request is open, and
   a merged pull request whose item isn't done, each with what it rests on.
@@ -532,8 +536,13 @@ system (`toil projects person`, or **Settings, Toil projects**):
 - **A card per person**, agents included, in name order: their work in progress by
   status with how long each item has sat in it, their open pull requests and what
   each waits on, the reviews waiting on them (oldest first), their blocked items and
-  what blocks each, and what they did in the last 14 days. A link opens their items
-  on the Board tab, filtered to them.
+  what blocks each, and what they did in the last 14 days (three lines, then a **+N**
+  that opens the rest). A section shows only when it has something: the empty ones
+  are one muted line at the foot of the card naming them after a dash (`– Blocked · Reviews waiting`),
+  read aloud as "none", or "not read yet" for a part no sync read (a failed read, or no pull
+  requests read at all), shown apart from the others. The accounts behind a name are in the (i)
+  beside it. **On the board** opens their items on the Board tab, filtered to them.
+  The page's first line is the counts and the read time; what work in progress counts is in the tab's (i).
 - **A team strip:** work in progress against the Toil project's `wipLimit` and who is over
   it, the review queue, and the current sprint's unassigned items.
 - **Agents:** a person with `kind: "agent"`, matched by the same signals as a pull
@@ -553,7 +562,7 @@ system (`toil projects person`, or **Settings, Toil projects**):
   Settings; nothing is applied until it is pressed. **Save to this repository** (beside
   the people, in the Map form once it has saved, and in Settings) runs `toil projects
   people save`, which writes the people into the repository's `.toil/projects/<name>.json`
-  for any host (GitHub, Azure DevOps, Bitbucket); the page says which file changes, and
+  for any host (GitHub, Azure DevOps, Bitbucket); the (i) beside the button says which file changes, and
   nothing is staged or committed.
 
 It shows what is on each plate and never scores anyone: no ranking, no productivity
@@ -621,22 +630,26 @@ Pick a measure, a split, an across and filters; the chart's form follows the dat
 ## Sort work into categories
 
 The Board's third view, beside **Board** and **Ready to start?** (`#/project/<name>/board/classify`). It lists the items that need
-a person: the **unsure** ones, and the ones where a rule or a signal and a label or field already on the item disagree. Each row shows
-the suggested category with its reason ("Its parent SHOP-12 is Feature"), and the choices as a row of buttons: "Keep the lights on",
-"Feature" and "Unsure". **K**, **F** and **U** pick for that scheme (**1** to **9** for any other), and **Enter** confirms and moves to
-the next row. Pressing a category chip anywhere else (an item's page, its drawer, a row in an items drawer) opens the same choice in
+a person: the **unsure** ones, and the ones where a rule or a signal and a label or field already on the item disagree. Each item is one line: its source, key and
+title (cut short, whole on hover), the choices as one segmented control ("Keep the lights on", "Feature", "Unsure"), and a quiet (i) with
+the reason it is here ("Its parent SHOP-12 is Feature"). The reason is never printed on every row; a short tag shows only where it says
+something ("14 follow" on an epic whose tasks follow its answer, "label and rules disagree"). **Pressing a choice is the answer**, with no
+Confirm: **K**, **F** and **U** answer on a row (**1** to **9** for any other scheme), the arrow keys move between rows, and focus stays on
+the next row. A suggestion (the AI agent's, or the rules' where they disagree with a label) is marked on its category with a small badge:
+pressing the marked one accepts it (so does **Enter** on the row), pressing another overrules it. Pressing a category chip anywhere else (an item's page, its drawer, a row in an items drawer) opens the same choice in
 a small form with an optional reason; a board card's ☰ menu has **Change its category…**.
 
 - **A choice is saved in your own record on this computer** (`toil classify correct`), at once, and never touches the tracker. Choosing the
-  category an item already has is saved too, as agreement. A line under the tabs says what changed and offers **Undo**, which records the item
-  back where it stood ("Changed back"): the record only ever adds.
+  category an item already has is saved too, as agreement. A line under the tabs says what changed ("SHOP-6 is Feature. Undo") and **Undo** records the item
+  back where it stood ("Changed back") and puts an unanswered item back in the list: the record only ever adds.
 - **Ask your AI agent** gives the agent toil's own question for the unsure items, with no tool to change anything. Its answers come
-  back as suggestions, each with its reason and the AI-agent badge, and you accept them one at a time or all at once. Every answer is checked against
+  back as marks on the choices, each with an AI badge and its reason in the row's (i) (with **Not this** to dismiss it), and you accept them one at a time
+  or all at once. Every answer is checked against
   the scheme before it is shown. Accepting one is your word, saved in your own record exactly as a choice is (with "Accepted the AI agent's
   suggestion" and the agent's reason as the reason, and the same **Undo**), so the item stays answered after you apply it, and **Accept all**
   saves one per suggestion.
-- **Apply** gathers what is decided into one card per tracker connection and shows every change first: the item, the label from and to, and the
-  field from and to, with the one command toil runs. One press runs the tracker's own `categorize` through toil's write rules, so the connection
+- **Apply** gathers what is decided into one card per tracker connection and shows every change first, as a table a line an item (item, title, category, and the label and field from and to, folded after ten with
+  **Show all**), with the one command toil runs. One press runs the tracker's own `categorize` through toil's write rules, so the connection
   must have changes switched on; the card says when it doesn't. Each item's result is reported, and pressing again changes nothing. Then the verdicts
   are recorded. In the sample nothing can be written, and the card says so.
 
@@ -725,6 +738,10 @@ A page has:
 - **Notes** a person added that day, on today's page.
 - **Sources:** each source's syncs that day.
 
+A section with nothing in it is not drawn: the empty ones are one muted line naming them after a dash, read
+aloud as "none", or "not read yet" (with **Sync now**) for a section a sync decides on a day none has read.
+The calendar's footnote and what Export does are in an (i) beside the month and the Export heading.
+
 Every line links to its item, pull request, build or transcript, where the source has a
 page for it. Two kinds of fact
 come in differently. Status and sprint changes, pull requests, reviews and builds
@@ -759,7 +776,7 @@ folder as its workspace, which writes a new file only and never into toil's own
 config. Publishing an exported page is a proposal: `toil confluence page create
 --body-file <file> --markdown` in the Toil project's Confluence space, or `toil github issue
 create --body-file <file>` in its repository, for you to run through toil's write gate.
-Toil UI posts nothing. With sample data, notes and export are off.
+Toil UI posts nothing. With sample data, notes and export are off, and the page says so once.
 
 ### Stand-up
 

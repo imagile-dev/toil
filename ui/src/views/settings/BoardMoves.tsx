@@ -25,10 +25,7 @@ export function BoardMovesSetting() {
         </Checkbox>
       </div>
       <p className="note">
-        {on
-          ? "A drop changes the item's status through toil, if its connection allows changes; otherwise it stays a proposal. Saved in this browser only."
-          : 'A drop only proposes the move, with the command to run yourself. Saved in this browser only.'}{' '}
-        <Help topic="board-moves" />
+        Saved in this browser only. <Help topic="board-moves" />
       </p>
     </Card>
   );

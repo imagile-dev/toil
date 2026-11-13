@@ -20,15 +20,16 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { Button } from 'react-aria-components';
+import { Button, Checkbox, Input, Label, Text, TextArea, TextField } from 'react-aria-components';
 import type { Scheme } from '../../../../src/core/classify/types.ts';
 import type { ClassifyApi, LedgerView, SaveResult } from '../../classify-api.ts';
 import type { ConfigApi } from '../../config.ts';
 import { Help } from '../../components/help.tsx';
+import { CheckIcon } from '../../components/icons.tsx';
 import '../../components/classify.css';
 import { blankCategory, blankRule, checkDraft, draftOf, ruleCounts, sameDraft, schemeSummaryLine, whenText, type DraftCategory, type DraftRule, type SchemeDraft } from '../../model/scheme-edit.ts';
 import type { WorkItem } from '../../toil.ts';
-import { OutcomeLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
+import { Info, OutcomeLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
 
 interface SchemeRow {
   name: string;
@@ -50,13 +51,18 @@ const SAVED = { yours: 'kept as your own copy', shared: 'in the repository, read
 const said = (r: SaveResult, toilProject: string) =>
   `Saved as revision ${r.revision}, ${SAVED[r.kept]}.${r.pointProject ? ` ${toilProject} does not read this copy yet: choose it under "Which categories this Toil project uses", then press Use these categories.` : ''}`;
 
+/** The app's own text field (`field-text`), so every input here has the frame, the height and the focus ring the others have. */
 function Field({ label, value, onChange, hint, wide = false }: { label: string; value: string; onChange: (v: string) => void; hint?: string; wide?: boolean }) {
   return (
-    <label>
-      {label}
-      {wide ? <textarea rows={4} value={value} onChange={(e) => onChange(e.target.value)} /> : <input type="text" value={value} onChange={(e) => onChange(e.target.value)} />}
-      {hint && <span className="note">{hint}</span>}
-    </label>
+    <TextField className={wide ? 'field-text field-text--area' : 'field-text'} value={value} onChange={onChange}>
+      <Label>{label}</Label>
+      {wide ? <TextArea rows={4} /> : <Input spellCheck={false} autoComplete="off" />}
+      {hint && (
+        <Text slot="description" className="note">
+          {hint}
+        </Text>
+      )}
+    </TextField>
   );
 }
 
@@ -204,10 +210,15 @@ export function ClassificationEditor({ config, classify, toilProject, loadItems 
         <details>
           <summary>Where each tool keeps the category</summary>
           <div className="cedit__part">
-            <p className="note">The category always goes on the item as a label. The label is the record. If a tracker also has a field for it, name the field and toil keeps it in step with the label. Toil never creates a field, so an admin makes it first.</p>
-            {shown.areas.map((a) => (
-              <Field key={a} label={`${AREA_NAME[a] ?? a}: field`} value={fields[a] ?? ''} onChange={(v) => setFields({ ...fields, [a]: v })} hint={a === 'github' ? "The name of a single-select field on the GitHub project." : "A field's name in this Toil project's field names, or its id."} />
-            ))}
+            <p className="note">
+              The label is the record; a field, if you name one, mirrors it.{' '}
+              <Info label="where each tool keeps the category" text="The category always goes on the item as a label, and the label is the record. If a tracker also has a field for it, name the field and toil keeps it in step with the label. Toil never creates a field, so an admin makes it first." />
+            </p>
+            <div className="cedit__fields">
+              {shown.areas.map((a) => (
+                <Field key={a} label={`${AREA_NAME[a] ?? a}: field`} value={fields[a] ?? ''} onChange={(v) => setFields({ ...fields, [a]: v })} hint={a === 'github' ? "The name of a single-select field on the GitHub project." : "A field's name in this Toil project's field names, or its id."} />
+              ))}
+            </div>
             <div>
               <Button className="btn" onPress={() => void saveTargets()} isDisabled={Boolean(disabled)} data-targets-save="">
                 Save the fields
@@ -223,10 +234,12 @@ export function ClassificationEditor({ config, classify, toilProject, loadItems 
         <div className="cedit__part">
           {draft.categories.map((c, i) => (
             <div key={i} className="cedit__card" data-category-card={i}>
-              <Field label="Name" value={c.name} onChange={(v) => setCategory(i, { name: v })} />
-              <Field label="Short form" value={c.short} onChange={(v) => setCategory(i, { short: v })} hint="The term of art, shown on hover." />
+              <div className="cedit__row">
+                <Field label="Name" value={c.name} onChange={(v) => setCategory(i, { name: v })} />
+                <Field label="Short form" value={c.short} onChange={(v) => setCategory(i, { short: v })} hint="The term of art, shown on hover." />
+                <Field label="Label in the tracker" value={c.label} onChange={(v) => setCategory(i, { label: v })} hint="One word, no spaces." />
+              </div>
               <Field label="What it means" value={c.definition} onChange={(v) => setCategory(i, { definition: v })} wide />
-              <Field label="Label in the tracker" value={c.label} onChange={(v) => setCategory(i, { label: v })} hint="One word, no spaces." />
               {!base.categories.some((b) => b.id === c.id) && <Field label="Id" value={c.id} onChange={(v) => setCategory(i, { id: v })} hint="Lowercase letters, digits and hyphens. It can't change once saved." />}
               {draft.categories.length > 2 && (
                 <div>
@@ -250,7 +263,10 @@ export function ClassificationEditor({ config, classify, toilProject, loadItems 
           Rules ({draft.rules.length})
         </summary>
         <div className="cedit__part">
-          <p className="note">A rule settles an item before anything else but a label already on it. The first rule that fits wins.</p>
+          <p className="note">
+            The first rule that fits wins.{' '}
+            <Info label="rules" text="A rule settles an item before anything else but a label already on it. The first rule that fits wins." />
+          </p>
           {draft.rules.map((r, i) => {
             const count = counts?.[r.id.trim()];
             return (
@@ -297,9 +313,12 @@ export function ClassificationEditor({ config, classify, toilProject, loadItems 
             <textarea rows={4} value={draft.guidance} onChange={(e) => set({ guidance: e.target.value })} />
             <span className="note">What to do with borderline cases. Your AI agent reads it with the definitions.</span>
           </label>
-          <label className="check-line">
-            <input type="checkbox" checked={draft.signals} onChange={(e) => set({ signals: e.target.checked })} data-signals="" /> Use toil's built-in signals (bug and incident types, security ids, dependency bots) below the rules
-          </label>
+          <Checkbox className="check check--top" isSelected={draft.signals} onChange={(on) => set({ signals: on })} data-signals="">
+            <span className="box" aria-hidden="true">
+              {draft.signals ? <CheckIcon size={14} /> : null}
+            </span>
+            Use toil's built-in signals (bug and incident types, security ids, dependency bots) below the rules
+          </Checkbox>
           {draft.rules.length > 0 && <p className="note">Rules in words: {draft.rules.map((r) => `${r.id || 'a rule'}: when ${whenText(Object.fromEntries([['parent', r.parent], ['label', r.label], ['type', r.type], ['title', r.title]].flatMap(([k, v]) => (v!.trim() ? [[k, v!.split(',').map((s) => s.trim()).filter(Boolean)]] : []))))}`).join('; ')}.</p>}
         </div>
       </details>

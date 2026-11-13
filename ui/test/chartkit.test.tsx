@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { assignMarks } from '../src/components/chartkit/assign.ts';
-import { ChartFrame, figureRows } from '../src/components/chartkit/ChartFrame.tsx';
+import { ChartFrame, figureRows, notesLabel } from '../src/components/chartkit/ChartFrame.tsx';
 import { axisName, cellText, columnText, seriesText } from '../src/components/chartkit/describe.ts';
 import { Heatmap, Lines, MixBar, SmallMultiples, StackedArea, StackedBars, StackedColumns } from '../src/components/chartkit/forms.tsx';
 import { ChartkitGallery } from '../src/components/chartkit/gallery.tsx';
@@ -180,7 +180,15 @@ describe('a chart in its frame', () => {
   it('keeps the source and coverage notes on screen, and shows the figures as a table', () => {
     const { container } = frame();
     const source = container.querySelector('.ck-source')!;
-    expect(source.textContent).toContain('Sample data.');
+    // The source is one short line; the notes are a count beside it that opens them on a press: layered, not deleted.
+    expect(source.querySelector('.ck-source__line')!.textContent).toBe('Sample data.1 note');
+    expect(source.textContent).not.toContain('is a dash, not a zero');
+    const more = source.querySelector<HTMLButtonElement>('[data-source-notes]')!;
+    expect(more.getAttribute('aria-expanded')).toBe('false');
+    expect(more.querySelector('[data-icon="chevron-right"]')).toBeTruthy();
+    fireEvent.click(more);
+    expect(more.getAttribute('aria-expanded')).toBe('true');
+    expect(more.querySelector('[data-icon="chevron-down"]')).toBeTruthy();
     expect(source.textContent).toContain('is a dash, not a zero');
     const table = container.querySelector('table')!;
     const dashes = within(table).getAllByLabelText('not read yet');
@@ -188,6 +196,27 @@ describe('a chart in its frame', () => {
     expect(dashes[0]!.getAttribute('title')).toBe('not read yet');
     expect(within(table).getAllByText('Total').length).toBeGreaterThan(0);
     expect(container.querySelector('summary')!.textContent).toBe('Show the figures');
+  });
+
+  it('counts the items it left out beside the source, and puts the second sentence of the source behind it', () => {
+    // 3 parents set aside, 2 whose split was never read, 1 whose across was never read, and 4 of the 40 the measure could not read: 3 + 2 + 1 + 4 = 10.
+    const coverage = { ...WORK_MIX.coverage, items: 40, measured: 36, unreadSplit: 2, unreadAcross: 1, parentsLeftOut: 3, notes: ['3 parent items are left out so their children carry the work.'] };
+    const result = { ...WORK_MIX, coverage };
+    const left = coverage.parentsLeftOut + coverage.unreadSplit + coverage.unreadAcross + (coverage.items - coverage.measured);
+    expect(notesLabel(result, coverage.notes)).toBe(`${left} items left out`);
+    const { container } = frame({ result, source: 'From Jira, read 13 Oct 2026. Items go back to 9 Jul 2026.' });
+    const source = container.querySelector('.ck-source')!;
+    expect(source.querySelector('.ck-source__line')!.textContent).toBe('From Jira, read 13 Oct 2026.10 items left out');
+    expect(source.textContent).not.toContain('Items go back');
+    fireEvent.click(source.querySelector('[data-source-notes]')!);
+    expect(source.querySelector('.ck-source__notes')!.textContent).toBe('Items go back to 9 Jul 2026. 3 parent items are left out so their children carry the work.');
+  });
+
+  it('counts only the parents when every other item was read, and says notes when nothing was left out', () => {
+    const parents = { ...WORK_MIX, coverage: { ...WORK_MIX.coverage, items: 20, measured: 20, unreadSplit: 0, unreadAcross: 0, parentsLeftOut: 1, notes: ['n'] } };
+    expect(notesLabel(parents, ['n'])).toBe('1 item left out');
+    const none = { ...WORK_MIX, coverage: { ...WORK_MIX.coverage, items: 20, measured: 20, unreadSplit: 0, unreadAcross: 0, parentsLeftOut: 0, notes: ['n'] } };
+    expect(notesLabel(none, ['n'])).toBe('1 note');
   });
 
   it('says the dimension was not read, with the action that reads it, and draws no chart', () => {

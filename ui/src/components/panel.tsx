@@ -65,12 +65,20 @@ export function Sources({ calls, alerts = true }: { calls: Call[]; alerts?: bool
   );
 }
 
-export function Panel({ id, title, calls, children, alerts = true }: { id: string; title: string; calls: Call[]; children: ReactNode; alerts?: boolean }) {
+/** `info` is the (i) beside the heading: the explanation a panel would otherwise carry as a sentence under it. */
+export function Panel({ id, title, calls, children, alerts = true, info }: { id: string; title: string; calls: Call[]; children: ReactNode; alerts?: boolean; info?: ReactNode }) {
   const { Panel: Skin } = useSkins();
   return (
     <Card as="section" className="panel" aria-labelledby={id}>
       <Skin id={id}>
-        <h2 id={id}>{title}</h2>
+        {info ? (
+          <div className="edit-head">
+            <h2 id={id}>{title}</h2>
+            {info}
+          </div>
+        ) : (
+          <h2 id={id}>{title}</h2>
+        )}
         {children}
         <Sources calls={calls} alerts={alerts} />
       </Skin>

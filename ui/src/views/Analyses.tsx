@@ -14,13 +14,13 @@
 import { useEffect, useState } from 'react';
 import { Breadcrumb } from '../components/breadcrumb.tsx';
 import { AnalysisBody, ChangesDetail, changesLine, whoText } from '../components/analysis.tsx';
-import { Cited } from '../components/items.tsx';
+import { segments } from '../agent.ts';
 import { Card } from '../components/layout.tsx';
 import { Help } from '../components/help.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
 import { UsageFooter } from '../components/usage.tsx';
 import { useData } from '../data.ts';
-import { analysesHref, analysisHref, dateTime, toilProjectHref } from '../format.ts';
+import { analysesHref, analysisHref, dateTime, shortKey, toilProjectHref } from '../format.ts';
 import { Empty, EmptyLink } from '../components/empty.tsx';
 import { useChatScope } from '../components/ask.tsx';
 import { unchanged, type AnalysisSummary, type AnalysisView } from '../model/analysis.ts';
@@ -46,10 +46,7 @@ function AnalysisList() {
       <h1 id="analyses-title" tabIndex={-1}>
         {plain.pw('Earlier analyses', 'Earlier briefings')} <Help topic="analyses" />
       </h1>
-      <p className="note">
-        {plain.pw('Every Analyze kept for', 'Every briefing kept for')} {toilProject.name}, newest first. The newest is the one on the Summary.
-        {running && ' A briefing is being written now; it joins the list when its answer is whole.'}
-      </p>
+      {running && <p className="note">A briefing is being written now; it joins the list when its answer is whole.</p>}
       {history?.error && <p className="failure">{history.error}</p>}
       {list === null ? (
         !history?.error && <Loader size="panel" message={words('loading.briefings')} />
@@ -66,28 +63,44 @@ function AnalysisList() {
   );
 }
 
+/** A recommendation as plain words: each citation as the item's key, so the headline can be one link and hold no other. */
+function PlainCited({ text }: { text: string }) {
+  const { byId } = useData();
+  return (
+    <>
+      {segments(text).map((s, i) => {
+        if ('cite' in s) {
+          const item = byId.get(s.cite);
+          return <span key={i}>{item ? shortKey(item) : s.cite}</span>;
+        }
+        return <span key={i}>{'text' in s ? s.text : ''}</span>;
+      })}
+    </>
+  );
+}
+
 function AnalysisEntry({ a }: { a: AnalysisSummary }) {
   const { toilProject } = useData();
+  const href = analysisHref(toilProject.name, a.id);
+  const compared = a.changes.previous !== null && a.changes.previous !== undefined;
   return (
     <li className="analysis" data-analysis={a.id}>
-      <p className="note analysis__meta">
-        <time dateTime={a.at}>{dateTime(a.at)}</time>, by {whoText(a)}. Cites {a.citations.length} {a.citations.length === 1 ? 'item' : 'items'}
-        {a.unverified ? `, ${a.unverified} its tools never returned` : ''}.
+      <p className="analysis__rec">
+        <a href={href} data-analysis-open="">
+          {a.recommendation ? <PlainCited text={a.recommendation} /> : `Briefing of ${dateTime(a.at)}`}
+        </a>
+        {compared && unchanged(a.changes) && <span className="analysis__tag">No change</span>}
       </p>
-      <p className="analysis__rec">{a.recommendation ? <Cited text={a.recommendation} chips /> : <span className="note">This answer had no Recommendation line; open it to read it as it came.</span>}</p>
-      {a.changes.previous && !unchanged(a.changes) ? (
+      <p className="note analysis__meta">
+        <time dateTime={a.at}>{dateTime(a.at)}</time> · {whoText(a)} · cites {a.citations.length} {a.citations.length === 1 ? 'item' : 'items'}
+        {a.unverified ? ` · ${a.unverified} its tools never returned` : ''}
+      </p>
+      {compared && !unchanged(a.changes) && (
         <details className="analysis__changes">
           <summary>{changesLine(a.changes)}</summary>
           <ChangesDetail changes={a.changes} />
         </details>
-      ) : (
-        <p className="note analysis__changes">{changesLine(a.changes)}</p>
       )}
-      <p className="analysis__open">
-        <a href={analysisHref(toilProject.name, a.id)}>
-          Open<span className="sr-only"> the analysis of {dateTime(a.at)}</span>
-        </a>
-      </p>
     </li>
   );
 }
@@ -105,7 +118,7 @@ function OpenAnalysis({ id }: { id: string }) {
     if (!analyses) return void setView(null);
     analyses.get(toilProject.name, id).then(
       (v) => live && setView(v),
-      (e: unknown) => live && setError(`The analysis didn't load: ${e instanceof Error ? e.message : String(e)}`),
+      (e: unknown) => live && setError(`The briefing didn't load: ${e instanceof Error ? e.message : String(e)}`),
     );
     return () => {
       live = false;

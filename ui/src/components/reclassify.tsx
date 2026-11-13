@@ -18,11 +18,10 @@
 import { useId, useRef, useState } from 'react';
 import { Button, Dialog, Modal, ModalOverlay, Popover, Radio, RadioGroup, TextArea, TextField, Label } from 'react-aria-components';
 import { CategoryChip } from './category-chip.tsx';
-import { useData } from '../data.ts';
 import { useWorkInsights } from '../insights-data.ts';
 import { choicesOf } from '../model/classify.ts';
 import { useClassify } from '../classify-state.tsx';
-import { classifyHref, shortKey } from '../format.ts';
+import { shortKey } from '../format.ts';
 import type { WorkItem } from '../toil.ts';
 import './classify.css';
 
@@ -130,13 +129,13 @@ export function ReclassifyDialog({ item, isOpen, onOpenChange }: { item: WorkIte
 }
 
 /**
- * The one line under the tabs that says what the last change was, with its undo: the archive line's pattern. A change is
- * recorded the moment it is pressed, so the line says so and where the tracker's part waits; Undo records the item back
- * where it stood, in words ("Changed back"), since the ledger only ever adds.
+ * The one line under the tabs that says what the last change was, with its undo: the archive line's pattern ("SHOP-6 is
+ * Feature. Undo"). A change is recorded the moment it is pressed; the tracker's part waits for Apply, which the forms
+ * and the pending bar say, not this line. Undo records the item back where it stood, in words ("Changed back"), since
+ * the ledger only ever adds.
  */
 export function ClassifyNoticeLine() {
   const ins = useWorkInsights();
-  const { toilProject } = useData();
   const { notice, setNotice, undo } = useClassify();
   if (!notice) return null;
   if (notice.kind === 'failed') {
@@ -162,7 +161,7 @@ export function ClassifyNoticeLine() {
   const name = notice.to === 'unsure' ? 'Unsure' : (ins.definitions[notice.to]?.name ?? notice.to);
   return (
     <p className="note classify-notice" role="status" data-classify-notice="changed">
-      <strong>{notice.key}</strong> is now {name}. It is saved in your own record; the tracker changes when you <a href={classifyHref(toilProject.name)}>apply it</a>.{' '}
+      <strong>{notice.key}</strong> is {name}.{' '}
       <button type="button" className="btn btn--small" onClick={() => void undo()}>
         Undo
       </button>{' '}

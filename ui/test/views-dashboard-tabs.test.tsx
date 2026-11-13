@@ -182,6 +182,7 @@ describe('the views on a dashboard (#252, #253)', () => {
 
   it('draws the metrics as sparklines, each opening its full chart, which lists what it could not compute (#394)', async () => {
     await open('#/project/checkout-web');
+    await userEvent.click(document.querySelector('[data-full-toggle]')!);
     const strip = screen.getByRole('region', { name: 'Metrics' });
     expect(within(strip).getAllByRole('button').map((b) => b.textContent)).toEqual([
       'Points done 1 of 11 points, show the full chart',
@@ -232,6 +233,11 @@ describe('the views on a dashboard (#252, #253)', () => {
     expect(rows[1]!.textContent).toContain('(estimated)');
     expect(rows[2]!.textContent).toContain('PAY-102, critical chain');
     expect(gantt.textContent).toContain('Blocked time is estimated');
+    // That it is estimated stays beside the timeline; how each part is estimated is one press away, in the (i).
+    expect(gantt.querySelector('[data-gantt-estimate]')!.textContent).toMatch(/^Sprint 42, .* to .*\. Blocked time is estimated\.$/);
+    expect(gantt.textContent).not.toContain('links carry no date');
+    await userEvent.click(within(gantt).getByRole('button', { name: 'About the blocker timeline' }));
+    expect((await screen.findByRole('dialog', { name: 'About the blocker timeline' })).textContent).toContain('links carry no date in Jira, Azure DevOps or GitHub');
   });
 
   it('says so when a Toil project has no links to draw', async () => {

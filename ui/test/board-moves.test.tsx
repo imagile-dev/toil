@@ -182,6 +182,12 @@ describe('a drop that stays a proposal', () => {
     await drop(grip(), 'In progress');
     const card = within(board).getByRole('article', { name: 'Proposal: Move PAY-102 to In progress' });
     expect(card.querySelector('[data-proposal-why]')!.textContent).toMatch(/sample data/);
+    // The ghost says in plain words that the sample saves nothing, with Undo only: nobody can apply a move in the sample.
+    const ghost = document.querySelector<HTMLElement>('[data-proposed-ghost]')!;
+    expect(ghost.querySelector('[data-ghost-note]')!.textContent).toBe("Sample data: this move isn't saved.");
+    expect(ghost.textContent).not.toMatch(/toil|apply/i);
+    expect(within(ghost).getByRole('button', { name: 'Undo the proposed move of PAY-102' })).toBeTruthy();
+    expect(within(ghost).queryByRole('button', { name: /How to apply/ })).toBeNull();
     // No primary action: the sample has nothing to apply it to.
     expect(within(card).queryByRole('button', { name: /^Apply/ })).toBeNull();
     expect(inColumn(col('To do'))).toBe(true);
@@ -196,6 +202,10 @@ describe('a drop that stays a proposal', () => {
     await drop(grip(), 'In progress');
     const card = within(board).getByRole('article', { name: 'Proposal: Move PAY-102 to In progress' });
     expect(card.querySelector('[data-proposal-why]')!.textContent).toMatch(/off in Settings, General/);
+    // With real data the ghost says only that it is not applied; the reason is the proposal's line, said once.
+    const ghost = document.querySelector<HTMLElement>('[data-proposed-ghost]')!;
+    expect(ghost.querySelector('[data-ghost-note]')!.textContent).toBe('From To do. Not applied yet.');
+    expect(within(ghost).getByRole('button', { name: /^How to apply the move of PAY-102/ })).toBeTruthy();
     expect(moveItem).not.toHaveBeenCalled();
     expect(inColumn(col('To do'))).toBe(true);
     // The command is behind "Show the command", still in the page for whoever opens it.

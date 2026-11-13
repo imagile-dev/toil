@@ -56,3 +56,8 @@
 .analysis-changes__since { margin: 0; }
 .analysis-changes__row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.4rem; min-width: 0; }
 
+
+/* An earlier briefing's row: its headline is the link, one muted line for when, who and what it cites, a short tag when nothing changed. */
+.analysis__rec a { color: inherit; text-decoration-color: var(--line); text-underline-offset: 0.2em; }
+.analysis__rec a:hover { color: var(--link); text-decoration-color: currentColor; }
+.analysis__tag { margin-inline-start: 0.6rem; padding: 0.05rem 0.5rem; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 0.75rem; font-weight: 400; white-space: nowrap; }

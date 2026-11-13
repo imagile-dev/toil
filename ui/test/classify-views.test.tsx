@@ -47,8 +47,20 @@ const until = <T extends Element>(selector: string) =>
     return el;
   });
 const rows = () => [...document.querySelectorAll<HTMLElement>('[data-row]')];
-/** A suggestion for an item nothing in the list sits under: an answer on an epic is its tasks' answer too, which would empty the list. */
-const leafProposal = () => [...document.querySelectorAll<HTMLElement>('[data-proposal]')].find((p) => !/follows? its answer/.test(p.closest('[data-row]')!.textContent!))!;
+const choiceButtons = (row: Element) => [...row.querySelectorAll<HTMLElement>('[data-choice]')];
+const choiceIn = (row: Element, id: string) => row.querySelector<HTMLElement>(`[data-choice="${id}"]`)!;
+/** A suggestion's marked choice on an item nothing in the list sits under: an answer on an epic is its tasks' answer too, which would empty the list. */
+const leafProposal = () => [...document.querySelectorAll<HTMLElement>('[data-proposal]')].find((p) => !/follow/.test(p.closest('[data-row]')!.querySelector('[data-tag]')?.textContent ?? ''))!;
+/** The reason an item is in the list, from the row's (i): it is said there once and printed nowhere else. */
+const whyOf = async (row: Element) => {
+  await userEvent.click(row.querySelector<HTMLElement>('[data-why]')!);
+  const dialog = await screen.findByRole('dialog');
+  const text = dialog.textContent!;
+  const reason = dialog.querySelector('[data-proposal-reason]')?.textContent ?? null;
+  await userEvent.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  return { text, reason };
+};
 const press = async (name: string | RegExp) => act(async () => void fireEvent.click(await screen.findByRole('button', { name })));
 
 describe('the Classify view', () => {
@@ -62,8 +74,11 @@ describe('the Classify view', () => {
     await waitFor(() => expect(rows().length).toBeGreaterThan(5));
     const first = rows()[0]!;
     expect(first.dataset.kind).toBe('unsure');
-    expect(within(first).getByText(/Nothing has settled this one/)).toBeTruthy();
-    expect(within(first).getAllByRole('radio').map((r) => r.closest('label')!.textContent)).toEqual(['Keep the lights on K', 'Feature F', 'Unsure U']);
+    // One line a row: the choices are one segmented control, and the reason is behind the row's (i), not printed on every row.
+    expect(choiceButtons(first).map((b) => b.textContent)).toEqual(['Keep the lights on K', 'Feature F', 'Unsure U']);
+    expect(document.body.textContent).not.toMatch(/Nothing has settled this one/);
+    expect(within(first).queryByRole('button', { name: 'Confirm' })).toBeNull();
+    expect((await whyOf(first)).text).toMatch(/Nothing has settled this one: no label, rule or parent says what it is\./);
     // The page names no code and no path.
     expect(document.body.textContent).not.toMatch(/signal:|~\/\.toil|classify correct|TOIL_/);
   });
@@ -77,69 +92,102 @@ describe('the Classify view', () => {
     expect(document.querySelector('#board-filter')).toBeNull();
   });
 
-  it('picks with K, F and U, confirms with Enter, moves to the next row, and says what changed with an undo', async () => {
-    open(`${TEAM}/board/classify`);
+  it('answers on a press of K, F or U, with no Confirm: the row leaves, focus goes to the next row, and the line under the tabs says what changed with an undo', async () => {
+    const api = fixtureClassify();
+    const correct = vi.spyOn(api, 'correct');
+    open(`${TEAM}/board/classify`, api);
     await waitFor(() => expect(rows().length).toBeGreaterThan(5));
     const before = rows().length;
     // The last row is a task under the epic above it, so answering it settles only itself; answering the epic settles its tasks too.
     const all = rows();
-    const first = all[all.length - 1]!;
-    const id = first.dataset.row!;
+    const last = all[all.length - 1]!;
+    const id = last.dataset.row!;
     const nextId = all[all.length - 2]!.dataset.row!;
-    first.focus();
-    fireEvent.keyDown(first, { key: 'f' });
-    expect((within(first).getByRole('radio', { name: /Feature/ }) as HTMLInputElement).checked).toBe(true);
-    fireEvent.keyDown(first, { key: 'k' });
-    expect((within(first).getByRole('radio', { name: /Keep the lights on/ }) as HTMLInputElement).checked).toBe(true);
-    fireEvent.keyDown(first, { key: 'u' });
-    expect((within(first).getByRole('radio', { name: /Unsure/ }) as HTMLInputElement).checked).toBe(true);
-    fireEvent.keyDown(first, { key: 'F' });
-    await act(async () => void fireEvent.keyDown(first, { key: 'Enter' }));
+    last.focus();
+    await act(async () => void fireEvent.keyDown(last, { key: 'f' }));
     await waitFor(() => expect(rows().length).toBe(before - 1));
+    expect(correct).toHaveBeenCalledTimes(1);
+    expect(correct.mock.calls[0]![1]).toMatchObject({ item: expect.objectContaining({ id }), to: 'feature', reason: '' });
     expect(document.querySelector(`[data-row="${CSS.escape(id)}"]`)).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(document.querySelector(`[data-row="${CSS.escape(nextId)}"]`)));
     const notice = await until<HTMLElement>('[data-classify-notice="changed"]');
-    expect(notice.textContent).toMatch(/is now Feature\. It is saved in your own record; the tracker changes when you apply it/);
+    expect(notice.textContent).toMatch(/^SHOP-\d+ is Feature\. Undo Dismiss$/);
 
     await act(async () => void fireEvent.click(within(notice).getByRole('button', { name: 'Undo' })));
     const back = await until<HTMLElement>('[data-classify-notice="reverted"]');
     expect(back.textContent).toMatch(/Changed back/);
     await waitFor(() => expect(rows().length).toBe(before));
+    expect(document.querySelector(`[data-row="${CSS.escape(id)}"]`)).toBeTruthy();
   });
 
-  it('confirms with Enter after a mouse pick leaves focus on the radio, but never on a link or the Confirm button', async () => {
-    open(`${TEAM}/board/classify`);
+  it('answers on a mouse press of a choice, and U records Unsure as the taking-back it is', async () => {
+    const api = fixtureClassify();
+    const correct = vi.spyOn(api, 'correct');
+    open(`${TEAM}/board/classify`, api);
     await waitFor(() => expect(rows().length).toBeGreaterThan(5));
     const all = rows();
-    const row = all[all.length - 1]!;
-    const id = row.dataset.row!;
     const before = all.length;
-    const radio = within(row).getByRole('radio', { name: /Feature/ }) as HTMLInputElement;
-    await userEvent.click(radio.closest('label')!);
-    expect(radio.checked).toBe(true);
-    const link = row.querySelector('a')!;
-    expect(fireEvent.keyDown(link, { key: 'Enter' })).toBe(true);
-    // The Confirm button handles its own Enter (a press), so the row's handler must not confirm a second time.
-    const confirmButton = within(row).getByRole('button', { name: 'Confirm' });
-    fireEvent.keyDown(confirmButton, { key: 'Enter' });
-    expect(rows().length).toBe(before);
-    await act(async () => void fireEvent.keyDown(radio, { key: 'Enter' }));
-    await waitFor(() => expect(document.querySelector(`[data-row="${CSS.escape(id)}"]`)).toBeNull());
-    expect(rows().length).toBe(before - 1);
+    const row = all[all.length - 1]!;
+    await userEvent.click(choiceIn(row, 'ktlo'));
+    await waitFor(() => expect(rows().length).toBe(before - 1));
+    expect(correct.mock.calls[0]![1]).toMatchObject({ to: 'ktlo' });
+    const next = rows()[rows().length - 1]!;
+    next.focus();
+    await act(async () => void fireEvent.keyDown(next, { key: 'u' }));
+    await waitFor(() => expect(rows().length).toBe(before - 2));
+    expect(correct.mock.calls[1]![1]).toMatchObject({ to: null });
   });
 
-  it("does not take a key typed in a text field, and does not confirm a row with no pick", async () => {
-    open(`${TEAM}/board/classify`);
+  it('moves between rows with the arrow keys, leaves Enter on a link alone, and does nothing on Enter where no suggestion is marked', async () => {
+    const api = fixtureClassify();
+    const correct = vi.spyOn(api, 'correct');
+    open(`${TEAM}/board/classify`, api);
+    await waitFor(() => expect(rows().length).toBeGreaterThan(5));
+    const [first, second] = rows();
+    first!.focus();
+    fireEvent.keyDown(first!, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(second);
+    fireEvent.keyDown(second!, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(first);
+    const before = rows().length;
+    expect(fireEvent.keyDown(first!.querySelector('a')!, { key: 'Enter' })).toBe(true);
+    await act(async () => void fireEvent.keyDown(first!, { key: 'Enter' }));
+    expect(rows().length).toBe(before);
+    expect(correct).not.toHaveBeenCalled();
+  });
+
+  it('does not take a key typed in a text field', async () => {
+    const api = fixtureClassify();
+    const correct = vi.spyOn(api, 'correct');
+    open(`${TEAM}/board/classify`, api);
     await waitFor(() => expect(rows().length).toBeGreaterThan(5));
     const first = rows()[0]!;
-    expect((within(first).getByRole('button', { name: 'Confirm' }) as HTMLButtonElement).disabled).toBe(true);
-    const before = rows().length;
-    await act(async () => void fireEvent.keyDown(first, { key: 'Enter' }));
-    expect(rows().length).toBe(before);
     const box = document.createElement('input');
     first.appendChild(box);
     fireEvent.keyDown(box, { key: 'f' });
-    expect(within(first).getAllByRole('radio').some((r) => (r as HTMLInputElement).checked)).toBe(false);
+    expect(correct).not.toHaveBeenCalled();
+  });
+
+  it('keeps the page quiet: one short lede, a compact legend of the keys, and a row that is an item, one segmented control and one (i)', async () => {
+    open(`${TEAM}/board/classify`);
+    await waitFor(() => expect(rows().length).toBeGreaterThan(5));
+    expect(document.querySelector('.lede')!.textContent!.length).toBeLessThan(80);
+    expect(document.querySelector('[data-legend]')!.textContent).toMatch(/^K\s*F\s*U\s*answer, Up and Down move$/);
+    expect(document.body.textContent).not.toMatch(/Pick a category for each row, then Confirm/);
+    const row = rows()[0]!;
+    expect(row.querySelectorAll('[data-choice]').length).toBe(3);
+    expect(row.querySelectorAll('[data-why]').length).toBe(1);
+    expect(row.querySelectorAll('p').length).toBe(1);
+  });
+
+  it('shows a short tag only where it says something: how many rows follow an epic, and where a label and the rules disagree', async () => {
+    open(`${TEAM}/board/classify`);
+    await waitFor(() => expect(rows().length).toBeGreaterThan(5));
+    const tags = [...document.querySelectorAll<HTMLElement>('[data-tag]')].map((t) => t.textContent!);
+    expect(tags.length).toBeGreaterThan(0);
+    for (const t of tags) expect(t).toMatch(/^(\d+ follow|(label|field) and rules disagree)( · \d+ follow)?$/);
+    const epic = rows().find((r) => r.querySelector('[data-tag]'))!;
+    expect((await whyOf(epic)).text).toMatch(/under it in this list follows? its answer\./);
   });
 
   it('shows an empty state that says everything is sorted, with the way on', async () => {
@@ -215,7 +263,7 @@ describe('the Classify view on work nobody read (principle 12)', () => {
 });
 
 describe('the AI agent on the Classify view', () => {
-  it('shows its answers as suggestions with its badge and reason, accepts them one by one or all at once, and applies nothing', async () => {
+  it('marks its answers on the choices with an AI badge and keeps the reason one press in, accepts by pressing the mark or all at once, and applies nothing', async () => {
     const api = fixtureClassify();
     const apply = vi.spyOn(api, 'apply');
     const correct = vi.spyOn(api, 'correct');
@@ -225,7 +273,10 @@ describe('the AI agent on the Classify view', () => {
     await until('[data-asked]');
     const proposals = [...document.querySelectorAll<HTMLElement>('[data-proposal]')];
     expect(proposals.length).toBeGreaterThan(3);
-    expect(proposals[0]!.textContent).toMatch(/^Your AI agent suggests .+: /);
+    // The suggested category is marked in the segmented control with a small AI badge; its reason is not printed on the row.
+    expect(proposals[0]!.textContent).toMatch(/^.+ [KF1-9]AI \(suggested by your AI agent\)$/);
+    expect(proposals[0]!.closest('[data-row]')!.textContent).not.toMatch(/suggests/);
+    expect(document.querySelector('[data-accept]')).toBeNull();
     expect(document.querySelector('[data-asked]')!.textContent).toMatch(/a scripted sample, not a model suggested a category/);
     const total = rows().length;
     // The sample's ten corrections are decided here and not yet written there, so some changes are already waiting.
@@ -234,14 +285,14 @@ describe('the AI agent on the Classify view', () => {
 
     const one = leafProposal();
     const first = one.closest<HTMLElement>('[data-row]')!.dataset.row!;
-    const reason = one.querySelector('p')!.textContent!.replace(/^.*suggests .+?: /, '');
-    await act(async () => void fireEvent.click(within(one).getByRole('button', { name: 'Accept' })));
+    const reason = (await whyOf(one.closest('[data-row]')!)).reason!.replace(/^Your AI agent suggests .+?: /, '');
+    await act(async () => void fireEvent.click(one));
     await waitFor(() => expect(rows().length).toBe(total - 1));
     expect(waiting()).toBe(already + 1);
     // Accepting is the person's word, recorded as a pick is: with the agent's reason in it, and the same line offering to take it back.
     expect(correct).toHaveBeenCalledTimes(1);
     expect(correct.mock.calls[0]![1]).toMatchObject({ item: expect.objectContaining({ id: first }), reason: `Accepted the AI agent's suggestion: ${reason}` });
-    expect((await until<HTMLElement>('[data-classify-notice="changed"]')).textContent).toMatch(/is now (Feature|Keep the lights on). It is saved in your own record/);
+    expect((await until<HTMLElement>('[data-classify-notice="changed"]')).textContent).toMatch(/^SHOP-\d+ is (Feature|Keep the lights on)\. Undo Dismiss$/);
 
     const all = await screen.findByRole('button', { name: /Accept all \d+/ });
     const n = Number(/(\d+)/.exec(all.textContent!)![1]);
@@ -250,6 +301,47 @@ describe('the AI agent on the Classify view', () => {
     // Accept all is one correction per suggestion, by the route a pick takes: no route of its own.
     expect(correct).toHaveBeenCalledTimes(1 + n);
     expect(apply).not.toHaveBeenCalled();
+  });
+
+  it('lets a person overrule a suggestion by pressing another choice, and dismiss one with Not this in the (i)', async () => {
+    const api = fixtureClassify();
+    const correct = vi.spyOn(api, 'correct');
+    open(`${TEAM}/board/classify`, api);
+    await waitFor(() => expect(rows().length).toBeGreaterThan(5));
+    await press('Ask your AI agent');
+    await until('[data-asked]');
+    const total = rows().length;
+    const marked = leafProposal();
+    const row = marked.closest<HTMLElement>('[data-row]')!;
+    const other = choiceButtons(row).find((b) => !b.hasAttribute('data-marked') && b.dataset.choice !== 'unsure')!;
+    await userEvent.click(other);
+    await waitFor(() => expect(rows().length).toBe(total - 1));
+    // An overruled suggestion is the person's own word, recorded as a pick: no "Accepted the AI agent's suggestion" in it.
+    expect(correct.mock.calls[0]![1]).toMatchObject({ to: other.dataset.choice, reason: '' });
+
+    const second = [...document.querySelectorAll<HTMLElement>('[data-proposal]')].find((p) => p !== marked && !/follow/.test(p.closest('[data-row]')!.querySelector('[data-tag]')?.textContent ?? ''))!;
+    const rowB = second.closest<HTMLElement>('[data-row]')!;
+    await userEvent.click(rowB.querySelector<HTMLElement>('[data-why]')!);
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Not this' }));
+    await waitFor(() => expect(rowB.querySelector('[data-proposal]')).toBeNull());
+    expect(document.body.contains(rowB)).toBe(true);
+    expect(correct).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts the marked suggestion with Enter on its row', async () => {
+    const api = fixtureClassify();
+    const correct = vi.spyOn(api, 'correct');
+    open(`${TEAM}/board/classify`, api);
+    await waitFor(() => expect(rows().length).toBeGreaterThan(5));
+    await press('Ask your AI agent');
+    await until('[data-asked]');
+    const total = rows().length;
+    const row = leafProposal().closest<HTMLElement>('[data-row]')!;
+    row.focus();
+    await act(async () => void fireEvent.keyDown(row, { key: 'Enter' }));
+    await waitFor(() => expect(rows().length).toBe(total - 1));
+    expect(correct.mock.calls[0]![1].reason).toMatch(/^Accepted the AI agent's suggestion: /);
   });
 
   it('keeps an accepted suggestion settled after Apply: the item is not asked about again and the count does not go back up', async () => {
@@ -271,7 +363,7 @@ describe('the AI agent on the Classify view', () => {
     await until('[data-asked]');
     const proposal = leafProposal();
     const id = proposal.closest<HTMLElement>('[data-row]')!.dataset.row!;
-    await act(async () => void fireEvent.click(within(proposal).getByRole('button', { name: 'Accept' })));
+    await act(async () => void fireEvent.click(proposal));
     await waitFor(() => expect(rows().length).toBe(total - 1));
     await press('Review and apply');
     const card = await until<HTMLElement>('[data-apply]');
@@ -325,12 +417,29 @@ describe('Apply', () => {
     await accepted(fixtureClassify());
     const card = await until<HTMLElement>('[data-apply]');
     await waitFor(() => expect(card.querySelectorAll('[data-change]').length).toBeGreaterThan(3));
+    // A compact table, one line an item: item, title, category, change. The sentence is said once, and every change is in the text.
     const first = card.querySelector<HTMLElement>('[data-change]')!;
-    expect(first.textContent).toMatch(/SHOP-\d+ .+ now (Feature|Keep the lights on)/);
-    expect(first.textContent).toMatch(/Label: .+ → (feature|ktlo)/);
+    expect(within(card).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Item', 'Title', 'Category', 'Change']);
+    const cells = [...first.children].map((c) => c.textContent!);
+    expect(cells[0]).toMatch(/^SHOP-\d+$/);
+    expect(cells[2]).toMatch(/^(Feature|Keep the lights on)$/);
+    expect(cells[3]).toMatch(/^(\+ (feature|ktlo)|\w+ \u2192 (feature|ktlo))/);
+    expect(card.textContent!.match(/Nothing is written until you press Apply\./g)).toHaveLength(1);
+    expect(document.querySelector("[data-pending]")!.textContent!.match(/Nothing is written until you press Apply./g)).toHaveLength(1);
     expect(card.querySelector('.apply__command code')!.textContent).toMatch(/^toil jira issue categorize .*--allow-write$/);
     expect(card.querySelector('[data-sample-cannot-write]')!.textContent).toMatch(/This is sample data, so nothing here can be written/);
     expect((within(card).getByRole('button', { name: /^Apply \d+ changes$/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('folds a long list after ten changes with Show all, and shows every change once opened', async () => {
+    await accepted(fixtureClassify());
+    const card = await until<HTMLElement>('[data-apply]');
+    const n = Number(/(\d+) changes? waiting/.exec(document.querySelector('[data-pending] h2')!.textContent!)![1]);
+    expect(n).toBeGreaterThan(10);
+    await waitFor(() => expect(card.querySelectorAll('[data-change]').length).toBe(10));
+    await act(async () => void fireEvent.click(within(card).getByRole('button', { name: `Show all ${n}` })));
+    expect(card.querySelectorAll('[data-change]').length).toBe(n);
+    for (const row of card.querySelectorAll('[data-change]')) expect(row.children[3]!.textContent!.length).toBeGreaterThan(0);
   });
 
   it('says in plain words that changes are switched off for the connection, and where to switch them on', async () => {
@@ -614,5 +723,72 @@ describe('the Classification editor', () => {
     await act(async () => void fireEvent.click(within(section).getByRole('checkbox', { name: /built-in signals/ })));
     expect(section.querySelector('[data-sample-cannot-write]')!.textContent).toMatch(/sample data/);
     expect((within(section).getByRole('button', { name: /Save as revision 2/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe('the Classification editor, quieted', () => {
+  const editor = '#/settings/projects/sample-team/classification';
+
+  it('says where the category is kept in one line, with the rest in an (i), and uses the app\'s own field for each tracker', async () => {
+    open(editor);
+    const section = await until<HTMLElement>('[data-classification-editor]');
+    const part = [...section.querySelectorAll('details')].find((d) => d.querySelector('summary')!.textContent === 'Where each tool keeps the category')!;
+    const line = part.querySelector('.cedit__part > p')!;
+    expect(line.textContent).toBe('The label is the record; a field, if you name one, mirrors it. ');
+    expect(part.textContent).not.toMatch(/Toil never creates a field/);
+    await userEvent.click(within(part as HTMLElement).getByRole('button', { name: /About where each tool keeps the category/ }));
+    expect((await screen.findByRole('dialog')).textContent).toMatch(/Toil never creates a field, so an admin makes it first\./);
+    await userEvent.keyboard('{Escape}');
+    const inputs = [...part.querySelectorAll<HTMLInputElement>('.cedit__fields input')];
+    expect(inputs.length).toBeGreaterThan(0);
+    for (const input of inputs) {
+      expect(input.closest('.field-text')).toBeTruthy();
+      expect(input.labels![0]!.textContent).toMatch(/: field$/);
+    }
+  });
+
+  it("lays Name, Short form and Label in the tracker in one row with What it means under them, and keeps the hints short", async () => {
+    open(editor);
+    const section = await until<HTMLElement>('[data-classification-editor]');
+    const card = section.querySelector<HTMLElement>('[data-category-card="0"]')!;
+    const row = card.querySelector<HTMLElement>('.cedit__row')!;
+    expect([...row.querySelectorAll('label')].map((l) => l.textContent!.replace(/\..*$/, ''))).toEqual(['Name', 'Short form', 'Label in the tracker']);
+    expect(row.querySelector('.field-text--area')).toBeNull();
+    expect(card.querySelector('.field-text--area label')!.textContent).toBe('What it means');
+    expect(card.querySelector('.field-text--area')!.parentElement).toBe(card);
+    expect(card.textContent).toMatch(/The term of art, shown on hover\./);
+    expect(card.textContent).toMatch(/One word, no spaces\./);
+  });
+
+  it("uses the app's checkbox for the built-in signals, not a bare native one", async () => {
+    open(editor);
+    const section = await until<HTMLElement>('[data-classification-editor]');
+    const box = section.querySelector<HTMLElement>('[data-signals]')!;
+    expect(box.classList.contains('check')).toBe(true);
+    expect(box.querySelector('.box')).toBeTruthy();
+    expect(box.querySelector('.box svg')).toBeTruthy();
+    await userEvent.click(within(section).getByRole('checkbox', { name: /built-in signals/ }));
+    expect(box.querySelector('.box svg')).toBeNull();
+  });
+
+  it('says the first rule that fits wins in one line, with the rest in an (i)', async () => {
+    open(editor);
+    const section = await until<HTMLElement>('[data-classification-editor]');
+    const rules = [...section.querySelectorAll('details')].find((d) => d.querySelector('summary')!.textContent!.startsWith('Rules'))!;
+    expect(rules.querySelector('.cedit__part > p')!.textContent).toBe('The first rule that fits wins. ');
+  });
+});
+
+describe('Settings, General, Board', () => {
+  it('keeps "Saved in this browser only." as the note and leaves the explanation to the (i)', async () => {
+    window.location.hash = '#/settings/general';
+    render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview />);
+    const box = await screen.findByRole('checkbox', { name: 'Apply board moves when I drop a card' });
+    const note = document.querySelector('.board-moves-setting .note')!;
+    expect(note.textContent).toBe('Saved in this browser only. ');
+    await userEvent.click(box);
+    expect(note.textContent).toBe('Saved in this browser only. ');
+    expect(document.querySelector('.board-moves-setting')!.textContent).not.toMatch(/stays a proposal|command to run yourself/);
+    expect(document.querySelector('[data-help="board-moves"]')).toBeTruthy();
   });
 });

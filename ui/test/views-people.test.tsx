@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { ConfigApi } from '../src/config.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { open, panel, tabs, resetBrowserState } from './views-kit.tsx';
+import { emptyParts } from '../src/views/People.tsx';
+import type { Card } from '../src/model/people.ts';
 
 beforeEach(resetBrowserState);
 
@@ -35,7 +37,11 @@ describe('the people view (#292)', () => {
     expect(within(claude).getByRole('list', { name: 'About Claude' }).textContent).toBe('Agent');
     expect(claude.textContent).toContain('payments-web #51 Retry the address lookup once');
     const ada = screen.getByRole('article', { name: 'Ada D.' });
-    expect(ada.textContent).toContain('GitHub ada-dev · Bitbucket 557058:abc12345-0000-0000-0000-000000000020 (Ada D.)');
+    // The accounts are behind the name: one press away, not a line on every card.
+    expect(ada.textContent).not.toContain('ada-dev');
+    await userEvent.click(within(ada).getByRole('button', { name: "About Ada D.'s accounts" }));
+    expect((await screen.findByRole('dialog', { name: "About Ada D.'s accounts" })).textContent).toContain('GitHub ada-dev · Bitbucket 557058:abc12345-0000-0000-0000-000000000020 (Ada D.)');
+    await userEvent.keyboard('{Escape}');
     expect(ada.textContent).toContain('written with Claude');
     expect(within(ada).getByRole('heading', { name: 'Reviews waiting on them' }).nextElementSibling!.textContent).toContain('checkout-sdk #12');
     const team = panel('Team');
@@ -46,6 +52,41 @@ describe('the people view (#292)', () => {
     expect(document.body.textContent).toContain('1 pull request was written with an agent the Toil project\'s people don\'t name (branch copilot/receipt-currency).');
     // Load, never a score.
     expect(document.querySelector('main')!.textContent).not.toMatch(/\b(score|rank(ed|ing)?|leaderboard|productivity)\b/i);
+  });
+
+  it('collapses what a card has nothing in into one muted line, with a dash read aloud as none', async () => {
+    await open('#/project/checkout-web/people');
+    for (const card of screen.getAllByRole('article')) {
+      const text = card.textContent!;
+      for (const sentence of ['Nothing in progress.', 'None open.', 'None waiting.', 'Nothing blocked.', 'Nothing recorded.']) expect(text).not.toContain(sentence);
+      // A heading only for a part that has something.
+      const headings = within(card).queryAllByRole('heading', { level: 4 }).map((h) => h.textContent!.replace(/\s*\(.*$/, ''));
+      const line = card.querySelector('[data-empties="none"]');
+      for (const part of ['In progress', 'Open pull requests', 'Reviews waiting', 'Blocked', 'Recent activity']) {
+        const named = (line?.textContent ?? '').includes(part);
+        expect(headings.some((h) => h.startsWith(part)) !== named, `${part} on ${card.getAttribute('aria-labelledby')}`).toBe(true);
+      }
+    }
+    const claude = screen.getByRole('article', { name: 'Claude' });
+    const line = claude.querySelector('[data-empties="none"]')!;
+    expect(line.querySelector('.sr-only')!.textContent).toBe('none');
+    expect(line.querySelector('[aria-hidden="true"]')!.textContent).toBe('–');
+  });
+
+  it('names a part nobody has read as not read yet, apart from the parts read and found empty (principle 12)', () => {
+    const card = { wip: [], prs: [], reviews: [], blocked: [], activity: [], wipCount: 0, moreActivity: 0 } as unknown as Card;
+    expect(emptyParts(card, { work: true, prs: true })).toEqual({ none: ['In progress', 'Open pull requests', 'Reviews waiting', 'Blocked', 'Recent activity'], unread: [] });
+    expect(emptyParts(card, { work: true, prs: false })).toEqual({ none: ['In progress', 'Blocked'], unread: ['Open pull requests', 'Reviews waiting', 'Recent activity'] });
+    expect(emptyParts(card, { work: false, prs: false })).toEqual({ none: [], unread: ['In progress', 'Open pull requests', 'Reviews waiting', 'Blocked', 'Recent activity'] });
+  });
+
+  it('keeps the first line to the counts and the read time, with the explanation in the (i)', async () => {
+    await open('#/project/checkout-web/people');
+    const lede = document.querySelector('.view-head .lede')!;
+    expect(lede.textContent).toMatch(/^\d+ people? and \d+ agents?, and \d+ accounts? not mapped\. Read /);
+    expect(lede.textContent).not.toContain('epics');
+    await userEvent.click(within(lede as HTMLElement).getByRole('button', { name: 'About the People view' }));
+    expect((await screen.findByRole('dialog')).textContent).toContain('not the epics and features that hold them');
   });
 
   it('suggests a match by email with the command that applies it, turned off in the preview', async () => {
@@ -104,7 +145,10 @@ describe('the people view (#292)', () => {
     const section = screen.getByRole('heading', { level: 2, name: 'People and agents' }).closest('section') as HTMLElement;
     expect((within(section).getByRole('button', { name: 'Save to this repository' }) as HTMLButtonElement).disabled).toBe(true);
     expect(section.textContent).not.toContain('.toil/projects');
-    expect(section.textContent).toContain('Nothing is committed for you.');
+    // The explanation is the (i) beside the button, not a line or a disclosure on the page.
+    expect(section.textContent).not.toContain('Nothing is committed for you.');
+    await userEvent.click(within(section).getByRole('button', { name: 'About saving the people' }));
+    expect((await screen.findByRole('dialog', { name: 'About saving the people' })).textContent).toContain('Nothing is committed for you.');
   });
 
   it('gives every account its own card when the Toil project lists nobody, and says how to map them', async () => {

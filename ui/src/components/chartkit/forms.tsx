@@ -545,7 +545,7 @@ export interface MixBarProps {
   onDrill?: (cell: CellRef) => void;
   /** Said to a screen reader before the figures: "Work mix". */
   label?: string;
-  /** Names each segment under the bar (a swatch, its name, its share), for a bar that stands alone on a page. */
+  /** Names each segment under the bar (a swatch and its name: the key to the marks, the shares are in the headline and the tooltips), for a bar that stands alone on a page. */
   legend?: boolean;
 }
 
@@ -593,7 +593,7 @@ export function MixBar({ result, scheme, pins, onDrill, label = 'Mix', legend: n
             return (
               <li key={r.key}>
                 <Swatch mark={mark} kind={typeof slot === 'number' ? 'value' : (slot ?? 'other')} frames={frames} />
-                <span>{r.label} {percent(v / sum)}</span>
+                <span>{r.label}</span>
               </li>
             );
           })}

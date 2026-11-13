@@ -38,8 +38,3 @@
 .gantt-swatch { flex: none; overflow: visible; }
 .gantt-chain { margin: 0; }
 
-/* The cue that the timeline scrolls shows where it does: in a card narrower than its smallest drawing. */
-.gantt-cue { display: none; }
-@container (max-width: 44rem) {
-  .gantt-cue { display: block; }
-}

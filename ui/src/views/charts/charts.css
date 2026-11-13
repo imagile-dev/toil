@@ -59,8 +59,9 @@
 .where-figure b { font-family: var(--font-display); font-size: 1.25em; }
 .where-spark { display: block; width: 100%; max-width: 9rem; height: 1.75rem; margin-top: 0.3rem; overflow: visible; }
 .where-spark polyline { stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.where-mixes ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
-.where-mixes li { display: grid; gap: 0.15rem; min-width: 0; }
+/* Only the per-epic list is a grid: the one legend at the top is a plain inline row (.ck-mix__key). */
+.where-mixes > ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.where-mixes > ul > li { display: grid; gap: 0.15rem; min-width: 0; }
 .where-mixes__name { font-size: 0.875rem; overflow-wrap: anywhere; }
 
 .flow-fold { border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); min-width: 0; }

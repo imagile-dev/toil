@@ -332,13 +332,12 @@ export function BlockerGantt() {
     <div className="gantt-panel">
       <ChainLine g={g} />
       <Legend g={g} />
-      <p className="note gantt-cue">Scroll the timeline sideways for the whole sprint, or read the table under it.</p>
       <Scroller label="The timeline drawing" hint="Scroll sideways for the whole sprint." className="gantt-scroll">
         <Drawing g={g} />
       </Scroller>
-      <p className="note">
-        {g.sprint ? `The timeline is ${g.sprint}, ${day(g.start)} to ${day(g.end)}.` : 'No current sprint, so the timeline spans the items’ own dates.'} Blocked time is estimated: links carry no date in Jira, Azure DevOps or
-        GitHub, so a block is drawn from when both items existed. Time in progress comes from each item&rsquo;s transitions, and is estimated from its creation where none were recorded. Failing checks come from its open pull requests&rsquo; builds and checks.
+      {/* That blocked time is estimated qualifies every bar, so it stays beside the drawing; how each part is estimated is in the (i). */}
+      <p className="note" data-gantt-estimate="">
+        {g.sprint ? `${g.sprint}, ${day(g.start)} to ${day(g.end)}.` : 'No current sprint: the timeline spans the items’ own dates.'} Blocked time is estimated.
       </p>
       {g.cycle && <p className="failure">These blocks links form a loop, so the order of the rows is approximate.</p>}
       <h3>Every bar and arrow</h3>

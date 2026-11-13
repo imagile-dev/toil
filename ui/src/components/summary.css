@@ -44,8 +44,8 @@
 .briefing__full > * + * { margin-top: 1.25rem; }
 .sum-card__title a { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 0.2em; }
 .sum-card__title a:hover { text-decoration-color: currentColor; }
-.sum-howrow { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.5rem; }
-.sum-howrow > .sum-how { flex: 1 1 auto; min-width: 0; }
+.sum-howrow { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.25rem; }
+.sum-howrow > .sum-how { flex: 0 1 auto; min-width: 0; }
 
 .sum-standup { display: grid; gap: 0.5rem; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: 0.5rem; }
 .sum-standup__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; }
@@ -53,3 +53,8 @@
 .sum-standup__head .btn { margin-inline-start: auto; }
 .sum-standup h3 { margin: 0.35rem 0 0.1rem; font-size: 0.9rem; }
 .sum-standup .rows { margin: 0; }
+
+/* A person on the Summary's stand-up card: the name stays on one line, the account after it is small, muted and truncated. */
+.sum-person { display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
+.sum-person__name { font-weight: 700; white-space: nowrap; flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.sum-person__account { color: var(--muted); font-size: 0.8125rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

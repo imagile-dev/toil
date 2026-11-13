@@ -38,15 +38,19 @@ describe('the Analyses tab', () => {
     const entries = within(await list()).getAllByRole('listitem').filter((li) => li.classList.contains('analysis'));
     expect(entries).toHaveLength(2);
     const [latest, first] = entries as [HTMLElement, HTMLElement];
-    expect(latest.textContent).toContain('13 Oct 2026, 07:30 UTC, by the scripted preview, not a model.');
-    expect(latest.querySelector('.analysis__rec')!.textContent).toContain("Fix");
-    // The recommendation's citations are chips: key, title and status.
-    const chip = within(latest.querySelector('.analysis__rec') as HTMLElement).getAllByRole('link')[0]!;
-    // Its name is its visible words, key, title and status, so voice control finds it by what it shows (WCAG 2.5.3).
-    expect(chip.getAttribute('aria-label')).toBeNull();
-    expect(chip.textContent).toMatch(/^Jira PAY-101 .+, In Progress$/);
+    // One muted line: when, who, what it cites.
+    expect(latest.querySelector('.analysis__meta')!.textContent).toBe('13 Oct 2026, 07:30 UTC · the scripted preview, not a model · cites 7 items');
+    // The headline is the one link to the briefing, with its citations as plain keys inside it, and no separate Open.
+    const head = latest.querySelector('.analysis__rec') as HTMLElement;
+    expect(head.textContent).toContain("Fix PAY-101's failing checks first");
+    expect(within(head).getAllByRole('link')).toHaveLength(1);
+    expect(within(head).getByRole('link').getAttribute('href')).toBe('#/project/card-payments/summary/briefings/sample-analysis-2');
+    expect(within(latest).queryByText(/^Open/)).toBeNull();
+    expect(latest.textContent).not.toMatch(/analysis/i);
     expect(latest.textContent).toContain('Since the one before: 1 newly blocked, 1 cleared, points moved on 1 item, sprint points moved');
-    expect(first.textContent).toContain('The first analysis kept, so there is nothing to compare it with.');
+    // The first has nothing to compare with, and says nothing about it.
+    expect(first.textContent).not.toContain('nothing to compare');
+    expect(first.querySelector('.analysis__changes')).toBeNull();
 
     // What changed, opened: the newly blocked item with what blocks it, the cleared one, the points and the sprint.
     await userEvent.click(within(latest).getByText(/^Since the one before/));
@@ -56,8 +60,21 @@ describe('the Analyses tab', () => {
     expect(within(changes).getByText('Cleared').nextElementSibling!.textContent).toContain('PAY-104');
     expect(within(changes).getByText('Points moved').nextElementSibling!.textContent).toMatch(/PAY-102.*\d+ points? to \d+ points?/s);
     expect(within(changes).getByText('The sprint').nextElementSibling!.textContent).toBe('Sprint 42: 0 done, 21 left, then Sprint 42: 3 done, 18 left.');
-    expect(latest.querySelector('.analysis__open a')!.textContent).toBe('Open the analysis of 13 Oct 2026, 07:30 UTC');
-    expect(latest.querySelector('.analysis__open a')!.getAttribute('href')).toBe('#/project/card-payments/summary/briefings/sample-analysis-2');
+  });
+
+  it('says what the page is in its (i), not in a sentence under the heading, and tags a briefing that changed nothing', async () => {
+    await open('#/project/card-payments/summary/briefings');
+    const page = await list();
+    expect(document.body.textContent).not.toContain('Every briefing kept for');
+    expect(screen.getByRole('button', { name: 'About earlier briefings' })).toBeTruthy();
+    expect(page.querySelector('.analysis__tag')).toBeNull();
+    cleanup();
+    // The same briefing kept twice: the newer one changed nothing, so it carries a short tag and no sentence.
+    const [one] = await sampleAnalysisRecords();
+    await open('#/project/card-payments/summary/briefings', memoryAnalyses([one!, { ...one!, id: 'again', at: '2026-10-14T09:00:00.000Z' }]));
+    const tagged = (await list()).querySelector('.analysis__tag');
+    expect(tagged!.textContent).toBe('No change');
+    expect(document.body.textContent).not.toContain('Nothing changed since the one before');
   });
 
   it('says so when a Toil project has none yet', async () => {
@@ -183,7 +200,8 @@ describe('Analyze in the chat', () => {
 describe('a citation chip', () => {
   it('shows its detail on focus: type and status, assignee, estimate, sprint', async () => {
     await open('#/project/card-payments/summary/briefings');
-    const chip = within((await list()).querySelector('.analysis__rec') as HTMLElement).getAllByRole('link')[0]!;
+    await open('#/project/card-payments/summary/briefings/sample-analysis-2');
+    const chip = within(await screen.findByRole('region', { name: 'Recommendation' })).getAllByRole('link')[0]!;
     await userEvent.tab();
     chip.focus();
     await userEvent.keyboard('{Shift>}{Tab}{/Shift}');

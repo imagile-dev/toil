@@ -26,6 +26,7 @@ import { useWords } from '../../theme-context.ts';
 import type { PivotResult } from '../../../../src/core/insights/index.ts';
 import type { Dashboard, Headline } from './dashboard.ts';
 import { ChartPanel, DashboardHead, NotRead, useDimensionOptions, useDrill, useSourceLine } from './shared.tsx';
+import { SummaryChevron } from '../../components/disclosure.tsx';
 
 /** The Charts list's line: finished a week and how long it took, or why it isn't known. */
 export function flowHeadline(ins: WorkInsights): Headline {
@@ -109,7 +110,10 @@ function MedianBars({ view, onDrill, unit }: { view: ChartView; onDrill: (key: s
 function Fold({ id, title, open, children }: { id: string; title: string; open?: boolean; children: ReactNode }) {
   return (
     <details className="flow-fold" open={open || undefined} data-flow-section={id}>
-      <summary>{title}</summary>
+      <summary>
+        <SummaryChevron />
+        {title}
+      </summary>
       <div className="flow-fold__body">{children}</div>
     </details>
   );

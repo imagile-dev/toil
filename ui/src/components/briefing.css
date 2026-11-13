@@ -67,3 +67,13 @@
 .reason--line { display: flex; gap: 0.6rem; align-items: center; margin: 0; min-height: 44px; border-bottom: 1px solid var(--line); }
 .reason__jump { display: inline-flex; gap: 0.6rem; align-items: baseline; min-height: 44px; padding: 0 0.25rem; background: none; border: 0; color: var(--link); font: inherit; cursor: pointer; }
 .reason__jump:hover b { text-decoration: underline; }
+
+/* The full briefing's toggle: a chevron and its words, a real button, with the pointer and hover every disclosure has. */
+.briefing__toggle { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0 0.4rem; margin-inline-start: -0.4rem; background: none; border: 0; border-radius: var(--radius); color: var(--link); font: inherit; cursor: pointer; }
+.briefing__toggle:hover { background: var(--surface); }
+.briefing__toggle[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
+.briefing__full-body { display: grid; gap: 1.25rem; margin-top: 0.5rem; }
+/* "Why" and Customize share one header row, so the layout control sits with what it lays out. */
+.briefing__labelrow { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0 0 0.25rem; }
+.briefing__labelrow > .briefing__label { margin: 0; }
+.briefing__full-body[hidden] { display: none; }

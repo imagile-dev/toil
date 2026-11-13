@@ -51,10 +51,38 @@ describe('the worklog (#308)', () => {
     expect(run.textContent).toMatch(/applied: toil's audit log has the write at 12 Oct 2026 16:02 UTC \(cli\)/);
     expect(within(run).getByText('Transcript, written by the agent')).toBeTruthy();
     expect(within(day).getByText(/Paired on the retry fix/, { selector: '.worklog-line span' })).toBeTruthy();
-    expect(within(day).getAllByText(/^This is sample data, so it keeps no notes and writes no files/).length).toBeGreaterThan(0);
+    // The sample's one sentence is said once on the page, not under Notes and again under Export.
+    expect(within(day).getAllByText(/^This is sample data, so it keeps no notes and writes no files/)).toHaveLength(1);
+    expect(within(day).queryByRole('heading', { name: 'Export and publish' })).toBeNull();
     expect(within(day).getByRole('region', { name: 'The page as Markdown' }).textContent).toMatch(/^# Worklog: card-payments, Monday 12 October 2026/);
     expect(await violations(container)).toEqual([]);
   }, AXE_TIMEOUT);
+
+  it('names the sections with nothing in them in one muted line, as the stand-up does, instead of a heading and a sentence each', async () => {
+    await open('#/project/checkout-web/worklog/2026-10-12');
+    const day = await screen.findByRole('region', { name: 'Monday 12 October 2026' });
+    for (const sentence of ['No pull requests opened, reviewed, merged or declined.', 'No builds or deployments failed or recovered.', 'No agent runs.', 'No notes.', 'No status changes, sprint changes or new blockers recorded.']) expect(day.textContent).not.toContain(sentence);
+    const none = day.querySelector('[data-empties="none"]');
+    const named = (none?.textContent ?? '').split('·').map((t) => t.trim());
+    for (const title of ['Work items', 'Pull requests', 'Builds and deployments', 'Agent runs', 'Notes']) {
+      const heading = within(day).queryByRole('heading', { name: title }) !== null;
+      expect(heading !== named.includes(title), title).toBe(true);
+    }
+    if (none) {
+      expect(none.querySelector('.sr-only')!.textContent).toBe('none');
+      expect(none.querySelector('[aria-hidden="true"]')!.textContent).toBe('–');
+    }
+  });
+
+  it("keeps the calendar's footnote and the export's explanation behind an (i)", async () => {
+    await open('#/project/checkout-web/worklog/2026-10-12');
+    const day = await screen.findByRole('region', { name: 'Monday 12 October 2026' });
+    expect(document.body.textContent).not.toContain('A number under a day is how many lines');
+    expect(document.body.textContent).not.toContain('Export writes the Markdown');
+    await userEvent.click(screen.getByRole('button', { name: 'About the calendar' }));
+    expect((await screen.findByRole('dialog', { name: 'About the calendar' })).textContent).toMatch(/A number under a day is how many lines its page has.*The cache keeps \d+ days after each sync, and so do the pages\./);
+    expect(day).toBeTruthy();
+  });
 
   it('rebuilds a day on request and says how it compared', async () => {
     await open('#/project/checkout-web/worklog/2026-10-12');

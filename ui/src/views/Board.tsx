@@ -254,7 +254,7 @@ function DragCard({ item, applies }: { item: WorkItem; applies: boolean }) {
  * proposal back; How to apply goes to its card under the board, which has the
  * command.
  */
-function Ghost({ item, move, onUndo, onShow }: { item: WorkItem; move: Move; onUndo: () => void; onShow: () => void }) {
+function Ghost({ item, move, sample, onUndo, onShow }: { item: WorkItem; move: Move; sample: boolean; onUndo: () => void; onShow: () => void }) {
   const key = shortKey(item);
   return (
     <li className="card-ghost" data-proposed-ghost aria-label={`Proposed move, not applied: ${key} ${item.title}`}>
@@ -262,16 +262,19 @@ function Ghost({ item, move, onUndo, onShow }: { item: WorkItem; move: Move; onU
       <p className="card-ghost__title">
         <span className="key">{key}</span> {item.title}
       </p>
-      <p className="note">
-        From {label(item.statusCategory)}. It stays there until someone applies the move with toil.
+      {/* Why the move was not applied is the proposal's line under the board; the ghost says it once, shortly. */}
+      <p className="note" data-ghost-note="">
+        {sample ? "Sample data: this move isn't saved." : `From ${label(item.statusCategory)}. Not applied yet.`}
       </p>
       <div className="card-ghost__actions">
         <Button className="btn btn--quiet" onPress={onUndo} aria-label={`Undo the proposed move of ${key}`}>
           Undo
         </Button>
-        <Button className="btn" onPress={onShow} aria-label={`How to apply the move of ${key} to ${label(move.to)}`}>
-          How to apply
-        </Button>
+        {!sample && (
+          <Button className="btn" onPress={onShow} aria-label={`How to apply the move of ${key} to ${label(move.to)}`}>
+            How to apply
+          </Button>
+        )}
       </div>
     </li>
   );
@@ -412,7 +415,7 @@ function Card({ item, lane, others, onMove, menuOpen, setMenuOpen, moving }: { i
   );
 }
 
-function Column({ category, lane, items, all, onMove, menuFor, setMenuFor, ghosts, onUndo, onShow, effective, movingIds }: { category: StatusCategory; lane: string; items: WorkItem[]; all: StatusCategory[]; onMove: (item: WorkItem, to: StatusCategory) => void; menuFor: string | null; setMenuFor: (id: string | null) => void; ghosts: { item: WorkItem; move: Move }[]; onUndo: (move: Move) => void; onShow: (move: Move) => void; effective: (item: WorkItem) => WorkItem; movingIds: ReadonlySet<string> }) {
+function Column({ category, lane, items, all, onMove, menuFor, setMenuFor, ghosts, sample, onUndo, onShow, effective, movingIds }: { category: StatusCategory; lane: string; items: WorkItem[]; all: StatusCategory[]; onMove: (item: WorkItem, to: StatusCategory) => void; menuFor: string | null; setMenuFor: (id: string | null) => void; ghosts: { item: WorkItem; move: Move }[]; sample: boolean; onUndo: (move: Move) => void; onShow: (move: Move) => void; effective: (item: WorkItem) => WorkItem; movingIds: ReadonlySet<string> }) {
   const { setNodeRef, isOver, active } = useDroppable({ id: dropId(lane, category) });
   const { byId, toilProject } = useData();
   const words = useWords();
@@ -442,7 +445,7 @@ function Column({ category, lane, items, all, onMove, menuFor, setMenuFor, ghost
       {items.length || ghosts.length ? (
         <ul className="cards">
           {ghosts.map((g) => (
-            <Ghost key={g.move.proposal.id} item={g.item} move={g.move} onUndo={() => onUndo(g.move)} onShow={() => onShow(g.move)} />
+            <Ghost key={g.move.proposal.id} item={g.item} move={g.move} sample={sample} onUndo={() => onUndo(g.move)} onShow={() => onShow(g.move)} />
           ))}
           {visible.map((item) => (
             <Card
@@ -698,6 +701,7 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
               const item = move.to === category && here.has(move.proposal.item) ? byId.get(move.proposal.item) : undefined;
               return item ? [{ item, move }] : [];
             })}
+            sample={Boolean(classifyApi?.movesDisabled)}
             onUndo={undo}
             onShow={show}
           />

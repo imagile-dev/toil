@@ -15,6 +15,7 @@ import { ProposalCard } from '../components/proposal.tsx';
 import { ThroughputSpark } from '../components/charts.tsx';
 import { Cited, ItemLink, PrLink } from '../components/items.tsx';
 import { DataTable, type Column } from '../components/layout.tsx';
+import { Help } from '../components/help.tsx';
 import { Panel } from '../components/panel.tsx';
 import { useData } from '../data.ts';
 import { dateTime, toilProjectEditHref, toilProjectHref, personText } from '../format.ts';
@@ -252,21 +253,18 @@ export function PullRequests() {
         ))}
       </div>
 
-      <Panel id="queue" title="Waiting now" calls={calls}>
-        <p className="note">Open pull requests, longest wait first, each with what it waits on and since when. Drafts come last. Waits count working days, Monday to Friday UTC.</p>
+      <Panel id="queue" title="Waiting now" calls={calls} info={<Help topic="prs-queue" />}>
         {queue.length ? <DataTable className="pr-queue" label="Open pull requests" wide rows={queue} rowKey={(r) => r.change.id} columns={queueColumns(connections, plain.on)} /> : <Empty message="No open pull requests for this Toil project." action={<SyncOr sync={sync}><EmptyLink edit href={toilProjectEditHref(toilProject.name, 'repos')}>Add a repository</EmptyLink></SyncOr>} />}
       </Panel>
 
-      <Panel id="flags" title="Flags" calls={calls} alerts={false}>
-        <p className="note">
-          A first review waiting over {PICKUP_DAYS} working days, checks failing for over {FAILING_HOURS} hours, a merge conflict, no linked work item, a work item done while its pull request is open, and a merged pull request whose item isn't done.
-        </p>
+      <Panel id="flags" title="Flags" calls={calls} alerts={false} info={<Help topic="prs-flags" note={`Too long is over ${PICKUP_DAYS} working days for a first review and over ${FAILING_HOURS} hours for failing checks.`} />}>
         {flags.length ? <FlagList flags={flags} /> : <p>Nothing to flag.</p>}
       </Panel>
 
-      <Panel id="flow" title="Flow" calls={calls} alerts={false}>
+      <Panel id="flow" title="Flow" calls={calls} alerts={false} info={<Help topic="prs-flow" />}>
+        {/* The period and what n counts qualify every figure below, so they stay on the page; what "unknown" covers is in the (i). */}
         <p className="note">
-          The {m.throughput.ALL.length} weeks from {dateTime(m.from)}, split by who wrote each pull request. n is how many pull requests a figure rests on; unknown counts those whose record can't say (a host that keeps no review times, or reviews not read).
+          {m.throughput.ALL.length} weeks from {dateTime(m.from)}. n is how many pull requests a figure rests on.
         </p>
         <DataTable className="pr-metrics" label="Pull request flow by author kind" rows={metricRows(m)} rowKey={(r) => r.name} columns={metricColumns} />
         {m.mergedUnreviewed.ALL > 0 && (
@@ -293,8 +291,7 @@ export function PullRequests() {
         />
       </Panel>
 
-      <Panel id="reviewers" title="Suggested reviewers" calls={toilProject.calls.owners ?? []} alerts={false}>
-        <p className="note">For open pull requests with nobody asked: the CODEOWNERS of the paths each changes, then who reviewed changes to the same files and folders. Each is a proposal; asking for a review is a write you apply.</p>
+      <Panel id="reviewers" title="Suggested reviewers" calls={toilProject.calls.owners ?? []} alerts={false} info={<Help topic="prs-reviewers" />}>
         {(toilProject.calls.owners ?? []).length > 0 && !Object.keys(toilProject.codeowners ?? {}).length && (
           <p className="evidence">No CODEOWNERS file was found where GitHub looks for one (.github/, the repository root, docs/).</p>
         )}

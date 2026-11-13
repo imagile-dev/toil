@@ -152,7 +152,7 @@ const pts = (n: number | null) => (n === null ? 'no estimate' : `${n} ${n === 1 
 
 /** How many things changed, in a few words, for a list entry: "2 newly blocked, 1 cleared, 3 newly cited". */
 export function changesLine(c: AnalysisChanges): string {
-  if (!c.previous) return 'The first analysis kept, so there is nothing to compare it with.';
+  if (!c.previous) return 'The first briefing kept, so there is nothing to compare it with.';
   if (unchanged(c)) return 'Nothing changed since the one before: the same blockers, points and citations.';
   const bits = [
     c.newlyBlocked.length ? `${c.newlyBlocked.length} newly blocked` : '',
@@ -179,14 +179,14 @@ function Chips({ ids }: { ids: readonly string[] }) {
   );
 }
 
-/** What changed since the analysis before, in full: each kind on its own line, with its chips. */
+/** What changed since the briefing before, in full: each kind on its own line, with its chips. */
 export function ChangesDetail({ changes: c }: { changes: AnalysisChanges }) {
   if (!c.previous) return <p className="note">{changesLine(c)}</p>;
   if (unchanged(c)) return <p className="note">{changesLine(c)}</p>;
   const sprintText = (s: NonNullable<AnalysisChanges['sprint']>['from']) => (s ? `${s.name}: ${s.done} done, ${s.remaining} left` : 'no sprint running');
   return (
     <>
-    <p className="note analysis-changes__since">Compared with the analysis of {dateTime(c.previous.at)}, by the Toil project's items then and now.</p>
+    <p className="note analysis-changes__since">Compared with the briefing of {dateTime(c.previous.at)}, by the Toil project's items then and now.</p>
     <dl className="analysis-changes">
       {c.newlyBlocked.length > 0 && (
         <div>
@@ -254,7 +254,7 @@ export function ChangesDetail({ changes: c }: { changes: AnalysisChanges }) {
       {c.recommendationChanged && (
         <div>
           <dt>Recommendation</dt>
-          <dd>A different one from the analysis before.</dd>
+          <dd>A different one from the briefing before.</dd>
         </div>
       )}
     </dl>

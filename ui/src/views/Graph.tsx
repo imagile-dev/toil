@@ -132,7 +132,6 @@ export function Graph() {
           </Button>
         </p>
       )}
-      <p className="note">{words('graph.note')}</p>
       {g.cycle && <p className="failure">These blocks links form a loop, so the columns are approximate.</p>}
       <Drawing>
       <div className="graph">

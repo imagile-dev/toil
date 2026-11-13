@@ -85,6 +85,8 @@ describe('the Summary', () => {
     expect([...document.querySelectorAll('[data-summary-chart]')].map((e) => e.getAttribute('data-summary-chart'))).toEqual(['mix', 'where', 'flow']);
     const text = (id: string) => document.querySelector(`[data-summary-chart="${id}"]`)!.textContent!;
     expect(text('mix')).toMatch(/Feature \d+% · Keep the lights on \d+% · Unsure \d+%/);
+    // The headline says the shares; the legend under the bar is the key to the marks and says only the names.
+    expect(document.querySelector('[data-summary-chart="mix"] .ck-mix__key')!.textContent).not.toMatch(/\d%/);
     expect(text('where')).toMatch(/Work this week is spread across \d+ epics?; \d+ of \d+ items[^.]* have no epic above them/);
     expect(text('flow')).toMatch(/finished a week/);
     for (const id of ['mix', 'where', 'flow']) {
@@ -167,9 +169,13 @@ describe('Get a briefing', () => {
     expect(document.querySelector('[data-rec-source]')!.getAttribute('data-rec-source')).toBe('code');
     await act(async () => button.click());
     const said = await waitFor(() => until<HTMLElement>('[data-briefing-said]'), { timeout: 8000 });
-    expect(said.textContent).toMatch(/^New briefing written \d+ \w+ 2026, \d\d:\d\d UTC by /);
+    // One short confirmation, announced; the authorship is the hero's line alone.
+    expect(said.textContent).toBe('Briefing updated');
+    expect(said.getAttribute('role')).toBe('status');
     await waitFor(() => expect(document.querySelector('[data-rec-source]')!.getAttribute('data-rec-source')).toBe('analysis'));
-    expect((document.querySelector('[data-full-briefing]') as HTMLDetailsElement).open).toBe(true);
+    expect((document.querySelector('#full-briefing-body') as HTMLElement).hidden).toBe(false);
+    expect(document.querySelector('[data-full-toggle]')!.textContent).toBe('Hide the full briefing');
+    expect(document.body.textContent).not.toContain('New briefing written');
     expect(document.querySelector('[data-briefing-by]')!.textContent).toMatch(/^Written by an AI agent, /);
     expect(document.querySelector('.briefing__warning')).toBeNull();
     expect(document.querySelector('.briefing__head')!.textContent).not.toMatch(/Nothing needs anyone/);

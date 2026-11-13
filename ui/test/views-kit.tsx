@@ -61,6 +61,9 @@ export const panel = (name: string | RegExp) => screen.getByRole('region', { nam
 export const tabs = (toilProject: string) => screen.getByRole('navigation', { name: `${toilProject} views` });
 /** Opens a metric's full chart from the Overview's strip (#394), and returns its dialog. */
 export async function metric(name: RegExp) {
+  // The strip is in the full briefing, which is closed until someone opens it.
+  const toggle = document.querySelector<HTMLButtonElement>('[data-full-toggle][aria-expanded="false"]');
+  if (toggle) await userEvent.click(toggle);
   await userEvent.click(screen.getByRole('button', { name }));
   return screen.findByRole('dialog');
 }

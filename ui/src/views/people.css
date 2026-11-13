@@ -36,3 +36,7 @@
 .save-to-repo details { max-width: 60ch; }
 .save-to-repo summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
 .map-replace { display: flex; gap: 0.5rem; align-items: center; min-height: 44px; }
+
+/* The parts of a card with nothing in them: one muted line at its foot (a dash, then their names), never a heading and a sentence each. */
+.person-empties { margin: 0; }
+.person-card .btn--small { align-self: start; }

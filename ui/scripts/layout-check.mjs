@@ -509,7 +509,7 @@ function states(route, width, sample = true) {
     // for: then its questions are the Suggestions button instead of the guided start.
     const ready = `document.querySelector('.ask-focus [data-guided-start], .ask-focus [data-ask-suggestions]')`;
     out.push({ name: 'ask-open', setup: `(async () => { ${openAsk} const deadline = Date.now() + 5000; while (!${ready} && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return ${ready} ? 1 : 0; })()`, undoJs: closeAsk });
-    out.push({ name: 'ask-info', setup: `(async () => { ${openAsk} return await ${afterClick(clickAll('[data-ask-info]'), '.ask-info__dialog')}; })()`, undo: 'Escape', undoJs: closeAsk });
+    out.push({ name: 'ask-info', setup: `(async () => { ${openAsk} return await ${afterClick(clickAll('[data-ask-info]'), '.help-popover__dialog')}; })()`, undo: 'Escape', undoJs: closeAsk });
     out.push({ name: 'ask-switcher', setup: `(async () => { ${openAsk} return await ${afterClick(clickAll('[data-agent-switch]'), '.agent-switch__dialog')}; })()`, undo: 'Escape', undoJs: closeAsk });
   }
   // The readiness gate (#307): an item's workflow read live, and the Command Center's verdict filter open. Only
@@ -560,15 +560,19 @@ function states(route, width, sample = true) {
   // The toil project's frame (#394): the Agents drawer open below 1200px, the toil project switcher, and a metric's full chart from the Overview.
   if (/^#\/project\/[^/]+$/.test(route)) out.push({ name: sidebarWide ? 'agents-panel' : 'agents-drawer', setup: afterClick(clickAll('[data-agents-open]'), sidebarWide ? '[data-agents-open][aria-expanded="true"]' : '.agents-drawer__dialog'), undo: 'Escape', undoJs: closeDrawer });
   // The switcher is in the header beside the brand (src/components/project-switcher.tsx), from 1024px; below it the same list is links inside the header's Menu, which the menu state opens.
+  // The numbers live inside the full briefing, closed behind its toggle (Overview.tsx), so a state that needs one opens the briefing first and closes it again.
+  const openBriefing = `(async () => { const t = document.querySelector('[data-full-toggle]'); if (t && t.getAttribute('aria-expanded') !== 'true') await ${afterClick(clickAll('[data-full-toggle]'), '#full-briefing-body:not([hidden])')}; return 1; })()`;
+  const closeBriefing = `(async () => { await ${clickAll('[data-chart-close]', null, 0)}; const t = document.querySelector('[data-full-toggle][aria-expanded="true"]'); if (t) t.click(); return 1; })()`;
+  if (/^#\/project\/[^/]+$/.test(route)) out.push({ name: 'full-briefing', setup: afterClick(clickAll('[data-full-toggle]'), '#full-briefing-body:not([hidden])'), undoJs: closeBriefing });
   if (route === '#/project/card-payments') {
     if (!compact) out.push({ name: 'toil-project-switch', setup: afterClick(clickAll('[data-toil-project-switch]'), '[role="menu"]'), undo: 'Escape' });
-    for (const m of ['burnup', 'pr-wait']) out.push({ name: `chart-${m}`, setup: afterClick(clickAll(`[data-metric="${m}"]`), '.chart-dialog'), undo: 'Escape', undoJs: clickAll('[data-chart-close]', null, 0) });
+    for (const m of ['burnup', 'pr-wait']) out.push({ name: `chart-${m}`, setup: `(async () => { await ${openBriefing}; return await ${afterClick(clickAll(`[data-metric="${m}"]`), '.chart-dialog')}; })()`, undo: 'Escape', undoJs: closeBriefing });
   }
   // The numbers, split (#567): a metric's modal with a Split by chosen, which draws the pivot beside the figures table.
   if (route === '#/project/sample-team') {
-    const split = (metric, option) => `(async () => { if (!(await ${clickAll(`[data-metric="${metric}"]`)})) return 0; if (!(await ${clickAll('[data-picker="Split by"] button')})) return 'no Split by menu'; if (!(await ${clickAll('[role="option"]', `/^${option}$/`)})) return 'no ${option} option'; const deadline = Date.now() + 5000; while (!document.querySelector('.chart-dialog figure.ck-chart') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('.chart-dialog figure.ck-chart') ? 1 : 'the split drew no chart'; })()`;
-    out.push({ name: 'split-cycle-by-component', setup: split('cycle', 'Component'), undo: 'Escape', undoJs: clickAll('[data-chart-close]', null, 0) });
-    out.push({ name: 'split-aging-by-team', setup: split('aging', 'Team'), undo: 'Escape', undoJs: clickAll('[data-chart-close]', null, 0) });
+    const split = (metric, option) => `(async () => { await ${openBriefing}; if (!(await ${clickAll(`[data-metric="${metric}"]`)})) return 0; if (!(await ${clickAll('[data-picker="Split by"] button')})) return 'no Split by menu'; if (!(await ${clickAll('[role="option"]', `/^${option}$/`)})) return 'no ${option} option'; const deadline = Date.now() + 5000; while (!document.querySelector('.chart-dialog figure.ck-chart') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('.chart-dialog figure.ck-chart') ? 1 : 'the split drew no chart'; })()`;
+    out.push({ name: 'split-cycle-by-component', setup: split('cycle', 'Component'), undo: 'Escape', undoJs: closeBriefing });
+    out.push({ name: 'split-aging-by-team', setup: split('aging', 'Team'), undo: 'Escape', undoJs: closeBriefing });
   }
   // The history (#395), set open rather than clicked, since the check has already opened every <details> once: an entry's what-changed opened; an analysis with its evidence unfolded, and a citation chip's detail as a keyboard user who tabbed to it sees it.
   if (/\/summary\/briefings$/.test(route)) out.push({ name: 'what-changed', undoJs: 'window.scrollTo(0, 0)', setup: `(() => { const d = [...document.querySelectorAll('details.analysis__changes')]; for (const x of d) x.open = true; d[0]?.scrollIntoView({ block: 'start' }); return d.length; })()` });
@@ -746,6 +750,12 @@ async function dragCheck(page, width, shoot, inspectDropped, sample) {
   // The tidied proposal says in one line why it was not applied (here, the sample can't write), and keeps its command a step further in.
   const why = await page.evaluate(`(() => document.querySelector('[data-proposal-why]')?.textContent?.trim() ?? '')()`);
   if (ghost !== null && !why) problems.push('after the drop, the proposal card had no line saying why the move was not applied');
+  // In the sample the ghost says in plain words that nothing is saved and offers Undo only: nobody can apply a move there.
+  if (ghost !== null) {
+    const note = await page.evaluate(`(() => { const g = document.querySelector('[data-proposed-ghost]'); return { note: g?.querySelector('[data-ghost-note]')?.textContent?.trim() ?? '', howTo: Boolean([...(g?.querySelectorAll('button') ?? [])].find((b) => /^How to apply/.test(b.getAttribute('aria-label') ?? ''))) }; })()`);
+    if (note.note !== "Sample data: this move isn't saved.") problems.push(`after the drop, the sample's ghost said "${note.note}", not that the move isn't saved`);
+    if (note.howTo) problems.push('after the drop, the sample\'s ghost offered "How to apply", which nobody can do in the sample');
+  }
   await shoot('drag-dropped');
   await page.evaluate(ANIMATIONS_DONE);
   const dropped = ghost === null ? none : await inspectDropped();

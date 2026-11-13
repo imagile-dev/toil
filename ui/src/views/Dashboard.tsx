@@ -14,7 +14,7 @@ import { Outcome } from '../components/bits.tsx';
 import { ItemLink } from '../components/items.tsx';
 import { DataTable, type Column } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
-import { Help } from '../components/help.tsx';
+import { Help, InfoTip } from '../components/help.tsx';
 import { DimensionPicker } from '../components/dimension-picker.tsx';
 import { FilterBar } from '../components/filter-bar.tsx';
 import { toWhere } from '../filters.ts';
@@ -273,10 +273,10 @@ function DependenciesTab() {
   const words = useWords();
   return (
     <div className="tab-panels">
-      <Panel id="gantt" title="Blocker timeline" calls={[...toilProject.calls.work, ...toilProject.calls.prs, ...toilProject.calls.builds]} alerts={false}>
+      <Panel id="gantt" title="Blocker timeline" calls={[...toilProject.calls.work, ...toilProject.calls.prs, ...toilProject.calls.builds]} alerts={false} info={<Help topic="blocker-timeline" />}>
         <BlockerGantt />
       </Panel>
-      <Panel id="graph" title="Links between items" calls={toilProject.calls.work} alerts={false}>
+      <Panel id="graph" title="Links between items" calls={toilProject.calls.work} alerts={false} info={<InfoTip label="the links between items" tip={words('graph.note')}><p>{words('graph.note')}</p></InfoTip>}>
         <Suspense fallback={<Loader size="panel" message={words('loading.graph')} />}>
           <Graph />
         </Suspense>

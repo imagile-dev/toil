@@ -23,6 +23,7 @@ import type { ReleaseSet } from '../../model/drill.ts';
 import type { Filter } from '../../../../src/core/insights/index.ts';
 import type { Dashboard, Headline } from './dashboard.ts';
 import { ChartPanel, DashboardHead, Door, NotRead, useDrill, useFilterFromCell, useSourceLine } from './shared.tsx';
+import { SummaryChevron } from '../../components/disclosure.tsx';
 
 /** The Charts list's line: the release due next, or why none can be named. */
 export function releasesHeadline(ins: WorkInsights): Headline {
@@ -59,6 +60,7 @@ function Section({ ins, release, initiallyOpen, where, split, onSplit }: { ins: 
   return (
     <details className="release" open={initiallyOpen || undefined} data-release={release.name}>
       <summary>
+        <SummaryChevron />
         <span className="release__name">{release.name}</span>
         <span className="release__when">
           {release.released ? (release.date ? `went out ${dayWords(release.date)}` : 'is out') : release.date ? `due ${dayWords(release.date)}, ${daysText(left!)}` : 'no date'}
@@ -132,7 +134,10 @@ function Section({ ins, release, initiallyOpen, where, split, onSplit }: { ins: 
           <MixBar legend result={mixResult} scheme={{ categories: ins.scheme.categories }} label={`${release.name} mix by category`} onDrill={(c) => drill.open({ kind: 'cell', spec: mixSpec, row: c.row.key, column: c.column.key })} />
         </div>
         <details className="release__breakdown">
-          <summary>What is in it</summary>
+          <summary>
+            <SummaryChevron />
+            What is in it
+          </summary>
           <ChartPanel
             title={`${release.name}: what is in it, by ${labelOfDimension(split).toLowerCase()}`}
             result={breakdown}

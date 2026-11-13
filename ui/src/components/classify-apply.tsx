@@ -30,25 +30,60 @@ export const WRITES_OFF = (connection: string) => `Changes to ${connection} are 
 
 const nameOf = (ins: ReturnType<typeof useWorkInsights>, id: string) => ins.definitions[id]?.name ?? id;
 
-/** One item's change, as lines: its label from and to, and its field from and to. */
-function Change({ g, c, ins }: { g: PlanGroupView; c: PlanGroupView['changes'][number]; ins: ReturnType<typeof useWorkInsights> }) {
-  const from = c.labelsFrom.length ? c.labelsFrom.join(', ') : 'none';
-  const to = c.labelsAdd.length ? c.labelsAdd.join(', ') : c.labelsFrom.filter((l) => !c.labelsRemove.includes(l)).join(', ') || 'none';
+/** How many changes a card shows before the rest fold behind "Show all". Folded, never hidden: the count says how many more. */
+export const SHOWN_AT_FIRST = 10;
+
+/** What will be written to one item, in one cell: the label from and to ("+ ktlo", "feature → ktlo"), and the field from and to. Never behind a tooltip: this is what a person approves. */
+function changeText(c: PlanGroupView['changes'][number]): string {
+  const kept = c.labelsFrom.filter((l) => !c.labelsRemove.includes(l));
+  const to = c.labelsAdd.length ? c.labelsAdd.join(', ') : kept.join(', ');
+  const parts: string[] = [];
+  if (c.labelsAdd.length + c.labelsRemove.length === 0) parts.push('label already right');
+  else if (c.labelsFrom.length === 0) parts.push(`+ ${to}`);
+  else parts.push(`${c.labelsFrom.join(', ')} → ${to || 'none'}`);
+  if (c.field) parts.push(`field ${c.field.name}: ${c.field.from === undefined ? 'not read' : (c.field.from ?? 'empty')} → ${c.field.to}`);
+  return parts.join(' · ');
+}
+
+/** One connection's changes as a compact table, a line each: item, title, category, change. Past ten it folds, with the count on the button. */
+function Changes({ g, ins }: { g: PlanGroupView; ins: ReturnType<typeof useWorkInsights> }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? g.changes : g.changes.slice(0, SHOWN_AT_FIRST);
   return (
-    <li className="apply__change" data-change={c.id}>
-      <p className="apply__what">
-        <strong>{c.key}</strong> {c.title} <span className="note">now {nameOf(ins, c.category)}</span>
-      </p>
-      <p className="apply__lines note">
-        {c.labelsAdd.length + c.labelsRemove.length > 0 ? <>Label: {from} → {to}</> : <>Label: already right</>}
-        {c.field && (
-          <>
-            {' · '}Field {c.field.name}: {c.field.from === undefined ? 'not read' : (c.field.from ?? 'empty')} → {c.field.to}
-          </>
-        )}
-      </p>
-      <span className="sr-only">{g.connection}</span>
-    </li>
+    <>
+      <table className="apply__table" data-changes="">
+        <caption className="sr-only">Changes to {g.connection}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Item</th>
+            <th scope="col">Title</th>
+            <th scope="col">Category</th>
+            <th scope="col">Change</th>
+          </tr>
+        </thead>
+        <tbody>
+          {shown.map((c) => (
+            <tr key={c.id} className="apply__change" data-change={c.id}>
+              <th scope="row" className="apply__key">
+                {c.key}
+              </th>
+              <td className="apply__title" title={c.title} data-truncate="">
+                {c.title}
+              </td>
+              <td className="apply__category">{nameOf(ins, c.category)}</td>
+              <td className="apply__what">{changeText(c)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {g.changes.length > SHOWN_AT_FIRST && (
+        <div>
+          <Button className="btn btn--small btn--quiet" onPress={() => setAll(!all)} data-show-all="">
+            {all ? `Show the first ${SHOWN_AT_FIRST}` : `Show all ${g.changes.length}`}
+          </Button>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -157,13 +192,9 @@ export function ApplyCard({ connection, work, onClose }: { connection: string; w
         return (
           <div key={`${g.area}:${g.connection}`} className="apply__group">
             <p className="note">
-              {g.changes.length} {g.changes.length === 1 ? 'item' : 'items'} in {sourceLabel(g.area)}.{result ? '' : ' Nothing is written until you press Apply.'}
+              {g.changes.length} {g.changes.length === 1 ? 'item' : 'items'} in {sourceLabel(g.area)}.
             </p>
-            <ul className="plain apply__changes">
-              {g.changes.map((c) => (
-                <Change key={c.id} g={g} c={c} ins={ins} />
-              ))}
-            </ul>
+            <Changes g={g} ins={ins} />
             {line.line && (
               <details className="apply__command">
                 <summary>The command toil runs</summary>
@@ -197,6 +228,7 @@ export function ApplyCard({ connection, work, onClose }: { connection: string; w
           The tracker was changed, but your record was not updated: {result.recorded.message}
         </p>
       )}
+      {!result && groups.length > 0 && <p className="note">Nothing is written until you press Apply.</p>}
       <div className="apply__actions">
         {result && 'outcomes' in result ? (
           <Button className="btn btn--accent" onPress={checkAgain} isDisabled={busy} data-check-again="">

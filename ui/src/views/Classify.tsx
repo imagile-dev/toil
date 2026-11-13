@@ -3,10 +3,12 @@
  * and "Ready to start?". It lists what needs a person, the unsure items and the
  * ones where a rule or signal and a label already on the item disagree, each
  * with the category toil would suggest and why, and a row of choices: the
- * scheme's categories by their plain names, then Unsure. K, F and U pick (1 to 9
- * for any other scheme), Enter confirms and moves to the next row. A choice is
- * a person's word, saved in their own record at once; the tracker changes only
- * when they apply it, on an approval card that shows every change first.
+ * scheme's categories by their plain names, then Unsure, as one segmented
+ * control on a one-line row. Pressing a choice is the answer (K, F and U, or 1
+ * to 9 for any other scheme, on a row): it is saved in the person's own record
+ * at once, the row leaves the list and the line under the tabs offers Undo. The
+ * tracker changes only when they apply it, on an approval card that shows every
+ * change first. A suggestion is marked on its category and pressing it accepts it.
  *
  * "Ask your AI agent" gives the agent toil's own question for the unsure items
  * and shows what comes back as suggestions with the agent's reason and badge,
@@ -17,14 +19,13 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { Button, Radio, RadioGroup, Select, SelectValue, Popover, ListBox, ListBoxItem } from 'react-aria-components';
+import { Button, Select, SelectValue, Popover, ListBox, ListBoxItem } from 'react-aria-components';
 import type { AgentChoice, ApplyWork } from '../classify-api.ts';
 import { ApplyCard, byConnection } from '../components/classify-apply.tsx';
 import { HowItsDoing } from '../components/classify-doing.tsx';
-import { CategoryName } from '../components/category-chip.tsx';
 import { Empty, EmptyButton, EmptyLink, TrackerAction } from '../components/empty.tsx';
 import { FilterBar } from '../components/filter-bar.tsx';
-import { Help } from '../components/help.tsx';
+import { Help, InfoTip } from '../components/help.tsx';
 import { ItemLink } from '../components/items.tsx';
 import { useClassify } from '../classify-state.tsx';
 import { useData } from '../data.ts';
@@ -52,80 +53,112 @@ export function pickKey(e: { key: string; ctrlKey: boolean; metaKey: boolean; al
   return null;
 }
 
-function Why({ row, follow }: { row: NeedsRow; follow: number }) {
-  const ins = useWorkInsights();
-  const name = (id: string | null) => (id ? (ins.definitions[id]?.name ?? id) : 'Unsure');
-  const children = follow > 0 ? ` ${plural(follow, 'item')} under it in this list ${follow === 1 ? 'follows' : 'follow'} its answer.` : '';
-  if (row.kind === 'unsure') return <p className="sortrow__why note">Nothing has settled this one: no label, rule or parent says what it is.{children}</p>;
+/** Why an item is in the list, in sentences: said once, behind the row's (i), never printed on every row. */
+function whyOf(row: NeedsRow, follow: number, name: (id: string | null) => string): string[] {
+  const children = follow > 0 ? [`${plural(follow, 'item')} under it in this list ${follow === 1 ? 'follows' : 'follow'} its answer.`] : [];
+  if (row.kind === 'unsure') return ['Nothing has settled this one: no label, rule or parent says what it is.', ...children];
   const now = row.carried!;
   const fresh = row.suggested!;
+  return [`It says ${name(now.category)} (${sourcePhrase(now.source)}), but ${sourcePhrase(fresh.source)} says ${name(fresh.category)}: ${fresh.reason}`, ...children];
+}
+
+/** The short tag beside a title, only where it says something: a disagreement, or how many rows follow this one's answer. */
+function tagOf(row: NeedsRow, follow: number): string {
+  return [row.kind === 'disagree' ? `${row.carried!.source === 'field' ? 'field' : 'label'} and rules disagree` : null, follow > 0 ? `${follow} follow` : null].filter(Boolean).join(' · ');
+}
+
+/** The row's one quiet (i): the reason it is here, the AI agent's reason when it suggested something, and "Not this" to dismiss that. */
+function WhyTip({ row, follow, onDismiss }: { row: NeedsRow; follow: number; onDismiss: () => void }) {
+  const ins = useWorkInsights();
+  const { proposals } = useClassify();
+  const proposal = proposals.get(row.item.id);
+  const name = (id: string | null) => (id ? (ins.definitions[id]?.name ?? id) : 'Unsure');
+  const sentences = whyOf(row, follow, name);
+  const ai = proposal ? `Your AI agent suggests ${name(proposal.category)}: ${proposal.reason}` : null;
   return (
-    <p className="sortrow__why note">
-      It says {name(now.category)} ({sourcePhrase(now.source)}), but {sourcePhrase(fresh.source)} says {name(fresh.category)}: {fresh.reason}
-      {children}
-    </p>
+    <InfoTip label={`why ${row.item.source.key} needs an answer` } tip={[ai, ...sentences].filter(Boolean).join(' ')} placement="bottom end" triggerProps={{ 'data-why': row.item.id }}>
+      {ai && <p data-proposal-reason="">{ai}</p>}
+      {sentences.map((t) => (
+        <p key={t}>{t}</p>
+      ))}
+      {proposal && (
+        <p>
+          <Button className="btn btn--small btn--quiet" onPress={onDismiss} data-dismiss-suggestion="">
+            Not this
+          </Button>
+        </p>
+      )}
+    </InfoTip>
   );
 }
 
-/** A radio is an <input> but takes no typing: a mouse pick leaves focus on it, and the row's keys still work there. */
-const isRadio = (t: EventTarget) => t instanceof HTMLInputElement && t.type === 'radio';
-
-function Row({ row, picked, onPick, onConfirm, onAccept, busy, follow }: { row: NeedsRow; picked: string | undefined; onPick: (value: string) => void; onConfirm: () => void; onAccept: () => void; busy: boolean; follow: number }) {
+/**
+ * One item, one line: where it is and what it is called, the choices as one segmented control, and the (i). Pressing a
+ * choice is the answer. A suggestion, the AI agent's or the rules' where they disagree with a label, is marked on its
+ * category, and pressing the marked one accepts it. The choices are out of the tab order on purpose: the row is the
+ * stop, K, F and U answer on it, Enter presses the marked one and the arrows move to the next row.
+ */
+function Row({ row, onAnswer, onAccept, follow }: { row: NeedsRow; onAnswer: (value: string) => void; onAccept: () => void; follow: number }) {
   const ins = useWorkInsights();
   const { proposals, dismiss } = useClassify();
   const choices = choicesOf(ins.scheme);
   const proposal = proposals.get(row.item.id);
+  const marked = proposal ? { id: proposal.category, by: 'ai' as const } : row.kind === 'disagree' ? { id: row.suggested!.category ?? 'unsure', by: 'rules' as const } : null;
+  const answer = (value: string) => (marked?.by === 'ai' && marked.id === value ? onAccept() : onAnswer(value));
+  const tag = tagOf(row, follow);
   const onKeyDown = (e: KeyboardEvent<HTMLLIElement>) => {
-    if (typingIn(e.target) && !isRadio(e.target)) return;
+    if (typingIn(e.target)) return;
+    const down = matches('classifyNext', e);
+    if (down || matches('classifyPrev', e)) {
+      e.preventDefault();
+      const to = down ? e.currentTarget.nextElementSibling : e.currentTarget.previousElementSibling;
+      if (to instanceof HTMLElement) to.focus();
+      return;
+    }
+    if (matches('classifyConfirm', e) && e.target === e.currentTarget && marked) {
+      e.preventDefault();
+      answer(marked.id);
+      return;
+    }
     const key = pickKey(e);
     const choice = key ? choiceForKey(choices, key) : undefined;
     if (choice) {
       e.preventDefault();
-      onPick(choice.id ?? 'unsure');
+      answer(choice.id ?? 'unsure');
     }
   };
-  // Enter is read on the way down, because the radios and buttons inside the row stop the key from rising to the row.
-  // On one of the row's own buttons it presses that button and on a link it follows the link; anywhere else in the row,
-  // a radio the mouse just picked included, it confirms the pick. A text field keeps its own Enter.
-  const onEnter = (e: KeyboardEvent<HTMLLIElement>) => {
-    if (!matches('classifyConfirm', e) || (typingIn(e.target) && !isRadio(e.target))) return;
-    if (e.target instanceof HTMLElement && e.target.closest('button, a')) return;
-    e.preventDefault();
-    onConfirm();
-  };
   return (
-    <li className="sortrow" data-row={row.item.id} data-kind={row.kind} tabIndex={0} onKeyDown={onKeyDown} onKeyDownCapture={onEnter} aria-label={`${row.item.source.key} ${row.item.title}`}>
-      <p className="sortrow__head">
-        <ItemLink id={row.item.id} withTitle />
-      </p>
-      <Why row={row} follow={follow} />
-      {proposal && (
-        <div className="sortrow__proposal" data-proposal={row.item.id}>
-          <p>
-            <span className="badge badge--agent">Your AI agent</span> suggests <CategoryName ins={ins} id={proposal.category} />: {proposal.reason}
-          </p>
-          <div className="sortrow__proposal-actions">
-            <Button className="btn btn--small" onPress={onAccept} isDisabled={busy} data-accept="">
-              Accept
-            </Button>
-            <Button className="btn btn--small btn--quiet" onPress={() => dismiss([row.item.id])}>
-              Not this
-            </Button>
-          </div>
-        </div>
-      )}
-      <RadioGroup className="sortrow__choices" orientation="horizontal" aria-label={`Category for ${row.item.source.key}`} value={picked ?? ''} onChange={onPick}>
-        {choices.map((c) => (
-          <Radio key={c.id ?? 'unsure'} value={c.id ?? 'unsure'} className="sortrow__choice" data-choice={c.id ?? 'unsure'} aria-keyshortcuts={c.key}>
-            {c.name} <kbd className="sortrow__key">{c.key}</kbd>
-          </Radio>
-        ))}
-      </RadioGroup>
-      <div className="sortrow__actions">
-        <Button className="btn btn--small btn--accent" onPress={onConfirm} isDisabled={busy || picked === undefined} data-confirm="">
-          Confirm
-        </Button>
+    <li className="sortrow" data-row={row.item.id} data-kind={row.kind} tabIndex={0} onKeyDown={onKeyDown} aria-label={`${row.item.source.key} ${row.item.title}`}>
+      <div className="sortrow__what">
+        <p className="sortrow__head" title={row.item.title} data-truncate="">
+          <ItemLink id={row.item.id} withTitle />
+        </p>
+        {tag && (
+          <span className="sortrow__tag note" data-tag="">
+            {tag}
+          </span>
+        )}
       </div>
+      <div className="sortrow__choices" role="group" aria-label={`Category for ${row.item.source.key}`}>
+        {choices.map((c) => {
+          const value = c.id ?? 'unsure';
+          const isMarked = marked?.id === value;
+          return (
+            <Button key={value} className="sortrow__choice" excludeFromTabOrder onPress={() => answer(value)} data-choice={value} data-marked={isMarked ? marked!.by : undefined} {...(isMarked && marked!.by === 'ai' ? { 'data-proposal': row.item.id } : {})} aria-keyshortcuts={c.key}>
+              {c.name} <kbd className="sortrow__key">{c.key}</kbd>
+              {isMarked && (
+                <>
+                  <span className="sortrow__mark" aria-hidden="true">
+                    {marked!.by === 'ai' ? 'AI' : 'Rules'}
+                  </span>
+                  <span className="sr-only"> ({marked!.by === 'ai' ? 'suggested by your AI agent' : 'suggested by the rules'})</span>
+                </>
+              )}
+            </Button>
+          );
+        })}
+      </div>
+      <WhyTip row={row} follow={follow} onDismiss={() => dismiss([row.item.id])} />
     </li>
   );
 }
@@ -137,7 +170,6 @@ export function Classify() {
   const ins = useWorkInsights();
   const { filters } = useAddress();
   const c = useClassify();
-  const [picks, setPicks] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
   const [asked, setAsked] = useState<{ by: string; count: number; warnings: string[]; omitted: number } | null>(null);
@@ -162,8 +194,6 @@ export function Classify() {
     return where.length === 0 ? null : new Set(ins.narrow(where).items.map((i) => i.id));
   }, [ins, filters]);
   const rows = c.needs.filter((r) => !allowed || allowed.has(r.item.id));
-  // A disagreement starts on what the rules say, which a person confirms or changes; an unsure item starts on nothing.
-  const pickOf = (r: NeedsRow) => picks[r.item.id] ?? (r.kind === 'disagree' ? (r.suggested!.category ?? undefined) : undefined);
   const pending = c.pending.filter((p) => !allowed || allowed.has(p.item.id));
   // An answer on an epic is every task under it too, so a row says how many of the rows below it follow it.
   const followers = useMemo(() => {
@@ -190,15 +220,15 @@ export function Classify() {
     el?.focus();
   }, [rows.length]);
 
-  const confirm = async (r: NeedsRow) => {
-    const picked = pickOf(r);
-    if (picked === undefined || busy) return;
+  // Pressing a choice is the answer: it is recorded in the person's ledger at once, the row leaves the list, and the line under the tabs
+  // offers Undo, which records the item back where it stood (and puts an unanswered one back in the list).
+  const answer = async (r: NeedsRow, value: string) => {
+    if (busy) return;
     const at = rows.findIndex((x) => x.item.id === r.item.id);
     focusNext.current = rows[at + 1]?.item.id ?? rows[at - 1]?.item.id ?? '';
     setBusy(true);
     try {
-      await c.reclassify(r.item, picked === 'unsure' ? null : picked, '');
-      setPicks(({ [r.item.id]: _gone, ...rest }) => rest);
+      await c.reclassify(r.item, value === 'unsure' ? null : value, '');
     } catch {
       focusNext.current = null;
     } finally {
@@ -282,7 +312,7 @@ export function Classify() {
           {words('classify.title')}
         </h1>
         <p className="lede">
-          Items nobody has put in a category yet, and items whose label and rules disagree, read {plainDates(now.slice(0, 10))}. Pick one for each: your answers are saved in your own record, and the tracker changes only when you apply them. <Help topic="classify" />
+          Pick a category for each item, read {plainDates(now.slice(0, 10))}. <Help topic="classify" />
         </p>
         {ins.schemeNote && (
           <p role="note" className="failure">
@@ -316,15 +346,16 @@ export function Classify() {
             </Popover>
           </Select>
         )}
-        <p className="note">
-          {ready.length === 0
-            ? 'No AI agent is set up yet. Choose one under Settings, AI agent. You can sort these by hand.'
-            : unsure.length === 0
-              ? partial
+        <Help topic="classify-ask" {...(ready.length > 0 && unsure.length > 0 ? { note: `It reads ${plural(Math.min(unsure.length, ASK_AT_MOST), 'unsure item')} this time.` } : {})} />
+        {(ready.length === 0 || unsure.length === 0) && (
+          <p className="note">
+            {ready.length === 0
+              ? 'No AI agent is set up yet. Choose one under Settings, AI agent. You can sort these by hand.'
+              : partial
                 ? 'Nothing unsure in what was read to ask about.'
-                : 'There is nothing unsure left to ask about.'
-              : `It reads ${plural(Math.min(unsure.length, ASK_AT_MOST), 'unsure item')} and suggests a category for each. It can't change anything: you accept or ignore every answer.`}
-        </p>
+                : 'There is nothing unsure left to ask about.'}
+          </p>
+        )}
         {asked && (
           <p role="status" data-asked="">
             {asked.by || 'Your AI agent'} suggested a category for {plural(asked.count, 'item')}.{asked.omitted > 0 ? ` ${plural(asked.omitted, 'more item')} did not fit in one question; ask again after these.` : ''}
@@ -350,7 +381,7 @@ export function Classify() {
       {(pending.length > 0 || cards) && (
         <section className="classify__pending" aria-label="Changes waiting for the tracker" data-pending="">
           <h2>{pending.length === 0 ? 'Nothing is waiting for the tracker' : `${plural(pending.length, 'change')} waiting for the tracker`}</h2>
-          {pending.length > 0 ? <p className="note">Decided here, not yet written to the tracker. Nothing is written until you press Apply.</p> : cards && <p className="note">{words('classify.allWritten')}</p>}
+          {pending.length === 0 && cards && <p className="note">{words('classify.allWritten')}</p>}
           {!cards ? (
             <Button className="btn btn--accent" onPress={review} isDisabled={busy} data-review-apply="">
               Review and apply
@@ -366,14 +397,25 @@ export function Classify() {
       )}
 
       <section aria-labelledby="needs-head" className="classify__rows">
-        <h2 id="needs-head">{rows.length === 0 ? (partial ? 'Nothing in what was read needs an answer' : 'Nothing needs an answer') : `${plural(rows.length, 'item')} ${rows.length === 1 ? 'needs' : 'need'} an answer`}</h2>
+        <div className="classify__rows-head">
+          <h2 id="needs-head">{rows.length === 0 ? (partial ? 'Nothing in what was read needs an answer' : 'Nothing needs an answer') : `${plural(rows.length, 'item')} ${rows.length === 1 ? 'needs' : 'need'} an answer`}</h2>
+          {rows.length > 0 && (
+            <p className="note sortrows__legend" data-legend="">
+              {choicesOf(ins.scheme).map((ch) => (
+                <kbd key={ch.key} className="sortrow__key">
+                  {ch.key}
+                </kbd>
+              ))}{' '}
+              answer, Up and Down move
+            </p>
+          )}
+        </div>
         {partial &&
           read.failed.map((label) => (
             <p key={label} className="note" data-classify-partial="">
               {label}: work items not read
             </p>
           ))}
-        {rows.length > 0 && <p className="note">Pick a category for each row, then Confirm. On a row, K, F and U pick, and Enter confirms and moves to the next.</p>}
         {rows.length === 0 ? (
           <Empty
             message={allowed ? 'No item matching these filters needs an answer.' : pending.length > 0 ? 'Every item has an answer. The changes above are what is left.' : partial ? 'Nothing in what was read needs an answer.' : 'Everything is sorted. Nothing here needs you.'}
@@ -382,7 +424,7 @@ export function Classify() {
         ) : (
           <ul className="sortrows plain" ref={list}>
             {rows.map((r) => (
-              <Row key={r.item.id} row={r} follow={followers.get(r.item.id) ?? 0} picked={pickOf(r)} onPick={(v) => setPicks((cur) => ({ ...cur, [r.item.id]: v }))} onConfirm={() => void confirm(r)} onAccept={() => void acceptThese([r.item.id])} busy={busy} />
+              <Row key={r.item.id} row={r} follow={followers.get(r.item.id) ?? 0} onAnswer={(v) => void answer(r, v)} onAccept={() => void acceptThese([r.item.id])} />
             ))}
           </ul>
         )}

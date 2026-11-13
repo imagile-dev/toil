@@ -87,7 +87,10 @@ describe("Where we're working", () => {
     await open(`${TEAM}/summary/where`);
     await until('[data-figure="streams"] a');
     expect(screen.getAllByText(/Days in progress by week, by parent › epic/).length).toBeGreaterThan(0);
-    expect(document.querySelectorAll('.where-mixes li').length).toBeGreaterThanOrEqual(5);
+    expect(document.querySelectorAll('.where-mixes > ul > li').length).toBeGreaterThanOrEqual(5);
+    // One legend, once, at the top: names only, and none under the per-epic bars.
+    expect(document.querySelectorAll('.where-mixes .ck-mix__key')).toHaveLength(1);
+    expect(document.querySelector('.where-mixes .ck-mix__key')!.textContent).not.toMatch(/d%/);
     await go(document.querySelector('[data-figure="streams"] a')!.getAttribute('href')!);
     const drawer = await until<HTMLElement>('[data-drill]');
     expect(Number(drawer.getAttribute('data-drill'))).toBeGreaterThan(0);
@@ -101,7 +104,11 @@ describe('Flow', () => {
     expect(lead.textContent).toMatch(new RegExp(`^About \\d+ finished a week, typically in ${facts.medianCycleDays} days$`));
     const sections = [...document.querySelectorAll<HTMLDetailsElement>('[data-flow-section]')];
     expect(sections.map((d) => [d.getAttribute('data-flow-section'), d.open])).toEqual([['throughput', true], ['cfd', false], ['cycle', false], ['aging', false]]);
+    // A closed section shows it opens: a chevron pointing right, which points down once it is open.
+    const cfd = sections[1]!;
+    expect(cfd.querySelector('summary [data-icon="chevron-right"]')).toBeTruthy();
     sections.forEach((d) => (d.open = true));
+    expect(cfd.open).toBe(true);
     expect(screen.getAllByText('Items by status, at the end of each week').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Days from started to finished, by category/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Days in progress so far, by category/).length).toBeGreaterThan(0);
@@ -245,6 +252,7 @@ describe('what every chart does', () => {
   it('says dates in notes as "16 Jul", never as ISO days', async () => {
     await open(`${TEAM}/summary/flow`);
     await until('[data-flow-section="throughput"] .ck-source');
+    document.querySelectorAll<HTMLButtonElement>('[data-flow-section="throughput"] [data-source-notes]').forEach((b) => b.click());
     expect(document.querySelector('[data-flow-section="throughput"] .ck-source')!.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}/);
   });
 });

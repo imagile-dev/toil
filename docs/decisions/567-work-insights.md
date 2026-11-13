@@ -211,6 +211,24 @@ was built, and the defaults taken where the call left a choice.
   small labels use the body face. Press Start 2P is no longer loaded; its package is
   still listed in `ui/package.json`, left for a change that touches the lockfile.
 
+- **A quality sweep of every page this work touched** (the maintainer's ask, 13 November
+  2026: "review the pages you touched for too much text and other UX problems"), held
+  to the Screen review list. What changed, each layered rather than removed:
+  the Classify view is one row per item where picking a category is the answer, with
+  Undo, and what would be written is a one-line-per-item table; the Summary says who
+  wrote a briefing once, folds the full briefing behind a toggle that says Show or
+  Hide, and names each mix's percentages once; under a chart the source stays and the
+  coverage sentences sit behind a count ("37 items left out"); People and a day of What
+  happened collapse their empty sections into one dash line, with "not read yet" kept
+  apart; panel explanations on Code reviews and What blocks what moved into an (i),
+  except "Blocked time is estimated", which stays beside the timeline (principle 4);
+  the sample Board says "Sample data: this move isn't saved."; the Classification
+  editor uses the app's fields and checkbox. Defaults taken: answering in the Classify
+  view needs no Confirm, since nothing reaches the tracker until Apply and every answer
+  has an Undo; the full briefing is closed on every visit and opens itself only after
+  "Get a briefing". Not changed: the Builds list on the Board page and the chart text
+  size at wide screens, both noted for the maintainer.
+
 **Still the maintainer's to take**
 
 The proposal's decisions 1 to 7 were each taken as a default above or in the

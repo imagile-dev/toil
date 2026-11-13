@@ -130,3 +130,11 @@
   .ck-frame { display: none; }
   .ck-mark:focus-visible { outline-color: Highlight; }
 }
+
+/* The source line: one short line, and a quiet count beside it that opens the full notes. */
+.ck-source { display: grid; gap: 0.2rem; }
+.ck-source__line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.1rem 0.6rem; }
+.ck-source__more { display: inline-flex; align-items: center; gap: 0.2rem; min-height: 32px; padding: 0 0.3rem; background: none; border: 0; border-radius: var(--radius); color: var(--link); font: inherit; cursor: pointer; }
+.ck-source__more:hover { background: var(--surface); }
+.ck-source__more:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.ck-source__notes { margin: 0; overflow-wrap: anywhere; }

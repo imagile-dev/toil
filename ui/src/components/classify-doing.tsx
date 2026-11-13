@@ -19,6 +19,7 @@ import { useData } from '../data.ts';
 import { useWorkInsights } from '../insights-data.ts';
 import { shareText, shareWords, sourceName, TUNE_AFTER, timesText } from '../model/classify.ts';
 import { Help } from './help.tsx';
+import { ChevronDownIcon } from './icons.tsx';
 
 const KEPT: Record<SaveResult['kept'], string> = { 'built-in': 'kept as a built-in scheme', yours: 'kept as your own copy', shared: 'saved in the repository, ready for a pull request', beside: 'saved beside this Toil project' };
 
@@ -80,6 +81,7 @@ export function HowItsDoing({ agents, adapter }: { agents: AgentChoice[]; adapte
             ? "How it's doing: nothing has been checked yet"
             : `How it's doing: people agreed with ${shareWords(stats.agreement.overall)} of ${stats.agreement.checked} checked`
           : "How it's doing: not read yet"}
+        <ChevronDownIcon size={14} className="doing__chevron" />
       </summary>
       <div className="doing__body">
         <p>

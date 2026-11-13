@@ -11,9 +11,10 @@
 
 import { useData } from '../data.ts';
 import { standupHref } from '../format.ts';
-import { defaultRange, sinceText, topRows } from '../model/standup.ts';
+import { defaultRange, groupTitle, sinceText, topRows, type StandupGroup } from '../model/standup.ts';
+import { PersonGlyph } from './icons.tsx';
 import { dayOf } from '../model/worklog.ts';
-import { BucketRow, NotRead, PersonName, useStandupReport } from '../views/Standup.tsx';
+import { BucketRow, NotRead, useStandupReport } from '../views/Standup.tsx';
 import type { WorklogApi } from '../worklog.ts';
 import '../views/standup.css';
 
@@ -21,6 +22,25 @@ import '../views/standup.css';
 export const CARD_ROWS = 5;
 
 const NONE = new Set<string>();
+
+/**
+ * A person on the card: the name on one line, then the account the stand-up page writes after it ("bitbucket achen") in small
+ * muted text that truncates, with the whole text on hover. The words are the model's own `groupTitle`, split at its parenthesis.
+ */
+function CardName({ group }: { group: StandupGroup }) {
+  const full = groupTitle({ ...group, kind: 'human' });
+  const m = /^(.*?)\s*\(([^()]*)\)$/.exec(full);
+  const name = m ? m[1]! : full;
+  const suffix = m ? m[2]! : '';
+  return (
+    <span className="sum-person" data-kind={group.kind} title={suffix ? full : undefined}>
+      <PersonGlyph agent={group.kind === 'agent'} />
+      <span className="sum-person__name">{name}</span>
+      {suffix && <span className="sum-person__account" title={suffix} data-truncate="">{suffix}</span>}
+      {group.kind === 'agent' && <span className="sr-only"> (agent)</span>}
+    </span>
+  );
+}
 
 export function StandupCard({ api }: { api: WorklogApi }) {
   const { toilProject, now } = useData();
@@ -62,7 +82,7 @@ export function StandupCard({ api }: { api: WorklogApi }) {
             <ul className="sum-standup__rows">
               {rows.map((r) => (
                 <li key={`${r.group.key}/${r.bucket}`} className="sum-standup__row">
-                  <PersonName group={r.group} />
+                  <CardName group={r.group} />
                   <dl className="standup-rows">
                     <BucketRow report={report!} bucket={r.bucket} lines={r.group.lines[r.bucket].filter((l) => r.bucket !== 'comments' || l.comment?.outstanding)} cited={NONE} />
                   </dl>

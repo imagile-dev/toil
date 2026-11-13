@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { metric } from './views-kit.tsx';
 import { openChat } from './chat.ts';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
@@ -190,7 +191,7 @@ describe('the skins', { timeout: SLOW }, () => {
     // The calendar hangs on the sprint, which the Overview's burn-up opens (#394).
     cleanup();
     await open('#/project/card-payments', 'harvest', 'light');
-    await userEvent.click(screen.getByRole('button', { name: /^Points done / }));
+    await metric(/^Points done /);
     await screen.findByRole('dialog');
     expect(document.querySelector('.harvest-calendar')?.getAttribute('aria-hidden')).toBe('true');
   });
@@ -213,7 +214,7 @@ describe('the skins', { timeout: SLOW }, () => {
     expect(hud.querySelector('.ow-gems')!.textContent).toBe('3/21');
     cleanup();
     await open('#/project/card-payments', 'overworld', 'dark');
-    await userEvent.click(screen.getByRole('button', { name: /^Points done / }));
+    await metric(/^Points done /);
     expect((await screen.findByRole('dialog')).querySelector('.ow-hud')?.getAttribute('aria-hidden')).toBe('true');
   });
 
@@ -268,7 +269,7 @@ describe('the skins', { timeout: SLOW }, () => {
 
   it("count the sprint's hit points in place of its meter in Realm, from the sprint's own figures", async () => {
     await open('#/project/card-payments', 'realm', 'light');
-    await userEvent.click(screen.getByRole('button', { name: /^Points done / }));
+    await metric(/^Points done /);
     const dialog = await screen.findByRole('dialog');
     const vitals = dialog.querySelector('.realm-vitals')!;
     expect(vitals.textContent).toBe('Points left 18 of 21');

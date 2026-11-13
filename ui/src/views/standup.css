@@ -58,7 +58,7 @@
 
 /* The Summary's card: the same rows, a person's name in front of each. */
 .sum-standup__rows { display: grid; gap: 0.3rem; margin: 0; padding: 0; list-style: none; }
-.sum-standup__row { display: grid; grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr); gap: 0.4rem; align-items: start; }
+.sum-standup__row { display: grid; grid-template-columns: minmax(8rem, 14rem) minmax(0, 1fr); gap: 0.4rem; align-items: start; }
 .sum-standup__row .standup-rows { display: contents; }
 .sum-standup__row .standup-row { grid-template-columns: 5.2rem minmax(0, 1fr); }
 .sum-standup__line { font-size: 0.875rem; font-weight: 600; margin: 0; }

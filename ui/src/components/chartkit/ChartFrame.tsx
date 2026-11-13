@@ -24,7 +24,9 @@
  * unread state: when the split or the across was never read the frame says
  * "<Dimension> wasn't read" with `unreadAction` and draws no chart at all.
  *
- * The coverage line is where a chart confesses what it left out, in a font size the committee can read.
+ * The source is one short line ("From Jira, read 13 Oct 2026", always on screen). What else the chart has to confess, the
+ * date range the items go back to and everything it left out, is a count beside it that opens the full sentences on a
+ * press: layered, never deleted. The committee can read it, once it asks.
  */
 
 import { useId, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
@@ -32,6 +34,7 @@ import { ALL_KEY, type PivotResult } from '../../../../src/core/insights/types.t
 import { matches, matchesAny } from '../../shortcuts.ts';
 import { useWords } from '../../theme-context.ts';
 import { Figures } from '../charts.tsx';
+import { ChevronDownIcon, ChevronRightIcon } from '../icons.tsx';
 import { Unread } from '../unread.tsx';
 import type { AssignOptions } from './assign.ts';
 import { axisName, num, percent, seriesText, shareOf, type ChartMode } from './describe.ts';
@@ -71,6 +74,46 @@ export function figureRows(result: PivotResult): { head: string[]; rows: ReactNo
   const body = result.rows.map((r, ri) => [axisName(r), ...result.columns.map((_, ci) => cell(result.cells[ri]![ci]!, many || result.columns[ci]!.key !== ALL_KEY ? shareOf(result, ri, ci) : null)), ...(many ? [cell(result.rowTotals[ri]!, null)] : [])]);
   const totals = ['Total', ...result.columns.map((_, ci) => cell(result.columnTotals[ci]!, null)), ...(many ? [cell(result.total, null)] : [])];
   return { head, rows: [...body, totals] };
+}
+
+/** The source line's first sentence, and the rest of it. A source without a second sentence has no rest. */
+export function splitSource(source: string): { line: string; rest: string } {
+  const m = /^(.*?\.)\s+(\S.*)$/s.exec(source.trim());
+  return m ? { line: m[1]!, rest: m[2]! } : { line: source.trim(), rest: '' };
+}
+
+/** What the count beside the source says: the items the table left out when it can tell, else how many notes there are. */
+export function notesLabel(result: PivotResult, notes: string[]): string {
+  const c = result.coverage;
+  // Counted from the coverage's own figures, each an item count: parents set aside, items whose split or across was never read, and items the measure could not read.
+  const left = c.parentsLeftOut + c.unreadSplit + c.unreadAcross + Math.max(0, c.items - c.measured);
+  const drawn = result.rows.length > 0;
+  if (drawn && left > 0) return `${num(left)} ${left === 1 ? 'item' : 'items'} left out`;
+  return `${notes.length} ${notes.length === 1 ? 'note' : 'notes'}`;
+}
+
+function SourceLine({ id, source, notes, result }: { id: string; source: string; notes: string[]; result: PivotResult }) {
+  const [open, setOpen] = useState(false);
+  const { line, rest } = splitSource(source);
+  const all = [...(rest ? [rest] : []), ...notes];
+  return (
+    <div className="ck-source note">
+      <p className="ck-source__line">
+        {line}
+        {all.length > 0 && (
+          <button type="button" className="ck-source__more" aria-expanded={open} aria-controls={`${id}-notes`} onClick={() => setOpen((o) => !o)} data-source-notes="">
+            {open ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />}
+            {notes.length > 0 ? notesLabel(result, notes) : 'About this data'}
+          </button>
+        )}
+      </p>
+      {open && (
+        <p id={`${id}-notes`} className="ck-source__notes">
+          {all.join(' ')}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export function ChartFrame({ title, result, source, coverage, modes = true, defaultMode = 'count', legend = 'swatch', scopeLabel, onDrill, onFilter, actions, unreadAction, scheme, pins, children }: ChartFrameProps) {
@@ -189,10 +232,7 @@ export function ChartFrame({ title, result, source, coverage, modes = true, defa
         </>
       )}
       {view.host.tip}
-      <p className="ck-source note">
-        {source}
-        {notes.length > 0 && <> {notes.join(' ')}</>}
-      </p>
+      <SourceLine id={id} source={source} notes={notes} result={result} />
     </figure>
   );
 }

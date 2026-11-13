@@ -19,13 +19,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { Sparkline } from '../components/charts.tsx';
+import { ChevronDownIcon, ChevronRightIcon } from '../components/icons.tsx';
 import { briefingSource, Customize, PeekLinks, useBriefing } from '../components/briefing.tsx';
 import { useChatScope } from '../components/ask.tsx';
 import { ANALYZE } from '../agent.ts';
-import { dateTime } from '../format.ts';
-import { whoText } from '../components/analysis.tsx';
 import { SummaryCharts } from './summary-charts.tsx';
-import { setPrefs, useBriefingPrefs } from '../briefing-prefs.ts';
+import { useBriefingPrefs } from '../briefing-prefs.ts';
 import { AnswerHero, NeedsAttention } from '../components/summary.tsx';
 import { answerOf, cardsOf, contextOf } from '../model/summary.ts';
 import { parseRoute } from '../App.tsx';
@@ -52,6 +51,8 @@ export function Overview() {
   const view = useBriefing();
   const prefs = useBriefingPrefs();
   const plain = usePlain();
+  // Closed on every visit: the Summary's focus is the status and what needs attention. Only a finished Get a briefing, or a red line's jump, opens it.
+  const [fullOpen, setFullOpen] = useState(false);
   // Worked out once per briefing and clock, from the models the full briefing below reads, so the two can't disagree.
   const { answer, cards } = useMemo(() => {
     const c = contextOf({ d: toilProject, now, byId, h, p, view, plain: plain.on });
@@ -84,7 +85,7 @@ export function Overview() {
           )}
         </span>
       </p>
-      <BriefingActions view={view} />
+      <BriefingActions view={view} onWritten={() => setFullOpen(true)} />
       {/* A briefing that didn't parse, or named items this toil project lacks, is said up here: a layout fold never hides it. */}
       {view.problems.map((p) => (
         <p key={p} className="briefing__warning" role="note">
@@ -103,7 +104,7 @@ export function Overview() {
           {alerts.map((r) => (
             <p key={r.lens} className="reason reason--line" data-alert={r.lens}>
               <span className="reason__dot reason__dot--danger" aria-hidden="true" />
-              <button type="button" className="reason__jump" onClick={() => showReason(r.lens)}>
+              <button type="button" className="reason__jump" onClick={() => showReason(r.lens, setFullOpen)}>
                 <b>{r.label}</b>
                 {r.items.length > 0 && <span className="reason__count">{r.items.length}</span>}
                 <span className="sr-only">, show it in the full briefing</span>
@@ -146,30 +147,30 @@ export function Overview() {
       )}
       {worklog && <StandupCard api={worklog} />}
       <SummaryCharts />
-      <details
-        className="briefing__full"
-        open={prefs.fullOpen}
-        onToggle={(e) => {
-          if (e.currentTarget.open !== prefs.fullOpen) setPrefs({ fullOpen: e.currentTarget.open });
-        }}
-        data-full-briefing=""
-      >
-        <summary>Show the full briefing</summary>
-        <p className="briefing__meta">
-          <Customize lenses={view.reasons.filter((r) => r.severity !== 'danger').map((r) => ({ lens: r.lens, label: r.label }))} />
-          {tuned && (
+      <div className="briefing__full" data-full-briefing="">
+        <Button className="briefing__toggle" aria-expanded={fullOpen} aria-controls="full-briefing-body" onPress={() => setFullOpen((o) => !o)} data-full-toggle="">
+          {fullOpen ? <ChevronDownIcon size={16} /> : <ChevronRightIcon size={16} />}
+          {fullOpen ? 'Hide the full briefing' : 'Show the full briefing'}
+        </Button>
+        {/* Hidden, not left out of the page: it renders as a closed details did, and an item shown from a line outside it can open it. */}
+        <div id="full-briefing-body" className="briefing__full-body" hidden={!fullOpen}>
+        {tuned && (
+          <p className="briefing__meta">
             <span className="source" data-focus-from="">
               {plain.pw('Analyze settings', 'Briefing settings')} from {tuned.file}, {tuned.adopted ? 'your own Toil project' : "a Toil project you haven't adopted"}
             </span>
-          )}
-        </p>
+          </p>
+        )}
         <Links page={prefs.opensIn === 'page'}>
           <h2 className="sr-only">Recommendation</h2>
           <p className="briefing__head">{view.recommendation ? <Cited text={view.recommendation} /> : 'Nothing needs anyone right now.'}</p>
         <section aria-labelledby="why-title">
-          <h2 id="why-title" className="briefing__label">
-            Why <Help topic="briefing" />
-          </h2>
+          <div className="briefing__labelrow">
+            <h2 id="why-title" className="briefing__label">
+              Why <Help topic="briefing" />
+            </h2>
+            <Customize lenses={view.reasons.filter((r) => r.severity !== 'danger').map((r) => ({ lens: r.lens, label: r.label }))} />
+          </div>
           <div className="reasons">
             {shown.map((r, i) => (
               <Reason key={`${r.lens}-${i}`} reason={r} open={i === 0 && prefs.firstOpen} here={here} />
@@ -228,7 +229,8 @@ export function Overview() {
           <summary>The numbers</summary>
           <MetricStrip />
         </details>
-        </details>
+        </div>
+      </div>
       <nav className="briefing__links" aria-label={`More on ${toilProject.name}`}>
         <span className="briefing__label">Go to</span>
         <a href={boardHref(toilProject.name)}>Board</a>
@@ -244,11 +246,11 @@ export function Overview() {
 
 /**
  * Get a briefing, where the briefing is (#567): the button beside the one it replaces, and the result landing here. Pressing it asks
- * the agent (the same Analyze the Ask bar runs); when the answer is kept the briefing above is the new one, the full briefing opens
- * on it, and one line says when it was written and by whom. A run that fails says so here, not only in the chat. Earlier ones are a
+ * the agent (the same Analyze the Ask bar runs); when the answer is kept the briefing above is the new one, the full briefing opens (the only time it opens by itself)
+ * on it, and the status beside the button is a two-word confirmation (the hero above says when and by whom). A run that fails says so here, not only in the chat. Earlier ones are a
  * quiet link a step in. One button, and no tab to look for the result in.
  */
-function BriefingActions({ view }: { view: ReturnType<typeof useBriefing> }) {
+function BriefingActions({ view, onWritten }: { view: ReturnType<typeof useBriefing>; onWritten: () => void }) {
   const chat = useChatScope();
   const plain = usePlain();
   const { toilProject } = useData();
@@ -264,13 +266,14 @@ function BriefingActions({ view }: { view: ReturnType<typeof useBriefing> }) {
     const ask = asked.current;
     if (ask && id && id !== ask.was) {
       asked.current = null;
-      setPrefs({ fullOpen: true });
-      setSaid({ ok: true, text: `New briefing written ${dateTime(view.analysis!.at)} by ${whoText(view.analysis!)}.` });
+      onWritten();
+      // The hero already says when it was written and by whom; this is only the confirmation, read aloud.
+      setSaid({ ok: true, text: 'Briefing updated' });
       // The fold opens on the next paint; the briefing is then brought into view and the keyboard put on it.
       setTimeout(() => {
         const d = document.querySelector<HTMLElement>('[data-full-briefing]');
         d?.scrollIntoView?.({ block: 'start' });
-        d?.querySelector<HTMLElement>('summary')?.focus({ preventScroll: true });
+        d?.querySelector<HTMLElement>('[data-full-toggle]')?.focus({ preventScroll: true });
       }, 50);
     }
     seen.current = id;
@@ -316,8 +319,8 @@ function BriefingActions({ view }: { view: ReturnType<typeof useBriefing> }) {
 }
 
 /** Opens the full briefing and the reason a line outside it names, and puts the keyboard on it. */
-function showReason(lens: string) {
-  setPrefs({ fullOpen: true });
+function showReason(lens: string, open: (v: boolean) => void) {
+  open(true);
   setTimeout(() => {
     const d = document.querySelector<HTMLDetailsElement>(`details[data-reason="${CSS.escape(lens)}"]`);
     if (!d) return;
