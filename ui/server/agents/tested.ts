@@ -10,7 +10,7 @@
 import type { AdapterName } from './runtime.ts';
 
 export const TESTED: Record<AdapterName, readonly string[]> = {
-  claude: ['@anthropic-ai/claude-agent-sdk@0.3.289', 'zod@4.6.5'],
+  claude: ['@anthropic-ai/claude-agent-sdk@0.3.289', 'zod@4.6.7'],
   copilot: ['@github/copilot-sdk@1.0.16'],
   codex: ['@openai/codex-sdk@0.160.0'],
 };

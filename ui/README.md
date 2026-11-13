@@ -1146,7 +1146,7 @@ machine where you'd rather run it yourself. This is the one thing Toil UI runs n
 for (docs/decisions/343-ask-up-front.md).
 
 - **Only the tested versions**: `@anthropic-ai/claude-agent-sdk@0.3.289` with
-  `zod@4.6.5`, `@github/copilot-sdk@1.0.16` and `@openai/codex-sdk@0.160.0`, exactly
+  `zod@4.6.7`, `@github/copilot-sdk@1.0.16` and `@openai/codex-sdk@0.160.0`, exactly
   (`ui/server/agents/tested.ts`). Nothing else is ever named, and `--before` holds
   everything npm resolves, the SDK's own dependencies included, to releases at least
   14 days old.
@@ -1545,7 +1545,7 @@ GitHub CLI signed in (`gh auth login`), or `TOIL_GITHUB_TOKEN` set in the shell.
   Type its id as Copilot's model under **Settings, AI agent**, and check the model each
   answer names and the premium requests under it.
 - **Ask with Claude, on Haiku.** Install `@anthropic-ai/claude-agent-sdk@0.3.289` and
-  `zod@4.6.5` the same way, and type `haiku` (or `claude-haiku-5-5`) as Claude's
+  `zod@4.6.7` the same way, and type `haiku` (or `claude-haiku-5-5`) as Claude's
   model under **Settings, AI agent**; empty would be Claude Code's own default, which
   may be Opus. Claude Code keeps its sign-in in `~/.claude`, which the scratch home
   hides, and refreshing it from there would rewrite your credentials file, so the

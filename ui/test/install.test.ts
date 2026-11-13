@@ -54,7 +54,7 @@ describe('the install command', () => {
     const uiDir = 'C:\\Program Files\\nodejs\\node_modules\\@imagile-dev\\toil-ui';
     const plan = installPlan('claude', { ...base, uiDir, platform: 'win32', execPath: 'C:\\Program Files\\nodejs\\node.exe', exists: files('C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js') });
     expect(plan.kind).toBe('global');
-    expect(plan.command).toBe('npm install --global --prefix "C:\\Program Files\\nodejs" --ignore-scripts --before=2026-09-29 --no-audit --no-fund --omit=optional @anthropic-ai/claude-agent-sdk@0.3.289 zod@4.6.5');
+    expect(plan.command).toBe('npm install --global --prefix "C:\\Program Files\\nodejs" --ignore-scripts --before=2026-09-29 --no-audit --no-fund --omit=optional @anthropic-ai/claude-agent-sdk@0.3.289 zod@4.6.7');
     expect(plan.argv![3]).toBe('--global');
     expect(plan.argv![5]).toBe('C:\\Program Files\\nodejs');
   });
