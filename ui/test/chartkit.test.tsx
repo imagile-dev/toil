@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { assignMarks } from '../src/components/chartkit/assign.ts';
