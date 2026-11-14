@@ -74,7 +74,7 @@
     "oracledb": "7.0.1",
     "pg": "8.23.1",
     "pg-cursor": "2.22.1",
-    "tedious": "20.3.3",
+    "tedious": "20.3.8",
     "thrift": "0.23.0",
     "tsup": "9.0.0",
     "typescript": "6.0.3",
