@@ -60,7 +60,7 @@
     "verify:ui": "npm run verify:ui -w ui --"
   },
   "devDependencies": {
-    "@cfworker/json-schema": "4.1.1",
+    "@cfworker/json-schema": "4.1.4",
     "@eslint/js": "10.0.1",
     "@modelcontextprotocol/sdk": "1.32.2",
     "@types/node": "24.19.0",
