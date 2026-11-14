@@ -217,7 +217,7 @@ export function prepareAdoHome({ home, project, env, log = say }) {
  * clone, at the versions ui/server/agents/tested.ts names. An unsaved install
  * removes the SDKs it doesn't name, so each line names the others too.
  */
-const SDK_SPECS = { codex: '@openai/codex-sdk@0.160.0', copilot: '@github/copilot-sdk@1.0.16', claude: '@anthropic-ai/claude-agent-sdk@0.3.289 zod@4.6.5' };
+const SDK_SPECS = { codex: '@openai/codex-sdk@0.160.0', copilot: '@github/copilot-sdk@1.0.16', claude: '@anthropic-ai/claude-agent-sdk@0.3.289 zod@4.6.7' };
 export const ADAPTERS = {
   codex: { label: 'Codex', package: '@openai/codex-sdk' },
   copilot: { label: 'GitHub Copilot', package: '@github/copilot-sdk' },

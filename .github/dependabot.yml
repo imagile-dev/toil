@@ -1,0 +1,136 @@
+# Dependabot version updates (#586). Security updates are a separate repository
+# setting ("Dependabot security updates"), which a file cannot turn on.
+#
+# Every npm entry waits 14 days after a release before proposing it (CLAUDE.md,
+# Secrets: the 14-day rule). A security update can bypass a cooldown, so a
+# patched release younger than 14 days may still arrive as a PR; the review
+# decides whether to take it early.
+#
+# What ships is kept out of the dev-tooling group, so each bundled package gets
+# its own PR and its own review: everything esbuild folds into dist/toil-lib.js
+# (the MCP SDK, zod, ajv's tree, the database drivers, commander) and the
+# libraries Toil UI's front end is built from (React and friends). Everything
+# else never reaches a user, and its minor and patch updates arrive as one PR.
+# Majors are never grouped.
+#
+# The root entry covers the `ui` workspace through the one root lockfile.
+
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+    ignore:
+      # @types/node follows the Node floor (engines), not the newest Node.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+    groups:
+      dev-tooling:
+        patterns:
+          - '*'
+        exclude-patterns:
+          # Bundled into the published package (dist/toil-lib.js).
+          - '@cfworker/json-schema'
+          - '@modelcontextprotocol/sdk'
+          - 'ajv*'
+          - 'commander'
+          - 'fast-uri'
+          - 'hive-driver'
+          - 'js-yaml'
+          - 'mysql2'
+          - 'oracledb'
+          - 'pg'
+          - 'pg-*'
+          - 'tedious'
+          - 'thrift'
+          - 'zod'
+          # Built into Toil UI's front end (ui/dist/app).
+          - '@dnd-kit/*'
+          - '@fontsource/*'
+          - '@xyflow/react'
+          - 'react'
+          - 'react-aria-components'
+          - 'react-dom'
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: npm
+    directory: /site
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+    ignore:
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+    groups:
+      site-tooling:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: npm
+    directory: /functions/feedback
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+    ignore:
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+    groups:
+      # The function's runtime dependencies (the @azure packages) are deployed,
+      # so they keep their own PRs; only its dev tooling is grouped.
+      function-dev-tooling:
+        dependency-type: development
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    # Workflows pin every action to a commit SHA with its version in a comment
+    # (the automation skill); Dependabot updates both. No cooldown here: the
+    # 14-day rule is about npm packages, and an action update is read at its SHA.
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+    groups:
+      actions:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
