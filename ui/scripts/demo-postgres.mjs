@@ -41,10 +41,14 @@ if (!running) {
   if (run.status !== 0) fail(`docker run failed: ${run.stderr.trim()}`, `Check that port ${PORT} is free.`);
   say(`${NAME}: started (${IMAGE}, 127.0.0.1:${PORT})`);
 }
-for (let i = 0; i < 60; i++) {
-  if (docker(['exec', NAME, 'pg_isready', '-U', 'postgres', '-d', 'payments']).status === 0) break;
-  spawnSync(process.execPath, ['-e', 'setTimeout(() => {}, 1000)']);
+// Ask over TCP: the image's temporary init server answers on the unix socket only,
+// so a socket check can pass while that server is about to shut down.
+let ready = false;
+for (let i = 0; i < 60 && !ready; i++) {
+  ready = docker(['exec', NAME, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres', '-d', 'payments']).status === 0;
+  if (!ready) spawnSync(process.execPath, ['-e', 'setTimeout(() => {}, 1000)']);
 }
+if (!ready) fail(`${NAME} didn't accept connections within a minute.`, `Look at docker logs ${NAME}, or run this again with --stop first.`);
 const sql = readFileSync(join(import.meta.dirname, 'demo-postgres.sql'), 'utf8');
 const load = docker(['exec', '-i', NAME, 'psql', '-v', 'ON_ERROR_STOP=1', '-q', '-U', 'postgres', '-d', 'payments'], sql);
 if (load.status !== 0) fail(`loading demo-postgres.sql failed: ${load.stderr.trim()}`, 'Fix the SQL and run this again.');

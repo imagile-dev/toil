@@ -1,27 +1,42 @@
 // Builds the clean demo home Toil UI and the toil CLI are recorded in:
 //
 //   node ui/scripts/demo-home.mjs                 # ~/toil-demo-home
-//   node ui/scripts/demo-home.mjs --home <dir> --fresh
+//   node ui/scripts/demo-home.mjs --fresh         # delete it and build it again
+//   node ui/scripts/demo-home.mjs --launch        # then start Toil UI in it
+//   node ui/scripts/demo-home.mjs --home <dir>
 //
 // In <home> it writes:
-//   - .toil/config.json: a copy of your ~/.toil/config.json with writes turned
-//     off on every connection. Secrets in it are keychain: references only, so
-//     the tokens stay in the OS credential store; a plaintext one stops the run.
-//     It adds a `github` connection with no token (launch with TOIL_GITHUB_TOKEN
-//     from gh auth token, see docs/demo-reset.md) and a `ledger` SQLite one.
+//   - .toil/config.json: the demo's connections only (DEMO_CONNECTIONS, below),
+//     copied from your ~/.toil/config.json with writes turned off on each, so no
+//     other connection of yours (a work host) appears on camera. Secrets in it are
+//     keychain: references only, so the tokens stay in the OS credential store; a
+//     plaintext one stops the run. It adds a `github` connection with no token and
+//     a `ledger` SQLite one.
 //   - ledger.db: a made-up ledger of 6 merchants, 60 settlements and 12
-//     chargebacks, built with node:sqlite and the same every time (seeded).
+//     chargebacks, built with node:sqlite: the same rows every time, dated
+//     relative to today.
+//   - .toil-demo-home, a marker: --fresh deletes a folder only when it carries it.
+// toil runs in the home with every TOIL_* variable of your shell removed, so none
+// can turn writes back on or pick another toil project. --launch starts Toil UI
+// the same way, with HOME and USERPROFILE both set (Windows goes by the second)
+// and the GitHub token read from `gh auth token` into that one process: run it
+// yourself, since it hands a token over. Nothing is printed or written.
 //   - the toil project `payments-team`, made with toil's own projects commands,
 //     tying Jira SCRUM, GitHub imagile-dev/toil-sandbox, Azure DevOps "Toil
 //     Sandbox" and the ledger together.
 // Repo tooling only: nothing here ships. A clean desk, set up for the camera,
 // as is traditional.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
+import { npmCli } from './package-rules.mjs';
+
+/** The connections the demo uses; nothing else of yours is copied. */
+export const DEMO_CONNECTIONS = ['jira', 'confluence', 'ado', 'figma', 'payments-db'];
+const MARKER = '.toil-demo-home';
 
 const args = process.argv.slice(2);
 const take = (flag, fallback) => {
@@ -34,10 +49,18 @@ const flag = (name) => {
 };
 const home = resolve(take('--home', join(homedir(), 'toil-demo-home')));
 const fresh = flag('--fresh');
+const launch = flag('--launch');
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const toilJs = resolve(take('--toil', join(root, 'dist', 'toil.js')));
-if (args.length) fail(`Unknown argument: ${args.join(' ')}`, 'Use --home <dir>, --fresh and --toil <path>.');
-if (home === homedir()) fail('The demo home must not be your real home.', 'Pick another folder with --home.');
+if (args.length) fail(`Unknown argument: ${args.join(' ')}`, 'Use --home <dir>, --fresh, --launch and --toil <path>.');
+// The demo home is never your home, a folder holding it, or anything in or around this repository.
+const fold = (path) => (process.platform === 'win32' ? path.toLowerCase() : path);
+const inside = (child, parent) => {
+  const rel = relative(fold(parent), fold(child));
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+};
+if (inside(homedir(), home)) fail(`${home} is, or holds, your home folder.`, 'Pick a folder of its own with --home, such as ~/toil-demo-home.');
+if (inside(root, home) || inside(home, root)) fail(`${home} is in or around this repository.`, 'Pick a folder outside the repository with --home, such as ~/toil-demo-home.');
 
 function fail(message, fix) {
   process.stderr.write(`demo-home: ${message}\n  Fix: ${fix}\n`);
@@ -45,28 +68,45 @@ function fail(message, fix) {
 }
 const say = (line) => process.stdout.write(`${line}\n`);
 
-if (fresh) rmSync(home, { recursive: true, force: true });
+if (fresh && existsSync(home)) {
+  if (!existsSync(join(home, MARKER))) fail(`${home} isn't a demo home this script made (it has no ${MARKER}), so --fresh won't delete it.`, 'Pick another --home, or delete it yourself if you mean to.');
+  rmSync(home, { recursive: true, force: true });
+}
 mkdirSync(join(home, '.toil'), { recursive: true });
+writeFileSync(join(home, MARKER), 'Made by ui/scripts/demo-home.mjs. --fresh deletes this folder.\n');
 // macOS's `security` finds the login keychain under $HOME/Library, so a home with
 // another HOME needs the real Keychains folder linked in, or every keychain:
 // reference reads as missing. Windows and Linux stores don't go by HOME.
-if (process.platform === 'darwin' && !existsSync(join(home, 'Library', 'Keychains'))) {
-  mkdirSync(join(home, 'Library'), { recursive: true });
-  symlinkSync(join(homedir(), 'Library', 'Keychains'), join(home, 'Library', 'Keychains'));
+if (process.platform === 'darwin') {
+  const link = join(home, 'Library', 'Keychains');
+  let isLink = false;
+  try {
+    isLink = lstatSync(link).isSymbolicLink();
+  } catch {
+    // nothing there yet
+  }
+  if (isLink && !existsSync(link)) rmSync(link); // a dangling link from a moved home
+  if (!existsSync(link)) {
+    mkdirSync(join(home, 'Library'), { recursive: true });
+    symlinkSync(join(homedir(), 'Library', 'Keychains'), link);
+  }
 }
 
 // Config: a copy with writes off, keychain references only ------------------------------
 const realConfig = join(homedir(), '.toil', 'config.json');
 if (!existsSync(realConfig)) fail(`There is no ${realConfig}.`, 'Add the jira and ado connections first (docs/demo-reset.md).');
-const config = JSON.parse(readFileSync(realConfig, 'utf8'));
-config.version ??= 2;
-config.connections ??= {};
-const SECRET_KEYS = ['apiToken', 'pat', 'token', 'password', 'apiKey'];
-for (const [name, conn] of Object.entries(config.connections)) {
-  for (const key of SECRET_KEYS) {
-    if (typeof conn[key] === 'string' && !conn[key].startsWith('keychain:')) fail(`Connection ${name} holds a plaintext ${key}.`, `Run toil connections login ${name} so it becomes a keychain: reference.`);
+const mine = JSON.parse(readFileSync(realConfig, 'utf8'));
+const config = { version: mine.version ?? 2, connections: {}, defaults: {} };
+// Any key that names a secret: a value there must be a keychain: reference. `<key>From` names a connection.
+const SECRET_KEY = /token|key|pass|secret|connectionstring|code/i;
+for (const name of DEMO_CONNECTIONS) {
+  const conn = mine.connections?.[name];
+  if (!conn) continue;
+  for (const [key, value] of Object.entries(conn)) {
+    if (SECRET_KEY.test(key) && !key.endsWith('From') && typeof value === 'string' && !value.startsWith('keychain:')) fail(`Connection ${name} holds a plaintext ${key}.`, `Run toil connections login ${name} so it becomes a keychain: reference.`);
   }
-  conn.writes = false;
+  config.connections[name] = { ...conn, writes: false };
+  if (mine.defaults?.[conn.area]) config.defaults[conn.area] = { ...mine.defaults[conn.area], connection: name };
 }
 config.connections.github ??= { area: 'github', baseUrl: 'https://api.github.com' };
 config.connections.github.writes = false;
@@ -108,8 +148,10 @@ db.close();
 say(`ledger: ${ledgerPath} (6 merchants, 60 settlements, 12 chargebacks)`);
 
 // The toil project ------------------------------------------------------------------------
+// Your shell's environment without any TOIL_* variable, with HOME and USERPROFILE on the demo home.
+const demoEnv = (extra = {}) => ({ ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^TOIL_/i.test(k))), HOME: home, USERPROFILE: home, ...extra });
 const toil = (...argv) => {
-  const res = spawnSync(process.execPath, [toilJs, ...argv], { encoding: 'utf8', env: { ...process.env, HOME: home, USERPROFILE: home } });
+  const res = spawnSync(process.execPath, [toilJs, ...argv], { encoding: 'utf8', env: demoEnv() });
   try {
     return JSON.parse(res.stdout);
   } catch {
@@ -130,3 +172,13 @@ if (config.connections.figma) must(toil('projects', 'link', P, 'figma', '--conne
 const check = toil('projects', 'check', P);
 say(`toil project ${P}: ${check.ok && check.data?.ok !== false ? 'checks out' : `check says ${JSON.stringify(check.data?.problems ?? check.error)}`}`);
 say(`demo home ready: ${home}`);
+
+// Toil UI in the demo home ------------------------------------------------------------------
+if (launch) {
+  // gh reads its login with your real environment; the token goes only to Toil UI's process.
+  const token = spawnSync('gh', ['auth', 'token'], { encoding: 'utf8' });
+  if (token.status !== 0 || !token.stdout.trim()) fail("couldn't read a GitHub token from gh.", 'Sign in with gh auth login, then run this again.');
+  say('starting Toil UI in the demo home (Ctrl+C to stop)');
+  const ui = spawnSync(process.execPath, [npmCli(), 'exec', '--yes', '--', '@imagile-dev/toil-ui'], { stdio: 'inherit', env: demoEnv({ TOIL_GITHUB_TOKEN: token.stdout.trim() }) });
+  process.exit(ui.status ?? 1);
+}

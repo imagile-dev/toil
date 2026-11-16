@@ -4,7 +4,9 @@ Every demo recording tells one story, so a viewer who watches several videos see
 the same people, merchants and problems connect across tools. The data is seeded by
 the scripts in [demo-reset.md](demo-reset.md). All of it is made up: Deliverables
 Unlimited, Overdraft Federal, their merchants and their people don't exist. The
-audience is American, so every amount is in US dollars.
+audience is American, so every amount in the story is in US dollars. A few older
+sandbox issues (EU card exemptions, FX rates) are Overdraft Federal serving merchants'
+foreign customers, and the replica's dates are relative to the day it's loaded.
 
 ## The engagement
 
@@ -20,7 +22,7 @@ which is the whole point of the story:
 
 | Team | Owns | Tracks work in | Code in |
 |---|---|---|---|
-| **Checkout** | the hosted checkout, saved cards, 3-D Secure | Jira `SCRUM` | — |
+| **Checkout** | the hosted checkout, saved cards, 3-D Secure | Jira `SCRUM` | GitHub `toil-sandbox` (shared with Platform) |
 | **Platform** | the payments service: capture, idempotency, the card vault | GitHub `toil-sandbox` issues and milestones | GitHub `toil-sandbox` |
 | **Settlement** | batches, payouts, the ledger, reconciliation | Azure DevOps `Toil Sandbox` | ADO `settlement-service` |
 
@@ -116,7 +118,7 @@ logging, refund reasons) that the agent can read first:
 | Item | Team | Why it exists |
 |---|---|---|
 | GitHub **#38**: format amounts as US dollars (`-$1,234.50`) in `formatAmount` | Platform | Statements and the payout preview print "-1234.50 USD". The same money code is behind the half-cent rounding that leaves refunds $0.01 short (view `payments.refund_shortfalls`), which is why the money standard exists |
-| Jira **SCRUM-55**: `maskPan()` for the logs | Checkout | The PCI audit (GitHub #33) found card numbers in debug logs, and SCRUM-16 split the helper out |
+| Jira **SCRUM-55**: `maskPan()` for the logs | Checkout | The debug-log bug (GitHub #25) and the PCI audit evidence (#33) both point at card data in logs, and SCRUM-16 split the helper out |
 | ADO **#194**: refuse an unknown refund reason | Settlement | The dispute webhook (GitHub #20) needs clean reason codes |
 
 ## Friday: Black Friday readiness

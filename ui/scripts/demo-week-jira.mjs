@@ -1,15 +1,19 @@
 // The Jira half of demo-week.mjs: makes the active sprint the current one
 // (renamed to --sprint, running to --ends), gives the three placeholder issues a
-// Jira site starts with believable payments titles, makes a day of movement, adds
-// one blocker so the vault story holds up the stored-token charge, and creates
-// one story ready for an agent. Everything goes through toil with --allow-write,
-// so the `jira` connection's writes decide, and the project is always named.
-// Issues are found by key or by `seed:<key>` label, and each step looks first,
-// so a second run changes nothing. Repo tooling only: nothing here ships. Task 1,
-// Task 2 and Task 3 have been promoted, as placeholders eventually are.
+// new Jira site starts with believable payments titles, makes a day of movement,
+// adds one blocker so the vault story holds up the stored-token charge, and keeps
+// one story ready for an agent open. Everything goes through toil with
+// --allow-write, so the `jira` connection's writes decide, and the project is
+// always named. An issue is changed only when it carries the `toil-seed` label
+// (the placeholders are the one exception, and only while they still have their
+// placeholder titles); anything else is skipped and said. A read that fails stops
+// the run rather than being taken for "nothing there", so a second run never
+// posts twice. Repo tooling only: nothing here ships. Task 1, Task 2 and Task 3
+// have been promoted, as placeholders eventually are.
 const day = 24 * 60 * 60 * 1000;
 
-export function jira({ toil, say, sprint, ends, project, item, note }) {
+export function jira({ toil, say, fail, sprint, ends, project, item, note }) {
+  if (!/^[A-Z][A-Z0-9_]{1,19}$/.test(project)) fail(`"${project}" isn't a Jira project key.`, 'Use the test project from CLAUDE.md, SCRUM.');
   const p = ['--project', project];
   const w = ['--allow-write'];
   say(`Jira project ${project}`);
@@ -29,9 +33,15 @@ export function jira({ toil, say, sprint, ends, project, item, note }) {
   }
 
   const get = (key) => toil(['jira', 'issue', 'get', key, '--select', '{key: key, summary: fields.summary, status: fields.status.name, labels: fields.labels, assignee: fields.assignee.accountId}'], { soft: true }).data;
-  const me = get(`${project}-14`)?.assignee;
+  // The token's own account: the one issue it is assigned, if any. No one else is ever assigned.
+  const me = toil(['jira', 'issue', 'search', '--jql', `project = "${project}" AND assignee = currentUser()`, '--limit', '1', '--fields', 'assignee', '--select', 'issues[0].fields.assignee.accountId']).data ?? undefined;
   const marker = `(${sprint} update, ${note})`;
-  const commented = (key) => JSON.stringify(toil(['jira', 'issue', 'comments', key], { soft: true }).data ?? '').includes(`${sprint} update`);
+  const commented = (key) => {
+    const read = toil(['jira', 'issue', 'comments', key], { soft: true });
+    if (!read.ok) fail(`couldn't read the comments on ${key}: ${read.error.message}`, 'Run it again; a failed read is never taken for "no comment yet".');
+    return JSON.stringify(read.data).includes(`${sprint} update`);
+  };
+  const seeded = (issue) => issue?.labels?.includes('toil-seed');
 
   // Placeholders a new site creates, given real work to stand for.
   const renames = [
@@ -56,7 +66,12 @@ export function jira({ toil, say, sprint, ends, project, item, note }) {
   ];
   for (const m of moves) {
     const issue = get(m.key);
-    if (!issue || commented(m.key)) continue;
+    if (!issue) continue;
+    if (!seeded(issue)) {
+      say(`  skipped ${m.key}: it doesn't carry the toil-seed label`);
+      continue;
+    }
+    if (commented(m.key)) continue;
     if (m.assign && me && issue.assignee !== me) toil(['jira', 'issue', 'assign', m.key, '--assignee', me, ...w]);
     if (m.to && issue.status !== m.to) toil(['jira', 'issue', 'transition', m.key, '--transition', m.to, ...w]);
     toil(['jira', 'issue', 'comment', m.key, '--body', `${m.comment} ${marker}`, ...w]);
@@ -64,19 +79,28 @@ export function jira({ toil, say, sprint, ends, project, item, note }) {
   }
 
   // The vault story also holds up charging a stored token.
-  const links = toil(['jira', 'issue', 'get', `${project}-15`, '--select', 'fields.issuelinks[].inwardIssue.key'], { soft: true }).data ?? [];
-  if (!links.includes(`${project}-14`)) {
-    toil(['jira', 'issue', 'link', `${project}-14`, '--type', 'Blocks', '--target', `${project}-15`, ...w]);
-    say(`  ${project}-14 blocks ${project}-15`);
+  const [vault, charge] = [get(`${project}-14`), get(`${project}-15`)];
+  if (seeded(vault) && seeded(charge)) {
+    const links = toil(['jira', 'issue', 'get', `${project}-15`, '--select', 'fields.issuelinks[].inwardIssue.key']).data ?? [];
+    if (!links.includes(`${project}-14`)) {
+      toil(['jira', 'issue', 'link', `${project}-14`, '--type', 'Blocks', '--target', `${project}-15`, ...w]);
+      say(`  ${project}-14 blocks ${project}-15`);
+    }
   }
 
-  // One story ready for an agent, in the sprint, unassigned.
-  const found = toil(['jira', 'issue', 'search', '--jql', `project = ${project} AND labels = "seed:agent-maskpan"`, '--limit', '1']).data.issues?.[0];
+  // One story ready for an agent: in the sprint, unassigned, and open even after a recording closed it.
+  const found = toil(['jira', 'issue', 'search', '--jql', `project = "${project}" AND labels = "seed:agent-maskpan"`, '--limit', '1']).data.issues?.[0];
   if (!found) {
     const created = toil(['jira', 'issue', 'create', ...p, '--type', 'Story', '--summary', item.summary, '--description', item.description, '--labels', 'agent-ready,toil-seed,seed:agent-maskpan', ...w]).data;
     toil(['jira', 'issue', 'set-sprint', created.key, '--sprint', String(active.id), ...w]);
-    toil(['jira', 'issue', 'link', created.key, '--type', 'Relates', '--target', `${project}-16`, ...w], { soft: true });
-    say(`  ${created.key}: agent-ready story created`);
+    const link = toil(['jira', 'issue', 'link', created.key, '--type', 'Relates', '--target', `${project}-16`, ...w], { soft: true });
+    say(`  ${created.key}: agent-ready story created${link.ok ? '' : `, but the link to ${project}-16 failed: ${link.error.message}`}`);
+  } else {
+    const story = get(found.key);
+    if (story && story.status !== 'To Do') {
+      toil(['jira', 'issue', 'transition', found.key, '--transition', 'To Do', ...w]);
+      say(`  ${found.key}: agent-ready story back to To Do`);
+    }
   }
   say(`  done: sprint ${active.id} on board ${board.id}`);
 }

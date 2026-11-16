@@ -80,11 +80,12 @@ SELECT row_number() OVER (), m.id, d::date, (d - interval '1 day')::date, (d - i
 FROM merchants m, generate_series(current_date - 20, current_date + 2, interval '1 day') d
 WHERE m.id <> 4 OR d < now() - interval '4 days';
 -- Lumen Games moved from daily to weekly 4 days ago: the pending balance split in two,
--- and the second payout carries the old daily period.
+-- and the second payout, due the coming Friday, carries the old daily period.
+-- Every date here is relative to the day the script runs.
 INSERT INTO payouts (id, merchant_id, scheduled_for, period_start, period_end, amount_minor, status)
 SELECT max(id) + 1, 4, current_date - 3, current_date - 4, current_date - 4, 81250, 'paid' FROM payouts;
 INSERT INTO payouts (id, merchant_id, scheduled_for, period_start, period_end, amount_minor, status)
-SELECT max(id) + 1, 4, current_date + 3, current_date - 4, current_date - 4, 264900, 'scheduled' FROM payouts;
+SELECT max(id) + 1, 4, current_date + ((5 - extract(isodow FROM current_date)::int + 6) % 7) + 1, current_date - 4, current_date - 4, 264900, 'scheduled' FROM payouts;
 
 CREATE TABLE job_runs (
   id serial PRIMARY KEY, job text NOT NULL, started_at timestamptz NOT NULL, finished_at timestamptz,

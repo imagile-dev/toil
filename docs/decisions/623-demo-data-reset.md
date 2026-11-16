@@ -11,7 +11,7 @@
   Where: `ui/scripts/demo-week-ado.mjs`, and `docs/demo-reset.md`, **Stopgaps**.
 - **The active Jira sprint is renamed and re-dated, not completed and replaced.**
   Completing would move issues and close history; renaming keeps the board as it
-  was and is what the 10 Nov run did. The three placeholder issues a new Jira site
+  was. The three placeholder issues a new Jira site
   starts with ("Task 1/2/3") get real titles, but only while they still have the
   placeholder title.
 - **ADO keeps its own sprint names** (Sprint 1 is the current one) instead of
@@ -30,8 +30,28 @@
   the login keychain under `$HOME/Library`; without it every `keychain:` reference
   reads as missing. The toil-side fix (and an honest error) is in #617.
 - **The Confluence pages are the source; the Python generator that first wrote them
-  stays out of the repository**, because repo tooling runs only node, git, gh and a
-  browser. Where: `ui/scripts/demo-confluence/`.
+  stays out of the repository**, because repo tooling doesn't run Python. Where:
+  `ui/scripts/demo-confluence/`.
+- **The Postgres replica runs in Docker**, a developer tool with precedent in the
+  `databases` skill's local runs. It binds loopback only and nothing here ships.
+  Where: `ui/scripts/demo-postgres.mjs`.
+- **demo-week takes no target flags**: the three test projects are constants
+  (`SANDBOX` in `ui/scripts/demo-week-data.mjs`), so a run can't be aimed anywhere
+  else. GitHub has no seed mark from `seed-sandbox.mjs`; what demo-week creates there
+  gets the label `toil-seed`.
+- **A failed read stops a run** instead of counting as "nothing there", so a run
+  never posts a comment twice. An earlier draft did, once, on ADO #157; the
+  duplicate, which that run had posted itself, was deleted.
+- **The demo home copies only the demo's five connections**, refuses any secret-like
+  key that isn't a `keychain:` reference, runs toil without the shell's `TOIL_*`
+  variables, and `--fresh` deletes only a folder carrying its marker file. `--launch`
+  starts Toil UI there on every platform (HOME and USERPROFILE), reading the GitHub
+  token from `gh auth token` into that process only.
+- **Skipped from the review:** `npm run smoke -w ui` and `npm run verify:ui`, which
+  test Toil UI's app and screens; this change touches neither, and nothing under
+  `ui/scripts/` ships. Retitling the older GitHub sandbox issues that mention EU and
+  FX: `seed-sandbox.mjs` finds its issues by title, so retitling them would make it
+  create them again; `docs/demo-story.md` says what they stand for instead.
 - **The Figma mockup was made once in the browser and isn't reseeded**: Figma's REST
   API can't write a file. `docs/demo-reset.md` says so, and toil reads it back.
 - **The story is fictional and American**: Deliverables Unlimited (a consultancy) at

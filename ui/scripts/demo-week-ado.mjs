@@ -1,6 +1,7 @@
 // The Azure DevOps half of demo-week.mjs: dates the board's sprints so Sprint 1 is
 // the current one (ending on --ends), makes a day of movement on items the
-// ado-seed created (found by title, so a re-seed with new ids still works), adds
+// ado-seed created (found by title among items tagged toil-seed, so a re-seed with
+// new ids still works, and nothing without the seed mark is touched), adds
 // the repository `settlement-service` with the demo code and one pull request
 // waiting on review, linked to its bug, and one item ready for an agent.
 // Everything goes through toil with --allow-write, so the `ado` connection's
@@ -56,17 +57,22 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
       say(`  ${s.name}: ${isoDay(start)} to ${isoDay(finish)}`);
     }
 
-    // The seeded items, by title.
+    // The seeded items, by title. Only items tagged `toil-seed` are ever changed.
     const wiql = `SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project`;
     const ids = toil(['ado', 'work-item', 'search', ...p, '--wiql', wiql, '--limit', '500', '--select', 'workItems[].id']).data;
     const items = [];
     for (let i = 0; i < ids.length; i += 100) {
       items.push(...toil(['ado', 'work-item', 'get-many', ...ids.slice(i, i + 100).map(String), '--fields', 'System.Title,System.State,System.Tags', '--select', 'value[].{id: id, title: fields."System.Title", state: fields."System.State", tags: fields."System.Tags"}']).data);
     }
-    const find = (prefix) => items.find((w) => w.title?.startsWith(prefix));
+    const seeded = (w) => (w.tags ?? '').split(';').map((t) => t.trim()).includes('toil-seed');
+    const find = (prefix) => items.find((w) => seeded(w) && w.title?.startsWith(prefix));
     const me = toil(['ado', 'whoami']).data.authenticatedUser.providerDisplayName;
     const marker = `(${sprint} update, ${note})`;
-    const commented = (id) => toil(['ado', 'work-item', 'comments', String(id), ...p], { soft: true }).data?.some?.((c) => c.text?.includes(marker));
+    const commented = (id) => {
+      const read = toil(['ado', 'work-item', 'comments', String(id), ...p], { soft: true });
+      if (!read.ok) fail(`couldn't read the comments on #${id}: ${read.error.message}`, 'Run it again; a failed read is never taken for "no comment yet".');
+      return read.data.some((c) => c.text?.includes(marker));
+    };
 
     // A day of movement, once per sprint.
     const moves = [
@@ -78,7 +84,7 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
     for (const m of moves) {
       const w = find(m.prefix);
       if (!w) {
-        say(`  skipped "${m.prefix}": not on the board (run ui/scripts/ado-seed/apply.mjs)`);
+        say(`  skipped "${m.prefix}": no item with the toil-seed tag has that title (run ui/scripts/ado-seed/apply.mjs)`);
         continue;
       }
       if (commented(w.id)) continue;
@@ -110,7 +116,8 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
       // Bring changed demo files up to date, in one commit.
       const stale = Object.entries(skeleton).filter(([path, text]) => {
         const have = api('GET', `/${enc}/_apis/git/repositories/${repo.id}/items?path=${encodeURIComponent(`/${path}`)}&includeContent=true&versionDescriptor.version=main&api-version=7.1`, undefined, { soft: true });
-        if (!have.ok) return true;
+        if (!have.ok && have.error.code === 'NOT_FOUND') return true;
+        if (!have.ok) fail(`couldn't read ${path} in ${repoName}: ${have.error.message}`, 'Run it again.');
         // ADO serves some files (package.json) as octet-stream, which toil hands back as base64.
         const binary = have.meta?.warnings?.some((x) => x.code === 'API_BINARY');
         return (binary ? Buffer.from(have.data, 'base64').toString('utf8') : have.data) !== text;
@@ -143,17 +150,30 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
       say(`  PR ${prId}: opened, waiting on review`);
       if (bug) {
         const projectId = pr.repository?.project?.id ?? repo.project?.id;
-        api('PATCH', `/${enc}/_apis/wit/workitems/${bug.id}?api-version=7.1`, [
+        const linked = api('PATCH', `/${enc}/_apis/wit/workitems/${bug.id}?api-version=7.1`, [
           { op: 'add', path: '/relations/-', value: { rel: 'ArtifactLink', url: `vstfs:///Git/PullRequestId/${projectId}%2F${repo.id}%2F${prId}`, attributes: { name: 'Pull Request' } } },
         ], { contentType: 'application/json-patch+json', soft: true });
-        say(`  #${bug.id}: linked to PR ${prId}`);
+        say(linked.ok ? `  #${bug.id}: linked to PR ${prId}` : `  #${bug.id}: couldn't link it to PR ${prId}: ${linked.error.message}`);
       }
     }
 
-    // One item ready for an agent, in the current sprint, unassigned.
-    if (!find(item.title)) {
-      const created = toil(['ado', 'work-item', 'create', '--type', 'Product Backlog Item', '--title', item.title, '--description', item.description, '--priority', '2', '--field', `System.IterationPath=${project}\\Sprint 1`, '--field', 'System.Tags=agent-ready; demo-week', '--field', 'Microsoft.VSTS.Scheduling.Effort=1', ...p, '--allow-write']).data;
+    // One item ready for an agent: in the current sprint, unassigned, carrying the seed
+    // mark (so cleanup.mjs knows it), and open even after a recording closed it.
+    const agent = items.find((w) => w.title === item.title);
+    if (!agent) {
+      const created = toil(['ado', 'work-item', 'create', '--type', 'Product Backlog Item', '--title', item.title, '--description', item.description, '--priority', '2', '--field', `System.IterationPath=${project}\\Sprint 1`, '--field', 'System.Tags=agent-ready; toil-seed; seed:agent-refund-reasons', '--field', 'Microsoft.VSTS.Scheduling.Effort=1', ...p, '--allow-write']).data;
       say(`  #${created.id}: agent-ready item created`);
+    } else {
+      if (!seeded(agent)) {
+        // `work-item tag` is Server-only, so Services sets the whole tag list through update.
+        const tags = [...(agent.tags ?? '').split(';').map((t) => t.trim()).filter(Boolean), 'toil-seed', 'seed:agent-refund-reasons'].join('; ');
+        toil(['ado', 'work-item', 'update', String(agent.id), '--field', `System.Tags=${tags}`, ...p, '--allow-write']);
+        say(`  #${agent.id}: seed mark added`);
+      }
+      if (agent.state === 'Done') {
+        toil(['ado', 'work-item', 'transition', String(agent.id), '--state', 'Approved', ...p, '--allow-write']);
+        say(`  #${agent.id}: agent-ready item back to Approved`);
+      }
     }
     say(`  done: board https://dev.azure.com/<org>/${enc}/_sprints, repo ${repoName}`);
   }
