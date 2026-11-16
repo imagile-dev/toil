@@ -256,7 +256,8 @@ Configuration comes from environment variables, which always win, or from
 instance of an area; `--connection <name>` picks one when there are several.
 `toil connections list` names them (never a secret), with `definedIn`: `file` for one
 in your config file, `env` for one made by env vars alone, which the connections
-commands can't change. `toil connections test
+commands can't change. A connection to an area with a Data Center and a Cloud deployment
+also says which, as `deployment` (`server` or `cloud`). `toil connections test
 <name>` checks one with a single authenticated read, failing with the `AUTH`,
 `NETWORK` or config error a real command would. Setting up a connection, signing
 in, turning writes on and choosing a default are for a person: a bare `toil` in a
@@ -264,6 +265,10 @@ terminal opens a menu for them. An agent may create a connection on the person's
 `toil connections add <name> --area <area> --set key=value` (repeatable, non-secret
 settings only; a secret key is refused), which asks nothing and leaves writes off; the
 person then enters the secret with `toil connections login <name>` or in Toil UI.
+Where another connection already holds a secret that works here (Jira Cloud's API token, for
+Confluence Cloud on the same site), the `SECRET_NEEDED` warning says so and
+`data.secretReusable` names it: tell the person `toil connections login <name>` will offer to
+reuse it. Never set the pairing (`apiTokenFrom`) yourself; `--set` refuses it.
 `setup.md` is that walkthrough. `toil connections migrate` saves the config file in the
 current version, with retired areas folded into the areas that replaced them; it reports
 what it wrote (names and keys, never a value) and writes nothing if the file is current.

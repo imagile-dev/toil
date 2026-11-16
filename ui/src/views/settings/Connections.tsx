@@ -16,7 +16,7 @@ import type { Envelope } from '../../toil.ts';
 import { Card, CardGrid } from '../../components/layout.tsx';
 import { Help, useLandOn } from '../../components/help.tsx';
 import { ChangeForm, ChoiceRadios, CheckField, OutcomeLine, SecretField, SelectField, TextField, failedOutcome, outcomeOf, secretRefusal, type Outcome } from './parts.tsx';
-import { afterChoice, chosen, emptyState, initialState, needOf, reportOf, selectedOption, shownOptions, submission, type FormField, type FormState, type Problem } from '../../../../src/core/connection-form.ts';
+import { afterChoice, borrowChoices, chosen, emptyState, initialState, needOf, reportOf, selectedOption, shownOptions, submission, type BorrowChoice, type FormField, type FormState, type LenderRow, type Problem } from '../../../../src/core/connection-form.ts';
 import { ScopesDisclosure, TokenKindRadios } from './Scopes.tsx';
 import { checkSecret, type SecretRules } from '../../../../src/core/secret-input.ts';
 import { Loader } from '../../moments/Moments.tsx';
@@ -84,20 +84,20 @@ export function Connections({ config, at, toForm = false }: { config: ConfigApi;
           <CardGrid min="lg" className="conn-cards">
             {data.connections.map((c) => (
               <li key={c.name}>
-                <ConnectionCard connection={c} areas={areas ?? []} config={config} siblings={data.connections.filter((x) => x.area === c.area).length} onChanged={reload} />
+                <ConnectionCard connection={c} areas={areas ?? []} config={config} siblings={data.connections.filter((x) => x.area === c.area).length} rows={data.connections} onChanged={reload} />
               </li>
             ))}
           </CardGrid>
         )}
       </Card>
-      <AddConnection areas={areas} config={config} onChanged={reload} startOpen={toForm} existingNames={data.connections.map((c) => c.name)} />
+      <AddConnection areas={areas} config={config} onChanged={reload} startOpen={toForm} existingNames={data.connections.map((c) => c.name)} lenders={data.connections} />
     </>
   );
 }
 
 type Action = 'test' | 'default' | 'writes' | 'login' | 'remove';
 
-function ConnectionCard({ connection: c, areas, config, siblings, onChanged }: { connection: ConnectionRow; areas: AreaInfo[]; config: ConfigApi; /** How many connections this tool has: the Default badge only means something when there is a choice. */ siblings: number; onChanged: () => Promise<void> }) {
+function ConnectionCard({ connection: c, areas, config, siblings, rows, onChanged }: { connection: ConnectionRow; areas: AreaInfo[]; config: ConfigApi; /** How many connections this tool has: the Default badge only means something when there is a choice. */ siblings: number; /** Every connection, for a login that can reuse another's token. */ rows: ConnectionRow[]; onChanged: () => Promise<void> }) {
   const [open, setOpen] = useState<Action | null>(null);
   const [tested, setTested] = useState<Outcome | null>(null);
   const [testing, setTesting] = useState(false);
@@ -109,6 +109,8 @@ function ConnectionCard({ connection: c, areas, config, siblings, onChanged }: {
   const secretFields = (area?.connection ?? []).filter((f) => f.secret && usable.has(f.name));
   /** Where each of the login's own keys comes from, so the card says so in one line and the rest sits one step in. */
   const secrets = Object.entries(c.values).filter(([k]) => secretFields.some((f) => f.name === k));
+  // A token this connection could reuse from another (Jira Cloud's, for Confluence Cloud on the same site).
+  const borrow = area ? borrowChoices(area, { settings: c.deployment ? { deployment: c.deployment } : {}, host: c.host }, rows, c.name) : [];
   // What Test does: the Test button's hover, not a line repeated on every card.
   const testTitle = `Asks ${toolName(c.area)} one quick question to check the login works. It changes nothing.`;
 
@@ -219,7 +221,7 @@ function ConnectionCard({ connection: c, areas, config, siblings, onChanged }: {
         />
       )}
       {open === 'writes' && <WritesForm connection={c} config={config} after={after} />}
-      {open === 'login' && <LoginForm connection={c} fields={secretFields} config={config} after={after} />}
+      {open === 'login' && <LoginForm connection={c} fields={secretFields} config={config} after={after} borrow={borrow} />}
       {open === 'remove' && (
         <ChangeForm
           title={`Remove ${c.name}`}
@@ -265,10 +267,13 @@ function WritesForm({ connection: c, config, after }: { connection: ConnectionRo
   );
 }
 
-export function LoginForm({ connection: c, fields, config, after, confirm }: { connection: ConnectionRow; fields: AreaInfo['connection']; config: ConfigApi; after: (e: Envelope, done: string) => Promise<Outcome>; /** Words for a tick the person must make before Save can run: for a replacement the wizard names. */ confirm?: string }) {
+export function LoginForm({ connection: c, fields, config, after, confirm, borrow = [] }: { connection: ConnectionRow; fields: AreaInfo['connection']; config: ConfigApi; after: (e: Envelope, done: string) => Promise<Outcome>; /** Words for a tick the person must make before Save can run: for a replacement the wizard names. */ confirm?: string; /** Secrets this connection could reuse from another connection instead. */ borrow?: BorrowChoice[] }) {
   const [sure, setSure] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const secrets = useSecretChoices();
+  // Reusing starts chosen when the connection already does, or has no token of its own to keep.
+  const [reuse, setReuse] = useState<Record<string, boolean>>(() => Object.fromEntries(borrow.map((b) => [b.key, c.values[b.field] !== undefined || c.values[b.key] === undefined])));
+  const typedFields = fields.filter((f) => !reuse[f.name]);
   // An empty field keeps the secret the config file points at, as the CLI's login does; one it has no secret for stays unset.
   const kept = (f: AreaInfo['connection'][number]) => c.values[f.name] === 'store' || c.values[f.name] === 'file';
   const rules = (f: AreaInfo['connection'][number]): SecretRules => ({ password: f.password, empty: kept(f) ? 'keep' : 'skip' });
@@ -280,18 +285,22 @@ export function LoginForm({ connection: c, fields, config, after, confirm }: { c
       disabled={config.disabled}
       blockedBy={confirm && !sure ? 'Tick the box to confirm the replacement first.' : null}
       onSubmit={async () => {
-        const refused = secrets.refusal(fields.map((f) => [f.name, values[f.name] ?? '', rules(f)]));
+        const refused = secrets.refusal(typedFields.map((f) => [f.name, values[f.name] ?? '', rules(f)]));
         if (refused) return refused;
         // Every field shown is answered, an empty one with '': toil keeps that secret as it is, as on the CLI.
-        const typed = Object.fromEntries(fields.map((f) => [f.name, values[f.name] ?? '']));
-        const answers = secrets.answers();
+        const typed = Object.fromEntries(fields.map((f) => [f.name, reuse[f.name] ? '' : (values[f.name] ?? '')]));
+        // Toil asks whether to reuse only where it can; the answer is here either way, so the call never stops on it.
+        const answers = { ...secrets.answers(), ...Object.fromEntries(borrow.map((b) => [`borrow:${b.key}`, reuse[b.key] ? 'y' : 'n'])) };
         setValues({});
         secrets.reset();
         return after(await config.run('connections login', { name: c.name }, { secrets: typed, answers }), `${c.name}'s login was updated.`);
       }}
     >
       {confirm && <CheckField label={confirm} checked={sure} onChange={setSure} />}
-      {fields.map((f) => (
+      {borrow.map((b) => (
+        <BorrowRadios key={b.key} choice={b} reusing={reuse[b.key] === true} onChange={(on) => setReuse((r) => ({ ...r, [b.key]: on }))} />
+      ))}
+      {typedFields.map((f) => (
         <SecretField key={f.name} label={`${f.name}${f.description ? ` (${f.description})` : ''}`} value={values[f.name] ?? ''} onChange={(v) => { setValues((s) => ({ ...s, [f.name]: v })); secrets.changed(f.name); }} rules={rules(f)} asking={secrets.asking} kept={secrets.kept(f.name)} onKeep={() => secrets.keep(f.name)} />
       ))}
     </ChangeForm>
@@ -330,8 +339,28 @@ function useSecretChoices() {
   };
 }
 
+/**
+ * Its own token, or the one another connection already holds (Jira Cloud's
+ * API token signs in to Confluence Cloud on the same site, with the same
+ * email). Toil decides for certain when the call is made: it offers the reuse
+ * only where the other connection's token reads.
+ */
+function BorrowRadios({ choice, reusing, onChange }: { choice: BorrowChoice; reusing: boolean; onChange: (reusing: boolean) => void }) {
+  return (
+    <ChoiceRadios
+      label={`Which ${choice.key}?`}
+      field={`borrow:${choice.key}`}
+      selected={reusing ? 'borrow' : 'own'}
+      onChange={(k) => onChange(k === 'borrow')}
+      options={[
+        { key: 'own', label: 'Its own token' },
+        { key: 'borrow', label: `The token from ${choice.from}`, note: choice.match.length > 0 ? `Works only with the same ${choice.match.join(' and ')} as ${choice.from}.` : undefined },
+      ]}
+    />
+  );
+}
 
-function AddConnection({ areas, config, onChanged, existingNames, startOpen }: { areas: AreaInfo[] | null; config: ConfigApi; onChanged: () => Promise<void>; existingNames: string[]; startOpen: boolean }) {
+function AddConnection({ areas, config, onChanged, existingNames, startOpen, lenders }: { areas: AreaInfo[] | null; config: ConfigApi; onChanged: () => Promise<void>; existingNames: string[]; startOpen: boolean; lenders: LenderRow[] }) {
   const [open, setOpen] = useState(startOpen);
   // A link to the form while this page is already open (the address changes, the page doesn't remount) opens it too.
   useEffect(() => {
@@ -367,6 +396,7 @@ function AddConnection({ areas, config, onChanged, existingNames, startOpen }: {
           setOpen(false);
         }}
         existingNames={existingNames}
+        lenders={lenders}
       />
     </Card>
   );
@@ -394,6 +424,7 @@ export function NewConnectionForm({
   title = 'A new connection',
   existingNames = [],
   onDraft,
+  lenders = [],
 }: {
   areas: AreaInfo[];
   config: ConfigApi;
@@ -404,6 +435,8 @@ export function NewConnectionForm({
   existingNames?: string[];
   /** Told the settings the form would send as they change: the non-secret ones only (src/core/connection-form.ts `submission`), for the wizard's guide (#561). */
   onDraft?: (settings: Record<string, string>) => void;
+  /** The connections there are, any of which may lend this one its token (Jira Cloud's, for Confluence Cloud on the same site). */
+  lenders?: LenderRow[];
 }) {
   const withFields = areas.filter((a) => a.connection.length > 0 && (fixed === undefined || a.name === fixed));
   const [area, setArea] = useState(fixed ?? '');
@@ -412,14 +445,20 @@ export function NewConnectionForm({
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [pressed, setPressed] = useState(false);
   const [notes, setNotes] = useState<string[]>([]);
+  /** Per secret, false once the person picks its own token over the one offered; reusing is the default, as on the CLI. */
+  const [reuse, setReuse] = useState<Record<string, boolean>>({});
   const secretChoices = useSecretChoices();
   if (!chosenArea) return <p className="note">This version of Toil can't say what a {toolName(fixed ?? '')} connection holds, so it can't be added from this page.</p>;
 
   const fields = chosenArea.connection;
   const kinds = chosenArea.scopes?.kinds ?? [];
-  const state: FormState = { ...form, tokenKind: form.tokenKind ?? kinds[0]?.id ?? null };
-  const envVars = () => [`${connectionEnvVar(state.name || '<name>', 'area')}=${chosenArea.name}`, ...fields.map((g) => connectionEnvVar(state.name || '<name>', g.name))];
-  const rulesFor = (f: FormField): SecretRules => ({ password: f.password, empty: needOf(chosenArea, f, state) === 'required' ? 'required' : 'skip', envVars: envVars() });
+  const base: FormState = { ...form, tokenKind: form.tokenKind ?? kinds[0]?.id ?? null };
+  const envVars = () => [`${connectionEnvVar(base.name || '<name>', 'area')}=${chosenArea.name}`, ...fields.map((g) => connectionEnvVar(base.name || '<name>', g.name))];
+  const rulesFor = (f: FormField): SecretRules => ({ password: f.password, empty: needOf(chosenArea, f, base) === 'required' ? 'required' : 'skip', envVars: envVars() });
+  // What could be reused depends on the settings so far (Cloud, the site), which don't depend on the choice itself.
+  const offered = borrowChoices(chosenArea, { settings: submission(chosenArea, reportOf(chosenArea, base, existingNames, rulesFor)) }, lenders);
+  const borrowing = offered.filter((b) => reuse[b.key] !== false);
+  const state: FormState = { ...base, borrow: Object.fromEntries(borrowing.map((b) => [b.key, b.from])) };
   const report = reportOf(chosenArea, state, existingNames, rulesFor);
   const sent = submission(chosenArea, report);
   const touch = (name: string) => setTouched((t) => (t[name] ? t : { ...t, [name]: true }));
@@ -455,8 +494,9 @@ export function NewConnectionForm({
     });
   };
 
-  const secretFields = fields.filter((f) => f.secret && report.needs[f.name] !== 'hidden');
-  const settings = fields.filter((f) => !f.secret && report.needs[f.name] !== 'hidden');
+  const secretFields = fields.filter((f) => f.secret && report.needs[f.name] !== 'hidden' && !state.borrow?.[f.name]);
+  // A pairing (apiTokenFrom) is never a text box: where toil would offer it, it's the radio buttons above the token.
+  const settings = fields.filter((f) => !f.secret && !f.borrows && report.needs[f.name] !== 'hidden');
   const lead = settings.filter((f) => f.choices?.required);
   const ready = chosen(chosenArea, state);
   const main = settings.filter((f) => !f.choices?.required && (report.needs[f.name] === 'required' || f.choices));
@@ -501,8 +541,13 @@ export function NewConnectionForm({
     );
   };
 
+  // A setting a reused token only works with (the email) says so while the reuse is chosen.
+  const matchHint = (f: FormField) => {
+    const b = borrowing.find((x) => x.match.includes(f.name));
+    return b ? `Use the same ${f.name} as ${b.from}: its token only works with that.` : undefined;
+  };
   const plainField = (f: FormField) => (
-    <TextField key={f.name} field={f.name} label={f.name} value={form.text[f.name] ?? ''} onChange={(v) => setText(f.name, v)} onBlur={() => touch(f.name)} need={report.needs[f.name]} info={f.description} placeholder={f.default ?? undefined} problems={shown(f.name)} onSwitch={onSwitch} />
+    <TextField key={f.name} field={f.name} label={f.name} value={form.text[f.name] ?? ''} onChange={(v) => setText(f.name, v)} onBlur={() => touch(f.name)} need={report.needs[f.name]} info={f.description} placeholder={f.default ?? undefined} problems={shown(f.name)} onSwitch={onSwitch} hint={matchHint(f)} />
   );
 
   return (
@@ -526,7 +571,9 @@ export function NewConnectionForm({
         const refused = secretChoices.refusal(secretFields.map((f) => [f.name, form.secrets[f.name] ?? '', rulesFor(f)]));
         if (refused) return refused;
         Object.assign(answers, secretChoices.answers());
-        const typed = Object.fromEntries(fields.filter((f) => f.secret).map((f) => [f.name, report.needs[f.name] === 'hidden' ? '' : (form.secrets[f.name] ?? '')]));
+        // Answered for every secret toil might offer to reuse, so the call never stops on a question the page didn't show.
+        for (const f of fields.filter((g) => g.borrows)) answers[`borrow:${f.borrows!.key}`] = state.borrow?.[f.borrows!.key] ? 'y' : 'n';
+        const typed = Object.fromEntries(fields.filter((f) => f.secret).map((f) => [f.name, report.needs[f.name] === 'hidden' || state.borrow?.[f.name] ? '' : (form.secrets[f.name] ?? '')]));
         const name = state.name;
         setForm((s) => ({ ...s, secrets: {} }));
         secretChoices.reset();
@@ -537,6 +584,7 @@ export function NewConnectionForm({
           setTouched({});
           setPressed(false);
           setNotes([]);
+          setReuse({});
           await onAdded(name);
         }
         return outcome;
@@ -571,6 +619,9 @@ export function NewConnectionForm({
       {ready && (
         <>
           {main.map((f) => (f.choices ? choiceField(f) : plainField(f)))}
+          {offered.map((b) => (
+            <BorrowRadios key={b.key} choice={b} reusing={reuse[b.key] !== false} onChange={(on) => setReuse((r) => ({ ...r, [b.key]: on }))} />
+          ))}
           {kinds.length > 1 && chosenArea.scopes && <TokenKindRadios scopes={chosenArea.scopes} kindId={state.tokenKind ?? kinds[0]!.id} onKind={(id) => setForm((s) => ({ ...s, tokenKind: id }))} />}
           {secretFields.map((f) => (
             <SecretField

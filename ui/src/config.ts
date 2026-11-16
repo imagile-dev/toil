@@ -21,7 +21,7 @@
  */
 
 import type { Envelope } from './toil.ts';
-import type { FormChoices } from '../../src/core/connection-form.ts';
+import type { FormChoices, FormField } from '../../src/core/connection-form.ts';
 import type { DescribedScopes } from '../../src/core/scopes.ts';
 
 /** The reads the pages make: run read-only, even on the config path. The audit reads fill Usage (#309). */
@@ -77,6 +77,8 @@ export interface ConnectionField {
   choices?: FormChoices;
   appliesTo?: readonly string[];
   requiredFor?: readonly string[];
+  /** On a pairing setting (`apiTokenFrom`): the secret it borrows and when toil offers that (older toil: absent). */
+  borrows?: FormField['borrows'];
 }
 
 export interface AreaInfo {
@@ -128,6 +130,8 @@ export interface ConnectionRow {
   isDefault: boolean;
   host: string | null;
   writes: boolean;
+  /** Which deployment, for an area with Data Center and Cloud (older toil: absent). */
+  deployment?: string;
   values: Record<string, 'env' | 'ci' | 'file' | 'store' | 'defaults'>;
   /** Absent from an older toil: then a connection whose every value is from env or CI counts as env-defined. */
   definedIn?: 'file' | 'env';
