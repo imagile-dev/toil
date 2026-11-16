@@ -451,10 +451,14 @@ deployment pair is built the same way, as one area with a `deployment` field.
   idea (#622):** `--input-file <path>` (field `inputFile`, `-` for stdin on the CLI) for
   the local file a command reads, whatever it holds (a document, an inventory, a plan, a
   JSON input, the file an `attach` uploads); `--<flag>-file` for one field read from a
-  file (`--body-file`, `--jql-file`, `--holidays-file`); `--path` for a path inside a
-  remote repository (`pr comment-inline`, `pr diff`); and `--out <path>` for a file the
-  command writes itself, with `--dir` for downloads and the global `--output-file` for
-  the envelope. Never a positional file, `--file` or `--from <file>`, with three
+  file (`--body-file`, `--jql-file`, `--holidays-file`); `--path` for a path inside the
+  thing being read, never a file toil opens or writes (a file in a pull request, a
+  pathspec for `git diff`, an API path for `util openapi`, an artifact pattern for
+  `artifactory`); and `--out <path>` for a file the command writes itself, with `--dir`
+  for downloads. The global `--output-file` (the whole envelope) and `--summary-file`
+  (the whole of `data`, with a summary in its place) are the one exception to the
+  `-file` suffix: they write a file rather than read one, and keep their names because
+  scripts and agent configs rely on them (the maintainer's call, 2026-11-16). Never a positional file, `--file` or `--from <file>`, with three
   named exceptions recorded in `docs/decisions/622-file-flags.md`: the CLI-only
   `connections import`, `classify scheme import` and `projects import` keep a
   positional file (the file is the thing imported), and `classify scheme init --from
