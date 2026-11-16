@@ -3,19 +3,27 @@
 How to bring the demo data back to "a real team's week" before a recording. All of
 it is made-up work: **Deliverables Unlimited**, a consultancy, on an engagement at
 **Overdraft Federal**, a large US bank. Neither exists. The story, the cast and which
-video uses what are in [demo-story.md](demo-story.md). The data lives in the three
-test projects (CLAUDE.md, **Test Projects**), the Confluence space `OD`, a local
-Postgres in Docker, a SQLite file and one Figma draft, and nothing else.
+video uses what are in [demo-story.md](demo-story.md). The data lives in the four
+test projects ([SKILL.md](SKILL.md): Jira, Azure DevOps, GitHub and the Confluence
+space `OD`), a local Postgres (PGlite, or Docker if you choose), a SQLite file and one
+Figma draft, and nothing else.
 
 ## Before each recording
 
-Run from the repository root. Each step is safe to run twice: the seeds skip what's
-already done (and put back an agent-ready item a recording closed), and Postgres and
-the demo home are rebuilt. To roll the week forward, change `--sprint` and `--ends`.
+Run from the repository root. Nothing is needed beyond Node and `npm install`. First
+start the demo database in a terminal of its own and leave it running while you
+record; it rebuilds the replica in memory with PGlite (Postgres in WebAssembly, a dev
+dependency) and serves it on `127.0.0.1:55432` until Ctrl+C:
 
 ```bash
-node ui/scripts/demo-postgres.mjs
+node ui/scripts/demo-db.mjs
 ```
+
+Add `--docker` to run it in the `postgres:17` image instead, if you have Docker.
+Then, in another terminal, each step below is safe to run twice: the seeds skip what's
+already done (and put back an agent-ready item a recording closed), and the demo home
+is rebuilt. To roll the week forward, change `--sprint` and `--ends`.
+
 ```bash
 node ui/scripts/demo-week.mjs --sprint "Sprint 44" --ends 2026-11-27
 ```
@@ -62,7 +70,8 @@ credential stores don't go by `HOME`.
    `jira`, `confluence` (Cloud, the Atlassian site), `ado` (Cloud,
    `https://dev.azure.com/<org>`), `figma` (`https://api.figma.com`) and
    `payments-db` (Postgres on `127.0.0.1:55432`, database `payments`, user
-   `postgres`, trust auth, no password). Docker must be running for `payments-db`.
+   `postgres`, no password). `demo-db.mjs` serves it with PGlite, or with Docker when
+   you pass `--docker`.
 2. Tokens, typed by a person in their own terminal:
    ```bash
    node dist/toil.js connections login jira
@@ -107,7 +116,7 @@ credential stores don't go by `HOME`.
 | GitHub [`imagile-dev/toil-sandbox`](https://github.com/imagile-dev/toil-sandbox) | Milestone [Sprint 44](https://github.com/imagile-dev/toil-sandbox/milestone/4) (due 27 Nov), with 15 open issues carried over. Done today: PR #27 merged, which closed #9. In progress: #7 and #11, each with a comment from today. Code reviews: #37 waits on review, #29 waits on checks (it fails on purpose), #28 is a draft. Blocker chain: #11 → #12 → #17 → #18. Agent-ready: [#38](https://github.com/imagile-dev/toil-sandbox/issues/38). Code: `src/money.js`, `src/logger.js`, `src/refunds.js` and tests (`npm test`); `package.json` pins `express` 4.19.2 and `jsonwebtoken` 8.5.1, which have real advisories. What demo-week creates there carries the label `toil-seed` |
 | Jira `SCRUM` (`https://<your-site>.atlassian.net`) | Active sprint renamed **Sprint 44**, 16 to 27 Nov, goal "Stored cards end to end: vault, tokenised charges and saved-card checkout". The placeholders SCRUM-1 to 3 renamed to real payments tasks. Done today: SCRUM-31. In progress: SCRUM-20 (picked up today), SCRUM-14 and SCRUM-16, each with a comment from today. Critical chain: demo-week adds SCRUM-14 blocks SCRUM-15; the earlier seeding has SCRUM-14 blocking SCRUM-17, which blocks SCRUM-18, SCRUM-21 and SCRUM-30. Agent-ready: **SCRUM-55**, `maskPan()` in `src/mask.js` of the GitHub sandbox |
 | Azure DevOps `Toil Sandbox` (`https://dev.azure.com/<org>`) | The 45 ado-seed items. Sprint 1 is current, 16 to 27 Nov, and Sprints 2 to 6 follow in two-week steps. Done today: #157. In progress: #172 (picked up today). Comments from today on #152 and #176. Repository `settlement-service` with the demo code; PR 1, "cut settlement batches at the merchant's midnight", waits on review and is linked to bug #176. The seed's dependency links, such as #152 → #169, are kept. Agent-ready: **#194**, refund reason validation in `src/refunds.js` |
-| Postgres `payments-db` (Docker `toil-demo-pg`) | Schema `payments`, dated relative to the day it's loaded: 4,000+ payments (some duplicate captures on one idempotency key), refunds (about one in twenty $0.01 short, because fees are worked out per transaction and rounded down; see view `refund_shortfalls`), six US merchants, all in USD, disputes waiting on a response, payouts (Lumen Games' split payout after its schedule change, the second due the coming Friday), and `job_runs` (nightly reconciliation failing on a lock the statement export holds, including last night) |
+| Postgres `payments-db` (`demo-db.mjs`: PGlite, or Docker `toil-demo-pg`) | Schema `payments`, dated relative to the day it's loaded: 4,000+ payments (some duplicate captures on one idempotency key), refunds (about one in twenty $0.01 short, because fees are worked out per transaction and rounded down; see view `refund_shortfalls`), six US merchants, all in USD, disputes waiting on a response, payouts (Lumen Games' split payout after its schedule change, the second due the coming Friday), and `job_runs` (nightly reconciliation failing on a lock the statement export holds, including last night) |
 | Confluence space `OD`, "Overdraft Federal Engineering" | 23 pages, each labelled `toil-seed` and `kb`: teams and ownership, working with Deliverables Unlimited (consultant access, and what consultants may change, with writes off by default), how money moves, runbooks (the reconciliation lock, #22; double charges, #11, PR #37 and SCRUM-20; Lumen Games' schedule change, #15), ADR-007, 009 and 011, standards (money, #38; logging, SCRUM-55; refund reasons, ADO #194), releases (the checklist template, the Black Friday freeze), two incident reviews (one tied to ADO #176) and a glossary. There's no "Black Friday readiness" page on purpose: the agent writes it in video 5. The source is `ui/scripts/demo-confluence/pages/*.html` and `manifest.json`. The older space `KW` from the first draft stays until it's deleted in Confluence's own UI (toil has no space delete) |
 | Figma draft "Overdraft Federal: Payout preview" | One frame, "Payout preview / Lumen Games" (50 editable text layers, built from the replica's numbers), and two comments from Ana: the split payout question (GitHub #15) and the reserve link (#18). GitHub #17 links to it. It was made once in the browser and isn't reseeded, since Figma's API can't write a file; `toil figma file get <key> --document` and `toil figma file comments <key>` read it |
 | SQLite `~/toil-demo-home/ledger.db` | 6 merchants, 60 settlements, 12 chargebacks |
@@ -128,7 +137,7 @@ Atlassian, Azure DevOps and GitHub profile display names to a demo name (for exa
 ## Stop and clean up
 
 ```bash
-node ui/scripts/demo-postgres.mjs --stop
+node ui/scripts/demo-db.mjs --stop   # only if you used --docker
 ```
 
 `node ui/scripts/ado-seed/cleanup.mjs --project "Toil Sandbox"` lists the seeded ADO

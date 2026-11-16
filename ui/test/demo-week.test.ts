@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * The demo data (docs/demo-reset.md) offline: the demo code demo-week.mjs pushes
+ * The demo data (.claude/skills/sandboxes/demo-reset.md) offline: the demo code demo-week.mjs pushes
  * to the sandboxes runs its own tests, each agent-ready item names files that
  * exist and a starting state the code really has, and the Confluence knowledge
  * base's manifest is a tree whose every page file exists. The live runs are in
@@ -77,7 +77,7 @@ describe('the Confluence knowledge base', () => {
   it('is the space the docs name, with the pages they count', () => {
     expect(manifest.space.key).toBe('OD');
     expect(manifest.pages).toHaveLength(23);
-    expect(readFileSync(join(import.meta.dirname, '..', '..', 'docs', 'demo-reset.md'), 'utf8')).toContain(`${manifest.pages.length} pages`);
+    expect(readFileSync(join(import.meta.dirname, '..', '..', '.claude', 'skills', 'sandboxes', 'demo-reset.md'), 'utf8')).toContain(`${manifest.pages.length} pages`);
   });
 
   it('lists every page after its parent, each with its file and the kb label', () => {

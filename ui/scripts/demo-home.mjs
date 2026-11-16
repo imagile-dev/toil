@@ -94,7 +94,7 @@ if (process.platform === 'darwin') {
 
 // Config: a copy with writes off, keychain references only ------------------------------
 const realConfig = join(homedir(), '.toil', 'config.json');
-if (!existsSync(realConfig)) fail(`There is no ${realConfig}.`, 'Add the jira and ado connections first (docs/demo-reset.md).');
+if (!existsSync(realConfig)) fail(`There is no ${realConfig}.`, 'Add the jira and ado connections first (.claude/skills/sandboxes/demo-reset.md).');
 const mine = JSON.parse(readFileSync(realConfig, 'utf8'));
 const config = { version: mine.version ?? 2, connections: {}, defaults: {} };
 // Any key that names a secret: a value there must be a keychain: reference. `<key>From` names a connection.
@@ -165,7 +165,7 @@ must(toil('projects', 'add-repo', P, 'https://github.com/imagile-dev/toil-sandbo
 must(toil('projects', 'link', P, 'github', '--connection', 'github', '--set', 'owner=imagile-dev', '--set', 'repo=toil-sandbox', '--replace'), 'projects link github');
 if (config.connections.jira) must(toil('projects', 'link', P, 'jira', '--connection', 'jira', '--set', 'project=SCRUM', '--replace'), 'projects link jira');
 if (config.connections.ado) must(toil('projects', 'link', P, 'ado', '--connection', 'ado', '--set', 'project=Toil Sandbox', '--replace'), 'projects link ado');
-// The Postgres replica (demo-postgres.mjs) when it's configured, else the SQLite ledger.
+// The Postgres replica (demo-db.mjs) when it's configured, else the SQLite ledger.
 must(toil('projects', 'link', P, 'db', '--connection', config.connections['payments-db'] ? 'payments-db' : 'ledger', '--replace'), 'projects link db');
 if (config.connections.confluence) must(toil('projects', 'link', P, 'confluence', '--connection', 'confluence', '--set', 'space=OD', '--replace'), 'projects link confluence');
 if (config.connections.figma) must(toil('projects', 'link', P, 'figma', '--connection', 'figma', '--replace'), 'projects link figma');

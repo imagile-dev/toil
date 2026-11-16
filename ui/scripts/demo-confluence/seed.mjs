@@ -1,5 +1,5 @@
 // Seeds the Overdraft Federal Engineering knowledge base (Confluence space OD, 23 pages)
-// for the demo recordings (docs/demo-story.md) through toil's own commands, so the
+// for the demo recordings (.claude/skills/sandboxes/demo-story.md) through toil's own commands, so the
 // write gate decides: the confluence connection needs writes on. Each step looks
 // first: an existing space is kept; a page this seed made (labelled toil-seed) is
 // updated only when its source changed, which a seed-<hash> label records; a page

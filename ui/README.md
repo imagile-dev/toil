@@ -1655,7 +1655,7 @@ gh repo create <owner>/toil-sandbox --private --add-readme
 node ui/scripts/seed-sandbox.mjs --owner <owner> --repo toil-sandbox
 ```
 
-`docs/demo-reset.md` turns the three sandboxes into a recording-ready week (Sprint 44,
+`.claude/skills/sandboxes/demo-reset.md` turns the three sandboxes into a recording-ready week (Sprint 44,
 demo code, agent-ready items); `npm run verify:ui` works on either state.
 
 The seed writes through the GitHub CLI's own login, never through toil, and is

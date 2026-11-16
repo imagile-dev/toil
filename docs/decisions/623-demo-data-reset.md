@@ -1,5 +1,11 @@
 # Demo data for the launch recordings (#623)
 
+The principle review asked seven questions about how the Test Projects rules apply to
+demo prep. The maintainer answered them (2026-11-16): demo and local-development prep
+is held to what keeps people and sandboxes safe, not to the product rules, and
+CLAUDE.md now says so in its principles preamble, Cross-Platform and Test Projects. The
+decisions below that this settles are kept here only as the record of what the PR did.
+
 - **GitHub writes go through `gh`, Jira and Azure DevOps through toil.** toil's
   github area has no milestone command, and the demo home keeps every connection's
   writes off, so `demo-week.mjs` writes GitHub the way `seed-sandbox.mjs` already
@@ -8,7 +14,7 @@
 - **ADO Services stopgaps use `toil ado api`.** Repo creation, sprint dates, pushes
   and the PR-to-work-item link have no Services command yet; #621 adds them, and the
   script should switch once it lands. Assigning goes through `work-item update`.
-  Where: `ui/scripts/demo-week-ado.mjs`, and `docs/demo-reset.md`, **Stopgaps**.
+  Where: `ui/scripts/demo-week-ado.mjs`, and `.claude/skills/sandboxes/demo-reset.md`, **Stopgaps**.
 - **The active Jira sprint is renamed and re-dated, not completed and replaced.**
   Completing would move issues and close history; renaming keeps the board as it
   was. The three placeholder issues a new Jira site
@@ -22,7 +28,7 @@
   finds it and doesn't post twice.
 - **The Postgres replica uses trust authentication on loopback only**, so no
   password exists anywhere and nothing goes through the credential store. Where:
-  `ui/scripts/demo-postgres.mjs`.
+  `ui/scripts/demo-db.mjs`.
 - **The sandbox's demo `package.json` pins two old releases with real advisories**
   (`express` 4.19.2, `jsonwebtoken` 8.5.1), so `toil deps scan` and `toil osv vulns`
   have something true to report. Nothing installs or runs them.
@@ -32,9 +38,17 @@
 - **The Confluence pages are the source; the Python generator that first wrote them
   stays out of the repository**, because repo tooling doesn't run Python. Where:
   `ui/scripts/demo-confluence/`.
-- **The Postgres replica runs in Docker**, a developer tool with precedent in the
-  `databases` skill's local runs. It binds loopback only and nothing here ships.
-  Where: `ui/scripts/demo-postgres.mjs`.
+- **The Postgres replica runs on Node alone by default**: PGlite (real Postgres in
+  WebAssembly) served by `@electric-sql/pglite-socket`, both dev dependencies of Toil
+  UI, pinned to releases at least 14 days old; Docker is an option (`--docker`). Local
+  development needs only npm and the ability to run a local web app (the maintainer's
+  call). The socket package lists seven PGlite extensions as peers, so npm installs
+  them too: about 27 MB, all JavaScript and WebAssembly, never shipped. Where:
+  `ui/scripts/demo-db.mjs`.
+- **The sandbox and demo-prep guidance lives in the `sandboxes` skill**, with the two
+  demo docs beside it, because it's needed only for marketing prep and LLM-based live
+  checks, not for deterministic tests (the maintainer's call). CLAUDE.md keeps a short
+  Test Projects rule that points there.
 - **demo-week takes no target flags**: the three test projects are constants
   (`SANDBOX` in `ui/scripts/demo-week-data.mjs`), so a run can't be aimed anywhere
   else. GitHub has no seed mark from `seed-sandbox.mjs`; what demo-week creates there
@@ -51,10 +65,10 @@
   test Toil UI's app and screens; this change touches neither, and nothing under
   `ui/scripts/` ships. Retitling the older GitHub sandbox issues that mention EU and
   FX: `seed-sandbox.mjs` finds its issues by title, so retitling them would make it
-  create them again; `docs/demo-story.md` says what they stand for instead.
+  create them again; `.claude/skills/sandboxes/demo-story.md` says what they stand for instead.
 - **The Figma mockup was made once in the browser and isn't reseeded**: Figma's REST
-  API can't write a file. `docs/demo-reset.md` says so, and toil reads it back.
+  API can't write a file. `.claude/skills/sandboxes/demo-reset.md` says so, and toil reads it back.
 - **The story is fictional and American**: Deliverables Unlimited (a consultancy) at
   Overdraft Federal (a US bank), merchants in US states, every amount in USD, the
   maintainer's call. People other than the protagonist appear only in text, since
-  the seeds can assign only the token's identity. Where: `docs/demo-story.md`.
+  the seeds can assign only the token's identity. Where: `.claude/skills/sandboxes/demo-story.md`.

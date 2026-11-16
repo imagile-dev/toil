@@ -2,7 +2,7 @@
 // one current sprint across GitHub, Jira and Azure DevOps, a day of movement
 // (something done, things in progress, a blocker chain, code reviews waiting on
 // review and on checks), and a few small "ready for an agent" items with code
-// for the agent to change. Run the seeds first (docs/demo-reset.md):
+// for the agent to change. Run the seeds first (.claude/skills/sandboxes/demo-reset.md):
 //
 //   node ui/scripts/demo-week.mjs --sprint "Sprint 44" --ends 2026-11-27
 //   node ui/scripts/demo-week.mjs --sprint "Sprint 44" --ends 2026-11-27 --only github,jira

@@ -1,5 +1,5 @@
 -- A made-up "read replica" of the payments service, for the demo recordings
--- (docs/demo-reset.md). Every date is relative to now(), so it is always fresh,
+-- (.claude/skills/sandboxes/demo-reset.md). Every date is relative to now(), so it is always fresh,
 -- and setseed() makes the same rows every time. It carries the evidence three
 -- tracked stories point at:
 --   - refunds $0.01 short, because fees and interest are worked out per
