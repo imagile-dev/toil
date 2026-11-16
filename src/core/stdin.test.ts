@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { readAllSync } from './stdin.js';
+import { readAllSync, StdinTimeout } from './stdin.js';
 
 describe('readAllSync', () => {
   it('waits out EAGAIN and reads until end of file', () => {
@@ -17,6 +17,16 @@ describe('readAllSync', () => {
     });
     expect(out.toString()).toBe('abcd');
     expect(sleeps).toEqual([10, 10, 10]);
+  });
+
+  it('ends the wait as TIMEOUT once the deadline passes, since the command timer cannot fire while it blocks', () => {
+    let clock = 0;
+    const eagain = () => {
+      throw Object.assign(new Error('EAGAIN'), { code: 'EAGAIN' });
+    };
+    const run = () => readAllSync(0, { read: eagain, sleep: (ms) => (clock += ms), now: () => clock, deadline: 50 });
+    expect(run).toThrow(StdinTimeout);
+    expect(clock).toBe(50);
   });
 
   it('passes any other read error on', () => {

@@ -13,12 +13,18 @@ import { readSync } from 'node:fs';
  * queue, rewards whoever is prepared to stand in it.
  *
  * It blocks the thread while it waits, as `readFileSync` would on a blocking
- * pipe; Ctrl+C in a pipeline ends the writer too, which closes the pipe and
- * ends the wait.
+ * pipe, so the command's timer can't fire: `deadline` (epoch ms, the
+ * command's time limit) is checked here instead, and past it the wait ends
+ * as TIMEOUT. Ctrl+C in a pipeline ends the writer too, which closes the pipe
+ * and ends the wait.
  */
-export function readAllSync(fd: number, io: { read?: (fd: number, buffer: Buffer) => number; sleep?: (ms: number) => void } = {}): Buffer {
+export function readAllSync(
+  fd: number,
+  io: { read?: (fd: number, buffer: Buffer) => number; sleep?: (ms: number) => void; now?: () => number; deadline?: number } = {},
+): Buffer {
   const read = io.read ?? ((f: number, b: Buffer) => readSync(f, b, 0, b.length, null));
   const sleep = io.sleep ?? sleepSync;
+  const now = io.now ?? Date.now;
   const chunks: Buffer[] = [];
   const buffer = Buffer.alloc(64 * 1024);
   for (;;) {
@@ -27,6 +33,9 @@ export function readAllSync(fd: number, io: { read?: (fd: number, buffer: Buffer
       n = read(fd, buffer);
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'EAGAIN') {
+        if (io.deadline !== undefined && now() >= io.deadline) {
+          throw new StdinTimeout();
+        }
         sleep(10);
         continue;
       }
@@ -38,6 +47,14 @@ export function readAllSync(fd: number, io: { read?: (fd: number, buffer: Buffer
     chunks.push(Buffer.from(buffer.subarray(0, n)));
   }
   return Buffer.concat(chunks);
+}
+
+/** The deadline passed with the pipe still open. src/core/files.ts words it as TIMEOUT; this module imports nothing of toil's, so it runs on its own in a test. */
+export class StdinTimeout extends Error {
+  constructor() {
+    super('stdin was still open when the deadline passed');
+    this.name = 'StdinTimeout';
+  }
 }
 
 const pause = new Int32Array(new SharedArrayBuffer(4));

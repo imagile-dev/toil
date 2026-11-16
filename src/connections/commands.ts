@@ -109,7 +109,12 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
         await storeVerified(required(secrets, ref), ref, value, ctx.signal);
         refs[key] = `${KEYCHAIN_PREFIX}${ref}`;
       }
-      const latest = rereadConnection(path, input.name, area.name, 'login');
+      let latest: ReturnType<typeof rereadConnection>;
+      try {
+        latest = rereadConnection(path, input.name, area.name, 'login');
+      } catch (err) {
+        throw await withdrawStored(err, path, Object.values(refs), secrets, ctx);
+      }
       Object.assign(latest.conn, refs);
       writeConfigFile(path, latest.file);
       // Only now, with config pointing at the new copy, does an old one go.
@@ -440,7 +445,11 @@ export async function addConnection(ctx: CommandContext<unknown>, areas: readonl
   // and add to the file as it is now, not as it was read.
   if (readConfigForEdit(path).connections[input.name]) throw changedMeanwhile(path, input.name, 'add');
   const kept = await storeNew(secrets, input.name, secretValues, ctx.signal);
-  return saveNew(path, input.name, area, settings, kept);
+  try {
+    return saveNew(path, input.name, area, settings, kept);
+  } catch (err) {
+    throw await withdrawStored(err, path, Object.values(kept).filter(isKeychainRef), secrets, ctx);
+  }
 }
 
 /** Adds connection `name` to the config file as it is at this moment, and makes it the area's default when it's the first. */
@@ -651,7 +660,6 @@ function checkName(name: string): void {
   }
 }
 
-/** The connection as written in the file; one defined only by env vars can't be edited here. */
 /**
  * A connection as the config file holds it now, re-read for a command that
  * asked its questions after it first read the file. Whatever another toil
@@ -673,6 +681,24 @@ function changedMeanwhile(path: string, name: string, command: string): ToilErro
   });
 }
 
+/**
+ * The file changed in the moment between storing a secret and writing the
+ * config that points at it. The entries just stored are deleted again unless
+ * the file as it is now uses them, and the refusal says what became of them,
+ * so "nothing was saved" stays true or is corrected.
+ */
+async function withdrawStored(err: unknown, path: string, refs: string[], secrets: SecretStore | undefined, ctx: CommandContext<unknown>): Promise<unknown> {
+  if (!(err instanceof ToilError) || refs.length === 0) return err;
+  const now = readConfigForEdit(path);
+  const kept: string[] = [];
+  for (const ref of refs) if (!(await deleteUnreferenced(now, ref, secrets, ctx))) kept.push(ref);
+  if (kept.length === 0) return err;
+  return new ToilError(err.code, `${err.message.replace(/, so nothing was saved\.$/, '.')} The config file was not changed, but the secret was already in the OS credential store as ${kept.join(', ')}, which the file now uses or which couldn't be deleted.`, {
+    ...(err.fix ? { fix: err.fix } : {}),
+  });
+}
+
+/** The connection as written in the file; one defined only by env vars can't be edited here. */
 function fileConnection(file: EditableConfig, name: string, config: ConfigAccess['config']) {
   const conn = file.connections[name];
   if (conn) return conn;

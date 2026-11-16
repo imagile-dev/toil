@@ -274,7 +274,7 @@ export async function restResponse<T>(ctx: RestContext, url: string, init: Reque
       const { response, finalUrl } = await follow(ctx, url, attemptInit, options);
       if (options.refusedWhen?.(response.headers)) {
         await response.body?.cancel().catch(() => {});
-        throw new ToilError('AUTH', `${options.service} didn't accept the credential sent to ${redactUrl(finalUrl)}, and answered as an anonymous user instead.`, {
+        throw new ToilError('AUTH', `${options.service} didn't accept the credential sent to ${redactUrl(finalUrl)}${response.ok ? ', and answered as an anonymous user instead' : ''}.`, {
           fix: options.authFix,
           details: { status: response.status, url: redactUrl(finalUrl) },
         });

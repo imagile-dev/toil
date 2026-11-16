@@ -5,7 +5,7 @@ import { gitBool, lastValue, refusedGitRead } from './git-config.js';
 import { findGitRepo, readGitConfig, readGitIndex } from './git-repo.js';
 import { ignoredFolderWarning, isIgnored, parseIgnore, skippedLineWarning, undecodableIgnoreWarning, unreadableIgnoreWarning, type IgnoreRule } from './gitignore.js';
 import { assertLocalPath } from './local-path.js';
-import { readAllSync } from './stdin.js';
+import { readAllSync, StdinTimeout } from './stdin.js';
 
 /**
  * The local files a command may read or write: an `--input-file`, a file to
@@ -25,15 +25,24 @@ import { readAllSync } from './stdin.js';
  * platform (CLAUDE.md, Cross-Platform). The filing system accepts either
  * slash; the filing cabinet, historically, only one.
  */
+export interface ReadOptions {
+  /** When to stop waiting on stdin, epoch ms. execute() sets it; a command never does. */
+  deadline?: number;
+}
+
 export interface FileAccess {
   /** The workspace folder, absolute with forward slashes; undefined when none is set (MCP with no single root). */
   readonly workspace: string | undefined;
   /** Absolute path on disk for `path`, resolved against the workspace. A relative path with no workspace is NOT_CONFIGURED. */
   resolve(path: string): string;
-  /** A file's text, as UTF-8. `-` reads stdin where the front door allows it. */
-  readText(path: string): string;
-  /** A file's bytes. */
-  readBytes(path: string): Uint8Array;
+  /**
+   * A file's text, as UTF-8. `-` reads stdin where the front door allows it,
+   * waiting for the writer until `deadline` (epoch ms), which execute() sets
+   * to the command's time limit; past it, TIMEOUT.
+   */
+  readText(path: string, options?: ReadOptions): string;
+  /** A file's bytes; `-` and `deadline` as for readText. */
+  readBytes(path: string, options?: ReadOptions): Uint8Array;
   /**
    * A file's bytes in chunks as they are read, so a command can work through a
    * file of any size in constant memory. `-` streams stdin where the front door
@@ -364,13 +373,18 @@ export function nodeFiles(options: {
     }
     return resolved;
   };
-  const read = (path: string): Buffer => {
+  const read = (path: string, readOptions: ReadOptions = {}): Buffer => {
     if (path === '-' && !options.stdin) throw STDIN_OVER_MCP;
     if (path === '-' && options.stdin === 'terminal') throw STDIN_IS_TERMINAL;
     if (path !== '-') check(at(path));
     try {
-      return path === '-' ? readAllSync(0) : readFileSync(at(path));
+      return path === '-' ? readAllSync(0, readOptions.deadline !== undefined ? { deadline: readOptions.deadline } : {}) : readFileSync(at(path));
     } catch (err) {
+      if (err instanceof StdinTimeout) {
+        throw new ToilError('TIMEOUT', 'The input piped to toil was still open, with nothing more arriving, when the time limit ran out; toil stopped waiting.', {
+          fix: 'Check the command writing into the pipe finishes, or raise the limit with TOIL_TIMEOUT_MS.',
+        });
+      }
       throw readFailed(path, err);
     }
   };
@@ -412,8 +426,8 @@ export function nodeFiles(options: {
   return {
     workspace: ws.dir ? forwardSlashes(ws.dir) : undefined,
     resolve: at,
-    readText: (path) => read(path).toString('utf8'),
-    readBytes: (path) => new Uint8Array(read(path)),
+    readText: (path, readOptions) => read(path, readOptions).toString('utf8'),
+    readBytes: (path, readOptions) => new Uint8Array(read(path, readOptions)),
     readStream,
     writeBytes,
     exists: (path) => existsSync(check(at(path))),

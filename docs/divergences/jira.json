@@ -90,7 +90,7 @@
       "allows": [],
       "old": "A Jira Cloud call whose email or API token was wrong succeeding as an anonymous read: no projects, an empty search, an issue NOT_FOUND",
       "toil": "Any Jira Cloud response carrying X-Seraph-LoginReason: AUTHENTICATED_FAILED is AUTH with the API token fix, whatever its status",
-      "why": "Seen live on a Cloud site (2026-11-16): a wrong token answers 200 as anonymous and says so only in that header, which a call with no credential never gets. An empty list that means 'not signed in' is an unknown passed off as zero.",
+      "why": "Seen live on a Cloud site (2026-11-16): a wrong token answers 200 as anonymous and says so only in that header, which a call with no credential never gets. An empty list that means 'not signed in' is an unknown passed off as zero (principle 12), and a failure that hides is what principle 4 forbids.",
       "principle": "4"
     }
   ]

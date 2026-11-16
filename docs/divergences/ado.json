@@ -164,7 +164,7 @@
       "allows": [],
       "old": "An Azure DevOps Services PAT the service doesn't accept reported as HTTP, a redirect to another host, with a fix to set baseUrl to *.vssps.visualstudio.com",
       "toil": "A redirect to vssps.visualstudio.com or login.microsoftonline.com (its sign-in hosts) is AUTH with the PAT fix; it is still never followed",
-      "why": "Seen live (2026-11-16): Services answers an unaccepted PAT with a 302 to its sign-in host, and the old fix sent the person to change a baseUrl that was right.",
+      "why": "Seen live (2026-11-16): Services answers an unaccepted PAT with a 302 to its sign-in host, and the old fix sent the person to change a baseUrl that was right. login.microsoftonline.com, Entra's sign-in host, was not seen live; it is listed because a baseUrl never points there.",
       "principle": "4"
     }
   ]

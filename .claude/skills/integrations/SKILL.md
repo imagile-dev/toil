@@ -116,7 +116,10 @@ versions.
   `as: 'text' | 'ndjson' | 'bytes'`, `apiResponse` for headers, `accept` for a
   non-OK status that's an answer, `multipart` and raw uploads, `apiGraphql`, `paginate`
   (`src/core/paginate.ts`), `poll` (`src/core/poll.ts`), a per-request `timeoutMs`
-  and a command's `timeLimitMs` above the 120 s default.
+  and a command's `timeLimitMs` above the 120 s default. A service that refuses a
+  credential with something other than a 401 or 403 says so on the request hook, so
+  it's still `AUTH`: `authStatuses` for another status, `signInDomains` for a redirect
+  to its sign-in page, `refusedWhen` for a success answered as anonymous.
 - A command that needs no connection at all (`jira issue schema`) is `area.command({
   kind: 'area-local', ... })`; it works with no config.
 - Files through `ctx.files`, never `node:fs`. Numbers, booleans, enums, JSON objects

@@ -325,6 +325,27 @@ describe('toil connections add, while another toil changes the file', () => {
   });
 });
 
+describe('toil connections writes, while another toil changes the file', () => {
+  it('keeps a connection added while it waited for the name, and refuses one removed meanwhile', async () => {
+    writeConfig({ version: 2, connections: { a: { area: 'demo', token: 'keychain:a.token' } }, defaults: { demo: { connection: 'a' } } });
+    const typing = (during: () => Promise<void>): Prompter => ({ ask: async () => (await during(), 'a'), askSecret: async () => '' });
+    const added = typing(async () => {
+      const other = await cli(['connections', 'add', 'meanwhile', '--area', 'demo', '--set', 'baseUrl=https://demo.imagile.dev'], context({ secrets: fakeStore() }));
+      expect(other.envelope?.ok, other.stdout).toBe(true);
+    });
+    const on = await cli(['connections', 'writes', 'a', 'on'], context({ prompt: added }));
+    expect(on.envelope?.ok, on.stdout).toBe(true);
+    expect(readConfig().connections.a.writes).toBe(true);
+    expect(Object.keys(readConfig().connections).sort()).toEqual(['a', 'meanwhile']);
+
+    writeConfig({ version: 2, connections: { a: { area: 'demo', token: 'keychain:a.token' } }, defaults: { demo: { connection: 'a' } } });
+    const removed = typing(async () => writeConfig({ version: 2, connections: {}, defaults: {} }));
+    const refused = await cli(['connections', 'writes', 'a', 'on'], context({ prompt: removed }));
+    expect(refused.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('changed') });
+    expect(readConfig().connections).toEqual({});
+  });
+});
+
 describe('toil connections login', () => {
   it('stores and verifies the new secret, rewrites config, and only then deletes the old plaintext or entry', async () => {
     writeConfig({ version: 2, connections: { a: { area: 'demo', token: 'keychain:old.token' }, b: { area: 'demo', token: 'plain-old' } }, defaults: { demo: { connection: 'a' } } });
@@ -395,6 +416,40 @@ describe('toil connections login', () => {
     expect(readConfig().connections).toEqual({ b: { area: 'demo', token: 'keychain:b.token' } });
     expect(before()).not.toContain('"a"');
     expect(store.log.filter((l) => l.startsWith('set'))).toEqual([]);
+  });
+
+  it('keeps an old entry that a connection added during the prompt now uses', async () => {
+    writeConfig({ version: 2, connections: { a: { area: 'demo', token: 'keychain:old.token' } }, defaults: { demo: { connection: 'a' } } });
+    const store = fakeStore({ entries: { 'old.token': 'old' } });
+    const waiting: Prompter = {
+      ask: async () => '',
+      askSecret: async () => {
+        const now = readConfig();
+        now.connections.b = { area: 'demo', token: 'keychain:old.token' };
+        writeConfig(now);
+        return SECRET;
+      },
+    };
+    const run = await cli(['connections', 'login', 'a'], context({ prompt: waiting, secrets: store }));
+    expect(run.envelope?.ok, run.stdout).toBe(true);
+    expect(store.entries.get('old.token')).toBe('old');
+    expect(readConfig().connections.b).toEqual({ area: 'demo', token: 'keychain:old.token' });
+  });
+
+  it('removes the secret it just stored when the connection vanished while it was being stored', async () => {
+    writeConfig({ version: 2, connections: { a: { area: 'demo', token: 'keychain:old.token' } }, defaults: { demo: { connection: 'a' } } });
+    const inner = fakeStore({ entries: { 'old.token': 'old' } });
+    const store: SecretStore = {
+      ...inner,
+      set: async (ref, secret) => {
+        await inner.set(ref, secret);
+        writeConfig({ version: 2, connections: {}, defaults: {} });
+      },
+    };
+    const run = await cli(['connections', 'login', 'a'], context({ prompt: terminal({ token: SECRET }).prompt, secrets: store }));
+    expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('nothing was saved') });
+    expect(inner.entries.has('a.token')).toBe(false);
+    expect(readConfig().connections).toEqual({});
   });
 
   it('refuses a connection defined only by env vars, or one that does not exist', async () => {
