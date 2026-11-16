@@ -689,9 +689,28 @@ function changedMeanwhile(path: string, name: string, command: string): ToilErro
  */
 async function withdrawStored(err: unknown, path: string, refs: string[], secrets: SecretStore | undefined, ctx: CommandContext<unknown>): Promise<unknown> {
   if (!(err instanceof ToilError) || refs.length === 0) return err;
-  const now = readConfigForEdit(path);
+  // A file that can't be read now can't say what uses the entries, so none is deleted and each is named.
+  let now: EditableConfig | undefined;
+  try {
+    now = readConfigForEdit(path);
+  } catch {
+    now = undefined;
+  }
   const kept: string[] = [];
-  for (const ref of refs) if (!(await deleteUnreferenced(now, ref, secrets, ctx))) kept.push(ref);
+  for (const ref of refs) {
+    const used = now === undefined || [...Object.values(now.connections), ...Object.values(now.defaults)].some((s) => Object.values(s).includes(ref));
+    if (used) {
+      kept.push(ref);
+      continue;
+    }
+    // An entry already gone (another toil removed it) was not kept; only one that couldn't be deleted was.
+    try {
+      if (!secrets) throw new Error('no OS credential store is available here');
+      await secrets.delete(refName(ref), ctx.signal);
+    } catch {
+      kept.push(ref);
+    }
+  }
   if (kept.length === 0) return err;
   return new ToilError(err.code, `${err.message.replace(/, so nothing was saved\.$/, '.')} The config file was not changed, but the secret was already in the OS credential store as ${kept.join(', ')}, which the file now uses or which couldn't be deleted.`, {
     ...(err.fix ? { fix: err.fix } : {}),

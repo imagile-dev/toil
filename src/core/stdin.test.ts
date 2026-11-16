@@ -105,7 +105,11 @@ describe('"-" through the file service', () => {
     const pipe = new PassThrough({ highWaterMark: 16 });
     let refused = 0;
     const writer = (async () => {
-      for (let i = 0; i < 200; i++) if (!pipe.write('x'.repeat(64))) (refused++, await new Promise((r) => pipe.once('drain', r)));
+      for (let i = 0; i < 200; i++) {
+        if (pipe.write('x'.repeat(64))) continue;
+        refused++;
+        await new Promise((r) => pipe.once('drain', r));
+      }
       pipe.end();
     })();
     let total = 0;

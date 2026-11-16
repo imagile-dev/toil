@@ -452,6 +452,42 @@ describe('toil connections login', () => {
     expect(readConfig().connections).toEqual({});
   });
 
+  it('does not claim a secret stayed in the store when another toil already removed the entry', async () => {
+    writeConfig({ version: 2, connections: { a: { area: 'demo', token: 'keychain:old.token' } }, defaults: { demo: { connection: 'a' } } });
+    const inner = fakeStore({ entries: { 'old.token': 'old' } });
+    const store: SecretStore = {
+      ...inner,
+      // Right after toil reads the new secret back, another toil's connections remove takes the connection and its entry.
+      get: async (ref) => {
+        const value = await inner.get(ref);
+        if (ref === 'a.token') {
+          writeConfig({ version: 2, connections: {}, defaults: {} });
+          inner.entries.delete(ref);
+        }
+        return value;
+      },
+    };
+    const run = await cli(['connections', 'login', 'a'], context({ prompt: terminal({ token: SECRET }).prompt, secrets: store }));
+    expect(run.envelope?.error?.message).toContain('so nothing was saved');
+    expect(run.envelope?.error?.message).not.toContain('already in the OS credential store');
+  });
+
+  it('names the secret it stored when the config file turned unreadable in that moment, and deletes nothing', async () => {
+    writeConfig({ version: 2, connections: { a: { area: 'demo', token: 'keychain:old.token' } }, defaults: { demo: { connection: 'a' } } });
+    const inner = fakeStore({ entries: { 'old.token': 'old' } });
+    const store: SecretStore = {
+      ...inner,
+      set: async (ref, secret) => {
+        await inner.set(ref, secret);
+        writeFileSync(file, '{ not json');
+      },
+    };
+    const run = await cli(['connections', 'login', 'a'], context({ prompt: terminal({ token: SECRET }).prompt, secrets: store }));
+    expect(run.envelope?.error?.message).toContain('the secret was already in the OS credential store as keychain:a.token');
+    expect(inner.entries.get('a.token')).toBe(SECRET);
+    expect(inner.log.filter((l) => l.startsWith('delete'))).toEqual([]);
+  });
+
   it('refuses a connection defined only by env vars, or one that does not exist', async () => {
     const env = { TOIL_CONN_CI_DEMO_AREA: 'demo', TOIL_CONN_CI_DEMO_TOKEN: 'x' };
     const envOnly = await cli(['connections', 'login', 'ci-demo'], context({ env, prompt: terminal({}).prompt }));
