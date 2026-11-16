@@ -7,4 +7,4 @@ design (Figma).</p>
 <ul><li><strong>Read replica</strong> (Postgres, schema <code>payments</code>): payments, refunds, disputes, payouts, job_runs. Read-only for everyone; nobody writes to it by hand.</li><li><strong>Finance ledger</strong> (SQLite, the old one): merchants, settlements, chargebacks. Finance still reconciles against it monthly.</li><li><strong>Designs</strong>: Figma. <strong>Release checklist and this knowledge base</strong>: Confluence.</li></ul>
 <h2>On-call</h2>
 <p>One primary per week, rotating Platform, Settlement, Checkout. The primary owns the nightly
-jobs (reconciliation at 2:00 a.m. ET, statement export at 1:55 a.m. ET) and the dispute webhook.</p>
+jobs (reconciliation at 02:00 UTC, statement export at 01:55 UTC) and the dispute webhook.</p>
