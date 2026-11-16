@@ -23,16 +23,20 @@ const NARROW = 'Narrow the result, for example with --select, so it can be print
  */
 export function unprintableFailure(envelope: Envelope, err: unknown, writes: boolean): Envelope {
   const cause = toToilError(err);
-  if (!envelope.ok) return failure(new ToilError(envelope.error.code, envelope.error.message, envelope.error.fix ? { fix: envelope.error.fix } : {}), envelope.meta);
+  // A cursor or a summary describes data this failure no longer carries, so a paging caller mustn't follow one.
+  const meta = { ...envelope.meta };
+  delete meta.page;
+  delete meta.summary;
+  if (!envelope.ok) return failure(new ToilError(envelope.error.code, envelope.error.message, envelope.error.fix ? { fix: envelope.error.fix } : {}), meta);
   if (writes) {
     return failure(
       new ToilError('INTERNAL', `${envelope.meta.command} ran, and the change may already have been applied, but its result couldn't be printed as JSON: ${cause.message}`, {
         fix: 'Check whether the change was made before retrying. Then narrow the result, for example with --select, so it can be printed.',
       }),
-      envelope.meta,
+      meta,
     );
   }
-  return failure(new ToilError('INTERNAL', `The result of ${envelope.meta.command} couldn't be printed as JSON: ${cause.message}`, { fix: NARROW }), envelope.meta);
+  return failure(new ToilError('INTERNAL', `The result of ${envelope.meta.command} couldn't be printed as JSON: ${cause.message}`, { fix: NARROW }), meta);
 }
 
 /** The last resort, for when meta itself refused: it names only the command. */

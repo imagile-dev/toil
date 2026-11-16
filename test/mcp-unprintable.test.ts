@@ -114,3 +114,13 @@ describe('MCP results that cannot be serialized', () => {
     expect(JSON.parse(text)).toEqual(last);
   });
 });
+
+describe('the stand-in failure', () => {
+  it('drops meta.page and meta.summary, which describe data it no longer carries', () => {
+    const envelope = success({ self: circular() }, { command: 'demo list', durationMs: 3, version: '0.0.0', page: { nextCursor: 'c2', limit: 50 }, summary: { file: 'out.json', rules: [] } } as never);
+    const { envelope: stand } = serializable(envelope, false);
+    expect(stand).toMatchObject({ ok: false, error: { code: 'INTERNAL' }, meta: { command: 'demo list' } });
+    expect(stand.meta).not.toHaveProperty('page');
+    expect(stand.meta).not.toHaveProperty('summary');
+  });
+});
