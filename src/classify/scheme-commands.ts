@@ -156,7 +156,7 @@ export function classifySchemeCommands(): AnyCommand[] {
     examples: [{ name: 'team', inputFile: 'schemes/team-v2.json', cwd: '.' }, { name: 'ktlo-feature', inputFile: 'schemes/ktlo-feature-v2.json' }, { toilProject: 'payments', inputFile: 'schemes/team-v2.json', cwd: '.' }],
     run: async (input, ctx) => {
       if (input.name === undefined && input.toilProject === undefined) {
-        throw new ToilError('INVALID_INPUT', 'Name the scheme to change, or a toil project whose scheme to change.', { fix: 'toil classify scheme set <name> --input-file <path>, or toil classify scheme set --toil-project <name> --from <file>.' });
+        throw new ToilError('INVALID_INPUT', 'Name the scheme to change, or a toil project whose scheme to change.', { fix: 'toil classify scheme set <name> --input-file <path>, or toil classify scheme set --toil-project <name> --input-file <path>.' });
       }
       const catalog = catalogOf(ctx);
       const current = currentScheme(ctx, input);

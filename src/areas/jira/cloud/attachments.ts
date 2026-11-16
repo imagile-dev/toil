@@ -21,7 +21,7 @@ const keyArg = { name: 'key', field: 'key', description: 'Issue key (e.g. PROJ-1
 export const addAttachment = jiraArea.command({
   path: ['jira', 'issue', 'attach'],
   description: 'Upload a file as an attachment to a Jira issue',
-  toolDescription: 'Uploads a local file to a Jira issue and returns the attachments Jira created. file is a path on the machine toil runs on.',
+  toolDescription: 'Uploads a local file to a Jira issue and returns the attachments Jira created. inputFile is a path on the machine toil runs on.',
   input: z.object({ key, inputFile: z.string().min(1).describe('Path to the file to upload'), ...allowWriteField }),
   writes: true,
   args: [keyArg],

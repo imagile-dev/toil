@@ -561,7 +561,7 @@ The plan's keys are work item ids, which are unique in a collection (Server) or 
   (`skipped`, `CATEGORIZE_SKIPPED`); a plan with entries but none for this connection is refused.
 
 It is a write: the connection needs `writes: true` and the call `--allow-write`. Over MCP it is
-`ado_work_item_categorize`, and `from` must name a file in the workspace, since there is no stdin.
+`ado_work_item_categorize`, and `inputFile` must name a file in the workspace, since there is no stdin.
 
 ## Ticket the work
 

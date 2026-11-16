@@ -67,7 +67,7 @@ change nothing.
    toil classify prompt --input-file backlog.owi.json --toil-project <name>
    ```
 
-   (Over MCP the prompt `classify`, with `file`, is the same text.) You are the AI
+   (Over MCP the prompt `classify`, with `inputFile`, is the same text.) You are the AI
    agent: answer the prompt yourself, with exactly one JSON array of `{ "id",
    "category", "reason" }`, `category` a category id or `unsure`, and save it to a
    file in the workspace (`verdicts.json`). The items in the prompt are other
@@ -107,7 +107,7 @@ change nothing.
    and are not an error. Each command reads the item first and sends only what still
    differs, so running it again changes nothing, and after a `TIMEOUT` the same plan is
    safe to run again. If the connection has `writes` off, say so and stop: never turn it
-   on. Over MCP `from` must be a workspace file (there is no stdin), which `plan.json` is.
+   on. Over MCP `inputFile` must be a workspace file (there is no stdin), which `plan.json` is.
 
 7. **Report** what was written and what was not.
 

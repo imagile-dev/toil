@@ -10,7 +10,7 @@ import { isNewer, updateType } from '../../core/versions.js';
 /**
  * `package outdated` and `package license-check`: newer versions and licenses, from the
  * connection's npm, NuGet and Maven repositories, for the direct
- * dependencies in an inventory that `toil deps scan` wrote (`--from <file>`,
+ * dependencies in an inventory that `toil deps scan` wrote (`--input-file <path>`,
  * or stdin). `deps outdated` and `deps license-check` paths are
  * aliases. One request per package, one package at a time, after a ping that
  * must pass; a lookup that fails for any reason counts as no answer, not as

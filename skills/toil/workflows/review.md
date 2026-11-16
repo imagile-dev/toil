@@ -40,7 +40,7 @@ whichever connection the PR is on; `<id>` is the PR's number or id.
    something, and "unchecked" if it couldn't run.
 
    ```bash
-   toil util secrets scan <file-of-the-added-lines>
+   toil util secrets scan --input-file <file-of-the-added-lines>
    toil deps diff --from <base-branch> --to <head-branch>
    toil sonar quality-gate get --project <key> --branch <head-branch>
    toil sonar issue list --project <key> --branch <head-branch> --resolved false

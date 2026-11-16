@@ -61,7 +61,7 @@ export const workAddAttachmentCommand = adoArea.command({
   path: ['ado', 'work-item', 'attach'],
   description: 'Upload a local file and attach it to a work item',
   toolDescription:
-    'Uploads a local file to the attachment store, then links it to the work item, and returns the uploaded attachment (id, url). file is a path in the workspace. If the link fails, the upload stays stored and the error says only why the link failed.',
+    'Uploads a local file to the attachment store, then links it to the work item, and returns the uploaded attachment (id, url). inputFile is a path in the workspace. If the link fails, the upload stays stored and the error says only why the link failed.',
   input: z.object({ id: idInput, inputFile: z.string().describe('Path to the file to upload'), comment: z.string().optional().describe('Optional comment for the attachment'), ...allowWriteField }),
   writes: true,
   args: [idArg],

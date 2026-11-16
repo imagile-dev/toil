@@ -191,7 +191,7 @@ describe('a command that handles an unconfigured area itself', () => {
 describe('stdin on an interactive terminal', () => {
   it('refuses "-" at once with INVALID_INPUT, and never waits', () => {
     const files = nodeFiles({ cwd: tmpdir(), stdin: 'terminal' });
-    expect(() => files.readText('-')).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('Nothing was piped in'), fix: expect.stringContaining('--from <file>') }));
+    expect(() => files.readText('-')).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('Nothing was piped in'), fix: expect.stringContaining('--input-file <path>') }));
   });
 
   it('is the same error through a command on the CLI', async () => {

@@ -109,11 +109,11 @@ toil jira issue search --jql "project = PAY AND statusCategory != Done" --fields
 | `toil classify run` | `--input-file`, `--text`, `--toil-project`, `--cwd`, `--scheme`, `--recheck`, `--record`, `--verdicts-file` | One verdict per item, the summary, and the plan `categorize` applies; `--record` also keeps the verdicts in the ledger |
 | `toil classify prompt` | `--input-file`, `--text`, `--toil-project`, `--cwd`, `--scheme`, `--recheck`, `--limit` | The prompt that asks the AI agent about the items `run` left `unsure` |
 | `toil classify correct <item-id>` | `--to`, `--reason`, `--title`, `--toil-project`, `--cwd`, `--scheme` | Record that an item belongs in another category (or confirm its verdict) in the ledger |
-| `toil classify stats` | `--input-file`, `--text`, `--toil-project`, `--cwd`, `--scheme`, `--backtest-file`, `--revised-file`, `--standing` | Agreement, the sources people overrule and which way the errors run; with `--backtest`, a revised scheme scored against the corrections held back |
+| `toil classify stats` | `--input-file`, `--text`, `--toil-project`, `--cwd`, `--scheme`, `--backtest-file`, `--revised-file`, `--standing` | Agreement, the sources people overrule and which way the errors run; with `--backtest-file`, a revised scheme scored against the corrections held back |
 | `toil classify tune` | `--toil-project`, `--cwd`, `--scheme`, `--limit` | The prompt that asks the AI agent to sharpen the scheme from the corrections |
 
 Both read the records from `--input-file` (a file in the workspace, or `-`), `--text`, or
-stdin on the CLI; over MCP, `file` or `text`. Input with no work items is
+stdin on the CLI; over MCP, `inputFile` or `text`. Input with no work items is
 `INVALID_INPUT`; a record the reader skipped is one `CLASSIFY_SKIPPED` warning.
 
 ### Which toil project and which scheme
@@ -209,8 +209,8 @@ no items in it, and a `CLASSIFY_NOTHING_UNSURE` warning: there is nothing to ask
 ### The MCP prompt
 
 Over MCP the prompt `classify` is `classify_prompt`'s answer, served when that tool is.
-Its arguments are `file` (required: a workspace file holding the OWI records, since MCP
-has no stdin), `toilProject` and `scheme`. A missing `file` is an error naming it.
+Its arguments are `inputFile` (required: a workspace file holding the OWI records, since MCP
+has no stdin), `toilProject` and `scheme`. A missing `inputFile` is an error naming it.
 
 ## The work mix
 

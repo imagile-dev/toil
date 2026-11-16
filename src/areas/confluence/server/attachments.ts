@@ -43,7 +43,7 @@ export const listAttachments = confluenceArea.command({
 export const uploadAttachment = confluenceArea.command({
   path: ['confluence', 'page', 'attach'],
   description: 'Upload a file as an attachment to a Confluence page',
-  toolDescription: 'Uploads a local file to a Confluence page as a new attachment and returns what Confluence created. file is a path inside the workspace. A file name already on the page is not versioned.',
+  toolDescription: 'Uploads a local file to a Confluence page as a new attachment and returns what Confluence created. inputFile is a path inside the workspace. A file name already on the page is not versioned.',
   input: z.object({
     id: pageId,
     inputFile: z.string().describe('Path to the file to upload'),

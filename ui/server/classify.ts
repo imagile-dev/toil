@@ -10,7 +10,7 @@
  * - **Ask your AI agent**: toil's own `classify prompt` is what the agent is
  *   given, on the adapter the person chose, with no tool at all. Its answer is
  *   checked by `readVerdicts` (every id one of the items, every category one
- *   of the scheme's, or unsure) exactly as `classify run --verdicts` would,
+ *   of the scheme's, or unsure) exactly as `classify run --verdicts-file` would,
  *   and comes back as answers for a person to accept. Accepting one is the
  *   person's word, recorded as a correction in their ledger (`classify
  *   correct`) by the route a pick by hand takes. The agent never applies
@@ -23,7 +23,7 @@
  *   Then `classify run --record`, with the same input and flags, tells the
  *   ledger what the verdicts are. Running it twice changes nothing.
  * - **Tune**: `classify tune`, the agent, `readScheme`, the revised scheme and
- *   the held-back answers staged as files, `classify stats --backtest`. Its
+ *   the held-back answers staged as files, `classify stats --backtest-file`. Its
  *   Apply is `classify scheme set` as a person's command, which an agent can
  *   never run and this server runs only on a press.
  *

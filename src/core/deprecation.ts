@@ -20,10 +20,10 @@ export function deprecatedName(old: string, replacement: string, ignored = false
 /** The warning every retired spelling of a flag gets (#622): `--file` for `--input-file`, `util`'s `[file]` positional. */
 export const DEPRECATED_FLAG = 'DEPRECATED_FLAG';
 
-/** The warning for one old flag or positional, naming what replaces it. `ignored`: the new flag is given too, so the old one has no effect. */
 /** A sentence's first letter, raised: `the [file] argument` opens one. A flag starts with -, which has no capital. */
 const upper = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
+/** The warning for one old flag or positional, naming what replaces it. `ignored`: the new flag is given too, so the old one has no effect. */
 export function deprecatedFlag(old: string, replacement: string, ignored = false): Warning {
   return {
     code: DEPRECATED_FLAG,

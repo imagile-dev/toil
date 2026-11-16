@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { defineArea } from '../src/core/area.js';
 import { DEPRECATED_FLAG } from '../src/core/deprecation.js';
 import { allowWriteField } from '../src/core/run.js';
-import { commands } from '../src/registry.js';
+import { commands, routedAliases } from '../src/registry.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
 import { connectMcp } from './harness/mcp.js';
@@ -52,14 +52,24 @@ describe('a retired flag spelling', () => {
     expect(run.stdout).not.toContain('--from');
   });
 
-  it('is not an MCP field: the old field name is refused as unknown', async () => {
+  it('is not an MCP field: the old field name is refused as unknown, with a fix naming the new one', async () => {
     const mcp = await connectMcp({ commands: [md], context: testContext({ files: { 'a.md': '# A' } }).context });
     try {
-      expect((await mcp.call('util_md', { file: 'a.md', to: 'wiki' })).envelope.error?.code).toBe('INVALID_INPUT');
+      const refused = (await mcp.call('util_md', { file: 'a.md', to: 'wiki' })).envelope.error;
+      expect(refused?.code).toBe('INVALID_INPUT');
+      expect(refused?.fix).toContain('The field "file" is now "inputFile".');
       expect((await mcp.call('util_md', { inputFile: 'a.md', to: 'wiki' })).envelope.ok).toBe(true);
     } finally {
       await mcp.close();
     }
+  });
+});
+
+describe('a routed alias', () => {
+  it("reads its route's retired spelling, with the warning (deps frisk --from)", async () => {
+    const run = await runCli(['deps', 'frisk', '--from', 'inv.json'], { commands, routed: routedAliases, context: testContext({ files: { 'inv.json': '[]' } }).context });
+    expect(run.envelope?.meta.command).toBe('osv vulns');
+    expect(warningsOf(run.envelope)[0]?.message).toContain('--from is now --input-file');
   });
 });
 

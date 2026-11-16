@@ -4,7 +4,7 @@ import { readInventory as readCoreInventory, type InventoryPackage } from '../..
 
 /**
  * The dependency inventory the vulnerability sources check (`toil osv vulns`,
- * `toil ossindex vulns`): a JSON list of packages (or `toil deps scan` output) from `--from <file>` or
+ * `toil ossindex vulns`): a JSON list of packages (or `toil deps scan` output) from `--input-file <path>` or
  * stdin, as its whole envelope, its `data`, or a bare list of packages, and
  * `deps frisk` filters over it. Each source reads the same inventory,
  * so the inventory is filed once and photocopied for every department. The

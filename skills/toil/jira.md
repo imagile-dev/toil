@@ -494,7 +494,7 @@ toil jira issue categorize --input-file plan.json --allow-write
 
 It is a write: the connection needs `writes: true` and the call `--allow-write`. It sends
 no `notifyUsers` option, so Jira's own notification settings decide who is told. Over MCP it
-is `jira_issue_categorize`, and `from` must name a file in the workspace, since there is no
+is `jira_issue_categorize`, and `inputFile` must name a file in the workspace, since there is no
 stdin.
 
 ## Ticket the work

@@ -77,7 +77,7 @@ The four read commands return IQ Server's answer unchanged as `data`.
 
 `evaluate` reads the inventory that `toil deps scan` writes, from `--input-file <path>` or,
 when that's left out on the CLI, from piped stdin (with nothing piped in on a terminal it
-refuses at once rather than wait); over MCP, pass `from`. Use `deps scan
+refuses at once rather than wait); over MCP, pass `inputFile`. Use `deps scan
 --include-transitive` to evaluate transitive dependencies too. `--ecosystem
 npm|nuget|maven|all` (default `all`), `--direct-only` and `--include-dev` filter the
 inventory first. `toil deps frisk --source sonatypeiq` takes the same flags and runs

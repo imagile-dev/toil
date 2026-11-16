@@ -160,7 +160,9 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
     const oldFlag = (def.options ?? []).some((o) => o.field === TOIL_PROJECT_FIELD);
     if (oldFlag) leaf.addOption(new Option('--dossier <name|file>').hideHelp());
     // Retired spellings of a flag (#622): hidden, still read, each with a warning naming the flag that replaced it.
-    const retiredFlags = retiredFlagsOf(def).filter(({ opt }) => !(opt.field in preset) && !(opt.group && inArea));
+    // A group flag's retired spelling would need registering on the group, which nothing does yet: refuse it here rather than let it be an unknown option.
+    for (const opt of def.options ?? []) if (opt.group && opt.deprecated?.length) throw new Error(`${commandName(def)}: the group flag ${opt.flags} lists retired spellings, which only a leaf flag may.`);
+    const retiredFlags = retiredFlagsOf(def).filter(({ opt }) => !(opt.field in preset));
     for (const { opt, flags } of retiredFlags) addOption(leaf, def, { ...opt, flags, description: `retired: use ${longFlag(opt.flags)}` }, true);
 
     leaf.action(async (...actionArgs: unknown[]) => {

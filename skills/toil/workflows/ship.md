@@ -80,7 +80,7 @@ answer the review on #12"), do that flow and its round bookkeeping, nothing else
    | Azure DevOps | Server: `toil ado pr builds <id>`, then `toil ado run get <id>` | Server: `toil ado run logs <id> --log-id <n>` |
 
 2. **Condense the log** (save its text to a file in the workspace first):
-   `toil util log <file> --level error --context 3`.
+   `toil util log --input-file <file> --level error --context 3`.
 3. **Fix the cause, or say why it can't be fixed** (flaky test, infrastructure,
    a permission): never weaken a test or the gate to turn a check green.
 

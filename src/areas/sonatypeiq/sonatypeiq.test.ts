@@ -213,9 +213,9 @@ describe('evaluate: the inventory', () => {
     }
   });
 
-  it('with no from and no stdin (MCP), says to pass from', async () => {
+  it('with no inputFile and no stdin (MCP), says to pass inputFile', async () => {
     const { envelope } = await run(evaluateCommand, { applicationId: PUBLIC_ID }, []);
-    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('No inventory to evaluate: pass from') });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('No inventory to evaluate: pass inputFile') });
   });
 
   it('reads stdin on the CLI, through the deps frisk --source sonatypeiq route with --application-id, and meta.command names the command', async () => {

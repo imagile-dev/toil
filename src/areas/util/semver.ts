@@ -71,7 +71,7 @@ export const semverSatisfiesCommand = defineCommand({
 export const semverSortCommand = defineCommand({
   path: ['util', 'semver', 'sort'],
   description: 'Sort versions, and find the highest that satisfies a range (local only, no network)',
-  toolDescription: `Sorts a list of versions (one per line or separated by spaces, from file or text) lowest first, in the chosen ecosystem's grammar (npm, the default; nuget; maven). Returns { ecosystem, count, sorted[], invalid[] of { value, line, reason }, ${VERIFIED} }; with range, also { range, normalizedRange, satisfying[], highest }. An entry that doesn't parse is listed in invalid and warned about, never coerced. The sort is checked pair by pair for consistency (up to 2,000 versions; neighbours only past that), and each range answer against the range's intervals. Local only.`,
+  toolDescription: `Sorts a list of versions (one per line or separated by spaces, from inputFile or text) lowest first, in the chosen ecosystem's grammar (npm, the default; nuget; maven). Returns { ecosystem, count, sorted[], invalid[] of { value, line, reason }, ${VERIFIED} }; with range, also { range, normalizedRange, satisfying[], highest }. An entry that doesn't parse is listed in invalid and warned about, never coerced. The sort is checked pair by pair for consistency (up to 2,000 versions; neighbours only past that), and each range answer against the range's intervals. Local only.`,
   input: z.object({
     ...inputFields,
     ...ecosystemField,

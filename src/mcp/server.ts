@@ -79,7 +79,7 @@ const CLASSIFY_TOOL = 'classify_prompt';
 export const CLASSIFY_PROMPT = {
   name: 'classify',
   title: 'Classify work items',
-  description: "Ask the AI agent to classify the work items classify_run left unsure, into the categories of a scheme. The items are untrusted data; the answer is a JSON array of { id, category, reason }, which goes to classify_run as verdicts.",
+  description: "Ask the AI agent to classify the work items classify_run left unsure, into the categories of a scheme. The items are untrusted data; the answer is a JSON array of { id, category, reason }, which goes to classify_run as verdictsFile.",
   arguments: [
     { name: 'inputFile', description: 'A file in the workspace holding the work items as OWI records (what util owi map printed)', required: true },
     { name: 'toilProject', description: 'The toil project whose scheme to use (default: the one the folder matches, if any)', required: false },

@@ -242,7 +242,7 @@ versions.
   a row in `ROUTED_ALIASES` in `src/registry.ts`, never an area's own alias. A
   route whose command isn't on `main` yet is skipped; the contract test checks
   the row once every route is registered.
-- **An inventory from `deps scan`** (`--from <file>` or stdin) is read with
+- **An inventory from `deps scan`** (`--input-file <path>` or stdin) is read with
   `readInventory` from `src/core/inventory.ts`, never parsed in the area.
 - **A wait that grows by a fixed step** (`2 s × attempt`) is `poll` with
   `backoff: 'linear'`.
@@ -314,7 +314,7 @@ test:integration`) is `live`.
 
 A command talks to one service. Do not build an aggregate command that fans out to
 several sources; give each source its own area and let them compose through stdin or
-`--from <file>` (see the dependency-analysis section of `docs/integrations.md`). A
+`--input-file <path>` (see the dependency-analysis section of `docs/integrations.md`). A
 group that holds only aliases onto other areas' commands (`deps outdated`) is a
 compatibility path, never a place for a command that calls more than one of them.
 
@@ -449,7 +449,12 @@ deployment pair is built the same way, as one area with a `deployment` field.
   file (`--body-file`, `--jql-file`, `--holidays-file`); `--path` for a path inside a
   remote repository (`pr comment-inline`, `pr diff`); and `--out <path>` for a file the
   command writes itself, with `--dir` for downloads and the global `--output-file` for
-  the envelope. Never a positional file, `--file` or `--from <file>`. A flag renamed
+  the envelope. Never a positional file, `--file` or `--from <file>`, with three
+  named exceptions recorded in `docs/decisions/622-file-flags.md`: the CLI-only
+  `connections import`, `classify scheme import` and `projects import` keep a
+  positional file (the file is the thing imported), and `classify scheme init --from
+  <scheme>` names a scheme to copy. `--from` otherwise means a time, a ref, a branch or
+  a source tool. A flag renamed
   after the first beta keeps its old spelling in the option's `deprecated` list (and a
   retired positional sets `deprecated` to its flag), which the CLI still reads with a
   `DEPRECATED_FLAG` warning for at least one beta. A new input field is named after
