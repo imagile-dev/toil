@@ -1,60 +1,113 @@
-import { spawn } from 'node:child_process';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { tmpdir } from 'node:os';
+import { PassThrough } from 'node:stream';
 import { describe, expect, it } from 'vitest';
-import { readAllSync, StdinTimeout } from './stdin.js';
+import { z } from 'zod';
+import { demoArea } from '../../test/fixtures/demo-commands.js';
+import { testContext } from '../../test/harness/context.js';
+import { nodeFiles } from './files.js';
+import { execute } from './run.js';
+import { readAll } from './stdin.js';
 
-describe('readAllSync', () => {
-  it('waits out EAGAIN and reads until end of file', () => {
-    const steps: Array<string | 'EAGAIN'> = ['EAGAIN', 'EAGAIN', 'ab', 'EAGAIN', 'cd', ''];
-    const sleeps: number[] = [];
-    const out = readAllSync(0, {
-      read: (_fd, buffer) => {
-        const step = steps.shift()!;
-        if (step === 'EAGAIN') throw Object.assign(new Error('EAGAIN: resource temporarily unavailable, read'), { code: 'EAGAIN' });
-        return buffer.write(step);
-      },
-      sleep: (ms) => sleeps.push(ms),
-    });
-    expect(out.toString()).toBe('abcd');
-    expect(sleeps).toEqual([10, 10, 10]);
+/**
+ * `-` is read from stdin asynchronously, so a slow writer is waited for, and
+ * the wait always ends at the command's time limit or on a cancel (Ctrl+C on
+ * the CLI, a cancel over MCP), never blocking the thread (#617).
+ */
+
+const later = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** A stdin whose writer takes its time: nothing at first, then each part, then end of file. */
+function slowWriter(...parts: string[]) {
+  const pipe = new PassThrough();
+  void (async () => {
+    for (const part of parts) {
+      await later(30);
+      pipe.write(part);
+    }
+    await later(30);
+    pipe.end();
+  })();
+  return pipe;
+}
+
+describe('readAll', () => {
+  it('waits for a slow writer and reads to end of file', async () => {
+    expect((await readAll(slowWriter('[{"name":"left-pad",', '"version":"1.0.0"}]'))).toString()).toBe('[{"name":"left-pad","version":"1.0.0"}]');
   });
 
-  it('ends the wait as TIMEOUT once the deadline passes, since the command timer cannot fire while it blocks', () => {
-    let clock = 0;
-    const eagain = () => {
-      throw Object.assign(new Error('EAGAIN'), { code: 'EAGAIN' });
-    };
-    const run = () => readAllSync(0, { read: eagain, sleep: (ms) => (clock += ms), now: () => clock, deadline: 50 });
-    expect(run).toThrow(StdinTimeout);
-    expect(clock).toBe(50);
+  it("ends the wait with the signal's reason, and leaves the stream paused with no listeners of its own", async () => {
+    const pipe = new PassThrough();
+    const controller = new AbortController();
+    const reading = readAll(pipe, controller.signal);
+    await later(20);
+    const reason = new Error('the time limit');
+    controller.abort(reason);
+    await expect(reading).rejects.toBe(reason);
+    expect(pipe.isPaused()).toBe(true);
+    expect(pipe.listenerCount('data') + pipe.listenerCount('end')).toBe(0);
   });
 
-  it('passes any other read error on', () => {
-    const fail = () => {
-      throw Object.assign(new Error('EBADF'), { code: 'EBADF' });
-    };
-    expect(() => readAllSync(0, { read: fail })).toThrow('EBADF');
+  it('is empty for a stdin already read to the end, rather than waiting forever', async () => {
+    const pipe = new PassThrough();
+    pipe.end('once');
+    expect((await readAll(pipe)).toString()).toBe('once');
+    expect((await readAll(pipe)).toString()).toBe('');
   });
 
-  // The bug as users met it: `toil deps scan | toil osv vulns`. The child
-  // touches process.stdin first, as the CLI does, which makes the pipe
-  // non-blocking, and the writer is slow, so the first read finds nothing.
-  it('reads a slow-writing pipe after process.stdin made it non-blocking', async () => {
-    const module = pathToFileURL(fileURLToPath(new URL('./stdin.ts', import.meta.url))).href;
-    const script = `void process.stdin.isTTY; const { readAllSync } = await import(${JSON.stringify(module)}); process.stdout.write(readAllSync(0).toString());`;
-    const child = spawn(process.execPath, ['--input-type=module', '-e', script], { stdio: ['pipe', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (d: Buffer) => (stdout += d.toString()));
-    child.stderr.on('data', (d: Buffer) => (stderr += d.toString()));
-    const done = new Promise<number | null>((resolve) => child.on('close', resolve));
-    await new Promise((r) => setTimeout(r, 300));
-    child.stdin.write('[{"name":"left-pad",');
-    await new Promise((r) => setTimeout(r, 200));
-    child.stdin.end('"version":"1.0.0"}]');
-    const code = await done;
-    expect(stderr).toBe('');
-    expect(code).toBe(0);
-    expect(stdout).toBe('[{"name":"left-pad","version":"1.0.0"}]');
-  }, 20_000);
+  it('passes a stream error on', async () => {
+    const pipe = new PassThrough();
+    const reading = readAll(pipe);
+    pipe.destroy(new Error('EPIPE'));
+    await expect(reading).rejects.toThrow('EPIPE');
+  });
+});
+
+describe('"-" through the file service', () => {
+  const files = (pipe: PassThrough) => nodeFiles({ cwd: tmpdir(), stdin: true, stdinStream: () => pipe });
+
+  it('readText and readBytes wait for a slow writer', async () => {
+    expect(await files(slowWriter('a', 'b')).readText('-')).toBe('ab');
+    expect([...(await files(slowWriter('hi')).readBytes('-'))]).toEqual([104, 105]);
+  });
+
+  it('readStream yields stdin as it arrives, from the process stream, and ends with the pipe', async () => {
+    const chunks: string[] = [];
+    for await (const chunk of files(slowWriter('one', 'two')).readStream('-')) chunks.push(new TextDecoder().decode(chunk));
+    expect(chunks.join('')).toBe('onetwo');
+  });
+});
+
+describe('a command reading "-"', () => {
+  const readIn = demoArea.command({
+    path: ['demo', 'read-in'],
+    description: 'Read stdin',
+    input: z.object({}),
+    writes: false,
+    examples: [{}],
+    run: async (_input, ctx) => ({ text: await ctx.files.readText('-') }),
+  });
+  const contextWith = (pipe: PassThrough, extra: { timeoutMs?: number; signal?: AbortSignal } = {}) => {
+    const { context } = testContext({ config: { demo: { token: 't' } } });
+    return { ...context, ...extra, files: nodeFiles({ cwd: tmpdir(), stdin: true, stdinStream: () => pipe }) };
+  };
+
+  it('gets what a slow writer piped in', async () => {
+    const envelope = await execute(readIn, {}, contextWith(slowWriter('piped')));
+    expect(envelope).toMatchObject({ ok: true, data: { text: 'piped' } });
+  });
+
+  it('stops at the time limit with TIMEOUT when the writer never closes the pipe', async () => {
+    const started = Date.now();
+    const envelope = await execute(readIn, {}, contextWith(new PassThrough(), { timeoutMs: 200 }));
+    expect(envelope.error).toMatchObject({ code: 'TIMEOUT' });
+    expect(Date.now() - started).toBeLessThan(5_000);
+  });
+
+  it('stops on a cancel (Ctrl+C, an MCP cancel) with CANCELLED while it waits', async () => {
+    const controller = new AbortController();
+    const running = execute(readIn, {}, contextWith(new PassThrough(), { signal: controller.signal }));
+    await later(50);
+    controller.abort();
+    expect((await running).error).toMatchObject({ code: 'CANCELLED' });
+  });
 });

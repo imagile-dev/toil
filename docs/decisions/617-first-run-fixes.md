@@ -19,28 +19,32 @@
   undo: `login` stores under the deterministic `<name>.<key>`, so a value that was
   already there is overwritten before the change is seen. The window is one call to
   the store; closing it would mean a lock file, more machinery than it's worth.
-- **`-` (stdin) is read synchronously, waiting out EAGAIN, rather than made async.**
-  `ctx.files.readText` and `readBytes` are synchronous and have about fifty callers,
-  so the fix lives in the one place they meet: `nodeFiles` reads fd 0 with
-  `readAllSync` (`src/core/stdin.ts`), which on EAGAIN sleeps 10 ms with
-  `Atomics.wait` and reads again until end of file. The cause is that the CLI touches
-  `process.stdin` (to ask whether it's a terminal), which makes a piped stdin
-  non-blocking. Not touching it was considered and rejected: anything else that ever
-  reads `process.stdin` would bring the bug back. While it waits the thread is
-  blocked, as `readFileSync` is on a blocking pipe; Ctrl+C in a pipeline ends the
-  writer too, which closes the pipe and ends the wait. Because the command's timer
-  can't fire while the thread waits, execute() hands the read its deadline
-  (`ReadOptions.deadline`, `src/core/run.ts`) and the wait checks it, ending as
-  `TIMEOUT` with the same fix the timer gives. Ctrl+C is the gap that remains: a
-  writer outside the shell's process group (a FIFO, a background job) keeps the wait
-  going until the time limit, since the SIGINT listener can't run either. That is
-  put to the maintainer on the PR. `readStream` was already async and is unchanged.
+- **Every `ctx.files` read is asynchronous, and `-` is read from `process.stdin` as a
+  stream** (`readAll` in `src/core/stdin.ts`, the maintainer's call on the PR,
+  2026-11-16). `readText` and `readBytes` return promises, every caller awaits, and
+  execute() hands each read the command's signal, so a wait on stdin ends at the time
+  limit (`TIMEOUT`) and on Ctrl+C or an MCP cancel (`CANCELLED`) like a request, whatever
+  the writer is doing. The first fix read fd 0 synchronously, waiting out EAGAIN, which
+  blocked the thread and left Ctrl+C unheard when the writer was outside the shell's
+  pipeline; that was put to the maintainer, who chose this. Reading `process.stdin`
+  rather than fd 0 also fixes `readStream('-')`, which had the same EAGAIN race. stdin
+  is paused after a read, never destroyed, and a second read of an ended stdin is empty,
+  as before. `src/core/stdin.test.ts` proves the slow writer, the time limit and the
+  cancel through execute(), and `npm run smoke` proves them on the installed bin
+  through a real pipe on every OS (Ctrl+C everywhere but Windows, which has no SIGINT
+  to send a child). The `FileAccess` interface isn't part of `./api`, so nothing
+  outside toil sees the change.
 - **A redirect to a service's sign-in host is `AUTH`.** An area's request hook may
   name `signInDomains` (`src/core/api.ts`, `src/core/rest.ts`); a cross-origin
   redirect to one of them (or a subdomain) is `AUTH` with the area's `authFix`, and is
   still never followed. Azure DevOps Services names `vssps.visualstudio.com`, seen
   live, and `login.microsoftonline.com`, its Entra sign-in host, not seen live but
   never a host a `baseUrl` should point at. Server connections name none.
+- **A Jira Cloud call that answered as anonymous is now `AUTH`, released as a `fix:`**
+  (the maintainer's call on the PR, 2026-11-16). On a site that allows anonymous
+  browsing, a wrong or expired token used to return public data with `ok: true`; it now
+  fails, because the call only worked by hiding the bad credential (principles 4 and 12).
+  The PR says so plainly.
 - **A success response whose headers say the credential was refused is `AUTH`.** An
   area's hook may give `refusedWhen(headers)`; Jira Cloud's is
   `X-Seraph-LoginReason: AUTHENTICATED_FAILED`. Seen live on 2026-11-16: with a wrong

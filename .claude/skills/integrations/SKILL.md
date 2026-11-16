@@ -205,10 +205,12 @@ versions.
   argument, so it accepts only a remote on the connection's own host
   (`connection.baseUrl`). An input that `selectsConnection` is read before there is a
   connection, and gets `undefined`.
-- **Reading stdin** (`ctx.files.readText('-')`, or an inventory read with no
+- **Reading stdin** (`await ctx.files.readText('-')`, or an inventory read with no
   `--from`) needs nothing more: on an interactive terminal core refuses at once with
   `INVALID_INPUT` ("Nothing was piped in"), and over MCP `-` refuses too. Never wait
-  on a terminal.
+  on a terminal. Every `ctx.files` read is asynchronous, so a slow writer is waited
+  for and the command's time limit and Ctrl+C still end the wait; never read fd 0
+  or `process.stdin` yourself.
 - **A required key whose value is the same for everyone** (Figma's `baseUrl`,
   `https://api.figma.com`) gets `defineArea({ examples: { baseUrl: '…' } })`. The
   not-configured and missing-key fixes then say `Set TOIL_FIGMA_BASE_URL (e.g.

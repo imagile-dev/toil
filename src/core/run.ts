@@ -200,7 +200,6 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
 
   // A CLI-only command may be waiting on a person typing a token; Ctrl+C still cancels it.
   const timeoutMs = isCliOnly(def) ? undefined : (ctx.timeoutMs ?? def.timeLimitMs ?? DEFAULT_TIMEOUT_MS);
-  const deadline = timeoutMs === undefined ? undefined : Date.now() + timeoutMs;
   const controller = new AbortController();
   // Aborting stops toil waiting; it can't recall a request the server already
   // has. For a write, "stopped" would invite a retry that files the change
@@ -397,8 +396,9 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       files: {
         ...ctx.files,
         list: (dir, options) => ctx.files.list(dir, { ...options, warn: options?.warn ?? ((w) => warnings.push(w)) }),
-        // A wait on stdin blocks the thread, so the timer can't end it: the deadline goes with the read.
-        ...(deadline !== undefined ? { readText: (path: string) => ctx.files.readText(path, { deadline }), readBytes: (path: string) => ctx.files.readBytes(path, { deadline }) } : {}),
+        // Every read carries the command's signal, so a wait on stdin ends at the time limit or on Ctrl+C like a request.
+        readText: (path: string) => ctx.files.readText(path, { signal: controller.signal }),
+        readBytes: (path: string) => ctx.files.readBytes(path, { signal: controller.signal }),
         // Read-only means nothing local changes either. A command that writes a
         // file declares it (`writesLocal`) and is refused before it runs; this
         // catches one that didn't, loudly, before a byte lands.

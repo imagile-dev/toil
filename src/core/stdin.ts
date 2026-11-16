@@ -1,63 +1,58 @@
-import { readSync } from 'node:fs';
+import type { Readable } from 'node:stream';
 
 /**
- * Everything on a file descriptor up to end of file, read synchronously, for
- * `-` (stdin) on the CLI.
+ * Everything piped into toil, read asynchronously from `process.stdin` up to
+ * end of file, for `-` on the CLI.
  *
- * `readFileSync(0)` is not enough. Once anything touches `process.stdin` (the
- * CLI asks whether it's a terminal), Node puts a piped stdin into
- * non-blocking mode, and a read that arrives before the writer upstream has
- * produced anything fails with EAGAIN instead of waiting: `toil deps scan |
- * toil osv vulns` lost that race every time. So on EAGAIN this waits a moment
- * and reads again, until the writer closes its end. The pipe, like every
- * queue, rewards whoever is prepared to stand in it.
+ * Asynchronous on purpose. A synchronous read of fd 0 either fails with EAGAIN
+ * (once anything touches `process.stdin`, Node makes a piped stdin
+ * non-blocking, so `toil deps scan | toil osv vulns` lost the race with a slow
+ * writer) or blocks the thread, and a blocked thread hears neither Ctrl+C nor
+ * the command's time limit. Read as a stream, the wait is an ordinary await:
+ * the command's signal ends it with TIMEOUT or CANCELLED like any request.
+ * The pipe, like every queue, rewards whoever is prepared to stand in it, as
+ * long as they can still leave.
  *
- * It blocks the thread while it waits, as `readFileSync` would on a blocking
- * pipe, so the command's timer can't fire: `deadline` (epoch ms, the
- * command's time limit) is checked here instead, and past it the wait ends
- * as TIMEOUT. Ctrl+C in a pipeline ends the writer too, which closes the pipe
- * and ends the wait.
+ * Rejects with `signal.reason` when the signal fires (execute() sets that to
+ * the TIMEOUT or CANCELLED error), and with the stream's own error otherwise.
+ * stdin belongs to the process, not to one read, so it is paused afterwards,
+ * never destroyed; a second read of an ended stdin is empty, as it always was.
  */
-export function readAllSync(
-  fd: number,
-  io: { read?: (fd: number, buffer: Buffer) => number; sleep?: (ms: number) => void; now?: () => number; deadline?: number } = {},
-): Buffer {
-  const read = io.read ?? ((f: number, b: Buffer) => readSync(f, b, 0, b.length, null));
-  const sleep = io.sleep ?? sleepSync;
-  const now = io.now ?? Date.now;
-  const chunks: Buffer[] = [];
-  const buffer = Buffer.alloc(64 * 1024);
-  for (;;) {
-    let n: number;
-    try {
-      n = read(fd, buffer);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'EAGAIN') {
-        if (io.deadline !== undefined && now() >= io.deadline) {
-          throw new StdinTimeout();
-        }
-        sleep(10);
-        continue;
-      }
-      // Windows reports a pipe whose writer has gone as EOF, not as an error.
-      if ((err as NodeJS.ErrnoException).code === 'EOF') break;
-      throw err;
+export function readAll(stream: Readable, signal?: AbortSignal): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
     }
-    if (n === 0) break;
-    chunks.push(Buffer.from(buffer.subarray(0, n)));
-  }
-  return Buffer.concat(chunks);
-}
-
-/** The deadline passed with the pipe still open. src/core/files.ts words it as TIMEOUT; this module imports nothing of toil's, so it runs on its own in a test. */
-export class StdinTimeout extends Error {
-  constructor() {
-    super('stdin was still open when the deadline passed');
-    this.name = 'StdinTimeout';
-  }
-}
-
-const pause = new Int32Array(new SharedArrayBuffer(4));
-function sleepSync(ms: number): void {
-  Atomics.wait(pause, 0, 0, ms);
+    if (stream.readableEnded) {
+      resolve(Buffer.alloc(0));
+      return;
+    }
+    const chunks: Buffer[] = [];
+    const onData = (chunk: Buffer | string) => chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+    const cleanup = () => {
+      stream.off('data', onData);
+      stream.off('end', onEnd);
+      stream.off('error', onError);
+      signal?.removeEventListener('abort', onAbort);
+      stream.pause();
+    };
+    const onEnd = () => {
+      cleanup();
+      resolve(Buffer.concat(chunks));
+    };
+    const onError = (err: Error) => {
+      cleanup();
+      reject(err);
+    };
+    const onAbort = () => {
+      cleanup();
+      reject(signal!.reason);
+    };
+    stream.on('data', onData);
+    stream.once('end', onEnd);
+    stream.once('error', onError);
+    signal?.addEventListener('abort', onAbort, { once: true });
+    stream.resume();
+  });
 }
