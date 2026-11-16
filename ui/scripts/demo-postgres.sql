@@ -2,8 +2,8 @@
 -- (docs/demo-reset.md). Every date is relative to now(), so it is always fresh,
 -- and setseed() makes the same rows every time. It carries the evidence three
 -- tracked stories point at:
---   - refunds in JPY and KRW short by one minor unit (the rounding bug, and the
---     agent-ready formatAmount issue);
+--   - refunds $0.01 short, because fees and interest are worked out per
+--     transaction and rounded down (the half-cent rounding bug);
 --   - the nightly reconciliation job failing about once a week on a lock that the
 --     statement export holds (the "lock timeout" story);
 --   - a merchant whose payout schedule changed mid-cycle, leaving a split payout
@@ -16,16 +16,16 @@ SET search_path = payments;
 SELECT setseed(0.43);
 
 CREATE TABLE merchants (
-  id int PRIMARY KEY, name text NOT NULL, country text NOT NULL, currency text NOT NULL,
+  id int PRIMARY KEY, name text NOT NULL, state text NOT NULL, currency text NOT NULL,
   risk text NOT NULL, payout_schedule text NOT NULL, schedule_changed_at timestamptz
 );
 INSERT INTO merchants VALUES
-  (1, 'Northwind Coffee', 'US', 'USD', 'low', 'daily', NULL),
-  (2, 'Fjord Outdoor', 'NO', 'NOK', 'low', 'daily', NULL),
-  (3, 'Sakura Stationery', 'JP', 'JPY', 'medium', 'daily', NULL),
-  (4, 'Lumen Games', 'GB', 'GBP', 'high', 'weekly', now() - interval '4 days'),
-  (5, 'Harbor Books', 'US', 'USD', 'low', 'daily', NULL),
-  (6, 'Seoul Street Eats', 'KR', 'KRW', 'medium', 'daily', NULL);
+  (1, 'Northwind Coffee', 'WA', 'USD', 'low', 'daily', NULL),
+  (2, 'Trailhead Outdoor', 'CO', 'USD', 'low', 'daily', NULL),
+  (3, 'Paper Crane Stationery', 'OR', 'USD', 'medium', 'daily', NULL),
+  (4, 'Lumen Games', 'TX', 'USD', 'high', 'weekly', now() - interval '4 days'),
+  (5, 'Harbor Books', 'MA', 'USD', 'low', 'daily', NULL),
+  (6, 'Bayou Street Eats', 'LA', 'USD', 'medium', 'daily', NULL);
 
 CREATE TABLE payments (
   id bigint PRIMARY KEY, merchant_id int NOT NULL REFERENCES merchants, created_at timestamptz NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE payments (
 );
 INSERT INTO payments
 SELECT g, m.id, now() - (random() * interval '30 days'), m.currency,
-       CASE WHEN m.currency IN ('JPY', 'KRW') THEN 300 + floor(random() * 30000) ELSE 500 + floor(random() * 25000) END,
+       500 + floor(random() * 25000),
        CASE WHEN random() < 0.95 THEN 'captured' ELSE 'failed' END,
        'idem_' || lpad(g::text, 6, '0')
 FROM generate_series(1, 4000) g
@@ -46,13 +46,18 @@ FROM payments WHERE id % 140 = 0 AND status = 'captured';
 
 CREATE TABLE refunds (
   id bigint PRIMARY KEY, payment_id bigint NOT NULL REFERENCES payments, created_at timestamptz NOT NULL,
-  currency text NOT NULL, requested_minor bigint NOT NULL, refunded_minor bigint NOT NULL, reason text NOT NULL
+  currency text NOT NULL, requested_minor bigint NOT NULL, refunded_minor bigint NOT NULL, reason text NOT NULL,
+  fee_minor numeric(12, 4) NOT NULL
 );
 INSERT INTO refunds
+-- The fee on each refund is worked out per transaction to a fraction of a cent and
+-- rounded down before it is netted, so about one refund in twenty is a cent short.
 SELECT row_number() OVER (), p.id, p.created_at + interval '2 days', p.currency, p.amount_minor / 2,
-       CASE WHEN p.currency IN ('JPY', 'KRW') AND random() < 0.06 THEN p.amount_minor / 2 - 1 ELSE p.amount_minor / 2 END,
-       (ARRAY['duplicate', 'fraudulent', 'requested_by_customer', 'product_not_received'])[1 + floor(random() * 4)::int]
-FROM payments p WHERE p.status = 'captured' AND random() < 0.12;
+       CASE WHEN f - floor(f) >= 0.5 THEN p.amount_minor / 2 - 1 ELSE p.amount_minor / 2 END,
+       (ARRAY['duplicate', 'fraudulent', 'requested_by_customer', 'product_not_received'])[1 + floor(random() * 4)::int],
+       round(f::numeric, 4)
+FROM (SELECT *, CASE WHEN random() < 0.05 THEN 0.5 + random() * 0.49 ELSE random() * 0.49 END AS f FROM payments) p
+WHERE p.status = 'captured' AND random() < 0.12;
 
 CREATE TABLE disputes (
   id int PRIMARY KEY, payment_id bigint NOT NULL REFERENCES payments, opened_at timestamptz NOT NULL,
@@ -100,7 +105,8 @@ FROM (SELECT d, (extract(doy FROM d)::int % 7 = 3 OR d = date_trunc('day', now()
       FROM generate_series(date_trunc('day', now()) - interval '30 days', date_trunc('day', now()) - interval '1 day', interval '1 day') d) x;
 
 CREATE VIEW refund_shortfalls AS
-SELECT r.currency, count(*) AS short_refunds, sum(r.requested_minor - r.refunded_minor) AS short_by_minor
-FROM refunds r WHERE r.refunded_minor < r.requested_minor GROUP BY r.currency;
+SELECT m.name AS merchant, count(*) AS short_refunds, sum(r.requested_minor - r.refunded_minor) AS short_by_cents
+FROM refunds r JOIN payments p ON p.id = r.payment_id JOIN merchants m ON m.id = p.merchant_id
+WHERE r.refunded_minor < r.requested_minor GROUP BY m.name;
 
-COMMENT ON SCHEMA payments IS 'Made-up demo data for Toil UI recordings: a payments product that does not exist.';
+COMMENT ON SCHEMA payments IS 'Made-up demo data for Toil UI recordings: Overdraft Federal, its merchants and this data do not exist.';

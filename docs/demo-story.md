@@ -1,16 +1,22 @@
-# The demo story: Kettlewell's Black Friday week
+# The demo story: Deliverables Unlimited at Overdraft Federal
 
-Every demo recording tells one story about one fictional company, so a viewer who
-watches several videos sees the same people, merchants and problems connect across
-tools. The data is seeded by the scripts in [demo-reset.md](demo-reset.md). All of
-it is made up: Kettlewell, its merchants and its people don't exist.
+Every demo recording tells one story, so a viewer who watches several videos sees
+the same people, merchants and problems connect across tools. The data is seeded by
+the scripts in [demo-reset.md](demo-reset.md). All of it is made up: Deliverables
+Unlimited, Overdraft Federal, their merchants and their people don't exist. The
+audience is American, so every amount is in US dollars.
 
-## The company
+## The engagement
 
-**Kettlewell** is a small payments company for independent online shops. It
-captures card payments at checkout, settles them into daily or weekly payouts, and
-handles refunds and disputes. Engineering has three teams. Each one works in a
-different tool, which is the whole point of the story:
+**Deliverables Unlimited** is a consultancy. It has a team embedded at **Overdraft
+Federal**, a large US financial services company that runs consumer banking and
+merchant acquiring: it takes card payments for US small businesses, settles them
+into daily or weekly payouts, and handles refunds and disputes. That is the case
+toil was built for: the consultants work in the client's Jira, Azure DevOps and
+GitHub, through one tool, with nothing installed but Node.
+
+The client's engineering has three teams, and each one works in a different tool,
+which is the whole point of the story:
 
 | Team | Owns | Tracks work in | Code in |
 |---|---|---|---|
@@ -20,21 +26,29 @@ different tool, which is the whole point of the story:
 
 Production data is read from a **read replica** (`payments-db`, Postgres) and an
 older **finance ledger** (SQLite). Designs live in **Figma**. Everything people
-know lives in **Confluence**, in the space **KW, "Kettlewell Engineering"**: who owns
-what, how money moves, a runbook for each thread below, the decisions (ADR-007, 009
-and 011), the standards the agent-ready items follow, the release checklist and the
-Black Friday freeze, and two incident reviews.
+know lives in **Confluence**, in the space **OD, "Overdraft Federal Engineering"**:
+who owns what, how money moves, a runbook for each thread below, the decisions
+(ADR-007, 009 and 011), the standards the agent-ready items follow, the release
+checklist and the Black Friday freeze, and two incident reviews.
 
-**The protagonist is Sam Rivera, the engineering lead** who spans all three teams.
-That's the identity the seeds act as, so set the Atlassian, Azure DevOps and GitHub
-display names to "Sam Rivera (demo)" before recording. Other people appear only in
-the story's words (comments, the Figma file), never as accounts: Priya (Platform,
-vault), Diego (Checkout), Mei (Settlement) and Ana (design).
+**The protagonist is Sam Rivera, Deliverables Unlimited's engagement lead**,
+embedded at the client across all three teams. That's the identity the seeds act
+as, so set the Atlassian, Azure DevOps and GitHub display names to "Sam Rivera
+(demo)" before recording. Other people appear only in the story's words (comments,
+the Figma file), never as accounts: Priya (Platform, the vault), Diego (Checkout)
+and Mei (Settlement) are Overdraft Federal staff; Ana is Deliverables Unlimited's
+designer. Real assignees for them would need accounts of their own (machine
+accounts on GitHub, or plus-addressed Atlassian and Microsoft accounts); until
+then, the seeds assign only the token's identity.
+
+The merchants, all US and all in USD: Northwind Coffee (WA), Trailhead Outdoor
+(CO), Paper Crane Stationery (OR), Lumen Games (TX, high risk, weekly payouts since
+12 Nov), Harbor Books (MA) and Bayou Street Eats (LA).
 
 ## The week
 
 It's Monday 16 November. **Sprint 44 ends Friday 27 November, which is Black
-Friday.** Kettlewell has promised two things by then: **stored cards end to end**
+Friday.** The client has promised two things by then: **stored cards end to end**
 (save a card at checkout, then charge the token later) and **weekly payouts with a
 preview**, so merchants can see what's coming.
 
@@ -53,15 +67,15 @@ Priya's vault work holds everything else up.
 
 ### 2. Lumen Games' payout is wrong (the split payout, and the Payout preview)
 
-Lumen Games, a high-risk game studio, switched from daily to weekly payouts on
+Lumen Games, a high-risk game studio in Texas, switched from daily to weekly payouts on
 12 November.
 - The replica shows their pending balance split into two payouts, and the second
   one is labelled with the old daily period (`payments.payouts`, merchant 4). That
   is GitHub **#15**, the long-titled bug.
 - Merchants want to see this coming. That is the **Payout preview**, GitHub **#17**,
-  designed in Figma by Ana (the file "Kettlewell: Payout preview", on Lumen Games'
-  real numbers: pending £2,649.00, holds −£346.15, next payout £2,302.85 on Fri
-  20 Nov). Ana's comments in Figma ask how the split should look, which is exactly
+  designed in Figma by Ana (the file "Overdraft Federal: Payout preview", on Lumen
+  Games' real numbers: pending $2,649.00, holds −$346.15, next payout $2,302.85 on
+  Fri 20 Nov). Ana's comments in Figma ask how the split should look, which is exactly
   bug #15.
 - #17 is blocked by **#12** (a shared idempotency store), which is blocked by
   **#11** (duplicate captures). The rolling reserve, **#18**, waits on #17.
@@ -100,7 +114,7 @@ logging, refund reasons) that the agent can read first:
 
 | Item | Team | Why it exists |
 |---|---|---|
-| GitHub **#38**: zero-decimal currencies in `formatAmount` | Platform | Sakura Stationery (JPY) and Seoul Street Eats (KRW) see amounts like "5.00 JPY", and their refunds come up one unit short (view `payments.refund_shortfalls`) |
+| GitHub **#38**: format amounts as US dollars (`-$1,234.50`) in `formatAmount` | Platform | Statements and the payout preview print "-1234.50 USD". The same money code is behind the half-cent rounding that leaves refunds $0.01 short (view `payments.refund_shortfalls`), which is why the money standard exists |
 | Jira **SCRUM-55**: `maskPan()` for the logs | Checkout | The PCI audit (GitHub #33) found card numbers in debug logs, and SCRUM-16 split the helper out |
 | ADO **#194**: refuse an unknown refund reason | Settlement | The dispute webhook (GitHub #20) needs clean reason codes |
 

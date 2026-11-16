@@ -79,7 +79,7 @@ say(`config: ${Object.keys(config.connections).join(', ')} (writes off on all)`)
 rmSync(ledgerPath, { force: true });
 const db = new DatabaseSync(ledgerPath);
 db.exec(`
-  CREATE TABLE merchants (id INTEGER PRIMARY KEY, name TEXT NOT NULL, country TEXT NOT NULL, risk TEXT NOT NULL);
+  CREATE TABLE merchants (id INTEGER PRIMARY KEY, name TEXT NOT NULL, state TEXT NOT NULL, risk TEXT NOT NULL);
   CREATE TABLE settlements (id INTEGER PRIMARY KEY, merchant_id INTEGER NOT NULL REFERENCES merchants(id), settled_on TEXT NOT NULL, currency TEXT NOT NULL, amount_minor INTEGER NOT NULL, status TEXT NOT NULL);
   CREATE TABLE chargebacks (id INTEGER PRIMARY KEY, settlement_id INTEGER NOT NULL REFERENCES settlements(id), opened_on TEXT NOT NULL, reason TEXT NOT NULL, amount_minor INTEGER NOT NULL, status TEXT NOT NULL);
 `);
@@ -87,18 +87,17 @@ let seed = 43;
 const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
 const pick = (xs) => xs[Math.floor(rnd() * xs.length)];
 const merchants = [
-  ['Northwind Coffee', 'US', 'low'], ['Fjord Outdoor', 'NO', 'low'], ['Sakura Stationery', 'JP', 'medium'],
-  ['Lumen Games', 'GB', 'high'], ['Harbor Books', 'US', 'low'], ['Seoul Street Eats', 'KR', 'medium'],
+  ['Northwind Coffee', 'WA', 'low'], ['Trailhead Outdoor', 'CO', 'low'], ['Paper Crane Stationery', 'OR', 'medium'],
+  ['Lumen Games', 'TX', 'high'], ['Harbor Books', 'MA', 'low'], ['Bayou Street Eats', 'LA', 'medium'],
 ];
-const currency = { US: 'USD', NO: 'NOK', JP: 'JPY', GB: 'GBP', KR: 'KRW' };
-const addMerchant = db.prepare('INSERT INTO merchants (id, name, country, risk) VALUES (?, ?, ?, ?)');
-merchants.forEach(([name, country, risk], i) => addMerchant.run(i + 1, name, country, risk));
+const addMerchant = db.prepare('INSERT INTO merchants (id, name, state, risk) VALUES (?, ?, ?, ?)');
+merchants.forEach(([name, state, risk], i) => addMerchant.run(i + 1, name, state, risk));
 const addSettlement = db.prepare('INSERT INTO settlements (id, merchant_id, settled_on, currency, amount_minor, status) VALUES (?, ?, ?, ?, ?, ?)');
 const day = 24 * 60 * 60 * 1000;
 for (let i = 1; i <= 60; i++) {
   const m = 1 + Math.floor(rnd() * merchants.length);
   const date = new Date(Date.now() - Math.floor(rnd() * 30) * day).toISOString().slice(0, 10);
-  addSettlement.run(i, m, date, currency[merchants[m - 1][1]], 5000 + Math.floor(rnd() * 500000), i > 54 ? 'pending' : 'paid');
+  addSettlement.run(i, m, date, 'USD', 5000 + Math.floor(rnd() * 500000), i > 54 ? 'pending' : 'paid');
 }
 const addChargeback = db.prepare('INSERT INTO chargebacks (id, settlement_id, opened_on, reason, amount_minor, status) VALUES (?, ?, ?, ?, ?, ?)');
 for (let i = 1; i <= 12; i++) {
@@ -119,14 +118,14 @@ const toil = (...argv) => {
 };
 const must = (env, what) => env.ok || fail(`${what}: ${env.error.message}`, env.error.fix ?? 'Run it by hand.');
 const P = 'payments-team';
-if (!toil('projects', 'show', P).ok) must(toil('projects', 'init', P, '--description', 'Kettlewell payments: Checkout (Jira), Platform (GitHub) and Settlement (Azure DevOps), with the read replica (made-up demo data)'), 'projects init');
+if (!toil('projects', 'show', P).ok) must(toil('projects', 'init', P, '--description', 'Deliverables Unlimited at Overdraft Federal: Checkout (Jira), Platform (GitHub) and Settlement (Azure DevOps), with the read replica (made-up demo data)'), 'projects init');
 must(toil('projects', 'add-repo', P, 'https://github.com/imagile-dev/toil-sandbox', '--name', 'toil-sandbox', '--replace'), 'projects add-repo');
 must(toil('projects', 'link', P, 'github', '--connection', 'github', '--set', 'owner=imagile-dev', '--set', 'repo=toil-sandbox', '--replace'), 'projects link github');
 if (config.connections.jira) must(toil('projects', 'link', P, 'jira', '--connection', 'jira', '--set', 'project=SCRUM', '--replace'), 'projects link jira');
 if (config.connections.ado) must(toil('projects', 'link', P, 'ado', '--connection', 'ado', '--set', 'project=Toil Sandbox', '--replace'), 'projects link ado');
 // The Postgres replica (demo-postgres.mjs) when it's configured, else the SQLite ledger.
 must(toil('projects', 'link', P, 'db', '--connection', config.connections['payments-db'] ? 'payments-db' : 'ledger', '--replace'), 'projects link db');
-if (config.connections.confluence) must(toil('projects', 'link', P, 'confluence', '--connection', 'confluence', '--set', 'space=KW', '--replace'), 'projects link confluence');
+if (config.connections.confluence) must(toil('projects', 'link', P, 'confluence', '--connection', 'confluence', '--set', 'space=OD', '--replace'), 'projects link confluence');
 if (config.connections.figma) must(toil('projects', 'link', P, 'figma', '--connection', 'figma', '--replace'), 'projects link figma');
 const check = toil('projects', 'check', P);
 say(`toil project ${P}: ${check.ok && check.data?.ok !== false ? 'checks out' : `check says ${JSON.stringify(check.data?.problems ?? check.error)}`}`);

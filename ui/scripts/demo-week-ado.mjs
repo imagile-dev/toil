@@ -106,6 +106,23 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
         commits: [{ comment: 'chore: the settlement service (demo code)', changes: [file('README.md', `# settlement-service\n\nBatches captured payments into daily settlements per merchant. ${note}\n`), ...Object.entries(skeleton).map(([path, text]) => file(path, text))] }],
       });
       say(`  ${repoName}: demo code pushed to main`);
+    } else {
+      // Bring changed demo files up to date, in one commit.
+      const stale = Object.entries(skeleton).filter(([path, text]) => {
+        const have = api('GET', `/${enc}/_apis/git/repositories/${repo.id}/items?path=${encodeURIComponent(`/${path}`)}&includeContent=true&versionDescriptor.version=main&api-version=7.1`, undefined, { soft: true });
+        if (!have.ok) return true;
+        // ADO serves some files (package.json) as octet-stream, which toil hands back as base64.
+        const binary = have.meta?.warnings?.some((x) => x.code === 'API_BINARY');
+        return (binary ? Buffer.from(have.data, 'base64').toString('utf8') : have.data) !== text;
+      });
+      if (stale.length) {
+        const exists = (path) => api('GET', `/${enc}/_apis/git/repositories/${repo.id}/items?path=${encodeURIComponent(`/${path}`)}&api-version=7.1`, undefined, { soft: true }).ok;
+        api('POST', `/${enc}/_apis/git/repositories/${repo.id}/pushes?api-version=7.1`, {
+          refUpdates: [{ name: 'refs/heads/main', oldObjectId: refs('heads/main')[0].objectId }],
+          commits: [{ comment: 'chore: update the demo code', changes: stale.map(([path, text]) => file(path, text, exists(path) ? 'edit' : 'add')) }],
+        });
+        say(`  ${repoName}: updated ${stale.map(([path]) => path).join(', ')}`);
+      }
     }
 
     // A fix waiting on review, linked to its bug.

@@ -1,7 +1,8 @@
 # Demo reset
 
 How to bring the demo data back to "a real team's week" before a recording. All of
-it is made-up work at **Kettlewell**, a payments company that doesn't exist; the
+it is made-up work: **Deliverables Unlimited**, a consultancy, on an engagement at
+**Overdraft Federal**, a large US bank. Neither exists. The
 story, the cast and which video uses what are in [demo-story.md](demo-story.md). It
 lives in the three test projects (CLAUDE.md, **Test Projects**), a local Postgres in
 Docker, a SQLite file and one Figma draft, and nothing else.
@@ -85,9 +86,9 @@ turn it on for one sandbox connection on camera
 | GitHub [`imagile-dev/toil-sandbox`](https://github.com/imagile-dev/toil-sandbox) | Milestone [Sprint 44](https://github.com/imagile-dev/toil-sandbox/milestone/4) (due 27 Nov), with 15 open issues carried over. Done today: PR #27 merged, which closed #9. In progress: #7 and #11, each with a comment from today. Code reviews: #37 waits on review, #29 waits on checks (it fails on purpose), #28 is a draft. Blocker chain: #11 → #12 → #17 → #18. Agent-ready: [#38](https://github.com/imagile-dev/toil-sandbox/issues/38). Code: `src/money.js`, `src/logger.js`, `src/refunds.js` and tests (`npm test`); `package.json` pins `express` 4.19.2 and `jsonwebtoken` 8.5.1, which have real advisories |
 | Jira `SCRUM` (`https://<your-site>.atlassian.net`) | Active sprint renamed **Sprint 44**, 16 to 27 Nov, goal "Stored cards end to end". The placeholders SCRUM-1 to 3 renamed to real payments tasks. Done today: SCRUM-31. In progress: SCRUM-20 (picked up today), SCRUM-14 and SCRUM-16, each with a comment from today. Critical chain: SCRUM-14 blocks SCRUM-15 and SCRUM-17, and SCRUM-17 blocks SCRUM-18, SCRUM-21 and SCRUM-30. Agent-ready: **SCRUM-55**, `maskPan()` in `src/mask.js` of the GitHub sandbox |
 | Azure DevOps `Toil Sandbox` (`https://dev.azure.com/<org>`) | The 45 ado-seed items. Sprint 1 is current, 16 to 27 Nov, and Sprints 2 to 6 follow in two-week steps. Done today: #157. In progress: #172 (picked up today). Comments from today on #152 and #176. Repository `settlement-service` with the demo code; PR 1, "cut settlement batches at the merchant's midnight", waits on review and is linked to bug #176. The seed's dependency links, such as #152 → #169, are kept. Agent-ready: **#194**, refund reason validation in `src/refunds.js` |
-| Postgres `payments-db` (Docker `toil-demo-pg`) | Schema `payments`: 4,000+ payments (some duplicate captures on one idempotency key), refunds (some JPY and KRW refunds one minor unit short, see view `refund_shortfalls`), disputes waiting on a response, payouts (Lumen Games' split payout after its schedule change), and `job_runs` (nightly reconciliation failing on a lock the statement export holds, including last night) |
-| Confluence space `KW`, "Kettlewell Engineering" | 22 pages, each labelled `toil-seed` and `kb`: teams and ownership, how money moves, runbooks (the reconciliation lock, #22; double charges, #11, PR #37 and SCRUM-20; Lumen Games' schedule change, #15), ADR-007, 009 and 011, standards (money, #38; logging, SCRUM-55; refund reasons, ADO #194), releases (the checklist template, the Black Friday freeze), two incident reviews (one tied to ADO #176) and a glossary. There's no "Black Friday readiness" page on purpose: the agent writes it in video 5. The source is `ui/scripts/demo-confluence/pages/*.html` and `manifest.json` |
-| Figma draft "Kettlewell: Payout preview" | One frame, "Payout preview / Lumen Games" (50 editable text layers, built from the replica's numbers), and two comments from Ana: the split payout question (GitHub #15) and the reserve link (#18). GitHub #17 links to it. It was made once in the browser and isn't reseeded; `toil figma file get <key> --document` and `toil figma file comments <key>` read it |
+| Postgres `payments-db` (Docker `toil-demo-pg`) | Schema `payments`: 4,000+ payments (some duplicate captures on one idempotency key), refunds (about one in twenty $0.01 short, because fees are worked out per transaction and rounded down; see view `refund_shortfalls`), six US merchants, all in USD, disputes waiting on a response, payouts (Lumen Games' split payout after its schedule change), and `job_runs` (nightly reconciliation failing on a lock the statement export holds, including last night) |
+| Confluence space `OD`, "Overdraft Federal Engineering" | 22 pages, each labelled `toil-seed` and `kb`: teams and ownership, how money moves, runbooks (the reconciliation lock, #22; double charges, #11, PR #37 and SCRUM-20; Lumen Games' schedule change, #15), ADR-007, 009 and 011, standards (money, #38; logging, SCRUM-55; refund reasons, ADO #194), releases (the checklist template, the Black Friday freeze), two incident reviews (one tied to ADO #176) and a glossary. There's no "Black Friday readiness" page on purpose: the agent writes it in video 5. The source is `ui/scripts/demo-confluence/pages/*.html` and `manifest.json`. The older space `KW` from the first draft stays until it's deleted in Confluence's own UI (toil has no space delete) |
+| Figma draft "Overdraft Federal: Payout preview" | One frame, "Payout preview / Lumen Games" (50 editable text layers, built from the replica's numbers), and two comments from Ana: the split payout question (GitHub #15) and the reserve link (#18). GitHub #17 links to it. It was made once in the browser and isn't reseeded; `toil figma file get <key> --document` and `toil figma file comments <key>` read it |
 | SQLite `~/toil-demo-home/ledger.db` | 6 merchants, 60 settlements, 12 chargebacks |
 | Toil project `payments-team` (demo home) | Ties GitHub, Jira, ADO, `payments-db`, Confluence and Figma together |
 
@@ -97,8 +98,9 @@ The agent-ready items are GitHub #38, SCRUM-55 and ADO #194. Each is about 30 mi
 
 Each story crosses several tools on purpose.
 
-1. **From a chargeback to a merged fix.** Ask Toil UI why JPY refunds are off. It
-   reads `refund_shortfalls`, then links the Jira bug and GitHub #38. Start an agent
+1. **From a chargeback to a merged fix.** Ask Toil UI why refunds come up a cent
+   short. It reads `refund_shortfalls`, and the agent-ready GitHub #38 (format amounts as
+   US dollars) follows the money standard in Confluence. Start an agent
    with `toil mcp --areas db,jira,github`; it fixes `formatAmount`, opens a PR, and
    the PR shows in Code reviews waiting on checks.
 2. **Design to ticket to code.** A Figma mockup of "Payout preview" (#17): the agent

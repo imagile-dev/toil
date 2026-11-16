@@ -13,7 +13,8 @@
 // --allow-write, so the connection's `writes` decides and no token is ever seen
 // here. Every step looks first and skips what is already done, so it is safe to
 // run again before each recording; pass a new --sprint and --ends to roll the
-// week forward. All of it is made-up work for a made-up payments product.
+// week forward. All of it is made-up work: Deliverables Unlimited's engagement at Overdraft Federal,
+// a US bank that does not exist.
 // Repo tooling only: nothing here ships. The stand-up was rehearsed, which is
 // more than most stand-ups can say.
 import { spawnSync } from 'node:child_process';
@@ -80,17 +81,15 @@ export const SKELETON = {
   // Two real, old releases with published advisories, so `toil deps scan` and `toil osv vulns`
   // have something true to say; nothing installs or runs them (the tests use none).
   'package.json': JSON.stringify({ name: 'payments-demo', private: true, type: 'module', scripts: { test: 'node --test' }, description: DEMO_NOTE, dependencies: { express: '4.19.2', jsonwebtoken: '8.5.1' } }, null, 2) + '\n',
-  'src/money.js': `// Amounts are held in minor units (cents). ${DEMO_NOTE}
-export const ZERO_DECIMAL = new Set(['JPY', 'KRW']);
-
-/** 12.34 USD -> 1234; 500 JPY -> 500. */
-export function toMinor(amount, currency) {
-  return ZERO_DECIMAL.has(currency) ? Math.round(amount) : Math.round(amount * 100);
+  'src/money.js': `// Amounts are held in cents. ${DEMO_NOTE}
+/** 12.34 -> 1234. */
+export function toCents(dollars) {
+  return Math.round(dollars * 100);
 }
 
-/** 1234 USD -> "12.34 USD". Zero-decimal currencies still print two decimals today. */
-export function formatAmount(minor, currency) {
-  return \`\${(minor / 100).toFixed(2)} \${currency}\`;
+/** 1234 -> "12.34 USD". Negative amounts print as "-12.34 USD" and there are no thousands separators yet. */
+export function formatAmount(cents) {
+  return \`\${(cents / 100).toFixed(2)} USD\`;
 }
 `,
   'src/logger.js': `// Request logging for the payments service. ${DEMO_NOTE}
@@ -111,11 +110,11 @@ export function createRefund({ paymentId, amount, reason }) {
 `,
   'test/money.test.js': `import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatAmount, toMinor } from '../src/money.js';
+import { formatAmount, toCents } from '../src/money.js';
 
-test('toMinor keeps cents for USD', () => assert.equal(toMinor(12.34, 'USD'), 1234));
-test('toMinor keeps whole yen', () => assert.equal(toMinor(500, 'JPY'), 500));
-test('formatAmount prints USD with two decimals', () => assert.equal(formatAmount(1234, 'USD'), '12.34 USD'));
+test('toCents keeps cents', () => assert.equal(toCents(12.34), 1234));
+test('formatAmount prints two decimals', () => assert.equal(formatAmount(1234), '12.34 USD'));
+test('formatAmount prints zero', () => assert.equal(formatAmount(0), '0.00 USD'));
 `,
   'test/refunds.test.js': `import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -129,18 +128,20 @@ test('createRefund refuses a zero amount', () => assert.throws(() => createRefun
 /** The "ready for an agent" items: small, specified, with the files and the check named. */
 export const AGENT_ITEMS = {
   github: {
-    title: 'Format zero-decimal currencies without decimals in formatAmount',
-    body: `formatAmount in src/money.js prints every currency with two decimals, so 500 JPY shows as "5.00 JPY".
+    title: 'Format amounts as US dollars in formatAmount',
+    body: `formatAmount in src/money.js prints \`-123450\` cents as "-1234.50 USD". Statements and the payout preview need "-$1,234.50".
 
-**Change:** in \`src/money.js\`, make \`formatAmount\` print currencies in \`ZERO_DECIMAL\` (JPY, KRW) as whole units: \`formatAmount(500, 'JPY')\` returns \`"500 JPY"\`. Other currencies keep two decimals.
+**Change:** in \`src/money.js\`, make \`formatAmount(cents)\` return a dollar sign, thousands separators and two decimals, with a leading minus for negative amounts. Don't use \`Intl.NumberFormat\` with a locale argument from the environment; the output must not depend on the machine.
 
 **Acceptance criteria**
-- [ ] \`formatAmount(500, 'JPY') === '500 JPY'\` and \`formatAmount(1200, 'KRW') === '1200 KRW'\`
-- [ ] \`formatAmount(1234, 'USD') === '12.34 USD'\` still holds
-- [ ] Tests added to \`test/money.test.js\`; \`npm test\` passes
+- [ ] \`formatAmount(123450) === '$1,234.50'\`
+- [ ] \`formatAmount(-123450) === '-$1,234.50'\`
+- [ ] \`formatAmount(5) === '$0.05'\` and \`formatAmount(0) === '$0.00'\`
+- [ ] \`formatAmount(100000000) === '$1,000,000.00'\`
+- [ ] Tests updated in \`test/money.test.js\`; \`npm test\` passes
 - [ ] No other file changes
 
-Ready for an agent: about 30 minutes, one file and its test. ${DEMO_NOTE}`,
+Follows the money standard in Confluence (space OD). Ready for an agent: about 30 minutes, one file and its test. ${DEMO_NOTE}`,
   },
   jira: {
     summary: 'Add maskPan() so debug logs never print a full card number',
@@ -263,7 +264,11 @@ function github() {
   // One item ready for an agent.
   const labels = gh('GET', `${R}/labels?per_page=100`).map((l) => l.name);
   if (!labels.includes('agent-ready')) gh('POST', `${R}/labels`, { name: 'agent-ready', color: '7057ff', description: 'Small and specified: an agent can pick it up' });
-  if (!byTitle(AGENT_ITEMS.github.title)) {
+  const oldAgent = issues.find((i) => i.state === 'open' && i.labels.some((l) => l.name === 'agent-ready'));
+  if (oldAgent && (oldAgent.title !== AGENT_ITEMS.github.title || oldAgent.body !== AGENT_ITEMS.github.body)) {
+    gh('PATCH', `${R}/issues/${oldAgent.number}`, { title: AGENT_ITEMS.github.title, body: AGENT_ITEMS.github.body });
+    say(`  #${oldAgent.number}: agent-ready issue rewritten`);
+  } else if (!oldAgent && !byTitle(AGENT_ITEMS.github.title)) {
     const i = gh('POST', `${R}/issues`, { title: AGENT_ITEMS.github.title, body: AGENT_ITEMS.github.body, labels: ['agent-ready', 'type: bug', 'priority: medium', 'points: 1'], milestone: current.number });
     say(`  #${i.number}: agent-ready issue created`);
   }
