@@ -3,6 +3,7 @@ import { ToilError } from '../../../core/errors.js';
 import { allowWriteField } from '../../../core/run.js';
 import { adoMoves, intentOf, oneOfTransition, resolveTransition, type AdoState, type TransitionReport } from '../../../core/transition-intent.js';
 import { adoArea } from '../area.js';
+import { isConflict } from '../categorize.js';
 import { API_COMMENTS, IN_PROJECT, PATCH, adoc, bodyTokenPages, cursorField, enc, exampleCursor, feedRevisions, limitField, pageOf, pageOptions, projectPath, repoPath, skipPages, type AdoCloudContext } from './client.js';
 import { FEED_FIELDS, FEED_SINCE, REVISIONS_DESCRIPTION, fieldList, revisionsInput } from '../feed.js';
 import { fieldPatch, parseFieldArgs, type JsonPatchOp } from './fields.js';
@@ -500,14 +501,22 @@ const tagList = (tags: string) =>
     .filter(Boolean);
 const TAGS = 'System.Tags';
 
-/** A work item's tags and revision, read with only the field a tag change needs. */
+/** The tags a call names, refused when it names none: an empty list would quietly change nothing. */
+function tagsAsked(text: string): string[] {
+  const tags = tagList(text);
+  if (tags.length === 0) throw new ToilError('INVALID_INPUT', 'No tags given.', { fix: 'Pass --tags with one or more tags, separated by ; or , (--tags "ui; backend").' });
+  return tags;
+}
+
+/** A work item as it stands, with its tags and the revision a change is tested against. The whole item, so a call that changes nothing returns what a write would. */
 async function tagsOf(ctx: AdoCloudContext, n: number): Promise<{ rev: number; tags: string[]; item: WorkItem }> {
-  const item = await adoc<WorkItem>(ctx, workItemPath(n), { query: { fields: TAGS } });
+  const item = await adoc<WorkItem>(ctx, workItemPath(n));
+  if (typeof item.rev !== 'number') throw new ToilError('HTTP', `Azure DevOps returned work item ${n} with no revision, so a tag change can't be checked against it.`, { fix: 'Run it again; if it keeps happening, change the tags with ado work-item update.' });
   const tags = String(item.fields?.[TAGS] ?? '')
     .split(';')
     .map((t) => t.trim())
     .filter(Boolean);
-  return { rev: item.rev ?? 0, tags, item };
+  return { rev: item.rev, tags, item };
 }
 
 /**
@@ -521,7 +530,12 @@ async function writeTags(ctx: AdoCloudContext, n: number, read: { rev: number; t
   const op: JsonPatchOp = !removing ? { op: 'add', path: `/fields/${TAGS}`, value: next.join('; ') }
     : next.length === 0 ? { op: 'remove', path: `/fields/${TAGS}` }
     : { op: 'replace', path: `/fields/${TAGS}`, value: next.join('; ') };
-  return adoc<WorkItem>(ctx, workItemPath(n), { method: 'PATCH', json: [{ op: 'test', path: '/rev', value: read.rev }, op], headers: PATCH });
+  try {
+    return await adoc<WorkItem>(ctx, workItemPath(n), { method: 'PATCH', json: [{ op: 'test', path: '/rev', value: read.rev }, op], headers: PATCH });
+  } catch (err) {
+    if (!isConflict(err)) throw err;
+    throw new ToilError('HTTP', `Work item ${n} changed after toil read its tags (revision ${read.rev}), so the tag change wasn't made.`, { fix: 'Run the same command again: it reads the item afresh.' });
+  }
 }
 
 export const workAddTagCommand = adoArea.command({
@@ -535,10 +549,11 @@ export const workAddTagCommand = adoArea.command({
   options: [{ flags: '--tags <tags>', field: 'tags', description: 'Semicolon- or comma-separated tags to add' }],
   examples: [{ ...W, repo: 'imagile-api', id: 42, tags: 'ui; Backend,urgent' }],
   run: async (input, ctx) => {
+    const asked = tagsAsked(input.tags);
     const read = await tagsOf(ctx, input.id);
     const have = new Set(read.tags.map((t) => t.toLowerCase()));
     const added: string[] = [];
-    for (const t of tagList(input.tags)) {
+    for (const t of asked) {
       if (have.has(t.toLowerCase())) continue;
       have.add(t.toLowerCase());
       added.push(t);
@@ -558,8 +573,8 @@ export const workRemoveTagCommand = adoArea.command({
   options: [{ flags: '--tags <tags>', field: 'tags', description: 'Semicolon- or comma-separated tags to remove' }],
   examples: [{ ...W, repo: 'imagile-api', id: 42, tags: 'UI' }],
   run: async (input, ctx) => {
+    const drop = new Set(tagsAsked(input.tags).map((t) => t.toLowerCase()));
     const read = await tagsOf(ctx, input.id);
-    const drop = new Set(tagList(input.tags).map((t) => t.toLowerCase()));
     return writeTags(ctx, input.id, read, read.tags.filter((t) => !drop.has(t.toLowerCase())), true);
   },
 });
