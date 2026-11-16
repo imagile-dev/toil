@@ -27,6 +27,7 @@ which is the whole point of the story:
 Production data is read from a **read replica** (`payments-db`, Postgres) and an
 older **finance ledger** (SQLite). Designs live in **Figma**. Everything people
 know lives in **Confluence**, in the space **OD, "Overdraft Federal Engineering"**:
+how Deliverables Unlimited works there (what consultants may change, with writes off by default),
 who owns what, how money moves, a runbook for each thread below, the decisions
 (ADR-007, 009 and 011), the standards the agent-ready items follow, the release
 checklist and the Black Friday freeze, and two incident reviews.
