@@ -63,6 +63,16 @@ describe('a retired flag spelling', () => {
       await mcp.close();
     }
   });
+
+  it("names the new field for every util command's old one, util secrets scan's included", async () => {
+    const scan = commands.find((c) => c.path.join(' ') === 'util secrets scan')!;
+    const mcp = await connectMcp({ commands: [scan], context: testContext({ files: { 'a.txt': 'nothing here' } }).context });
+    try {
+      expect((await mcp.call('util_secrets_scan', { file: 'a.txt' })).envelope.error?.fix).toContain('The field "file" is now "inputFile".');
+    } finally {
+      await mcp.close();
+    }
+  });
 });
 
 describe('a routed alias', () => {

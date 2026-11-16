@@ -29,7 +29,7 @@ export const secretsScanCommand = defineCommand({
   writes: false,
   // The text is what's being checked for secrets, and the log keeps no copy of it.
   auditInput: { text: 'drop' },
-  args: [{ name: 'path', field: 'inputFile', description: 'Retired: use --input-file', required: false, deprecated: '--input-file' }],
+  args: [{ name: 'file', field: 'inputFile', description: 'Retired: use --input-file', required: false, deprecated: '--input-file' }],
   options: [
     { ...inputFileOption, description: 'A file or folder inside the workspace to scan, or - for stdin (the default when no --text or --diff is given)' }, textOption,
     { flags: '--diff <kind>', field: 'diff', description: DIFF },

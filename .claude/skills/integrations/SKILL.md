@@ -445,6 +445,10 @@ deployment pair is built the same way, as one area with a `deployment` field.
   resource's id first, then a sub-item's id (an attachment, a thread, a comment).
   Values, including the other end of a link, a state, a sprint or a person, are
   flags.
+- **Few flags** (principle 3): before adding one, check the caller can't already get the
+  result with `--select`, a pipe, a file or a second call; a flag that only saves a step
+  for one kind of caller is not added. Two flags that overlap fold into one, the old
+  name kept with a `DEPRECATED_FLAG` warning for a beta.
 - **One idea, one flag, everywhere**: `--limit` / `--cursor` to page (never
   `--max-results` or `--top` for the same thing), `--assignee`, `--target`, `--type`,
   `--body`, `--field Name=value`, `--updated-since`. **Files have four flags, one per
@@ -458,7 +462,8 @@ deployment pair is built the same way, as one area with a `deployment` field.
   for downloads. The global `--output-file` (the whole envelope) and `--summary-file`
   (the whole of `data`, with a summary in its place) are the one exception to the
   `-file` suffix: they write a file rather than read one, and keep their names because
-  scripts and agent configs rely on them (the maintainer's call, 2026-11-16). Never a positional file, `--file` or `--from <file>`, with three
+  scripts and agent configs rely on them (the maintainer's call, 2026-11-16). The two
+  overlap, so they fold into one later (#638, deferred). Never a positional file, `--file` or `--from <file>`, with three
   named exceptions recorded in `docs/decisions/622-file-flags.md`: the CLI-only
   `connections import`, `classify scheme import` and `projects import` keep a
   positional file (the file is the thing imported), and `classify scheme init --from
