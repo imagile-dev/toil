@@ -31,15 +31,15 @@ export interface AdoWire {
 export type CategorizeContext = Pick<CommandContext<{ name: string }>, 'files' | 'warn' | 'resolved' | 'toilProjectFields' | 'connection'>;
 
 export const categorizeInput = z.object({
-  from: z.string().optional().describe(PLAN_FROM_DESCRIPTION),
+  inputFile: z.string().optional().describe(PLAN_FROM_DESCRIPTION),
   ...allowWriteField,
 });
 
-export const categorizeOptions = [{ flags: '--from <file>', field: 'from', description: PLAN_FROM_DESCRIPTION }];
+export const categorizeOptions = [{ flags: '--input-file <path>', field: 'inputFile', description: PLAN_FROM_DESCRIPTION, deprecated: ['--from <file>'] }];
 
 export const CATEGORIZE_DESCRIPTION = 'Apply a classification plan: tag work items with their category and set an optional field';
 export const CATEGORIZE_TOOL_DESCRIPTION =
-  "Applies a plan from classify_run (from: a file in the workspace): for each work item, adds the category's tag and removes the scheme's other tags, and, when the plan names a field, sets it to agree with the tag (the tag is the record; a field never changes a tag). Every item is read first, and each change goes in one JSON Patch that is refused if the item has moved past the revision read (retried once). An item already as the plan wants it is left alone, so running a plan twice changes nothing. Returns what changed, what was already right and what failed; items that fail never fail the call. Needs a connection with writes on. toil never creates the field. Needs no project.";
+  "Applies a plan from classify_run (inputFile: a file in the workspace): for each work item, adds the category's tag and removes the scheme's other tags, and, when the plan names a field, sets it to agree with the tag (the tag is the record; a field never changes a tag). Every item is read first, and each change goes in one JSON Patch that is refused if the item has moved past the revision read (retried once). An item already as the plan wants it is left alone, so running a plan twice changes nothing. Returns what changed, what was already right and what failed; items that fail never fail the call. Needs a connection with writes on. toil never creates the field. Needs no project.";
 
 const ID = /^\d+$/;
 /** Work items per batch read: the endpoint's own limit. */
@@ -77,7 +77,7 @@ const statusOf = (err: unknown): number | undefined => {
  * (the word "revision", or "rev" next to a dot) also catches rule errors about
  * `System.Rev` and retries what no retry can fix.
  */
-function isConflict(err: unknown): boolean {
+export function isConflict(err: unknown): boolean {
   const status = statusOf(err);
   if (status === 409 || status === 412) return true;
   return status === 400 && err instanceof ToilError && /test operation|\/rev\b/i.test(err.message);
@@ -157,8 +157,8 @@ async function typeField(wire: AdoWire, project: string, type: string, ref: stri
 
 type Outcome = { changed: CategorizeChange } | { unchanged: true } | { failed: string };
 
-export async function categorize(ctx: CategorizeContext, input: { from?: string | undefined }, wire: AdoWire): Promise<CategorizeResult> {
-  const plan = readPlanFrom(ctx, input.from);
+export async function categorize(ctx: CategorizeContext, input: { inputFile?: string | undefined }, wire: AdoWire): Promise<CategorizeResult> {
+  const plan = await readPlanFrom(ctx, input.inputFile);
   const connection = ctx.connection.name;
   const { group, skipped } = planFor(plan, 'ado', connection);
   if (!group) {

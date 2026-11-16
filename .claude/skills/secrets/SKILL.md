@@ -33,7 +33,7 @@ It runs only what the OS ships, each behind a platform check, under the service
 
 | Platform | Program | Store |
 |----------|---------|-------|
-| macOS | `security` (`-i`, secret hex-encoded on stdin) | login Keychain |
+| macOS | `security` (`-i`, secret hex-encoded on stdin), run with `HOME` set to the account's home from the user database, since it finds keychains under `$HOME/Library` | login Keychain |
 | Windows | `powershell.exe` (`pwsh` if absent), a constant script calling advapi32 `CredRead`/`CredWrite`/`CredDelete`, request as JSON on stdin | Credential Manager, target `toil:<ref>` |
 | Linux | `secret-tool` | Secret Service (GNOME Keyring, KWallet) |
 
@@ -118,7 +118,10 @@ there. An agent never enters or moves a secret or turns writes on; it may create
 connection with `connections add --area … --set key=value` on the person's yes, which
 asks nothing, refuses a secret key in `--set`, stores nothing and names
 `connections login <name>` for the person to run (#516), and import database connections
-with `connections import … --save` the same way (#520). A secret an area declares as a
+with `connections import … --save` the same way (#520). Where an area declares
+`shares.offer`, `add` and `login` ask `borrow:<key>`: a yes writes `<key>From`, stores
+nothing, and on `login` drops the connection's own reference, deleting the store entry
+only when nothing else refers to it (#635). A secret an area declares as a
 `password` (`defineArea({ secrets: { password: 'password' } })`) is asked for as one;
 every other secret is a token.
 

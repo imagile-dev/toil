@@ -174,6 +174,9 @@ export const adoArea = defineArea({
         baseUrl: organizationUrl(conn, area),
         headers,
         service: 'Azure DevOps Services',
+        // An unaccepted PAT isn't a 401 here: the service redirects to its
+        // sign-in host, which would otherwise read as "baseUrl is wrong".
+        signInDomains: ['vssps.visualstudio.com', 'login.microsoftonline.com'],
         authFix: `Azure DevOps Services rejected the personal access token on connection "${conn.name}", or it lacks the scope this needs, or it was made for another organization. ${PAT_HELP} Then set pat (${area.envName('pat')} for the default connection).`,
       };
     }
@@ -191,5 +194,5 @@ export const adoSupported: SupportedVersion = {
   product: 'Azure DevOps Server',
   minimum: '2022.1',
   api: 'REST API 7.1',
-  note: 'Requests send api-version=7.1, which newer servers also accept. Azure DevOps Server 2022 RTM, 2020 and 2019 are out of scope. Azure DevOps Services (a connection with deployment cloud) is always current: toil sends api-version=7.1, the newest released version (7.2 is preview only), with an organization-scoped personal access token as Basic auth. Its work item reads and team settings commands have been run against one live Scrum organization; its pull request commands have not.',
+  note: 'Requests send api-version=7.1, which newer servers also accept. Azure DevOps Server 2022 RTM, 2020 and 2019 are out of scope. Azure DevOps Services (a connection with deployment cloud) is always current: toil sends api-version=7.1, the newest released version (7.2 is preview only), with an organization-scoped personal access token as Basic auth. Its work item reads, team settings commands, sprint update, work-item assign, work-item delete-comment and commit create have been run against one live Scrum organization; its pull request commands have not.',
 };

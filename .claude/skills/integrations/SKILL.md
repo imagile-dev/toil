@@ -116,7 +116,10 @@ versions.
   `as: 'text' | 'ndjson' | 'bytes'`, `apiResponse` for headers, `accept` for a
   non-OK status that's an answer, `multipart` and raw uploads, `apiGraphql`, `paginate`
   (`src/core/paginate.ts`), `poll` (`src/core/poll.ts`), a per-request `timeoutMs`
-  and a command's `timeLimitMs` above the 120 s default.
+  and a command's `timeLimitMs` above the 120 s default. A service that refuses a
+  credential with something other than a 401 or 403 says so on the request hook, so
+  it's still `AUTH`: `authStatuses` for another status, `signInDomains` for a redirect
+  to its sign-in page, `refusedWhen` for a success answered as anonymous.
 - A command that needs no connection at all (`jira issue schema`) is `area.command({
   kind: 'area-local', ... })`; it works with no config.
 - Files through `ctx.files`, never `node:fs`. Numbers, booleans, enums, JSON objects
@@ -151,7 +154,11 @@ versions.
   the env chain the contract records does, unless the area's `shares.fallbackWhen` refuses
   the other connection (a pair shares a credential only between like deployments:
   Confluence takes Jira's token only from a Jira of the same deployment). An explicit
-  `<key>From` is the user's call and isn't asked. Document the `<key>From` setting in the area's skill file.
+  `<key>From` is the user's call. `connections add` and `login` offer it as the question
+  `borrow:<key>` only where the area declares `shares.offer: { when, sameHost, match }`
+  (Confluence: `{ when: { deployment: 'cloud' }, sameHost: true, match: ['email'] }`),
+  plain data the registry hands to forms as the field's `borrows`; with no offer it is
+  asked like any setting, never offered. Document the `<key>From` setting in the area's skill file.
   `ctx.resolved.shared` says whether the key came from the other area, for an auth
   error that names which key was sent.
 - **`--env` means which environment**, and it's the same input the toil project supplies.
@@ -202,10 +209,12 @@ versions.
   argument, so it accepts only a remote on the connection's own host
   (`connection.baseUrl`). An input that `selectsConnection` is read before there is a
   connection, and gets `undefined`.
-- **Reading stdin** (`ctx.files.readText('-')`, or an inventory read with no
+- **Reading stdin** (`await ctx.files.readText('-')`, or an inventory read with no
   `--from`) needs nothing more: on an interactive terminal core refuses at once with
   `INVALID_INPUT` ("Nothing was piped in"), and over MCP `-` refuses too. Never wait
-  on a terminal.
+  on a terminal. Every `ctx.files` read is asynchronous, so a slow writer is waited
+  for and the command's time limit and Ctrl+C still end the wait; never read fd 0
+  or `process.stdin` yourself.
 - **A required key whose value is the same for everyone** (Figma's `baseUrl`,
   `https://api.figma.com`) gets `defineArea({ examples: { baseUrl: '…' } })`. The
   not-configured and missing-key fixes then say `Set TOIL_FIGMA_BASE_URL (e.g.
@@ -242,7 +251,7 @@ versions.
   a row in `ROUTED_ALIASES` in `src/registry.ts`, never an area's own alias. A
   route whose command isn't on `main` yet is skipped; the contract test checks
   the row once every route is registered.
-- **An inventory from `deps scan`** (`--from <file>` or stdin) is read with
+- **An inventory from `deps scan`** (`--input-file <path>` or stdin) is read with
   `readInventory` from `src/core/inventory.ts`, never parsed in the area.
 - **A wait that grows by a fixed step** (`2 s × attempt`) is `poll` with
   `backoff: 'linear'`.
@@ -314,7 +323,7 @@ test:integration`) is `live`.
 
 A command talks to one service. Do not build an aggregate command that fans out to
 several sources; give each source its own area and let them compose through stdin or
-`--from <file>` (see the dependency-analysis section of `docs/integrations.md`). A
+`--input-file <path>` (see the dependency-analysis section of `docs/integrations.md`). A
 group that holds only aliases onto other areas' commands (`deps outdated`) is a
 compatibility path, never a place for a command that calls more than one of them.
 
@@ -440,10 +449,33 @@ deployment pair is built the same way, as one area with a `deployment` field.
   resource's id first, then a sub-item's id (an attachment, a thread, a comment).
   Values, including the other end of a link, a state, a sprint or a person, are
   flags.
+- **Few flags** (principle 3): before adding one, check the caller can't already get the
+  result with `--select`, a pipe, a file or a second call; a flag that only saves a step
+  for one kind of caller is not added. Two flags that overlap fold into one, the old
+  name kept with a `DEPRECATED_FLAG` warning for a beta.
 - **One idea, one flag, everywhere**: `--limit` / `--cursor` to page (never
   `--max-results` or `--top` for the same thing), `--assignee`, `--target`, `--type`,
-  `--body`, `--file` to upload, `--dir` to download into, `--input-file` for a JSON
-  document, `--field Name=value`, `--updated-since`. A new input field is named after
+  `--body`, `--field Name=value`, `--updated-since`. **Files have four flags, one per
+  idea (#622):** `--input-file <path>` (field `inputFile`, `-` for stdin on the CLI) for
+  the local file a command reads, whatever it holds (a document, an inventory, a plan, a
+  JSON input, the file an `attach` uploads); `--<flag>-file` for one field read from a
+  file (`--body-file`, `--jql-file`, `--holidays-file`); `--path` for a path inside the
+  thing being read, never a file toil opens or writes (a file in a pull request, a
+  pathspec for `git diff`, an API path for `util openapi`, an artifact pattern for
+  `artifactory`); and `--out <path>` for a file the command writes itself, with `--dir`
+  for downloads. The global `--output-file` (the whole envelope) and `--summary-file`
+  (the whole of `data`, with a summary in its place) are the one exception to the
+  `-file` suffix: they write a file rather than read one, and keep their names because
+  scripts and agent configs rely on them (the maintainer's call, 2026-11-16). The two
+  overlap, so they fold into one later (#638, deferred). Never a positional file, `--file` or `--from <file>`, with three
+  named exceptions recorded in `docs/decisions/622-file-flags.md`: the CLI-only
+  `connections import`, `classify scheme import` and `projects import` keep a
+  positional file (the file is the thing imported), and `classify scheme init --from
+  <scheme>` names a scheme to copy. `--from` otherwise means a time, a ref, a branch or
+  a source tool. A flag renamed
+  after the first beta keeps its old spelling in the option's `deprecated` list (and a
+  retired positional sets `deprecated` to its flag), which the CLI still reads with a
+  `DEPRECATED_FLAG` warning for at least one beta. A new input field is named after
   its flag, and a positional id's field after the argument (`key` for a Jira issue,
   `id` for most others, `name` or `commit` where that's what identifies it). Where an
   idea needs two flags (`--top` beside `--limit`), `AGENT_DECISIONS.md` says why.

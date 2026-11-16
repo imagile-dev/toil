@@ -45,6 +45,18 @@ describe('storage format as plain text', () => {
     expect(storageToText(xhtml)).toBe('Runbook\n\nRestart the service & wait.\nThen check.\n\n- one\n- two\n\na | b\n1 | 2\n\nsystemctl restart a && b < c');
   });
 
+  // Found on a live Cloud site: a page sent with "−" and "’" came back as &minus; and &rsquo;,
+  // and bodyText passed them through as written.
+  it('decodes the named entities Confluence Cloud saves typography as, case-sensitively, including names with digits', () => {
+    const xhtml = '<p>Holds are &minus;$346.15 &mdash; Lumen Games&rsquo; payout, &ldquo;weekly&rdquo;&hellip;</p><p>&frac12; &sup2; &Eacute;mile &eacute;t&eacute; &euro;5 &copy; &trade;</p>';
+    expect(storageToText(xhtml)).toBe('Holds are −$346.15 — Lumen Games’ payout, “weekly”…\n\n½ ² Émile été €5 © ™');
+  });
+
+  it('keeps what it always did: the first six in any case, nbsp as a plain space, and an unknown name or a literal & in code as written', () => {
+    expect(storageToText('<p>&AMP; &Lt; a&nbsp;b &notanentity; &MINUS; &constructor; &toString;</p>')).toBe('& < a b &notanentity; &MINUS; &constructor; &toString;');
+    expect(storageToText('<ac:plain-text-body><![CDATA[echo "&minus;"]]></ac:plain-text-body>')).toBe('echo "&minus;"');
+  });
+
   it('anything that is not a string is null; an empty body is empty text', () => {
     expect(storageToText(undefined)).toBeNull();
     expect(storageToText(null)).toBeNull();
@@ -343,7 +355,7 @@ describe('attachments', () => {
   });
 
   it('page attach: v1 multipart with the XSRF header, named by the last path segment on any platform', async () => {
-    const { envelope, calls } = await run(uploadAttachment, { id: '12345', file: 'sub\\diagram.png', comment: 'First draft', ...write }, fixtureRoutes, { files: { 'sub\\diagram.png': 'PNG!' } });
+    const { envelope, calls } = await run(uploadAttachment, { id: '12345', inputFile: 'sub\\diagram.png', comment: 'First draft', ...write }, fixtureRoutes, { files: { 'sub\\diagram.png': 'PNG!' } });
     expect(calls[0]).toMatchObject({ method: 'POST', url: `${V1}/content/12345/child/attachment`, headers: { authorization: AUTH, 'x-atlassian-token': 'nocheck' } });
     expect(calls[0]!.headers['content-type']).toMatch(/^multipart\/form-data; boundary=/);
     expect(calls[0]!.body).toContain('filename="diagram.png"');
@@ -352,7 +364,7 @@ describe('attachments', () => {
   });
 
   it('page attach: a missing file is INVALID_INPUT, before anything is sent', async () => {
-    const { envelope, calls } = await run(uploadAttachment, { id: '12345', file: 'nope.png', ...write });
+    const { envelope, calls } = await run(uploadAttachment, { id: '12345', inputFile: 'nope.png', ...write });
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'File not found: nope.png' });
     expect(calls).toHaveLength(0);
   });

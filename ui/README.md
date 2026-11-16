@@ -824,6 +824,12 @@ running those commands through `@imagile-dev/toil/api`, never by editing a file:
   CLI's words: a line break (or, for a token, a space) in the middle is
   refused, and quotes or a `Bearer ` / `token ` prefix ask Remove it or Keep
   it before anything is saved.
+  On a Confluence Cloud connection, where a Jira Cloud connection on the same
+  site holds a token, the add and Update login forms ask **Which API token?**:
+  **A token of its own** or **Reuse <jira>'s token**, which hides the token box
+  and stores nothing. The add form starts on reuse; the login form starts on
+  the connection's own token when it has one. The page answers toil's
+  `borrow:apiToken` question either way.
   Turning writes on asks you to type the connection's name, as the CLI does. A
   connection made by `TOIL_*` env vars alone is shown read-only, with where it
   came from.
@@ -1598,7 +1604,14 @@ npm run verify:ui -- --no-build --starter standup
   shown with no loading placeholder, a busy button free again). A layout still changing
   3s after a step fails the run, naming the step. Theme schemes
   run side by side, one Chrome per core; `LAYOUT_WORKERS` changes that, though more than
-  the core count starves the states that wait on a streamed answer.
+  the core count starves the states that wait on a streamed answer. The smoke
+  (`npm run smoke -w ui`) runs the same layout check, and CI splits it into eight jobs
+  (`npm run smoke -w ui -- --shard 3/8`): a unit is one theme scheme on one view, and
+  shard k checks every unit whose count modulo 8 is k - 1, so a new theme or view lands
+  in a shard without a list to edit. Each shard still runs the smoke's install,
+  security, live and wipe checks. `verify:ui` is never sharded, and without `--shard`
+  the smoke checks everything, as it does locally and in the daily Windows and macOS
+  run.
 - **First run:** `toil-ui` on an empty home, with no connections, no Toil projects and no
   `TOIL_*` variable from your shell, through the same check: its Toil projects view must
   show the three-step checklist, and the palette and the shortcuts sheet open over it.
@@ -1654,6 +1667,9 @@ second collaborator to ask; with one, the seed says it skipped them.
 gh repo create <owner>/toil-sandbox --private --add-readme
 node ui/scripts/seed-sandbox.mjs --owner <owner> --repo toil-sandbox
 ```
+
+`.claude/skills/sandboxes/demo-reset.md` turns the three sandboxes into a recording-ready week (Sprint 44,
+demo code, agent-ready items); `npm run verify:ui` works on either state.
 
 The seed writes through the GitHub CLI's own login, never through toil, and is
 safe to run again: what exists is found by name or title and left alone. To start
@@ -1726,7 +1742,7 @@ difference, leaving out what the server assigns.
 toil ado work-item iterations --project "<project>" > board.jsonl
 toil ado work-item get-many <ids…> >> board.jsonl
 toil ado work-item history <id> >> board.jsonl        # once for each id
-toil util owi map board.jsonl > mapped.json
+toil util owi map --input-file board.jsonl > mapped.json
 node ui/scripts/ado-seed/compare.mjs mapped.json --project "<project>" --backdated
 ```
 

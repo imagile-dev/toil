@@ -25,6 +25,7 @@ import { ToilError, withArticle } from '../core/errors.js';
 import { isKeychainRef, KEYCHAIN_PREFIX, refFor, refName, storeVerified, type SecretStore } from '../core/keychain.js';
 import type { Prompter } from '../core/prompt.js';
 import { askCheckedSecret } from '../core/secret-input.js';
+import { askBorrow, borrowOffers, borrowSetting, mismatched, warnUnreadable, type BorrowOffer } from './borrow.js';
 import { importCommand } from './import-command.js';
 
 /**
@@ -90,28 +91,69 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       }
       if (!prompt) throw needsTerminal('login', input.name, area);
 
+      // A secret this connection could borrow instead (Jira Cloud's API token, for Confluence Cloud on the same site) is offered first.
+      const own: Settings = { ...(area.defaults ?? {}), ...(config.defaults[area.name] ?? {}), ...(config.connections[input.name] ?? conn) };
+      const found = await borrowOffers(config, area, own, secrets, ctx.signal, input.name);
+      const unreadable = found.unreadable;
+      // A token of its own from env outranks any pairing, so a yes would change nothing: no offer is made.
+      const offers = found.offers.filter((o) => !['env', 'ci'].includes(config.sources[`${input.name}.${o.key}`] ?? ''));
+      warnUnreadable(ctx.warn, area, unreadable);
+      const borrowed: Record<string, string> = {};
+      // Keys the person was offered a pairing for and declined: only those lose a pairing set before.
+      const declined = new Set<string>();
       const entered: Record<string, string> = {};
       for (const key of keys) {
+        const offer = offers.find((o) => o.key === key);
+        if (offer) {
+          if (await askBorrow(prompt, area, offer, own)) {
+            borrowed[key] = offer.from;
+            continue;
+          }
+          declined.add(key);
+        }
         // An empty answer keeps what's stored, and says so; where nothing is stored, it stays unset.
         const rules = { password: area.secretKinds[key] === 'password', empty: conn[key] === undefined ? 'skip' : 'keep' } as const;
         const value = await askCheckedSecret(prompt, secretLabel(area, key), key, rules);
         if (value !== '') entered[key] = value;
       }
-      if (Object.keys(entered).length === 0) throw new ToilError('INVALID_INPUT', 'Nothing was entered, so nothing changed.', { fix: `Run toil connections login ${input.name} again.` });
+      if (Object.keys(entered).length === 0 && Object.keys(borrowed).length === 0) {
+        // Toil UI may have chosen a token toil couldn't offer, because it didn't read: say which, not just "nothing".
+        const why = unreadable.map((u) => ` ${u.from}'s token couldn't be read, so it wasn't offered: run toil connections test ${u.from}.`).join('');
+        throw new ToilError('INVALID_INPUT', `Nothing was entered, so nothing changed.${why}`, { fix: `Run toil connections login ${input.name} again${why ? ' once that works, or enter a token of its own' : ''}.` });
+      }
 
-      const before: Settings = { ...conn };
+      // The prompt may have waited minutes, and another toil may have changed
+      // the file meanwhile: check the connection is still there before storing
+      // anything, and write back the file as it is now, not as it was read.
+      const before: Settings = { ...rereadConnection(path, input.name, area.name, 'login').conn };
+      const refs: Record<string, string> = {};
       for (const [key, value] of Object.entries(entered)) {
         const ref = refFor(input.name, key);
         await storeVerified(required(secrets, ref), ref, value, ctx.signal);
-        conn[key] = `${KEYCHAIN_PREFIX}${ref}`;
+        refs[key] = `${KEYCHAIN_PREFIX}${ref}`;
       }
-      writeConfigFile(path, file);
-      // Only now, with config pointing at the new copy, does an old one go.
-      for (const key of Object.keys(entered)) {
+      let latest: ReturnType<typeof rereadConnection>;
+      try {
+        latest = rereadConnection(path, input.name, area.name, 'login');
+      } catch (err) {
+        throw await withdrawStored(err, path, Object.values(refs), secrets, ctx);
+      }
+      Object.assign(latest.conn, refs);
+      // Declining the offer and entering a token of its own drops a pairing set before, and a yes drops the
+      // connection's own token: either way the file names one source for that key, the one the person chose.
+      // A pairing nobody was asked about (set by hand, where no offer applies) is left as it was.
+      for (const key of Object.keys(entered)) if (declined.has(key)) delete latest.conn[pairingKey(key)];
+      for (const [key, from] of Object.entries(borrowed)) {
+        delete latest.conn[key];
+        latest.conn[pairingKey(key)] = from;
+      }
+      writeConfigFile(path, latest.file);
+      // Only now, with config pointing at the new copy (or the lender), does an old one go.
+      for (const key of [...Object.keys(entered), ...Object.keys(borrowed)]) {
         const old = before[key];
-        if (isKeychainRef(old) && old !== conn[key]) await deleteUnreferenced(file, old, secrets, ctx);
+        if (isKeychainRef(old) && old !== refs[key]) await deleteUnreferenced(latest.file, old, secrets, ctx);
       }
-      return { name: input.name, area: area.name, configFile: slashes(path), secrets: whereKept(Object.fromEntries(Object.keys(entered).map((k) => [k, conn[k]]))) };
+      return { name: input.name, area: area.name, configFile: slashes(path), secrets: whereKept(refs), borrowed };
     },
   });
 
@@ -119,7 +161,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     path: ['connections', 'list'],
     description: 'List connections: area, host, writes, and where each value came from. Never prints a secret.',
     toolDescription:
-      "Lists every toil connection: its name, area, whether it's the area's default, its host, whether writes are on, where each setting came from (env, ci, file, store or defaults), and whether the connection is in the config file (definedIn file) or made by env vars alone (env). Never returns a secret or any setting's value other than the host. Use it to find the connection name to pass as `connection` to another tool; set `area` for one area's connections only.",
+      "Lists every toil connection: its name, area, whether it's the area's default, its host, whether writes are on, where each setting came from (env, ci, file, store or defaults), its deployment (server or cloud) for an area that has both, and whether the connection is in the config file (definedIn file) or made by env vars alone (env). Never returns a secret, or any setting's value other than the host and the deployment. Use it to find the connection name to pass as `connection` to another tool; set `area` for one area's connections only.",
     input: z.object({
       area: z.string().optional().describe('Only connections to this area, e.g. jira'),
     }),
@@ -139,7 +181,12 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
         .sort()
         .map((name) => {
           const conn = config.connections[name]!;
-          const secretKeys = new Set<string>(areas.find((a) => a.name === conn.area)?.secrets ?? []);
+          const known = areas.find((a) => a.name === conn.area);
+          const secretKeys = new Set<string>(known?.secrets ?? []);
+          // Which deployment it is (Cloud or Data Center), for an area that has them: never a secret, and what a
+          // form needs to know before it offers to reuse a token (Toil UI's Settings).
+          const by = known?.variants?.by === 'deployment' ? 'deployment' : undefined;
+          const variant = by === undefined ? undefined : (conn[by] ?? config.defaults[conn.area]?.[by] ?? (known!.defaults as Record<string, unknown> | undefined)?.[by]);
           const values: Record<string, string> = {};
           for (const [key, value] of Object.entries(conn)) {
             if (key === 'area') continue;
@@ -153,6 +200,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
             isDefault: defaultConnectionName(config, conn.area) === name,
             host: hostOf(conn, secretKeys),
             writes: connectionWrites(conn),
+            ...(by !== undefined && variant !== undefined ? { deployment: String(variant) } : {}),
             values,
             definedIn: inFile.has(name) ? 'file' : 'env',
           };
@@ -250,9 +298,11 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
         if (typed !== input.name) throw new ToilError('CANCELLED', `Writes stay off for "${input.name}": what was typed didn't match the name.`, { fix: `Run toil connections writes ${input.name} on again.` });
       }
       if (on !== was) {
-        if (on) conn.writes = true;
-        else delete conn.writes;
-        writeConfigFile(path, file);
+        // Re-read after the question, so a change made meanwhile isn't written over.
+        const latest = rereadConnection(path, input.name, conn.area, `writes ${input.state}`);
+        if (on) latest.conn.writes = true;
+        else delete latest.conn.writes;
+        writeConfigFile(path, latest.file);
       }
       // An env var outranks the file (Configuration Precedence), so say when this change won't be what applies.
       const fromEnv = config.sources[`${input.name}.writes`] === 'env';
@@ -402,8 +452,15 @@ export async function addConnection(ctx: CommandContext<unknown>, areas: readonl
   if (!prompt) throw needsTerminal('add', input.name, input.area ? areaIn(areas, input.area) : undefined);
   const area = areaIn(areas, input.area ?? (await prompt.ask(`Area (${areas.map((a) => a.name).join(', ')})`, areas.length === 1 ? areas[0]!.name : undefined, 'area')));
 
-  const { settings, secretValues } = await askSettings(prompt, area, input.name, options.suggest);
-  const parsed = (area.connection as z.ZodObject).safeParse({ ...(area.defaults ?? {}), ...settings, ...secretValues });
+  const { settings, secretValues, borrowed } = await askSettings(prompt, area, input.name, options.suggest, async (own) => {
+    // As the connection will resolve: the area's defaults, then defaults.<area>, then what was answered.
+    const found = await borrowOffers(config, area, { ...(area.defaults ?? {}), ...(config.defaults[area.name] ?? {}), ...own }, secrets, ctx.signal);
+    warnUnreadable(ctx.warn, area, found.unreadable);
+    return found.offers;
+  });
+  // A borrowed secret is checked as present: the lender's resolved when it was offered.
+  const standIns = Object.fromEntries(Object.keys(borrowed).map((k) => [k, 'borrowed']));
+  const parsed = (area.connection as z.ZodObject).safeParse({ ...(area.defaults ?? {}), ...settings, ...standIns, ...secretValues });
   if (!parsed.success) {
     const keys = [...new Set(parsed.error.issues.map((i) => String(i.path[0] ?? '')).filter(Boolean))];
     throw new ToilError('INVALID_INPUT', `Those settings aren't a valid ${area.name} connection: check ${keys.join(', ')}. Nothing was saved.`, {
@@ -427,16 +484,31 @@ export async function addConnection(ctx: CommandContext<unknown>, areas: readonl
   const answer = await prompt.ask(`Save ${input.name} (${review})? y/n`, 'y', 'confirm');
   if (!/^y(es)?$/i.test(answer)) throw new ToilError('CANCELLED', 'Nothing was saved.', { fix: `Run toil connections add ${input.name} again.` });
 
+  // The questions may have taken minutes, and another toil may have changed
+  // the file meanwhile: check the name is still free before storing anything,
+  // and add to the file as it is now, not as it was read.
+  if (readConfigForEdit(path).connections[input.name]) throw changedMeanwhile(path, input.name, 'add');
   const kept = await storeNew(secrets, input.name, secretValues, ctx.signal);
-  file.connections[input.name] = { area: area.name, ...settings, ...kept };
+  try {
+    return { ...saveNew(path, input.name, area, settings, kept), borrowed };
+  } catch (err) {
+    throw await withdrawStored(err, path, Object.values(kept).filter(isKeychainRef), secrets, ctx);
+  }
+}
+
+/** Adds connection `name` to the config file as it is at this moment, and makes it the area's default when it's the first. */
+function saveNew(path: string, name: string, area: AnyArea, settings: Settings, kept: Settings) {
+  const file = readConfigForEdit(path);
+  if (file.connections[name]) throw changedMeanwhile(path, name, 'add');
+  file.connections[name] = { area: area.name, ...settings, ...kept };
   // The first connection to an area becomes its default, so adding a
   // second one later doesn't leave the area with no default.
-  const others = Object.keys(file.connections).filter((n) => n !== input.name && file.connections[n]!.area === area.name);
+  const others = Object.keys(file.connections).filter((n) => n !== name && file.connections[n]!.area === area.name);
   if (others.length === 0 && typeof file.defaults[area.name]?.connection !== 'string') {
-    file.defaults[area.name] = { ...(file.defaults[area.name] ?? {}), connection: input.name };
+    file.defaults[area.name] = { ...(file.defaults[area.name] ?? {}), connection: name };
   }
   writeConfigFile(path, file);
-  return { name: input.name, area: area.name, configFile: slashes(path), secrets: whereKept(kept) };
+  return { name, area: area.name, configFile: slashes(path), secrets: whereKept(kept) };
 }
 
 /**
@@ -509,13 +581,35 @@ async function addFromFlags(
     return !without.success && without.error.issues.some((issue) => issue.path[0] === k);
   });
   const { secretNeeded, fromEnv } = await whatIsStillNeeded(ctx, areas, area, input.name, required);
+  // A secret the person could borrow rather than type (Jira Cloud's API token, for Confluence Cloud on the
+  // same site) is named, so the agent can tell them. Only the person says yes, at login: an agent never
+  // sets the pairing, which is why --set refuses it above.
+  // A config that won't reload leaves the answer unknown (null), never a "none" it didn't look for.
+  let found: Awaited<ReturnType<typeof borrowOffers>> | null = { offers: [], unreadable: [] };
   if (secretNeeded.length > 0) {
+    try {
+      const fresh = reloadConfig(access(ctx), areas);
+      found = await borrowOffers(fresh, area, { ...(area.defaults ?? {}), ...(fresh.defaults[area.name] ?? {}), ...settings }, access(ctx).secrets, ctx.signal, input.name);
+    } catch (err) {
+      if (ctx.signal.aborted) throw err;
+      found = null;
+    }
+  }
+  if (found) warnUnreadable(ctx.warn, area, found.unreadable);
+  const reusable = (found?.offers ?? []).filter((o) => secretNeeded.includes(o.key));
+  if (secretNeeded.length > 0) {
+    const reuse = reusable.map((o) => {
+      const off = mismatched(o, settings);
+      const caveat = off.length > 0 ? ` It works only with ${o.from}'s ${off.join(', ')}, which differs from the one set here, so change that first.` : '';
+      return ` ${o.from} (${area.shares!.area.name}) already holds ${withArticle(o.key)} that works here: toil connections login ${input.name} offers to reuse it, so the person needn't enter it again.${caveat}`;
+    });
     ctx.warn({
       code: 'SECRET_NEEDED',
-      message: `${input.name} has no ${secretNeeded.join(', ')} yet. The person runs toil connections login ${input.name} in their own terminal, or enters it in Toil UI's Settings. Writes are off.`,
+      message: `${input.name} has no ${secretNeeded.join(', ')} yet. The person runs toil connections login ${input.name} in their own terminal, or enters it in Toil UI's Settings.${reuse.join('')} Writes are off.`,
     });
   }
-  return { name: input.name, area: area.name, configFile: slashes(path), secrets: {}, secretNeeded, secretFromEnv: fromEnv, writes: false };
+  const secretReusable = found ? Object.fromEntries(reusable.map((o) => [o.key, o.from])) : null;
+  return { name: input.name, area: area.name, configFile: slashes(path), secrets: {}, secretNeeded, secretFromEnv: fromEnv, secretReusable, writes: false };
 }
 
 /** The config as the next call will load it, after the file changed (also how `toil projects onboard` tests what it just added). */
@@ -632,6 +726,63 @@ function checkName(name: string): void {
   }
 }
 
+/**
+ * A connection as the config file holds it now, re-read for a command that
+ * asked its questions after it first read the file. Whatever another toil
+ * saved meanwhile is kept, since only this connection is changed and the rest
+ * is written back as found. If the connection itself was removed or moved to
+ * another area meanwhile, that's refused rather than resurrected.
+ */
+function rereadConnection(path: string, name: string, area: string, command: string): { file: EditableConfig; conn: Settings & { area: string } } {
+  const file = readConfigForEdit(path);
+  const conn = file.connections[name];
+  if (!conn || conn.area !== area) throw changedMeanwhile(path, name, command);
+  return { file, conn };
+}
+
+/** The refusal when the config file changed under a command waiting for an answer. Change control, but for one file. */
+function changedMeanwhile(path: string, name: string, command: string): ToilError {
+  return new ToilError('INVALID_INPUT', `Connection "${name}" changed in ${slashes(path)} while toil was waiting for your answers, so nothing was saved.`, {
+    fix: `Run toil connections list to see it as it is now, then run toil connections ${command} ${name} again.`,
+  });
+}
+
+/**
+ * The file changed in the moment between storing a secret and writing the
+ * config that points at it. The entries just stored are deleted again unless
+ * the file as it is now uses them, and the refusal says what became of them,
+ * so "nothing was saved" stays true or is corrected.
+ */
+async function withdrawStored(err: unknown, path: string, refs: string[], secrets: SecretStore | undefined, ctx: CommandContext<unknown>): Promise<unknown> {
+  if (!(err instanceof ToilError) || refs.length === 0) return err;
+  // A file that can't be read now can't say what uses the entries, so none is deleted and each is named.
+  let now: EditableConfig | undefined;
+  try {
+    now = readConfigForEdit(path);
+  } catch {
+    now = undefined;
+  }
+  const kept: string[] = [];
+  for (const ref of refs) {
+    const used = now === undefined || [...Object.values(now.connections), ...Object.values(now.defaults)].some((s) => Object.values(s).includes(ref));
+    if (used) {
+      kept.push(ref);
+      continue;
+    }
+    // An entry already gone (another toil removed it) was not kept; only one that couldn't be deleted was.
+    try {
+      if (!secrets) throw new Error('no OS credential store is available here');
+      await secrets.delete(refName(ref), ctx.signal);
+    } catch {
+      kept.push(ref);
+    }
+  }
+  if (kept.length === 0) return err;
+  return new ToilError(err.code, `${err.message.replace(/, so nothing was saved\.$/, '.')} The config file was not changed, but the secret was already in the OS credential store as ${kept.join(', ')}, which the file now uses or which couldn't be deleted.`, {
+    ...(err.fix ? { fix: err.fix } : {}),
+  });
+}
+
 /** The connection as written in the file; one defined only by env vars can't be edited here. */
 function fileConnection(file: EditableConfig, name: string, config: ConfigAccess['config']) {
   const conn = file.connections[name];
@@ -687,22 +838,46 @@ function secretLabel(area: AnyArea, key: string): string {
  * secrets the area declares are asked for: an area that signs in with a token
  * is never asked for a username and password.
  */
-async function askSettings(prompt: Prompter, area: AnyArea, name: string, suggest: Record<string, string> = {}): Promise<{ settings: Settings; secretValues: Record<string, string> }> {
+async function askSettings(
+  prompt: Prompter,
+  area: AnyArea,
+  name: string,
+  suggest: Record<string, string> = {},
+  /** Given the settings answered so far, what may be borrowed instead of asked for. */
+  findOffers: (answered: Settings) => Promise<BorrowOffer[]> = async () => [],
+): Promise<{ settings: Settings; secretValues: Record<string, string>; borrowed: Record<string, string> }> {
   const shape = area.connection.shape as Record<string, z.ZodType>;
   const secretKeys: string[] = area.secrets ?? [];
   const keys = Object.keys(shape)
     .filter((k) => !secretKeys.includes(k))
     .sort((a, b) => Number(b === 'baseUrl') - Number(a === 'baseUrl'));
+  // Where the area offers to borrow a secret, the settings the offer turns on are asked first, then
+  // the ones the borrowed secret must match (defaulting to the lender's), and the pairing last, as a question.
+  const offer = area.shares?.offer;
+  const pairings = offer ? new Set((area.shares?.keys ?? []).map(pairingKey)) : new Set<string>();
+  const matched = new Set(offer?.match ?? []);
   const settings: Settings = {};
-  for (const key of keys) {
+  const ask = async (key: string, offered: string | undefined) => {
     const fallback = area.defaults?.[key] === undefined ? undefined : String(area.defaults[key]);
-    const offered = Object.hasOwn(suggest, key) ? suggest[key] : fallback;
-    const answer = await prompt.ask(label(area, key), offered, `setting:${key}`);
+    const answer = await prompt.ask(label(area, key), offered ?? fallback, `setting:${key}`);
     // An answer equal to the provider default isn't written, so the default can still change.
     if (answer !== '' && answer !== fallback) settings[key] = coerce(shape[key]!, answer);
+  };
+  const suggested = (key: string) => (Object.hasOwn(suggest, key) ? suggest[key] : undefined);
+  for (const key of keys.filter((k) => !pairings.has(k) && !matched.has(k))) await ask(key, suggested(key));
+  const offers = offer ? await findOffers({ ...settings }) : [];
+  for (const key of keys.filter((k) => matched.has(k))) await ask(key, suggested(key) ?? offers.find((o) => o.match[key] !== undefined)?.match[key]);
+  const borrowed: Record<string, string> = {};
+  for (const o of offers) {
+    if (await askBorrow(prompt, area, o, { ...(area.defaults ?? {}), ...settings })) {
+      Object.assign(settings, borrowSetting(o));
+      borrowed[o.key] = o.from;
+    }
   }
+  // With nothing offered, a pairing is a setting like any other, as it always was.
+  for (const key of keys.filter((k) => pairings.has(k) && !offers.some((o) => pairingKey(o.key) === k))) await ask(key, suggested(key));
   const secretValues: Record<string, string> = {};
-  for (const key of secretKeys) {
+  for (const key of secretKeys.filter((k) => borrowed[k] === undefined)) {
     // A secret the connection can't do without is asked for again on an empty answer, rather than saved as nothing.
     const required = area.defaults?.[key] === undefined && shape[key]?.safeParse(undefined).success === false;
     const value = await askCheckedSecret(prompt, secretLabel(area, key), key, {
@@ -712,7 +887,7 @@ async function askSettings(prompt: Prompter, area: AnyArea, name: string, sugges
     });
     if (value !== '') secretValues[key] = value;
   }
-  return { settings, secretValues };
+  return { settings, secretValues, borrowed };
 }
 
 function required(secrets: SecretStore | undefined, ref: string): SecretStore {

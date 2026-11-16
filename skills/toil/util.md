@@ -111,19 +111,32 @@ echo "$TOKEN" | toil util jwt decode -
 | `<token>` | The token, `header.payload.signature`. `-` reads it from stdin, which keeps it out of the process list and your shell history; one trailing line ending is dropped |
 
 Output: `{ header, payload, signature }`, the header and claims as parsed JSON and
-the signature segment as the text it is.
+the signature segment as the text it is, once that segment has passed the base64url check.
 
 - A token that isn't three dot-separated parts (an encrypted 5-part JWE, say) fails
   with `INVALID_INPUT`, `Invalid JWT: expected 3 dot-separated parts`.
-- A header or payload that doesn't decode to JSON fails with `Invalid JWT: header is
-  not valid JSON` (or `payload`). A `Bearer ` prefix gives this error too, so strip it.
-- The decoding is lenient, as it has always been. A segment that is JSON but not an
-  object (`null`, a number) comes back as it is. Characters outside base64url are
-  skipped. Invalid UTF-8 shows as `�`. Whitespace in a token passed as an argument
-  is kept, so a trailing newline ends up in `signature`.
+- A header, payload or signature that isn't base64url fails with `Invalid JWT: header is not
+  valid base64url` (or `payload`, or `signature`). Letters, digits, `-` and `_` only. `=` is accepted
+  as padding at the end. `+`, `/`, whitespace and any other character are rejected,
+  and so is a segment whose length can't be whole bytes. A segment whose last character
+  carries unused bits that aren't zero (`e31` where an encoder writes `e30`) fails with
+  `Invalid JWT: header is not canonical base64url` (or `payload`, or `signature`). An empty signature is allowed,
+  which is how `alg: none` is written. A signature that passes comes back as the text it is.
+- One that isn't UTF-8 fails with `Invalid JWT: header is not valid UTF-8` (or
+  `payload`). A real U+FFFD character, which is valid UTF-8, still decodes. The signature
+  is not read as UTF-8.
+- One that isn't JSON fails with `Invalid JWT: header is not valid JSON` (or
+  `payload`). One that is JSON but not an object (`null`, a number, a string, a
+  list) fails with `Invalid JWT: header is not a JSON object` (or `payload`).
+- A token that starts with `Bearer` and whitespace, in any case, fails with `Invalid JWT: remove the 'Bearer ' prefix`.
+  A pasted header line, starting `Authorization:`, fails with `Invalid JWT: remove the 'Authorization: Bearer ' header name and prefix`.
+  The prefix stays in place. The message does not include the token.
+- A token with leading or trailing whitespace fails with `Invalid JWT: token has surrounding whitespace`.
+  Reading with `-` still drops one trailing line ending before that check.
 
-The token goes nowhere but the decoder. toil doesn't log it, and no error message
-repeats it.
+The token goes nowhere but the decoder. toil doesn't log it, and no error the decoder
+returns repeats it. A usage error from the command line (an extra argument, an unknown
+`--flag=<token>`) echoes what you typed, token included, so pass the token with `-`.
 
 ### `toil util deps scan`
 
@@ -198,9 +211,9 @@ Known quirks, which stay until they're checked against real repositories:
 - `pom.xml` plugin dependencies count as the project's.
 
 The output is the inventory the vulnerability and licence commands read from stdin
-or `--from <file>`: `toil osv vulns`, `toil ossindex vulns`, `toil sonatypeiq
+or `--input-file <path>`: `toil osv vulns`, `toil ossindex vulns`, `toil sonatypeiq
 evaluate`, and `toil artifactory package outdated` / `license-check`. Over MCP, save it to a
-file in the workspace and pass that file's path as `from`.
+file in the workspace and pass that file's path as `inputFile`.
 
 ### `toil util deps diff`
 
@@ -244,21 +257,21 @@ repository's staged or working-tree diff, and talks to nothing.
 
 ```bash
 toil util secrets scan --diff staged          # before git commit
-toil util secrets scan src/                   # a folder, .gitignore respected
-toil util secrets scan notes.md
-gh pr view 12 --json body -q .body | toil util secrets scan -
+toil util secrets scan --input-file src/                   # a folder, .gitignore respected
+toil util secrets scan --input-file notes.md
+gh pr view 12 --json body -q .body | toil util secrets scan --input-file -
 toil util secrets scan --text "$COMMENT"
 ```
 
 | Argument / flag | Meaning |
 |-----------------|---------|
-| `[path]` | A file or folder inside the workspace. A folder is walked as `git ls-files --cached --others --exclude-standard` would list it. `-`, or nothing at all, reads stdin |
+| `--input-file <path>` | A file or folder inside the workspace. A folder is walked as `git ls-files --cached --others --exclude-standard` would list it. `-`, or nothing at all, reads stdin |
 | `--text <text>` | The content itself, instead of a file |
 | `--diff <kind>` | `staged` scans what the next commit holds (`git diff --staged`); `working` scans unstaged changes (`git diff`). Added lines only, in the workspace only. Runs the git on PATH |
 | `--allow-file <file>` | The allow file (default: `.toil/secrets-allow` at the workspace's top, when it exists) |
 
 Pass one of a path, `--text` or `--diff`; two at once is `INVALID_INPUT`. Over
-MCP, pass `file`, `text` or `diff`.
+MCP, pass `inputFile`, `text` or `diff`.
 
 A folder that `.gitignore` excludes is walked as git lists it: only the files git
 tracks there. When that's none, the result has no findings and a
@@ -379,17 +392,17 @@ file with SHA-256, SHA-1 or MD5. Each result is checked before it's returned, an
 
 ```bash
 toil util encode base64 --text 'you@example.com:abc12345'
-toil util encode base64 --decode mail-part.b64 --out logo.png
+toil util encode base64 --decode --input-file mail-part.b64 --out logo.png
 toil util encode url --text 'project = PAY AND assignee = "you@example.com"'
 toil util encode form --decode --text 'project+%3D+PAY+AND+assignee+%3D+%22you%40example.com%22'
 printf 'hello' | toil util encode hex
-toil util encode sha256 release.tgz
+toil util encode sha256 --input-file release.tgz
 ```
 
 | Argument or flag | Meaning |
 |------------------|---------|
 | `<scheme>` | `base64`, `base64url`, `hex`, `url`, `form`, or a hash: `sha256`, `sha1`, `md5`. Required |
-| `[file]` | A file inside the workspace. `-`, or leaving out both the file and `--text`, reads stdin |
+| `--input-file <path>` | A file inside the workspace. `-`, or leaving out both the file and `--text`, reads stdin |
 | `--text <text>` | The content itself, instead of a file. It's encoded as UTF-8 |
 | `--decode` | Decode instead of encode. Not for a hash |
 | `--out <file>` | Write the result to this new file inside the workspace instead of returning it. Never replaces a file. Not for a hash |
@@ -464,16 +477,16 @@ explain a TLS failure from the files. It never connects to the host the certific
 is for: pass the file the server is configured with, or the chain a client saved.
 
 ```bash
-toil util cert chain.pem
-toil util cert chain.pem --host api.imagile.dev
-toil util cert server.der
-cat chain.pem | toil util cert -
+toil util cert --input-file chain.pem
+toil util cert --input-file chain.pem --host api.imagile.dev
+toil util cert --input-file server.der
+cat chain.pem | toil util cert --input-file -
 ```
 
 | Argument or flag | Meaning |
 |------------------|---------|
-| `[file]` | A file in the workspace, PEM or DER. `-`, or leaving it out, reads stdin |
-| `--text <text>` | The PEM itself, instead of a file. Over MCP, `text` is read as UTF-8, so a DER certificate goes as `file` |
+| `--input-file <path>` | A file in the workspace, PEM or DER. `-`, or leaving it out, reads stdin |
+| `--text <text>` | The PEM itself, instead of a file. Over MCP, `text` is read as UTF-8, so a DER certificate goes as `inputFile` |
 | `--host <host>` | A host name or IP address: do the first certificate's SANs cover it? |
 
 Output: `{ format, certificates, skipped, chain, host, verified }`. Each
@@ -551,7 +564,7 @@ with the reason and an example of what fits. Build metadata never affects order.
 toil util semver compare 1.0.0-rc.10 1.0.0-rc.9
 toil util semver satisfies 1.3.0-rc.1 '^1.2.0' --include-prerelease
 toil util semver satisfies 5.3.39 '[5.0,6.0)' --ecosystem maven
-toil util semver sort versions.txt --range '^5.0.0'
+toil util semver sort --input-file versions.txt --range '^5.0.0'
 toil util semver bump 1.2.3 prerelease --preid rc
 ```
 
@@ -559,7 +572,7 @@ toil util semver bump 1.2.3 prerelease --preid rc
 |---------|---------------------|--------|
 | `compare <a> <b>` | `--ecosystem <ecosystem>` | `{ ecosystem, a, b, order, higher, difference, normalized: { a, b }, verified }`. `order` is -1, 0 or 1 for a against b, `higher` is `a`, `b` or null, and `difference` is the most significant part they differ in: `major`, `minor`, `patch`, `revision` (NuGet's fourth part, or Maven's), `prerelease`, `qualifier` (Maven) or null |
 | `satisfies <version> <range>` | `--ecosystem <ecosystem>`, `--include-prerelease` | `{ ecosystem, version, range, normalizedRange, satisfies, verified }` |
-| `sort [file]` | `--text <text>`, `--ecosystem <ecosystem>`, `--range <range>`, `--include-prerelease` | `{ ecosystem, count, sorted, invalid, verified }`, lowest first, plus `{ range, normalizedRange, satisfying, highest }` with `--range` |
+| `sort` | `--input-file <path>`, `--text <text>`, `--ecosystem <ecosystem>`, `--range <range>`, `--include-prerelease` | `{ ecosystem, count, sorted, invalid, verified }`, lowest first, plus `{ range, normalizedRange, satisfying, highest }` with `--range` |
 | `bump <version> <release>` | `--ecosystem <ecosystem>`, `--preid <id>` | `{ ecosystem, version, release, preid, result, verified }` |
 
 - **`sort`** reads a file in the workspace, stdin (`-`, or no file), or `--text`.
@@ -601,21 +614,21 @@ One JSON summary of a report that CI or a scanner wrote: JUnit XML, TRX, SARIF
 against its own declared totals.
 
 ```bash
-toil util report target/surefire-reports/TEST-dev.imagile.OrderTest.xml
-toil util report TestResults/build.trx
-toil util report coverage/lcov.info --lowest 5
-toil util report results.sarif
+toil util report --input-file target/surefire-reports/TEST-dev.imagile.OrderTest.xml
+toil util report --input-file TestResults/build.trx
+toil util report --input-file coverage/lcov.info --lowest 5
+toil util report --input-file results.sarif
 cat coverage.xml | toil util report --format cobertura
 ```
 
 | Argument / flag | Meaning |
 |-----------------|---------|
-| `[file]` | The report, inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--input-file <path>` | The report, inside the workspace. `-`, or no `--input-file` and no `--text`, reads stdin |
 | `--text <text>` | The report itself, instead of a file |
 | `--format <format>` | `junit`, `trx`, `sarif`, `lcov` or `cobertura`. Left out, it's detected from the content: the root element for XML (`<testsuites>` or `<testsuite>`, `<TestRun>`, `<coverage>`), `"runs"` for SARIF, a first `TN:` or `SF:` line for lcov |
 | `--lowest <n>` | How many of the lowest-covered files to list (default 10, up to 1000) |
 
-Over MCP the tool is `util_report`, with `file` or `text`, `format` and `lowest`.
+Over MCP the tool is `util_report`, with `inputFile` or `text`, `format` and `lowest`.
 
 Output: `{ format, formatFrom, tests, findings, coverage, skipped, verified }`.
 `formatFrom` is `content` or `flag`. One of `tests`, `findings` and `coverage` is
@@ -703,15 +716,15 @@ stack trace that follows it. It reads the file only, streams it, and holds memor
 constant however large the log is.
 
 ```bash
-toil util log build.log
-toil util log console.log --level error --context 3
-toil util log console.log --since 2026-10-14T09:12:00Z --grep 'Failed to execute'
-some-build 2>&1 | toil util log -
+toil util log --input-file build.log
+toil util log --input-file console.log --level error --context 3
+toil util log --input-file console.log --since 2026-10-14T09:12:00Z --grep 'Failed to execute'
+some-build 2>&1 | toil util log --input-file -
 ```
 
 | Argument or flag | Meaning |
 |------------------|---------|
-| `[file]` | The log, inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--input-file <path>` | The log, inside the workspace. `-`, or no `--input-file` and no `--text`, reads stdin |
 | `--text <text>` | The log itself, instead of a file |
 | `--since <timestamp>` | Only lines dated at or after this ISO 8601 time (`2026-10-14`, `2026-10-14T09:12:00Z`, `"2026-10-14 09:12:00"`). A line with no date takes the date of the last dated line before it. Without a zone, a time is read as UTC |
 | `--level <level>` | `warning` (default) reports errors and warnings; `error` reports errors only |
@@ -719,7 +732,7 @@ some-build 2>&1 | toil util log -
 | `--max-groups <n>` | The most groups to return, default 50, up to 1000 |
 | `--context <n>` | Lines to show before and after each group's sample, default 0, up to 20 |
 
-Over MCP the tool is `util_log`, with `file` (a path in the workspace) or `text`, and
+Over MCP the tool is `util_log`, with `inputFile` (a path in the workspace) or `text`, and
 the same fields: `since`, `level`, `grep`, `maxGroups`, `context`.
 
 How it reads a log:
@@ -802,14 +815,14 @@ context: bytes, lines and an estimated token count, and for one file an outline
 with line ranges, so you can read just the part you need.
 
 ```bash
-toil util size src/areas/util/size.ts
-toil util size src --depth 2 --top 5
-git show HEAD:README.md | toil util size - --language markdown
+toil util size --input-file src/areas/util/size.ts
+toil util size --input-file src --depth 2 --top 5
+git show HEAD:README.md | toil util size --input-file - --language markdown
 ```
 
 | Argument / flag | Meaning |
 |-----------------|---------|
-| `[file]` | A file or folder inside the workspace. `-` (or nothing) reads stdin |
+| `--input-file <path>` | A file or folder inside the workspace. `-` (or nothing) reads stdin |
 | `--text <text>` | The content itself, instead of a file |
 | `--language <language>` | Outline it as this language: `typescript`, `javascript`, `python`, `csharp`, `java`, `go`, `markdown`, `json` or `yaml`. Needed for stdin and `--text`; for a file it overrides the extension |
 | `--top <n>` | For a folder: how many of the largest files to list (default 10) |
@@ -956,7 +969,7 @@ parts (`duration.roundtrip`, warning `DURATION_ROUNDTRIP_MISMATCH`).
 #### `toil util time business-days add` and `diff`
 
 ```bash
-toil util time business-days add 2026-12-23 3 --holidays holidays-2026.txt
+toil util time business-days add 2026-12-23 3 --holidays-file holidays-2026.txt
 toil util time business-days add 2026-12-28 -1
 toil util time business-days diff 2026-12-24T15:00 2026-12-29T10:00 --zone America/Chicago --holiday 2026-12-25
 ```
@@ -967,7 +980,7 @@ toil util time business-days diff 2026-12-24T15:00 2026-12-29T10:00 --zone Ameri
 | `<days>` | `add`: business days to add; negative subtracts |
 | `<end>` | `diff`: the end time or date |
 | `--zone <zone>` | The zone whose calendar days count, and the zone of a time without an offset (default `UTC`) |
-| `--holidays <file>` | A file in the workspace: one `YYYY-MM-DD` per line, optionally followed by a name; `#` lines are comments. Any other line is `INVALID_INPUT` naming it |
+| `--holidays-file <path>` | A file in the workspace: one `YYYY-MM-DD` per line, optionally followed by a name; `#` lines are comments. Any other line is `INVALID_INPUT` naming it |
 | `--holiday <date>` | A holiday as `YYYY-MM-DD` (repeatable) |
 
 Business days are Monday to Friday, less the holidays given. No country's holidays
@@ -1059,11 +1072,11 @@ Center). One side is always Markdown. Every result is checked by converting it
 back, so you're told exactly what didn't survive.
 
 ```bash
-toil util md description.md --to wiki
-toil util md page.md --to storage
-toil util md description.md --to adf --select output
-toil util md PROJ-142.wiki --from wiki
-toil util md description.adf.json --from adf
+toil util md --input-file description.md --to wiki
+toil util md --input-file page.md --to storage
+toil util md --input-file description.md --to adf --select output
+toil util md --input-file PROJ-142.wiki --from wiki
+toil util md --input-file description.adf.json --from adf
 ```
 
 ADF input is the document itself, `{ "type": "doc", "version": 1, "content": [...] }`:
@@ -1071,12 +1084,12 @@ an issue's `fields.description` or a comment's `body`, not the issue around it.
 
 | Argument / flag | Meaning |
 |-----------------|---------|
-| `[file]` | A file inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--input-file <path>` | A file inside the workspace. `-`, or no `--input-file` and no `--text`, reads stdin |
 | `--text <text>` | The document itself, instead of a file |
 | `--to <format>` | `wiki`, `adf` or `storage`, to convert Markdown into it |
 | `--from <format>` | `wiki`, `adf` or `storage`, to convert it into Markdown |
 
-Over MCP the tool is `util_md`, with `file` or `text` plus `from` or `to`.
+Over MCP the tool is `util_md`, with `inputFile` or `text` plus `from` or `to`.
 
 Output:
 
@@ -1153,21 +1166,21 @@ been checked against a live instance.
 Three commands that read an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, in JSON
 or YAML, so you can call an endpoint right the first time, usually through
 `toil <area> api`. The document is a file in the workspace, `-` for stdin, or
-`--text` (`file` or `text` over MCP). Nothing is fetched: the official schemas
+`--text` (`inputFile` or `text` over MCP). Nothing is fetched: the official schemas
 each version is checked against are bundled.
 
 ```bash
-toil util openapi list jira-platform.json --tag Issues
-toil util openapi list github.yaml --path pulls
-toil util openapi show jira-platform.json --operation createIssue
-toil util openapi show bitbucket.json --method POST --path /repositories/{workspace}/{repo_slug}/pullrequests --depth 1
-toil util openapi example jira-platform.json --operation createIssue
-toil util openapi example github.yaml --operation pulls/get --response 200
+toil util openapi list --input-file jira-platform.json --tag Issues
+toil util openapi list --input-file github.yaml --path pulls
+toil util openapi show --input-file jira-platform.json --operation createIssue
+toil util openapi show --input-file bitbucket.json --method POST --path /repositories/{workspace}/{repo_slug}/pullrequests --depth 1
+toil util openapi example --input-file jira-platform.json --operation createIssue
+toil util openapi example --input-file github.yaml --operation pulls/get --response 200
 ```
 
 | Flag | Meaning |
 |------|---------|
-| `[file]` | The document: a file in the workspace, or `-` (or nothing) for stdin |
+| `--input-file <path>` | The document: a file in the workspace, or `-` (or nothing) for stdin |
 | `--text <text>` | The document itself, instead of a file |
 | `--tag <tag>` | `list`: only operations with this tag (any case) |
 | `--path <text>` | `list`: only operations whose path contains this text. `show` and `example`: the path exactly as the document writes it, with `--method` |
@@ -1223,10 +1236,10 @@ server's base path plus the operation's, with `{name}` for each of
 `writes`, and the CLI line. Over MCP the same fields are `<area>_api`'s inputs.
 
 ```bash
-toil util openapi show jira-platform.json --operation editIssue --select call
+toil util openapi show --input-file jira-platform.json --operation editIssue --select call
 # { "method": "PUT", "path": "/rest/api/2/issue/{issueIdOrKey}", "bodyFile": "body.json", "writes": true,
 #   "cli": "toil <area> api PUT /rest/api/2/issue/{issueIdOrKey} --body-file body.json --allow-write", ... }
-toil util openapi example jira-platform.json --operation editIssue --select example
+toil util openapi example --input-file jira-platform.json --operation editIssue --select example
 toil jira api PUT /rest/api/2/issue/ABC-123 --body-file body.json --allow-write
 ```
 
@@ -1295,17 +1308,17 @@ their dashed boundary, and each relationship's label placed clear of the boxes.
 Nothing is installed or run, and nothing goes over the network.
 
 ```bash
-toil util c4 render docs/c4/bookshop.c4.json --view containers --out containers.svg
-toil util c4 mermaid docs/c4/bookshop.c4.json --view context
-cat model.json | toil util c4 d2 - --view components
+toil util c4 render --input-file docs/c4/bookshop.c4.json --view containers --out containers.svg
+toil util c4 mermaid --input-file docs/c4/bookshop.c4.json --view context
+cat model.json | toil util c4 d2 --input-file - --view components
 ```
 
-A model can also come from another toil command, read from the `data` of its envelope: `toil projects diagram show payments --select model | toil util c4 render - --view containers`.
+A model can also come from another toil command, read from the `data` of its envelope: `toil projects diagram show payments --select model | toil util c4 render --input-file - --view containers`.
 
 | Flag | Meaning |
 |------|---------|
-| `[file]` | A JSON file holding the model, inside the workspace, or `-` (or nothing) for stdin |
-| `--text <text>` | The model itself, as a JSON string, instead of a file. Over MCP, `file` or `text` |
+| `--input-file <path>` | A JSON file holding the model, inside the workspace, or `-` (or nothing) for stdin |
+| `--text <text>` | The model itself, as a JSON string, instead of a file. Over MCP, `inputFile` or `text` |
 | `--view <key>` | The view to draw. It can be left out when the model has only one |
 | `--out <file>` | `render` only: write the SVG to this new file inside the workspace instead of returning it. toil never overwrites a file |
 
@@ -1424,16 +1437,16 @@ envelope a line.
 
 ```bash
 toil jira issue search --jql "sprint in openSprints()" --fields "summary,status,issuetype,Story Points,Sprint" | toil util owi map
-toil util owi map sprint-42.jsonl
-toil util owi map changelog.json --key PAY-104
-toil util owi map batch.json --field estimate=Custom.TeamPoints --field estimateUnit=points
-toil util owi map issue.json --command "github issue get"
-toil util owi map prs.jsonl --key-pattern "PAY-{n}=corp-jira" --author-kind release-bot=BOT
+toil util owi map --input-file sprint-42.jsonl
+toil util owi map --input-file changelog.json --key PAY-104
+toil util owi map --input-file batch.json --field estimate=Custom.TeamPoints --field estimateUnit=points
+toil util owi map --input-file issue.json --command "github issue get"
+toil util owi map --input-file prs.jsonl --key-pattern "PAY-{n}=corp-jira" --author-kind release-bot=BOT
 ```
 
 | Argument / flag | Meaning |
 |-----------------|---------|
-| `[file]` | A file inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--input-file <path>` | A file inside the workspace. `-`, or no `--input-file` and no `--text`, reads stdin |
 | `--text <text>` | The input itself, instead of a file |
 | `--command <name>` | The command whose data the input is, when it holds `data` without its envelope (`"jira issue search"`) |
 | `--key <key>` | The item a history belongs to, when its output doesn't say: `PAY-104`, or `imagile/payments-web#44` (a bare `44` takes the envelope's owner and repo) |
@@ -1442,7 +1455,7 @@ toil util owi map prs.jsonl --key-pattern "PAY-{n}=corp-jira" --author-kind rele
 | `--dimension <name=area:field>` | Name an extra dimension to split by, repeatable, one for each area that holds it: `customer=jira:customfield_10500`, `customer=ado:Custom.Customer`. Each item of that area carries it under `dims` |
 | `--author-kind <id=KIND>` | Set a pull request author's kind by hand, repeatable: `release-bot=BOT`, with `KIND` one of `HUMAN`, `AGENT` or `BOT`. It wins over every other signal |
 
-Over MCP the tool is `util_owi_map`, with `file` or `text`, and `command`, `key`,
+Over MCP the tool is `util_owi_map`, with `inputFile` or `text`, and `command`, `key`,
 `field` (a list of `name=field`), `keyPattern` (a list of `pattern=connection`)
 and `authorKind` (a list of `id=KIND`).
 
@@ -1588,12 +1601,12 @@ Jira, Azure DevOps or GitHub.
 toil jira issue search --jql "project = PAY" | toil util owi map | toil util owi similar --query "Card payments time out at checkout"
 toil util owi similar --input-file items.owi.json --item corp-jira:PAY-101 --limit 5
 toil util owi similar --input-file items.owi.json --pairs --threshold 0.6
-toil util owi similar items.owi.json --pairs --fields title,body
+toil util owi similar --input-file items.owi.json --pairs --fields title,body
 ```
 
 | Argument / flag | Meaning |
 |-----------------|---------|
-| `[file]`, `--input-file <path>` | The OWI records: a file inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--input-file <path>` | The OWI records: a file inside the workspace. `-`, or no `--input-file` and no `--text`, reads stdin |
 | `--text <text>` | The records themselves, instead of a file |
 | `--query <text>` | Rank every item against this text |
 | `--item <id>` | Rank the set against one of its items, by OWI id (`corp-jira:PAY-101`) |
@@ -1608,7 +1621,7 @@ suggest creating one. Don't lower `--threshold` to force a match. Matching work 
 ticket before starting it is `core.md`, **Ticket the work**.
 
 Ask exactly one of `--query`, `--item` and `--pairs`. Over MCP the tool is
-`util_owi_similar`, with `file` or `text`, one of `query`, `item` and `pairs`, and
+`util_owi_similar`, with `inputFile` or `text`, one of `query`, `item` and `pairs`, and
 `limit`, `threshold` and `fields`.
 
 **What it reads:** the envelope `util owi map` printed, its `data`, a JSON array of

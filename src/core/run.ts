@@ -47,6 +47,21 @@ export interface CallOptions {
 /** Input fields renamed in a release, so a call that still sends the old one is told the new one (contract version 3). */
 const RENAMED_FIELDS: Record<string, string> = { dossier: 'toilProject' };
 
+/** The field a retired flag spelling filled (`--holidays <file>` was `holidays`), camelCased as commander names it. */
+const fieldOfFlag = (flags: string) => (flags.split(/[ ,]+/).find((part) => part.startsWith('--')) ?? '').slice(2).replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+
+/**
+ * Every renamed field a call to `def` might still send, old name to new: core's own, and the fields
+ * of the command's retired flag spellings and positionals (#622: `file` is `inputFile`, `from` is
+ * `inputFile`, `holidays` is `holidaysFile`), so an MCP or API caller's fix names the new field.
+ */
+function renamedFields(def: AnyCommand): Record<string, string> {
+  const out: Record<string, string> = { ...RENAMED_FIELDS };
+  for (const opt of def.options ?? []) for (const flags of opt.deprecated ?? []) if (fieldOfFlag(flags) !== opt.field) out[fieldOfFlag(flags)] = opt.field;
+  for (const arg of def.args ?? []) if (arg.deprecated && arg.name !== arg.field) out[arg.name] = arg.field;
+  return out;
+}
+
 /**
  * Builds the context and runs the command, so a failure building the context
  * (a config file that stopped being JSON while the MCP server was up) is an
@@ -255,7 +270,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     const parsed = def.input.strict().safeParse(own ?? {});
     if (!parsed.success) {
       // A field that was renamed gets its new name in the fix, not a pointer to --help that never mentions the old one.
-      const renamed = Object.entries(RENAMED_FIELDS).filter(([old]) => parsed.error.issues.some((i: z.core.$ZodIssue) => i.code === 'unrecognized_keys' && i.keys.includes(old)));
+      const renamed = Object.entries(renamedFields(def)).filter(([old]) => parsed.error.issues.some((i: z.core.$ZodIssue) => i.code === 'unrecognized_keys' && i.keys.includes(old)));
       throw new ToilError('INVALID_INPUT', `Invalid input for ${commandName(def)}: ${z.prettifyError(parsed.error)}`, {
         fix: `${renamed.map(([old, now]) => `The field "${old}" is now "${now}". `).join('')}Run toil ${commandName(def)} --help to see the expected arguments.`,
         details: parsed.error.issues,
@@ -396,6 +411,9 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       files: {
         ...ctx.files,
         list: (dir, options) => ctx.files.list(dir, { ...options, warn: options?.warn ?? ((w) => warnings.push(w)) }),
+        // Every read carries the command's signal, so a wait on stdin ends at the time limit or on Ctrl+C like a request.
+        readText: (path: string) => ctx.files.readText(path, { signal: controller.signal }),
+        readBytes: (path: string) => ctx.files.readBytes(path, { signal: controller.signal }),
         // Read-only means nothing local changes either. A command that writes a
         // file declares it (`writesLocal`) and is refused before it runs; this
         // catches one that didn't, loudly, before a byte lands.

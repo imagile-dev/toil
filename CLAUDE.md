@@ -25,7 +25,12 @@ user's machine. Principle 11 governs the screens people work in: Toil UI and toi
 welcome menu. Principle 12 governs both: what toil returns and what a screen shows. This repository's own tooling (`scripts/`, the tests, workflows, and
 the skills under `.claude/skills/`) is never published or installed by toil. It may
 run `git` and `gh` and call GitHub. It still follows principle 8, because every
-contributor runs it, and principle 2 where an agent does the work.
+contributor runs it, and principle 2 where an agent does the work. **Tooling that
+prepares a demonstration or the maintainer's local development** is held to what keeps
+people and sandboxes safe (principle 2's write gate and secrets, principle 8, and
+principle 12 for what it writes), not to the product rules written for a customer's
+machine, and needs nothing beyond npm and running a local web app (the maintainer's
+call, 2026-11-16, #623; the `sandboxes` skill).
 
 **When feedback or a correction arrives, find the principle under it before changing
 anything.** Add or sharpen the principle here, then update every rule that follows
@@ -74,8 +79,13 @@ gets made again in the next place it applies.
    merges triage's PRs, any PR for an issue filed from outside, and the release PR.
    → Writes; the `databases`, `mcp`, `automation` and `ship` skills.
 3. **One command does one thing against one source; the caller composes.** No
-   aggregate command that decides on the caller's behalf which services to ask. →
-   dependency analysis split by source, stdin / `--from` composition (`integrations`
+   aggregate command that decides on the caller's behalf which services to ask. Options
+   stay few for the same reason: a flag earns its place only when the caller can't get
+   the result from what's already there (`--select`, a pipe, a file, a second call).
+   No second way to do the same thing, and no mode that makes the choice for one kind
+   of caller; when two options overlap, they fold into one, through principle 7's
+   deprecation path (the maintainer's call, 2026-11-16, #622). → dependency analysis
+   split by source, stdin / `--input-file` composition, one flag per idea (`integrations`
    skill).
 4. **Honest and obvious.** Every result says where it came from and how precise it
    is; every integration says how far it has been verified. Errors are unmistakable:
@@ -201,7 +211,7 @@ gets made again in the next place it applies.
   PowerShell, or a POSIX utility. toil itself runs only git and programs the OS
   ships to hand over what it already holds for the user (No Executables); repo
   tooling may also run tools developers already have (git, gh, a browser, node),
-  never through a shell. The credential stores are in `src/core/keychain.ts`, each
+  never through a shell; Docker may be offered as an option, never required. The credential stores are in `src/core/keychain.ts`, each
   behind a platform check (`secrets` skill), Windows authentication's SSPI helper is
   in `src/os/windows-sspi.ts`, and git is in `src/core/git.ts`.
 - Read files as UTF-8 and accept both CRLF and LF; write LF. `.gitattributes` keeps
@@ -539,7 +549,8 @@ makes that binding on the CLI (`ConfigAccess.via` says which door).
 **Cross-area credentials are paired explicitly** (*principle 9*). `defineArea({
 shares: { area, keys } })` only declares which keys may be paired; core adds a
 `<key>From` setting, and a connection borrows only when the user set it (a Kibana
-connection with `"apiKeyFrom": "es-prod"`), and only from that connection. Between
+connection with `"apiKeyFrom": "es-prod"`), and only from that connection. With `offer`, it also says when `connections add`
+and `login` offer the pairing (`borrow:<key>`), which only a person answers (#635). Between
 the two, the env tier beats the file tier, and the own connection wins a tie. With
 no pairing a connection uses only its own key, with one exception that keeps the contract's
 env chain: the area's default connection takes the other area's default
@@ -678,8 +689,9 @@ All six pass before a PR opens. A PR that touches `ui/` also passes Toil UI's ga
 checks Toil UI on sample and real data and writes `ui/.verify/report.md`, whose table
 goes in the PR, so the work is verified before the review bot sees it (`ui/README.md`,
 Verify before you open a PR). On a PR and on `main`, CI (`ci.yml`) runs them on
-Linux on Node 24.22.1, as two jobs side by side, toil's gate and Toil UI's. Its `CI ok`
-job passes only when both passed, along with the database integration job and the
+Linux on Node 24.22.1, side by side: toil's gate, and Toil UI's as one job of checks
+plus its smoke split into eight layout shards (#640). Its `CI ok`
+job passes only when all of them passed, along with the database integration job and the
 `dist/` guard (below), and it's the one check `main`'s ruleset requires, so nothing
 merges on a red gate. A PR against `main` that changes only docs and config (the list in
 `scripts/ci-scope.mjs`, read from `main`) skips Toil UI's gate and the database job,
@@ -1153,40 +1165,15 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 
 ## Test Projects
 
-*Principles 2 and 4.* Three sandboxes hold made-up work for runs against real
-services: a `live` verification level, a suspected bug's live check, `npm run
-verify:ui`. They are the only places a live run may write.
-
-| Tracker | Test project | toil connection | Seeded by |
-|---|---|---|---|
-| Jira Cloud | project `SCRUM` | `jira` | `ui/scripts/jira-seed.mjs`, through toil: labels `toil-seed` and `seed:<key>` |
-| Azure DevOps Services | project `Toil Sandbox` | `ado` | `ui/scripts/ado-seed/`: tag `toil-seed` and a `seed:<key>` tag |
-| GitHub | repository `imagile-dev/toil-sandbox` | `github` | `ui/scripts/seed-sandbox.mjs`, through `gh` |
-
-- **Reads may go to any of the three.** A write goes only to a test project, and only
-  to items that carry its seed mark or that the run created itself. The connection's
-  `writes` and `--allow-write` still decide (**Writes**); an agent never turns `writes`
-  on, so a sandbox whose connection has it off is read-only until a person changes it.
-- **Name the project on every call** (`--project SCRUM`, `--project "Toil Sandbox"`,
-  `--owner imagile-dev --repo toil-sandbox`). A default connection can reach other
-  projects in the same site or organization, and nothing but the argument keeps a
-  live run out of them.
-- **Nothing a live run returns is committed.** Hosts, organization names, account
-  names and ids stay out of code, tests, fixtures, docs, issues and PRs
-  (**Placeholders**). A PR quotes a live envelope only after it is sanitized. The
-  project and repository names in the table are the exception, since a contributor
-  needs them to find the sandbox.
-- **Seed with the scripts, never by hand,** so a sandbox can be rebuilt and so its
-  items stay recognisable. A feature that needs data the seeds lack (a fix version,
-  a component, a category field) extends the seed in the same PR and says so.
-- **A field or a project is an admin's to create.** toil never creates either. `SCRUM`
-  has one category field, the dropdown `Work category` (KTLO, Feature) on its Story and
-  Task work types; the other two test projects have none. Where a
-  live check needs one that doesn't exist, the PR says what is missing under what
-  wasn't verified, and the check waits.
-- **The sample team is not a sandbox.** `toil sample team` and `toil-ui --sample` run
-  with no connection and are what tests and screenshots use; a test project is for
-  what only a real service can show.
+*Principles 2 and 4.* Four sandboxes hold made-up work for runs against real services:
+Jira `SCRUM`, Azure DevOps `Toil Sandbox`, GitHub `imagile-dev/toil-sandbox` and the
+Confluence space `OD`. **They are the only places a live run may write**, only to items
+that carry the seed mark `toil-seed` or that the run created (the GitHub repository is
+seeded as a whole, so any item in it counts), and only through the
+connection's `writes` and `--allow-write`; an agent never turns `writes` on. Nothing a
+live run returns is committed but the project and repository names and the issue
+numbers inside them. Seeding, demo prep and the exceptions it takes are in the
+`sandboxes` skill.
 
 ## Delivery
 
@@ -1310,7 +1297,7 @@ CLAUDE.md holds only guidance that applies to every task: the principles and the
 rules that are always relevant. Anything needed only for a particular kind of work
 lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 
-- Keep the set to 4–8 skills. Fold new guidance into an existing skill before creating
+- Keep the set to 4–9 skills. Fold new guidance into an existing skill before creating
   one, and split a skill only when it grows past a single coherent job.
 - When a new rule arrives, decide first whether it is global (CLAUDE.md) or
   task-specific (a skill), and put it in exactly one place.
@@ -1325,6 +1312,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 | `secrets` | Storing, resolving, moving or logging a secret; the OS credential store |
 | `automation` | Editing workflows under `.github/`: the review agent, the fix agent, issue triage and its daily cap, the feedback deploy, action pins, Discord notifications, redaction |
 | `site` | Changing anything under `site/`, or the mark and wordmark it shares with the terminal splash and menu in `src/welcome/` (the site wears Plain's palette; the terminal defaults to Crate): responsive rules, palette, the mark and its motion, the wordmark, art, status honesty, screenshots |
+| `sandboxes` | A run that writes to a real service (a `live` level, a suspected bug's live check, `verify:ui`, LLM-based testing), seeding a sandbox, or preparing demo and marketing material: the four test projects, their seed marks, and the demo reset and story |
 | `ship` | Opening, updating or shepherding a PR: local reviews in parallel (gate, code, docs, principles, and screens when a screen changes), fixing all but principle findings, and the four-minute PR watch that replaces the app's Auto-fix |
 
 ## Cloud Cost

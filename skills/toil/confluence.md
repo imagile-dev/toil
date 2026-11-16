@@ -25,7 +25,7 @@ shape**, unchanged; `meta.context.connection.deployment` says which one ran. Wha
 |---|---|---|
 | Credential | personal access token, `Authorization: Bearer` | account `email` + API token, Basic auth |
 | Page ids, spaces | numeric content ids; a space key goes straight into the request | page ids in text; attachment ids start `att`; a space key is looked up to the numeric id v2 wants (one more request) |
-| Bodies out | the page as the Server API returns it, `--expand` picks fields | `body.storage` always, plus `bodyText` beside it (plain text); no `--expand` on `page get` |
+| Bodies out | the page as the Server API returns it, `--expand` picks fields | `body.storage` always, plus `bodyText` beside it (plain text, with the entities Cloud saves typography as, such as `&minus;`, decoded); no `--expand` on `page get` |
 | Markdown in | `--markdown` converts it to storage format on your machine | none: write storage XHTML, or wiki markup with `--representation wiki` |
 | Paging `page list` | `--limit`, `--offset` (a position) | `--limit`, `--cursor` (an opaque token from `meta.page.nextCursor`) |
 | Paging `page search` | `--limit`, `--offset` | `--limit`, `--cursor` |
@@ -55,14 +55,34 @@ account → Security → API tokens → Create API token). toil sends
 is no password, OAuth app or browser login. The token acts with the account's own
 permissions, so a read sees what that account can see.
 
-**The Jira token works too.** When the default Confluence connection has no token of its own
-in env (`TOIL_CONFLUENCE_API_TOKEN`), it uses `TOIL_JIRA_API_TOKEN`, the default Jira
-connection's env value, but only when both connections are the same deployment: a Data
-Center Jira's token is never lent to the Atlassian cloud, nor a Cloud Jira's to a server.
-Any Confluence connection can instead borrow a Jira connection's token, env or stored, by
-naming it: `"apiTokenFrom": "corp-jira"`. `meta.context.shared` says when the token came
-from Jira, never the value. Only the token is borrowed: on Cloud `email` is always this
-connection's own, and must be the address the token belongs to.
+**The Jira token works too, on Cloud.** An Atlassian API token belongs to the account, not
+to one product, so the token a Jira Cloud connection uses also signs in to Confluence Cloud on
+the same site (`https://<your-site>.atlassian.net`), with the same email. On Data Center it
+doesn't: Jira and Confluence are separate servers, each issuing its own personal access
+tokens, so a Confluence server always needs its own.
+
+So when you set up, or find, a Jira Cloud connection and a Confluence Cloud connection on the
+same site, tell the person they can use one token for both, and that
+`toil connections login <confluence-connection>` will offer to reuse the Jira connection's
+(`Use the apiToken from corp-jira (jira) instead of entering one? y/n`), with Jira's email as
+the default answer. A yes writes `"apiTokenFrom": "<jira-connection>"` and stores no secret;
+the token stays with Jira. `toil connections add` asks the same question, and Toil UI's
+Settings shows it as a choice between the connection's own token and Jira's. It is only
+offered when both connections are `deployment` cloud, both base URLs are on the same host,
+and the Jira token resolves. `toil connections add --set` never sets `apiTokenFrom` (an agent
+never moves a secret, so it's refused); when the reuse applies, its `SECRET_NEEDED` warning
+says so and `data.secretReusable` names the Jira connection (`{ "apiToken": "corp-jira" }`),
+for you to pass on. If the person types a different email, the question says the token won't
+work with it: the email must be the address of the account the token belongs to.
+
+The same pairing can be set by hand on any Confluence connection: `"apiTokenFrom":
+"corp-jira"` borrows that Jira connection's token, env or stored. And the default Confluence
+connection, with no token of its own in env (`TOIL_CONFLUENCE_API_TOKEN`), uses
+`TOIL_JIRA_API_TOKEN`, the default Jira connection's, but only from a Jira of the same
+deployment: a Data Center Jira's token is never lent to the Atlassian cloud, nor a Cloud
+Jira's to a server. `meta.context.shared` says when the token came from Jira, never the
+value. Only the token is borrowed: on Cloud `email` is always this connection's own, and must
+be the address the token belongs to.
 
 ## Configuration
 
@@ -148,7 +168,7 @@ is refused the same way.
 | `space get` | `<key>` | The space, with its plain-text description |
 | `space create` ✎ | `<key> --name --description` | The created global space; Cloud adds its `id` and `homepageId`. Confluence makes the homepage itself |
 | `page attachments` | `<id>` | Every attachment on the page |
-| `page attach` ✎ | `<id> --file --comment` | The attachments created |
+| `page attach` ✎ | `<id> --input-file --comment` | The attachments created |
 | `attachment download` | `<attachment-id> --dir` | `{ saved, filename, size }`; saves to `.toil/` by default |
 | `attachment delete` ✎ | `<attachment-id>` | `{ deleted }`; the attachment goes to the trash |
 | `check-toil-project` (Data Center) | `--toil-project <name\|file>` (or the folder's toil project) | `{ toil project, connection, env, ok, checked, checks, unchecked }`: each space the toil project names (`space`, `spaces`), found or not; exit 1 when one is missing |
@@ -168,7 +188,7 @@ toil confluence space create KW --name "Kettlewell Engineering" --description "H
 toil confluence page create --space DOCS --title "Runbook" --body-file runbook.html --parent-id 12345 --allow-write
 toil confluence page update 12345 --body-file runbook.html --allow-write
 toil confluence page label 12345 --labels runbook,ops --allow-write
-toil confluence page attach 12345 --file diagram.png --allow-write
+toil confluence page attach 12345 --input-file diagram.png --allow-write
 toil confluence attachment download 98765 --dir downloads
 ```
 

@@ -223,7 +223,7 @@
     "connection": true,
     "flags": [
       "<id>",
-      "--file <path>",
+      "--input-file <path>",
       "--comment <text>",
       "--allow-write"
     ]
