@@ -14,7 +14,7 @@ to the deployment of the connection it resolves. Verification level: `unit` for 
 Server's behavior is the one the command contract records; Services was built from
 Microsoft's REST API reference. Its work item reads and the team settings commands
 (sprints, backlogs, boards, work item type states), `sprint update`, `work-item assign`,
-`work-item delete-comment` and `repo commit` have been run against one live Scrum
+`work-item delete-comment` and `commit create` have been run against one live Scrum
 organization; its pull request commands have not.
 
 **Supported versions:** Azure DevOps Server 2022.1 or later (REST API 7.1). Requests
@@ -48,7 +48,7 @@ default) or `cloud` for Azure DevOps Services. The two keep separate API code, a
 | `pr resolve` | marks it fixed | `--status` |
 | `pr create` | | `--work-item` |
 | `work-item link` | `--target` | `--target` or `--pr` |
-| Only here | `connection-data`, `collection list`, `work-item tag untag attachments attach download types fields schema`, `repo default-reviewers`, `commit status`, `pr files diff builds delete-comment`, `pipeline` and `run` commands, `check-toil-project` | `pr threads`, `sprint`, `backlog` and `board` commands, `repo commit`, `work-item delete-comment`, `api` |
+| Only here | `connection-data`, `collection list`, `work-item tag untag attachments attach download types fields schema`, `repo default-reviewers`, `commit status`, `pr files diff builds delete-comment`, `pipeline` and `run` commands, `check-toil-project` | `pr threads`, `sprint`, `backlog` and `board` commands, `commit create`, `work-item delete-comment`, `api` |
 
 A call the connection's deployment can't serve fails **before any request** with
 `UNSUPPORTED`, saying which deployment and what to do: `ado pipeline list` or
@@ -191,7 +191,7 @@ and `team`.
 - `work-item create`, `work-item search`, `work-item comments`, `work-item comment`,
   `work-item delete-comment`, `work-item areas`, `work-item iterations`,
   `work-item states`, `repo list`, `repo create` and `sprint update` need a project.
-- `repo get`, `repo commit`, `work-item link --pr` and every `pr` command need a
+- `repo get`, `commit create`, `work-item link --pr` and every `pr` command need a
   project and a repo.
 - Every other `sprint` command, and every `backlog` and `board` command, needs a project and acts for one
   team: `--team <name or id>` on the command (not the group; `team` over MCP), else a
@@ -335,7 +335,7 @@ Repositories:
 
 - `repo list`, `repo get`: Repositories in the project. `repo create --name <name>`
   makes an empty one.
-- `repo commit` (Services): Commit workspace files to `--branch` in one commit, with
+- `commit create` (Services): Commit workspace files to `--branch` in one commit, with
   `--message`, needing no git. Each `--file <path>` (repeatable) is relative to the
   workspace and is committed at the same path in the repository, replacing a file
   already there. A branch that doesn't exist is created from `--from <branch>` (the
@@ -429,7 +429,7 @@ list's `value`, or the whole body).
   (or a comma-separated list of `past`, `current`, `future`) keeps only those; anything
   else is `INVALID_INPUT`.
 - `sprint update <sprint>`: Change a sprint's `--name`, `--start` or `--end` (ISO 8601
-  dates, kept as days at midnight UTC) and return the iteration. `<sprint>` is its `id`,
+  dates, kept as days at midnight UTC; a date-time keeps only its calendar date, with an `ADO_SPRINT_DAY` warning) and return the iteration. `<sprint>` is its `id`,
   `path` or `name` from `sprint list`; a name two sprints share is refused. Azure DevOps
   sets a start and an end together, so given one, the other is kept from the sprint. It
   changes the project's iteration tree, so every team that selected the sprint sees it.
@@ -477,7 +477,7 @@ toil ado --project Imagile work-item update 42 --field state=Active --rev 3 --al
 toil ado --project Imagile --repo imagile-api pr merge 42 --strategy squash --delete-source --allow-write --connection imagile-ado
 toil ado --project Imagile sprint list --state current --connection imagile-ado
 toil ado --project Imagile sprint update "Sprint 1" --start 2026-11-16 --end 2026-11-27 --allow-write --connection imagile-ado
-toil ado --project Imagile --repo imagile-api repo commit --branch fix/retries --from main --message "Add retries" --file src/retry.js --allow-write --connection imagile-ado
+toil ado --project Imagile --repo imagile-api commit create --branch fix/retries --from main --message "Add retries" --file src/retry.js --allow-write --connection imagile-ado
 toil ado --project Imagile --repo imagile-api work-item link 42 --pr 44 --allow-write --connection imagile-ado
 toil ado --project Imagile board get "Backlog items" --team "Imagile Team" --connection imagile-ado
 ```

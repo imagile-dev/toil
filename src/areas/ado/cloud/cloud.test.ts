@@ -643,6 +643,7 @@ describe('the writes demo seeding needed (#618)', () => {
       expect(envelope.ok).toBe(true);
       expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([`GET ${NODE}?api-version=7.1&%24depth=10`, `PATCH ${NODE}/Sprint%201?api-version=7.1`]);
       expect(body(calls[1]!)).toEqual({ attributes: { startDate: '2026-11-16T00:00:00Z', finishDate: '2026-11-27T00:00:00Z' } });
+      expect(envelope.meta.warnings).toEqual([{ code: 'ADO_SPRINT_DAY', message: expect.stringContaining('--end 2026-11-27T17:00:00-05:00 was sent as 2026-11-27') }]);
     });
 
     it('takes the id or the team iteration path, renames, and keeps the date not given', async () => {
@@ -687,12 +688,12 @@ describe('the writes demo seeding needed (#618)', () => {
     });
   });
 
-  describe('repo commit', () => {
+  describe('commit create', () => {
     const ZERO = '0000000000000000000000000000000000000000';
     const b64 = (text: string) => Buffer.from(text).toString('base64');
 
     it('moves an existing branch from its head, editing a path the base has and adding one it has not', async () => {
-      const { calls, envelope } = await run('repo commit', { ...inRepo, branch: 'main', message: 'Update', file: ['README.md', 'src/retry.js'], ...write });
+      const { calls, envelope } = await run('commit create', { ...inRepo, branch: 'main', message: 'Update', file: ['README.md', 'src/retry.js'], ...write });
       expect(envelope.ok).toBe(true);
       expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
         `GET ${R}?api-version=7.1`,
@@ -715,14 +716,14 @@ describe('the writes demo seeding needed (#618)', () => {
     });
 
     it('starts a new branch from --from', async () => {
-      const { calls } = await run('repo commit', { ...inRepo, branch: 'feature/retries', from: 'main', message: 'Add retries', file: ['src/retry.js'], ...write });
+      const { calls } = await run('commit create', { ...inRepo, branch: 'feature/retries', from: 'main', message: 'Add retries', file: ['src/retry.js'], ...write });
       expect(calls[1]!.url).toBe(`${R}/refs?api-version=7.1&filter=heads%2Ffeature%2Fretries`);
       expect(calls[2]!.url).toBe(`${R}/refs?api-version=7.1&filter=heads%2Fmain`);
       expect((body(calls[4]!) as { refUpdates: unknown }).refUpdates).toEqual([{ name: 'refs/heads/feature/retries', oldObjectId: SHA }]);
     });
 
     it("starts a new branch with no --from at the repository's default branch, and lists only the folder the files share", async () => {
-      const { calls } = await run('repo commit', { ...inRepo, branch: 'feature/retries', message: 'Add retries', file: ['src/retry.js'], ...write });
+      const { calls } = await run('commit create', { ...inRepo, branch: 'feature/retries', message: 'Add retries', file: ['src/retry.js'], ...write });
       expect(calls[2]!.url).toBe(`${R}/refs?api-version=7.1&filter=heads%2Fmain`);
       expect(calls[3]!.url).toContain('scopePath=%2Fsrc&');
       expect((body(calls[4]!) as { refUpdates: unknown }).refUpdates).toEqual([{ name: 'refs/heads/feature/retries', oldObjectId: SHA }]);
@@ -733,7 +734,7 @@ describe('the writes demo seeding needed (#618)', () => {
         { path: `/imagile/Imagile/_apis/git/repositories/imagile-api`, respond: { json: { id: 'abc12345-0000-0000-0000-000000000003', name: 'imagile-api' } } },
         { path: `/imagile/Imagile/_apis/git/repositories/imagile-api/refs`, respond: { json: { count: 0, value: [] } } },
       ];
-      const { calls } = await run('repo commit', { ...inRepo, branch: 'main', message: 'First', file: ['README.md'], ...write }, empty);
+      const { calls } = await run('commit create', { ...inRepo, branch: 'main', message: 'First', file: ['README.md'], ...write }, empty);
       expect(calls.map((c) => c.method)).toEqual(['GET', 'GET', 'POST']);
       const sent = body(calls[2]!) as { refUpdates: unknown; commits: Array<{ changes: Array<{ changeType: string }> }> };
       expect(sent.refUpdates).toEqual([{ name: 'refs/heads/main', oldObjectId: ZERO }]);
@@ -742,14 +743,14 @@ describe('the writes demo seeding needed (#618)', () => {
 
     it('refuses a path outside the workspace, a file named twice, a missing file and a missing --from before pushing', async () => {
       for (const file of [['../secret.txt'], ['/etc/hosts'], ['README.md', './README.md']]) {
-        const r = await run('repo commit', { ...inRepo, branch: 'main', message: 'x', file, ...write });
+        const r = await run('commit create', { ...inRepo, branch: 'main', message: 'x', file, ...write });
         expect(r.envelope.error?.code).toBe('INVALID_INPUT');
         expect(r.calls).toHaveLength(0);
       }
-      const missing = await run('repo commit', { ...inRepo, branch: 'main', message: 'x', file: ['nope.txt'], ...write });
+      const missing = await run('commit create', { ...inRepo, branch: 'main', message: 'x', file: ['nope.txt'], ...write });
       expect(missing.envelope.ok).toBe(false);
       expect(missing.calls).toHaveLength(0);
-      const noBase = await run('repo commit', { ...inRepo, branch: 'feature/x', from: 'develop', message: 'x', file: ['README.md'], ...write });
+      const noBase = await run('commit create', { ...inRepo, branch: 'feature/x', from: 'develop', message: 'x', file: ['README.md'], ...write });
       expect(noBase.envelope.error?.code).toBe('NOT_FOUND');
       expect(noBase.calls.some((c) => c.method === 'POST')).toBe(false);
     });

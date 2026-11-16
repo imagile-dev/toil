@@ -2,7 +2,7 @@ import { commandName, type AnyCommand } from '../../core/command.js';
 import { apiCommand } from '../../core/passthrough.js';
 import { adoArea, adoSupported } from './area.js';
 import { workCategorizeCommand as cloudCategorize } from './cloud/categorize.js';
-import { repoCommitCommand as cloudCommit } from './cloud/commit.js';
+import { commitCreateCommand as cloudCommit } from './cloud/commit.js';
 import { commentCommands as cloudComments } from './cloud/comments.js';
 import { pullRequestCommands as cloudPullRequests } from './cloud/pull-requests.js';
 import { repoCommands as cloudRepos } from './cloud/repos.js';

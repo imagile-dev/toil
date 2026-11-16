@@ -947,8 +947,8 @@
     ]
   },
   {
-    "name": "repo commit",
-    "tool": "ado_repo_commit",
+    "name": "commit create",
+    "tool": "ado_commit_create",
     "description": "Commit workspace files to a branch",
     "writes": true,
     "connection": true,

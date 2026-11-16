@@ -208,7 +208,7 @@ export const sprintUpdateCommand = adoArea.command({
   path: ['ado', 'sprint', 'update'],
   description: "Change a sprint's name or dates",
   toolDescription:
-    "Changes the name, start or end of a sprint (an iteration in the project's iteration tree) and returns the iteration. sprint is its id, path or name from ado_sprint_list. Azure DevOps keeps a start and an end together, so given only one, the other is kept from the sprint; dates are days, sent as midnight UTC. Only what you pass is changed.",
+    "Changes the name, start or end of a sprint (an iteration in the project's iteration tree) and returns the iteration. sprint is its id, path or name from ado_sprint_list. Azure DevOps keeps a start and an end together, so given only one, the other is kept from the sprint; dates are days, sent as midnight UTC (a date-time keeps only its calendar date, with an ADO_SPRINT_DAY warning). Only what you pass is changed.",
   input: z.object({
     sprint: z.string().min(1).describe(sprintRef.description),
     name: z.string().min(1).optional().describe('New name'),
@@ -232,6 +232,9 @@ export const sprintUpdateCommand = adoArea.command({
     const project = ctx.context.project!;
     const start = sprintDay('--start', input.start);
     const end = sprintDay('--end', input.end);
+    for (const [flag, value] of [['--start', input.start], ['--end', input.end]] as const) {
+      if (value?.includes('T')) ctx.warn({ code: 'ADO_SPRINT_DAY', message: `${flag} ${value} was sent as ${value.slice(0, 10)}: Azure DevOps keeps a sprint's dates as days, so the time and zone were dropped.` });
+    }
     if (input.name === undefined && start === undefined && end === undefined) {
       throw new ToilError('INVALID_INPUT', 'Nothing to change', { fix: 'Pass at least one of --name, --start or --end.' });
     }

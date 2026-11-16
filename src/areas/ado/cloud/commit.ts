@@ -6,7 +6,7 @@ import { IN_REPO, adoc, repoPath, type AdoCloudContext } from './client.js';
 import { inRepo, ref } from './pull-requests.js';
 
 /**
- * `ado repo commit`: one commit of workspace files to a branch, through the
+ * `ado commit create`: one commit of workspace files to a branch, through the
  * Pushes API (REST API 7.1, Git - Pushes - Create), so a repository can be
  * filled with no git on the machine. The branch is moved from the commit it
  * points at now; a branch that doesn't exist yet starts from --from (the
@@ -66,8 +66,8 @@ const BRANCH = 'Branch to commit to; created when it does not exist';
 const FROM = "Branch a new --branch starts from (default: the repository's default branch)";
 const FILE = 'Workspace file to commit, at the same path in the repository (repeatable)';
 
-export const repoCommitCommand = adoArea.command({
-  path: ['ado', 'repo', 'commit'],
+export const commitCreateCommand = adoArea.command({
+  path: ['ado', 'commit', 'create'],
   description: 'Commit workspace files to a branch',
   toolDescription:
     "Commits files from the workspace to a branch in one commit and returns the push (pushId, commits, refUpdates). Each file is committed at the same relative path in the repository, added or replaced. A branch that doesn't exist is created from from (the repository's default branch without it), or, in an empty repository, as its first commit. Needs no git.",
