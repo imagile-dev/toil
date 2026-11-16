@@ -1,4 +1,4 @@
-// Seeds the Kettlewell Engineering knowledge base (Confluence space KW, 22 pages)
+// Seeds the Overdraft Federal Engineering knowledge base (Confluence space OD, 23 pages)
 // for the demo recordings (docs/demo-story.md) through toil's own commands, so the
 // write gate decides: the confluence connection needs writes on. Each step looks
 // first: an existing space is kept and an existing page is updated in place, so
