@@ -53,7 +53,7 @@ describe('storage format as plain text', () => {
   });
 
   it('keeps what it always did: the first six in any case, nbsp as a plain space, and an unknown name or a literal & in code as written', () => {
-    expect(storageToText('<p>&AMP; &Lt; a&nbsp;b &notanentity; &MINUS;</p>')).toBe('& < a b &notanentity; &MINUS;');
+    expect(storageToText('<p>&AMP; &Lt; a&nbsp;b &notanentity; &MINUS; &constructor; &toString;</p>')).toBe('& < a b &notanentity; &MINUS; &constructor; &toString;');
     expect(storageToText('<ac:plain-text-body><![CDATA[echo "&minus;"]]></ac:plain-text-body>')).toBe('echo "&minus;"');
   });
 
