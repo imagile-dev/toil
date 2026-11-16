@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { defineCommand } from '../src/core/command.js';
+import { success } from '../src/core/envelope.js';
+import { ToilError } from '../src/core/errors.js';
 import { allowWriteField } from '../src/core/run.js';
+import { serializable } from '../src/core/unprintable.js';
 import { commands } from '../src/registry.js';
 import { demoArea, demoRoutes } from './fixtures/demo-commands.js';
 import { testContext } from './harness/context.js';
@@ -68,8 +71,46 @@ describe('MCP results that cannot be serialized', () => {
         error: { code: 'INTERNAL', message: expect.stringContaining('may already have been applied'), fix: expect.stringContaining('Check whether the change was made before retrying') },
         meta: { command: 'demo write-circular' },
       });
+      expect(JSON.parse(result.text)).toEqual(result.envelope);
     } finally {
       await mcp.close();
     }
+  });
+
+  it('keeps a failure\'s own code, message and fix, and drops details that cannot be serialized', async () => {
+    const failCircular = defineCommand({
+      path: ['fail-circular'],
+      description: 'read failing with circular details',
+      input: z.object({}),
+      writes: false,
+      examples: [{}],
+      run: async () => {
+        throw new ToilError('NOT_FOUND', 'No such thing.', { fix: 'Check the id.', details: circular() });
+      },
+    });
+    const mcp = await connectMcp({ commands: [failCircular], context: testContext().context });
+    try {
+      const result = await mcp.call('fail_circular', {});
+      expect(result.isError).toBe(true);
+      expect(result.envelope).toMatchObject({ ok: false, data: null, error: { code: 'NOT_FOUND', message: 'No such thing.', fix: 'Check the id.' } });
+      expect(result.envelope.error).not.toHaveProperty('details');
+      expect(JSON.parse(result.text)).toEqual(result.envelope);
+    } finally {
+      await mcp.close();
+    }
+  });
+
+  it('falls back to an envelope naming only the command when meta itself refuses', () => {
+    const envelope = success({ ok: 1 }, { command: 'demo read', durationMs: 3, version: '0.0.0', warnings: [] });
+    let calls = 0;
+    const { envelope: last, text } = serializable(envelope, false, (e) => {
+      calls++;
+      if (calls <= 2) throw new Error('refused');
+      return JSON.stringify(e);
+    });
+    expect(calls).toBe(3);
+    expect(last).toMatchObject({ ok: false, data: null, error: { code: 'INTERNAL', message: "The result of demo read couldn't be printed as JSON." } });
+    expect(Object.keys(last.meta).sort()).toEqual(['command', 'contractVersion', 'durationMs', 'version']);
+    expect(JSON.parse(text)).toEqual(last);
   });
 });

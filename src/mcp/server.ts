@@ -13,7 +13,7 @@ import {
   RootsListChangedNotificationSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { areaOf, commandName, servedOverMcp, takesAllowWrite, toolName, usesConnection, writesFor, type AnyCommand } from '../core/command.js';
+import { areaOf, commandName, servedOverMcp, takesAllowWrite, toolName, usesConnection, type AnyCommand } from '../core/command.js';
 import { anyWrites, hasConfig, type ResolvedConfig } from '../core/config.js';
 import type { Context } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
@@ -22,7 +22,7 @@ import { renamedArea, renamedAreaFix, renamedAreaOfTool, renamedToolTarget } fro
 import { shownToPeople, type ProgressEvent } from '../core/progress.js';
 import { OUTPUT_FORMAT_DESCRIPTION, OUTPUT_FORMAT_FIELD, OUTPUT_FORMATS, SUMMARY_FILE_DESCRIPTION, SUMMARY_FILE_FIELD } from '../core/output/fields.js';
 import { SELECT_DESCRIPTION, SELECT_FIELD } from '../core/query/select.js';
-import { runCommand } from '../core/run.js';
+import { runCommand, writesForInput } from '../core/run.js';
 import { serializable } from '../core/unprintable.js';
 import { waitable } from '../core/wait.js';
 import { listResources, listTemplates, readResource, ResourceError, type ResourceHost } from './resources.js';
@@ -199,20 +199,6 @@ const PROMPTS: Array<PromptEntry | StaticPromptEntry> = [
  * `--workspace` or TOIL_WORKSPACE names another (docs/bounds.md). They're
  * asked for once and asked again only when the client says they changed.
  */
-/**
- * Whether this call writes, for the wording of a failure that follows it. The
- * arguments are as the client sent them, before parsing, so a `writesWhen` that
- * can't read them counts as a write: saying a change may have been made is the
- * safe side of the error.
- */
-function writesOf(def: AnyCommand, args: unknown): boolean {
-  try {
-    return writesFor(def, args);
-  } catch {
-    return takesAllowWrite(def);
-  }
-}
-
 export function createMcpServer(options: {
   commands: AnyCommand[];
   /** `progress`, when the client asked for progress, hears the call's progress events, to send as notifications. */
@@ -290,7 +276,7 @@ export function createMcpServer(options: {
     // becomes a tool error carrying a small INTERNAL envelope, never a
     // JSON-RPC protocol error (src/core/unprintable.ts). The text is checked
     // here; structuredContent is the same envelope, so the transport can send it.
-    const { envelope, text } = serializable(result, writesOf(def, args));
+    const { envelope, text } = serializable(result, writesForInput(def, args));
     return {
       content: [{ type: 'text' as const, text }],
       structuredContent: envelope as unknown as Record<string, unknown>,
