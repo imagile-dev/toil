@@ -146,6 +146,7 @@ is refused the same way.
 | `page unlabel` ✎ | `<id> --label` | `{ removed, from }` |
 | `space list` | `--type --limit`, `--cursor` (Cloud) | Every space (or `--limit` of them) |
 | `space get` | `<key>` | The space, with its plain-text description |
+| `space create` ✎ | `<key> --name --description` | The created global space; Cloud adds its `id` and `homepageId`. Confluence makes the homepage itself |
 | `page attachments` | `<id>` | Every attachment on the page |
 | `page attach` ✎ | `<id> --file --comment` | The attachments created |
 | `attachment download` | `<attachment-id> --dir` | `{ saved, filename, size }`; saves to `.toil/` by default |
@@ -163,6 +164,7 @@ toil confluence page get 12345
 toil confluence page find --space DOCS --title "Release notes"
 toil confluence page search --cql 'space=DOCS AND type=page AND text~"runbook"' --limit 10
 toil confluence page list --space DOCS --limit 50
+toil confluence space create KW --name "Kettlewell Engineering" --description "How we build and run payments." --allow-write
 toil confluence page create --space DOCS --title "Runbook" --body-file runbook.html --parent-id 12345 --allow-write
 toil confluence page update 12345 --body-file runbook.html --allow-write
 toil confluence page label 12345 --labels runbook,ops --allow-write

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { allowWriteField } from '../../../core/run.js';
 import { confluenceArea } from '../area.js';
 import * as client from './client.js';
 import { needLimitForCursor } from './pages.js';
@@ -37,4 +38,30 @@ export const getSpace = confluenceArea.command({
   run: (input, ctx) => client.getSpace(ctx, input.key),
 });
 
-export const spaceCommands = [listSpaces, getSpace];
+/** A space key as Confluence takes it: letters and digits only, which it then keeps as typed. */
+const spaceKey = z.string().regex(/^[A-Za-z0-9]{1,255}$/, 'A space key is letters and digits only, such as KW or DOCS').describe('Key for the new space: letters and digits, such as KW');
+
+export const createSpace = confluenceArea.command({
+  path: ['confluence', 'space', 'create'],
+  description: 'Create a Confluence Cloud space',
+  toolDescription: 'Creates a global space with a key, a name and an optional plain-text description, and returns the space Confluence created, with its id and homepageId. Confluence adds the space homepage itself; put pages under it with page create.',
+  input: z.object({
+    key: spaceKey,
+    name: z.string().min(1).describe('Space name, as people see it'),
+    description: z.string().optional().describe('Plain-text description of the space'),
+    ...allowWriteField,
+  }),
+  writes: true,
+  args: [{ name: 'key', field: 'key', description: 'Key for the new space: letters and digits, such as KW' }],
+  options: [
+    { flags: '--name <name>', field: 'name', description: 'Space name, as people see it' },
+    { flags: '--description <text>', field: 'description', description: 'Plain-text description of the space' },
+  ],
+  examples: [
+    { key: 'KW', name: 'Kettlewell Engineering', allowWrite: true },
+    { key: 'DOCS', name: 'Documentation', description: 'How the product works.', allowWrite: true },
+  ],
+  run: (input, ctx) => client.createSpace(ctx, { key: input.key, name: input.name, description: input.description }),
+});
+
+export const spaceCommands = [listSpaces, getSpace, createSpace];
