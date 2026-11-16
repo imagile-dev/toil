@@ -156,8 +156,9 @@ interface IterationNode {
 /** A day as Azure DevOps keeps a sprint's dates: midnight UTC of the calendar date as written, whatever zone a date-time carries. */
 function sprintDay(flag: string, value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
-  const day = /^(\d{4}-\d{2}-\d{2})/.exec(value)?.[1];
-  if (!day || Number.isNaN(Date.parse(value))) {
+  // Date.parse forgives trailing words and a 30 February, so the whole value is checked, and the day must exist.
+  const day = /^(\d{4}-\d{2}-\d{2})(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2}))?$/.exec(value)?.[1];
+  if (!day || new Date(`${day}T00:00:00Z`).toISOString().slice(0, 10) !== day) {
     throw new ToilError('INVALID_INPUT', `${flag} "${value}" isn't a date`, { fix: 'Pass an ISO 8601 date, e.g. 2026-11-16.' });
   }
   return `${day}T00:00:00Z`;
@@ -242,6 +243,9 @@ export const sprintUpdateCommand = adoArea.command({
       const finishDate = end ?? node.attributes?.finishDate;
       if (!startDate || !finishDate) {
         throw new ToilError('INVALID_INPUT', `Sprint ${path} has no ${startDate ? 'end' : 'start'} date, and Azure DevOps sets a start and an end together.`, { fix: 'Pass both --start and --end.' });
+      }
+      if (Date.parse(finishDate) < Date.parse(startDate)) {
+        throw new ToilError('INVALID_INPUT', `Sprint ${path} would end (${finishDate.slice(0, 10)}) before it starts (${startDate.slice(0, 10)}).`, { fix: 'Pass an --end on or after the start.' });
       }
       attributes = { startDate, finishDate };
     }

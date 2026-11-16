@@ -309,7 +309,8 @@ const skipped = (first: unknown[]) => (r: RecordedRequest) => ({ json: new URL(r
 // Update, REST API 7.1), not captured from a live instance. main exists and feature/retries doesn't, so the second
 // commit example starts a branch; the base holds README.md, so committing it is an edit and anything else an add.
 export const NEW_REPO = { ...repo, id: 'abc12345-0000-0000-0000-000000000004', name: 'imagile-new', url: `${ORG_URL}/Imagile/_apis/git/repositories/abc12345-0000-0000-0000-000000000004`, remoteUrl: `${HOST}/imagile/Imagile/_git/imagile-new`, size: 0, defaultBranch: undefined };
-export const gitRefs = (filter: string | null) => (filter === 'heads/main' ? [{ name: 'refs/heads/main', objectId: SHA, url: `${ORG_URL}/Imagile/_apis/git/repositories/${repo.id}/refs?filter=heads%2Fmain` }] : []);
+// refs?filter= is a prefix match, so main's answer leads with main-old, which a command must not take for main.
+export const gitRefs = (filter: string | null) => (filter === 'heads/main' ? [{ name: 'refs/heads/main-old', objectId: 'def67890abc12345def67890abc12345def67890' }, { name: 'refs/heads/main', objectId: SHA, url: `${ORG_URL}/Imagile/_apis/git/repositories/${repo.id}/refs?filter=heads%2Fmain` }] : []);
 export const gitItems = [
   { objectId: SHA, gitObjectType: 'tree', commitId: SHA, path: '/', isFolder: true },
   { objectId: 'def67890abc12345def67890abc12345def67890', gitObjectType: 'blob', commitId: SHA, path: '/README.md' },

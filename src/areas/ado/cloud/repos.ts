@@ -80,7 +80,7 @@ export const repoCreateCommand = adoArea.command({
   writes: true,
   context: IN_PROJECT,
   options: [{ flags: '--name <name>', field: 'name', description: 'Repository name' }],
-  examples: [{ ...inRepo, name: 'imagile-new', allowWrite: true }],
+  examples: [{ ...at, name: 'imagile-new', allowWrite: true }],
   run: async (input, ctx) => {
     const project = await adoc<Project>(ctx, `/_apis/projects/${enc(ctx.context.project!)}`);
     return adoc(ctx, `${projectPath(ctx)}/_apis/git/repositories`, { method: 'POST', json: { name: input.name, project: { id: project.id } } });

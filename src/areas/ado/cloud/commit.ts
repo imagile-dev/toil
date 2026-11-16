@@ -47,6 +47,14 @@ function repoFilePath(file: string): string {
   return kept.join('/');
 }
 
+/** The deepest folder holding every path (`src` for `src/a.js` and `src/b/c.js`; empty for the root), so the item listing reads no more of the tree than it must. */
+function commonFolder(paths: string[]): string {
+  const folders = paths.map((p) => p.split('/').slice(0, -1));
+  const shared: string[] = [];
+  for (let i = 0; folders.every((f) => i < f.length && f[i] === folders[0]![i]); i++) shared.push(folders[0]![i]!);
+  return shared.join('/');
+}
+
 /** The commit a branch points at, or undefined when it doesn't exist. `filter` is a prefix match, so the exact name is picked out. */
 async function branchHead(ctx: AdoCloudContext, branch: string): Promise<string | undefined> {
   const full = ref(branch);
@@ -108,7 +116,7 @@ export const repoCommitCommand = adoArea.command({
     const existing = new Set<string>();
     if (base !== undefined) {
       const items = await adoc<{ value?: GitItem[] }>(ctx, `${repoPath(ctx)}/items`, {
-        query: { scopePath: '/', recursionLevel: 'Full', 'versionDescriptor.version': base, 'versionDescriptor.versionType': 'commit' },
+        query: { scopePath: `/${commonFolder(paths)}`, recursionLevel: 'Full', 'versionDescriptor.version': base, 'versionDescriptor.versionType': 'commit' },
       });
       for (const item of items.value ?? []) if (!item.isFolder) existing.add(item.path);
     }

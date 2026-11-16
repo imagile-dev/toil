@@ -430,7 +430,7 @@ export const workLinkCommand = adoArea.command({
     'Adds a relation from one work item to another (target; related by default, or parent, child, duplicate, duplicate-of, or a raw relation name), or to a pull request in the repository (pr), and returns the source item. Give target or pr, not both.',
   input: z.object({
     id: id.describe('Source work item ID'),
-    // Text, as Server's recorded flag is: the one command's input is the union of both, and a shared field takes Server's schema.
+    // Text, as Server's recorded flag is: the one MCP tool's schema for a shared field is Server's, so an MCP caller sends a string, and the number is checked here.
     target: z.string().optional().describe('Target work item ID'),
     type: z.string().optional().describe(LINK_TYPE),
     pr: z.number().int().positive().optional().describe(LINK_PR),

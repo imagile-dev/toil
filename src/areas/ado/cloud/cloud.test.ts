@@ -653,6 +653,29 @@ describe('the writes demo seeding needed (#618)', () => {
       expect(body(byPath.calls[1]!)).toEqual({ name: 'Sprint 1c' });
     });
 
+    it('takes the node path form, refuses a name two sprints share, and refuses an end before the start', async () => {
+      const node = await run('sprint update', { ...at, sprint: '\\Imagile\\Iteration\\Sprint 1', name: 'Sprint 1d', ...write });
+      expect(node.calls[1]!.url).toBe(`${NODE}/Sprint%201?api-version=7.1`);
+      const twin = { name: 'Sprint 1', path: '\\Imagile\\Iteration\\Release 1\\Sprint 1' };
+      const tree: Route[] = [{ path: '/imagile/Imagile/_apis/wit/classificationnodes/iterations', respond: { json: { name: 'Imagile', path: '\\Imagile\\Iteration', children: [{ name: 'Release 1', children: [twin] }, { name: 'Release 2', children: [{ name: 'Sprint 1' }] }] } } }];
+      const shared = await run('sprint update', { ...at, sprint: 'Sprint 1', start: '2026-11-16', end: '2026-11-27', ...write }, tree);
+      expect(shared.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('Release 1\\Sprint 1') });
+      expect(shared.calls).toHaveLength(1);
+      const undated = await run('sprint update', { ...at, sprint: 'Release 1\\Sprint 1', start: '2026-11-16', ...write }, tree);
+      expect(undated.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('no end date') });
+      const backwards = await run('sprint update', { ...at, sprint: 'Sprint 1', start: '2026-11-27', end: '2026-11-16', ...write });
+      expect(backwards.envelope.error?.code).toBe('INVALID_INPUT');
+      expect(backwards.calls).toHaveLength(1);
+    });
+
+    it('refuses a date with trailing words or a day that does not exist', async () => {
+      for (const start of ['2026-11-16 junk', '2026-02-30', '2026-11-16T09:00']) {
+        const r = await run('sprint update', { ...at, sprint: 'Sprint 1', start, ...write });
+        expect(r.envelope.error?.code).toBe('INVALID_INPUT');
+        expect(r.calls).toHaveLength(0);
+      }
+    });
+
     it('refuses nothing to change and a bad date before anything is sent, and an unknown sprint after reading the tree', async () => {
       const nothing = await run('sprint update', { ...at, sprint: 'Sprint 1', ...write });
       const badDate = await run('sprint update', { ...at, sprint: 'Sprint 1', start: 'next monday', ...write });
@@ -695,6 +718,13 @@ describe('the writes demo seeding needed (#618)', () => {
       const { calls } = await run('repo commit', { ...inRepo, branch: 'feature/retries', from: 'main', message: 'Add retries', file: ['src/retry.js'], ...write });
       expect(calls[1]!.url).toBe(`${R}/refs?api-version=7.1&filter=heads%2Ffeature%2Fretries`);
       expect(calls[2]!.url).toBe(`${R}/refs?api-version=7.1&filter=heads%2Fmain`);
+      expect((body(calls[4]!) as { refUpdates: unknown }).refUpdates).toEqual([{ name: 'refs/heads/feature/retries', oldObjectId: SHA }]);
+    });
+
+    it("starts a new branch with no --from at the repository's default branch, and lists only the folder the files share", async () => {
+      const { calls } = await run('repo commit', { ...inRepo, branch: 'feature/retries', message: 'Add retries', file: ['src/retry.js'], ...write });
+      expect(calls[2]!.url).toBe(`${R}/refs?api-version=7.1&filter=heads%2Fmain`);
+      expect(calls[3]!.url).toContain('scopePath=%2Fsrc&');
       expect((body(calls[4]!) as { refUpdates: unknown }).refUpdates).toEqual([{ name: 'refs/heads/feature/retries', oldObjectId: SHA }]);
     });
 

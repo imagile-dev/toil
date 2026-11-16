@@ -13,7 +13,8 @@ older `https://<organization>.visualstudio.com`), through the REST API with
 to the deployment of the connection it resolves. Verification level: `unit` for both.
 Server's behavior is the one the command contract records; Services was built from
 Microsoft's REST API reference. Its work item reads and the team settings commands
-(sprints, backlogs, boards, work item type states) have been run against one live Scrum
+(sprints, backlogs, boards, work item type states), `sprint update`, `work-item assign`,
+`work-item delete-comment` and `repo commit` have been run against one live Scrum
 organization; its pull request commands have not.
 
 **Supported versions:** Azure DevOps Server 2022.1 or later (REST API 7.1). Requests
@@ -185,12 +186,14 @@ the git remote isn't read: toil uses a toil project, then the connection's `proj
 and `team`.
 
 - A work item belongs to the organization, so `work-item get`, `work-item update`,
-  `work-item transition`, `work-item history` and `work-item get-many` need neither a
-  project nor a repo.
+  `work-item transition`, `work-item assign`, `work-item link --target`,
+  `work-item history` and `work-item get-many` need neither a project nor a repo.
 - `work-item create`, `work-item search`, `work-item comments`, `work-item comment`,
-  `work-item areas`, `work-item iterations`, `work-item states` and `repo list` need a project.
-- `repo get` and every `pr` command need a project and a repo.
-- Every `sprint`, `backlog` and `board` command needs a project and acts for one
+  `work-item delete-comment`, `work-item areas`, `work-item iterations`,
+  `work-item states`, `repo list`, `repo create` and `sprint update` need a project.
+- `repo get`, `repo commit`, `work-item link --pr` and every `pr` command need a
+  project and a repo.
+- Every other `sprint` command, and every `backlog` and `board` command, needs a project and acts for one
   team: `--team <name or id>` on the command (not the group; `team` over MCP), else a
   toil project's or the connection's `team`, else the project's default team, which toil
   reads from the project first (one extra request) and names in an
@@ -238,7 +241,8 @@ Work items (`<id>` is the work item id):
 - `work-item link <id>`: Link it to `--target <id>`, `--type related`
   (default), `parent`, `child`, `duplicate`, `duplicate-of`, or a raw relation name.
   On Services, `--pr <id>` links a pull request in `--repo` instead (an `ArtifactLink`,
-  as the web UI's Development section adds); give `--target` or `--pr`, not both.
+  as the web UI's Development section adds); give `--target` or `--pr`, not both
+  (`--type` doesn't apply to `--pr`).
 - `work-item delete-comment <id> <comment-id>` (Services): Returns
   `{ "deleted": true }`. CLI only: deletes are never exposed through MCP.
 - `work-item search`: Run `--wiql`; returns the matching ids and urls, not their
@@ -600,8 +604,8 @@ match (nothing is written), create a sub-task under it, or create a new ticket. 
 Server connection a sub-task is
 `toil ado work-item create --type Task --parent 42 --title "<text>" --allow-write`. On a
 Services connection `work-item create` takes no parent, so a sub-task is created with
-`toil ado work-item create --type Task --title "<text>" --allow-write` and linked to its
-parent on the board. A new ticket takes the project from the toil project. Both are writes,
+`toil ado work-item create --type Task --title "<text>" --allow-write`, then linked with
+`toil ado work-item link <new id> --target 42 --type parent --allow-write`. A new ticket takes the project from the toil project. Both are writes,
 made only on the person's yes.
 
 ## Checking a toil project
