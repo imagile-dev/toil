@@ -10,8 +10,8 @@ Server** (the Server REST API under `/rest/api`) and **Confluence Cloud**
 (`https://<your-site>.atlassian.net`, REST API v2, with v1 where v2 has no endpoint). One
 command tree and one set of MCP tools serve both; each call goes to the deployment of the
 connection it resolves. Verification level: `unit` for both. Data Center's behavior is the
-one the command contract records; Cloud was built from Atlassian's API documentation and has
-never run against a live site.
+one the command contract records; Cloud was built from Atlassian's API documentation, and its
+common commands have since been run against a live site (see Supported versions).
 
 **Supported versions:** Confluence Data Center 7.9 or later (Server REST API). toil authenticates to Data Center with a personal access token, which Confluence Data Center added in 7.9. No release has been verified yet. Confluence Cloud (a connection with `deployment` cloud) is always current: toil calls REST API v2 (`/wiki/api/v2`) and, where v2 has no endpoint, v1 (`/wiki/rest/api`: CQL search, adding and removing labels, attachment uploads), with an Atlassian account email and API token sent as Basic auth. Run live against a Confluence Cloud site on 16 November 2026: space create and get, page create, update, find and list, page labels, label and unlabel, and connections test. Data Center has not been run.
 
