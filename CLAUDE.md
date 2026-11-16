@@ -681,7 +681,7 @@ Verify before you open a PR). On a PR and on `main`, CI (`ci.yml`) runs them on
 Linux on Node 24.22.1, as two jobs side by side, toil's gate and Toil UI's. Its `CI ok`
 job passes only when both passed, along with the database integration job and the
 `dist/` guard (below), and it's the one check `main`'s ruleset requires, so nothing
-merges on a red gate. A PR that changes only docs and config (the list in
+merges on a red gate. A PR against `main` that changes only docs and config (the list in
 `scripts/ci-scope.mjs`, read from `main`) skips Toil UI's gate and the database job,
 and `CI ok` accepts that skip only when the scope check passed and said so; toil's
 gate still runs (the maintainer's call, 2026-11-16). Windows, macOS and Node 26 run in `platforms.yml`: daily, on

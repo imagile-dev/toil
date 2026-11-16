@@ -11,7 +11,7 @@ const root = join(import.meta.dirname, '..');
 describe('which pull requests skip the long CI jobs', () => {
   it('skips them only when every changed path is docs or config', () => {
     expect(needsFullRun(['.github/dependabot.yml', 'docs/decisions/586-dependabot-limit.md'])).toBe(false);
-    expect(needsFullRun(['CLAUDE.md', '.claude/skills/ship/SKILL.md', 'docs/bounds.md'])).toBe(false);
+    expect(needsFullRun(['CLAUDE.md', '.claude/skills/ship/SKILL.md', 'docs/briefs/x.md'])).toBe(false);
     expect(needsFullRun(['site/src/pages/index.astro', 'functions/feedback/src/index.ts', 'infra/main.bicep'])).toBe(false);
   });
 
@@ -21,6 +21,9 @@ describe('which pull requests skip the long CI jobs', () => {
       'ui/src/views/Board.tsx',
       'skills/toil/core.md', // embedded in the bundle and read by Toil UI
       'docs/owi/schema.json', // Toil UI's tests import it
+      'docs/work-insights-proposal.md', // Toil UI's chart test reads its theme colours
+      'docs/bounds.md', // held to code by toil's gate, but other docs are read by tests and new ones appear
+      'docs/decisions/nested/x.md',
       'docs/command-contract.json',
       'site/src/lib/skill-pages.mjs', // Toil UI's help test imports it
       'CHANGELOG.md', // Toil UI's build reads it
@@ -35,7 +38,7 @@ describe('which pull requests skip the long CI jobs', () => {
 
   it('runs them when nothing was listed, and names what kept them on', () => {
     expect(needsFullRun([])).toBe(true);
-    expect(keptBy(['docs/a.md', 'src/b.ts', 'ui/c.tsx'])).toEqual(['src/b.ts', 'ui/c.tsx']);
+    expect(keptBy(['docs/decisions/a.md', 'src/b.ts', 'ui/c.tsx'])).toEqual(['src/b.ts', 'ui/c.tsx']);
   });
 
   it('prints full=true from a missing list, and full=false from a docs-only one', () => {
@@ -61,6 +64,10 @@ describe('ci.yml wires the scope check fail-closed', () => {
   it("runs main's copy of the script, and everything on a push", () => {
     const run = ci.jobs.changes!.steps.map((s) => s.run ?? '').join('\n');
     expect(run).toContain('git show "$BASE_SHA:scripts/ci-scope.mjs"');
+    // Both sides of a rename, NUL-separated, against the merge base.
+    expect(run).toContain('git diff --no-renames --name-only -z "$BASE_SHA...$HEAD_SHA"');
+    // Only a PR against main may skip.
+    expect(run).toContain('[ "$BASE_REF" != "main" ]');
     expect(run).not.toMatch(/node scripts\/ci-scope\.mjs/);
     expect(run).toContain('echo "full=true"');
     expect(run).not.toContain('${{');
@@ -82,5 +89,8 @@ describe('ci.yml wires the scope check fail-closed', () => {
     expect(steps).toContain('needs.changes.result');
     for (const job of ['ui', 'integration']) expect(steps).toContain(`needs.${job}.result`);
     expect(steps.match(/needs\.changes\.outputs\.full/g)?.length).toBeGreaterThanOrEqual(2);
+    // The skip is accepted only on both conditions, in both long jobs' steps.
+    expect(steps.split('[ "$RESULT" = "skipped" ] && [ "$FULL" = "false" ]').length - 1).toBe(2);
+    expect(ok.steps.find((s) => s.name === 'The scope check passed')!.run).toContain('[ "$RESULT" != "success" ]');
   });
 });

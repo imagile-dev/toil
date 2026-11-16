@@ -16,10 +16,12 @@ import { pathToFileURL } from 'node:url';
 
 // Paths neither job reads. Keep each entry narrow and say why it's safe: a file
 // either job reads must never match (Toil UI reads src/, skills/, docs/owi/,
-// site/src/lib/, the root CHANGELOG.md and its own folder; the database job
-// reads src/ and test/).
+// docs/work-insights-proposal.md, site/src/lib/, the root CHANGELOG.md and its
+// own folder; the database job reads src/ and test/). Elsewhere in docs/ only the
+// two folders below: other docs are read by tests, and new ones appear.
 const SKIPPABLE = [
-  /^docs\/.+\.md$/, // plans, decisions and the bounds list; toil's gate holds bounds.md to code
+  /^docs\/decisions\/[^/]+\.md$/, // one file per PR; code cites them only in comments
+  /^docs\/briefs\/[^/]+\.md$/, // integration briefs
   /^\.claude\//, // repo-internal skills and settings
   /^CLAUDE\.md$/,
   /^AGENT_DECISIONS\.md$/,
@@ -51,7 +53,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   if (paths !== null) {
     const kept = keptBy(paths);
     console.error(full
-      ? `Running everything: ${paths.length === 0 ? 'no changed paths were listed' : `${kept.length} of ${paths.length} changed paths are outside the docs-and-config list, such as ${kept.slice(0, 5).join(', ')}`}.`
+      // Each path quoted, so a name with a newline in it can't start a line the runner reads as a command.
+      ? `Running everything: ${paths.length === 0 ? 'no changed paths were listed' : `${kept.length} of ${paths.length} changed paths are outside the docs-and-config list, such as ${kept.slice(0, 5).map((p) => JSON.stringify(p)).join(', ')}`}.`
       : `Skipping Toil UI's gate and the database job: all ${paths.length} changed paths are docs or config.`);
   }
   console.log(`full=${full}`);
