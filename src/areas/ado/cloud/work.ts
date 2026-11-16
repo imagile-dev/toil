@@ -3,7 +3,8 @@ import { ToilError } from '../../../core/errors.js';
 import { allowWriteField } from '../../../core/run.js';
 import { adoMoves, intentOf, oneOfTransition, resolveTransition, type AdoState, type TransitionReport } from '../../../core/transition-intent.js';
 import { adoArea } from '../area.js';
-import { API_COMMENTS, IN_PROJECT, PATCH, adoc, bodyTokenPages, cursorField, enc, exampleCursor, feedRevisions, limitField, pageOf, pageOptions, projectPath, skipPages } from './client.js';
+import { isConflict } from '../categorize.js';
+import { API_COMMENTS, IN_PROJECT, PATCH, adoc, bodyTokenPages, cursorField, enc, exampleCursor, feedRevisions, limitField, pageOf, pageOptions, projectPath, repoPath, skipPages, type AdoCloudContext } from './client.js';
 import { FEED_FIELDS, FEED_SINCE, REVISIONS_DESCRIPTION, fieldList, revisionsInput } from '../feed.js';
 import { fieldPatch, parseFieldArgs, type JsonPatchOp } from './fields.js';
 import { andWhere, checkFlat, wiqlInstant } from './wiql.js';
@@ -395,4 +396,187 @@ export const workListStatesCommand = adoArea.command({
   },
 });
 
-export const workCommands = [workGetCommand, workCreateCommand, workUpdateCommand, workTransitionCommand, workSearchCommand, workRevisionsCommand, workFeedCommand, workGetBatchCommand, workListCommentsCommand, workAddCommentCommand, workListAreasCommand, workListIterationsCommand, workListStatesCommand];
+export const workAssignCommand = adoArea.command({
+  path: ['ado', 'work-item', 'assign'],
+  description: 'Assign a work item to a user',
+  toolDescription: 'Sets System.AssignedTo on a work item (display name or email) and returns it.',
+  input: z.object({ id, assignee: z.string().describe('User display name or email'), ...allowWriteField }),
+  writes: true,
+  args: [idArg],
+  options: [{ flags: '--assignee <user>', field: 'assignee', description: 'User display name or email' }],
+  examples: [{ ...W, repo: 'imagile-api', id: 42, assignee: 'you@example.com' }],
+  run: (input, ctx) => adoc<WorkItem>(ctx, workItemPath(input.id), { method: 'PATCH', json: fieldPatch({ 'System.AssignedTo': input.assignee }), headers: PATCH }),
+});
+
+/** Link type words to Azure DevOps relation names, as Server's command reads them; anything else is sent as a relation name. */
+const REL: Record<string, string> = {
+  related: 'System.LinkTypes.Related',
+  parent: 'System.LinkTypes.Hierarchy-Reverse',
+  child: 'System.LinkTypes.Hierarchy-Forward',
+  duplicate: 'System.LinkTypes.Duplicate-Forward',
+  'duplicate-of': 'System.LinkTypes.Duplicate-Reverse',
+};
+const LINK_TYPE = 'Link type (related|parent|child|duplicate|duplicate-of) (default: "related")';
+const LINK_PR = 'Pull request ID in --repo to link instead of a work item';
+
+interface Repository {
+  id: string;
+  project: { id: string };
+}
+
+export const workLinkCommand = adoArea.command({
+  path: ['ado', 'work-item', 'link'],
+  description: 'Link a work item to another work item or a pull request',
+  toolDescription:
+    'Adds a relation from one work item to another (target; related by default, or parent, child, duplicate, duplicate-of, or a raw relation name), or to a pull request in the repository (pr), and returns the source item. Give target or pr, not both.',
+  input: z.object({
+    id: id.describe('Source work item ID'),
+    // Text, as Server's recorded flag is: the one MCP tool's schema for a shared field is Server's, so an MCP caller sends a string, and the number is checked here.
+    target: z.string().optional().describe('Target work item ID'),
+    type: z.string().optional().describe(LINK_TYPE),
+    pr: z.number().int().positive().optional().describe(LINK_PR),
+    ...allowWriteField,
+  }),
+  writes: true,
+  args: [{ name: 'id', field: 'id', description: 'Source work item ID' }],
+  options: [
+    { flags: '--target <id>', field: 'target', description: 'Target work item ID' },
+    { flags: '--type <rel>', field: 'type', description: LINK_TYPE },
+    { flags: '--pr <id>', field: 'pr', description: LINK_PR },
+  ],
+  examples: [
+    { ...W, id: 42, target: '7' },
+    { ...all, allowWrite: true, id: 42, target: '8', type: 'child' },
+    { ...all, allowWrite: true, id: 42, pr: 44 },
+  ],
+  run: async (input, ctx) => {
+    if ((input.target === undefined) === (input.pr === undefined)) {
+      throw new ToilError('INVALID_INPUT', input.pr === undefined ? 'Nothing to link to' : 'Give --target or --pr, not both', {
+        fix: 'Pass --target <work item id> to link two work items, or --pr <pull request id> with --repo to link a pull request.',
+      });
+    }
+    if (input.pr === undefined) {
+      if (!/^\d+$/.test(input.target!.trim())) throw new ToilError('INVALID_INPUT', `--target "${input.target}" isn't a work item ID`, { fix: 'Pass the target work item\'s number, e.g. --target 7.' });
+      const type = input.type ?? 'related';
+      const url = `${ctx.connection.baseUrl.replace(/\/+$/, '')}/_apis/wit/workItems/${enc(input.target!.trim())}`;
+      return adoc<WorkItem>(ctx, workItemPath(input.id), { method: 'PATCH', json: [{ op: 'add', path: '/relations/-', value: { rel: REL[type] ?? type, url } }], headers: PATCH });
+    }
+    if (input.type !== undefined) throw new ToilError('INVALID_INPUT', '--type is for a link between work items', { fix: 'Leave out --type with --pr: a pull request link has one kind.' });
+    const { project, repo } = ctx.context;
+    if (!project || !repo) {
+      throw new ToilError('INVALID_INPUT', 'Linking a pull request needs its repository', { fix: 'Pass --project <name> and --repo <name>, or set project and repo on the connection.' });
+    }
+    // An artifact link names the pull request by the ids of its project and repository, which the repository's own record holds.
+    const repository = await adoc<Repository>(ctx, repoPath(ctx));
+    const url = `vstfs:///Git/PullRequestId/${repository.project.id}%2F${repository.id}%2F${input.pr}`;
+    return adoc<WorkItem>(ctx, workItemPath(input.id), {
+      method: 'PATCH',
+      json: [{ op: 'add', path: '/relations/-', value: { rel: 'ArtifactLink', url, attributes: { name: 'Pull Request' } } }],
+      headers: PATCH,
+    });
+  },
+});
+
+export const workDeleteCommentCommand = adoArea.command({
+  path: ['ado', 'work-item', 'delete-comment'],
+  description: 'Delete a comment from a work item',
+  toolDescription: 'Deletes one comment from a work item. CLI only.',
+  input: z.object({ id, commentId: z.number().int().positive().describe('Comment ID'), ...allowWriteField }),
+  writes: true,
+  // A delete: CLI only, never an MCP tool (CLAUDE.md, Writes).
+  mcp: false,
+  context: IN_PROJECT,
+  args: [idArg, { name: 'comment-id', field: 'commentId', description: 'Comment ID' }],
+  examples: [{ ...W, repo: 'imagile-api', id: 42, commentId: 4 }],
+  run: async (input, ctx) => {
+    await adoc<void>(ctx, `${projectPath(ctx)}/_apis/wit/workItems/${enc(input.id)}/comments/${enc(input.commentId)}`, { method: 'DELETE', query: { 'api-version': API_COMMENTS } });
+    return { deleted: true };
+  },
+});
+
+const tagList = (tags: string) =>
+  tags
+    .split(/[;,]/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+const TAGS = 'System.Tags';
+
+/** The tags a call names, refused when it names none: an empty list would quietly change nothing. */
+function tagsAsked(text: string): string[] {
+  const tags = tagList(text);
+  if (tags.length === 0) throw new ToilError('INVALID_INPUT', 'No tags given.', { fix: 'Pass --tags with one or more tags, separated by ; or , (--tags "ui; backend").' });
+  return tags;
+}
+
+/** A work item as it stands, with its tags and the revision a change is tested against. The whole item, so a call that changes nothing returns what a write would. */
+async function tagsOf(ctx: AdoCloudContext, n: number): Promise<{ rev: number; tags: string[]; item: WorkItem }> {
+  const item = await adoc<WorkItem>(ctx, workItemPath(n));
+  if (typeof item.rev !== 'number') throw new ToilError('HTTP', `Azure DevOps returned work item ${n} with no revision, so a tag change can't be checked against it.`, { fix: 'Run it again; if it keeps happening, change the tags with ado work-item update.' });
+  const tags = String(item.fields?.[TAGS] ?? '')
+    .split(';')
+    .map((t) => t.trim())
+    .filter(Boolean);
+  return { rev: item.rev, tags, item };
+}
+
+/**
+ * Writes a work item's whole tag list in one JSON Patch, after a `test` of the revision it was read at, so a tag
+ * someone added in between makes the server refuse the change rather than lose it. Azure DevOps reads `add` on
+ * System.Tags as "add these", so taking a tag off needs `replace`, and the last one off needs `remove`. Nothing to
+ * change sends nothing, and returns the item as read: a revision for no change is a form filed to say nothing happened.
+ */
+async function writeTags(ctx: AdoCloudContext, n: number, read: { rev: number; tags: string[]; item: WorkItem }, next: string[], removing: boolean): Promise<WorkItem> {
+  if (next.length === read.tags.length && next.every((t, i) => t === read.tags[i])) return read.item;
+  const op: JsonPatchOp = !removing ? { op: 'add', path: `/fields/${TAGS}`, value: next.join('; ') }
+    : next.length === 0 ? { op: 'remove', path: `/fields/${TAGS}` }
+    : { op: 'replace', path: `/fields/${TAGS}`, value: next.join('; ') };
+  try {
+    return await adoc<WorkItem>(ctx, workItemPath(n), { method: 'PATCH', json: [{ op: 'test', path: '/rev', value: read.rev }, op], headers: PATCH });
+  } catch (err) {
+    if (!isConflict(err)) throw err;
+    throw new ToilError('HTTP', `Work item ${n} changed after toil read its tags (revision ${read.rev}), so the tag change wasn't made.`, { fix: 'Run the same command again: it reads the item afresh.' });
+  }
+}
+
+export const workAddTagCommand = adoArea.command({
+  path: ['ado', 'work-item', 'tag'],
+  description: 'Add one or more tags to a work item (non-destructive)',
+  toolDescription:
+    "Adds tags to a work item, keeping the ones it has (matched ignoring case), and returns the item. It reads the tags, then writes the list with a test of the revision it read, so a change made in between is refused rather than lost. Tags it already has change nothing. Needs no project.",
+  input: z.object({ id, tags: z.string().describe('Semicolon- or comma-separated tags to add'), ...allowWriteField }),
+  writes: true,
+  args: [idArg],
+  options: [{ flags: '--tags <tags>', field: 'tags', description: 'Semicolon- or comma-separated tags to add' }],
+  examples: [{ ...W, repo: 'imagile-api', id: 42, tags: 'ui; Backend,urgent' }],
+  run: async (input, ctx) => {
+    const asked = tagsAsked(input.tags);
+    const read = await tagsOf(ctx, input.id);
+    const have = new Set(read.tags.map((t) => t.toLowerCase()));
+    const added: string[] = [];
+    for (const t of asked) {
+      if (have.has(t.toLowerCase())) continue;
+      have.add(t.toLowerCase());
+      added.push(t);
+    }
+    return writeTags(ctx, input.id, read, [...read.tags, ...added], false);
+  },
+});
+
+export const workRemoveTagCommand = adoArea.command({
+  path: ['ado', 'work-item', 'untag'],
+  description: 'Remove one or more tags from a work item (non-destructive)',
+  toolDescription:
+    'Removes tags from a work item (matched ignoring case), keeping the rest, and returns the item. It reads the tags, then writes what is left with a test of the revision it read, so a change made in between is refused rather than lost. A tag the item does not have changes nothing. Needs no project.',
+  input: z.object({ id, tags: z.string().describe('Semicolon- or comma-separated tags to remove'), ...allowWriteField }),
+  writes: true,
+  args: [idArg],
+  options: [{ flags: '--tags <tags>', field: 'tags', description: 'Semicolon- or comma-separated tags to remove' }],
+  examples: [{ ...W, repo: 'imagile-api', id: 42, tags: 'UI' }],
+  run: async (input, ctx) => {
+    const drop = new Set(tagsAsked(input.tags).map((t) => t.toLowerCase()));
+    const read = await tagsOf(ctx, input.id);
+    return writeTags(ctx, input.id, read, read.tags.filter((t) => !drop.has(t.toLowerCase())), true);
+  },
+});
+
+export const workCommands = [workGetCommand, workCreateCommand, workUpdateCommand, workTransitionCommand, workSearchCommand, workRevisionsCommand, workFeedCommand, workGetBatchCommand, workListCommentsCommand, workAddCommentCommand, workListAreasCommand, workListIterationsCommand, workListStatesCommand, workAssignCommand, workLinkCommand, workDeleteCommentCommand, workAddTagCommand, workRemoveTagCommand];
