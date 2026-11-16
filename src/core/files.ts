@@ -47,7 +47,7 @@ export interface FileAccess {
   readBytes(path: string, options?: ReadOptions): Promise<Uint8Array>;
   /**
    * A file's bytes in chunks as they are read, so a command can work through a
-   * file of any size in constant memory. `-` streams stdin where the front door
+   * file of any size in constant memory. `-` streams stdin, in the chunks it arrives in rather than `chunkSize`, where the front door
    * allows it. The bounds are checked when it's called, before any chunk, so a
    * refused path throws at once; a read that fails later throws from the loop.
    */
@@ -405,9 +405,15 @@ export function nodeFiles(options: {
         // fails with EAGAIN on a non-blocking pipe), in the chunks it arrives in.
         // It stays open afterwards: it belongs to the process, not to this command.
         const stdin = stdinStream();
-        if (stdin.readableEnded) return;
+        if (stdin.readableEnded || stdin.destroyed) return;
         try {
-          for await (const [chunk] of on(stdin, 'data', { close: ['end'], ...(streamOptions.signal ? { signal: streamOptions.signal } : {}) })) {
+          // highWaterMark: on() pauses stdin while this many chunks wait unread and resumes
+          // it as they drain, so a slow consumer holds a bounded amount however much is piped.
+          const chunks = on(stdin, 'data', { close: ['end'], highWaterMark: 16, ...(streamOptions.signal ? { signal: streamOptions.signal } : {}) });
+          // A data listener starts a paused stream only the first time; after any pause
+          // (an earlier read's finally) it must be resumed, or this waits forever.
+          stdin.resume();
+          for await (const [chunk] of chunks) {
             yield new Uint8Array(typeof chunk === 'string' ? Buffer.from(chunk) : (chunk as Buffer));
           }
         } catch (err) {

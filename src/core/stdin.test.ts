@@ -54,6 +54,16 @@ describe('readAll', () => {
     expect((await readAll(pipe)).toString()).toBe('');
   });
 
+  it('answers at once for a stream already destroyed: its error, or empty when it closed cleanly', async () => {
+    const broken = new PassThrough();
+    broken.on('error', () => {}); // the stream's own error event; readAll reads `errored` instead
+    broken.destroy(new Error('EPIPE'));
+    await expect(readAll(broken)).rejects.toThrow('EPIPE');
+    const closed = new PassThrough();
+    closed.destroy();
+    expect((await readAll(closed)).toString()).toBe('');
+  });
+
   it('passes a stream error on', async () => {
     const pipe = new PassThrough();
     const reading = readAll(pipe);
@@ -74,6 +84,38 @@ describe('"-" through the file service', () => {
     const chunks: string[] = [];
     for await (const chunk of files(slowWriter('one', 'two')).readStream('-')) chunks.push(new TextDecoder().decode(chunk));
     expect(chunks.join('')).toBe('onetwo');
+  });
+
+  it('readStream reads a stdin something paused earlier, and again after a consumer stopped early', async () => {
+    const pipe = new PassThrough();
+    pipe.pause();
+    const service = files(pipe);
+    setTimeout(() => pipe.write('first'), 20);
+    for await (const chunk of service.readStream('-')) {
+      expect(new TextDecoder().decode(chunk)).toBe('first');
+      break;
+    }
+    setTimeout(() => pipe.end('second'), 20);
+    const rest: string[] = [];
+    for await (const chunk of service.readStream('-')) rest.push(new TextDecoder().decode(chunk));
+    expect(rest.join('')).toBe('second');
+  });
+
+  it('readStream pauses stdin while a slow consumer has chunks waiting, so memory stays bounded', async () => {
+    const pipe = new PassThrough({ highWaterMark: 16 });
+    let refused = 0;
+    const writer = (async () => {
+      for (let i = 0; i < 200; i++) if (!pipe.write('x'.repeat(64))) (refused++, await new Promise((r) => pipe.once('drain', r)));
+      pipe.end();
+    })();
+    let total = 0;
+    for await (const chunk of files(pipe).readStream('-')) {
+      total += chunk.length;
+      await later(1);
+    }
+    await writer;
+    expect(total).toBe(200 * 64);
+    expect(refused).toBeGreaterThan(0);
   });
 });
 

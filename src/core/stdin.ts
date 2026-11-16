@@ -28,6 +28,12 @@ export function readAll(stream: Readable, signal?: AbortSignal): Promise<Buffer>
       resolve(Buffer.alloc(0));
       return;
     }
+    // A stream already destroyed emits nothing more: say why now, rather than wait for the time limit.
+    if (stream.destroyed) {
+      if (stream.errored) reject(stream.errored);
+      else resolve(Buffer.alloc(0));
+      return;
+    }
     const chunks: Buffer[] = [];
     const onData = (chunk: Buffer | string) => chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
     const cleanup = () => {

@@ -332,12 +332,14 @@ function pipedStdin(bin) {
     });
   return (async () => {
     const slow = await run({ write: `${token}\n` });
-    if (slow.envelope?.data?.payload?.sub !== 'smoke') fail(`util jwt decode - with a slow writer returned ${JSON.stringify(slow)}`);
+    if (slow.envelope?.data?.payload?.sub !== 'smoke' || slow.status !== 0 || slow.ms < 1000) fail(`util jwt decode - with a slow writer returned ${JSON.stringify(slow)}`);
     const limited = await run({ extraEnv: { TOIL_TIMEOUT_MS: '1500' } });
     if (limited.envelope?.error?.code !== 'TIMEOUT' || limited.ms > 10000) fail(`util jwt decode - on a pipe held open with a 1.5 s limit returned ${JSON.stringify(limited)}`);
     if (process.platform === 'win32') return 'stdin from a slow writer was read, and a pipe held open stopped at the time limit (Ctrl+C not checked: Windows has no SIGINT to send a child)';
-    const cancelled = await run({ sigintAfter: 1000 });
-    if (cancelled.envelope?.error?.code !== 'CANCELLED' || cancelled.ms > 10000) fail(`util jwt decode - on a pipe held open, sent SIGINT, returned ${JSON.stringify(cancelled)}`);
+    // Three seconds, so the bin is surely up and listening for SIGINT before it comes,
+    // even on a slow runner; a SIGINT before then would end Node with no envelope.
+    const cancelled = await run({ sigintAfter: 3000 });
+    if (cancelled.envelope?.error?.code !== 'CANCELLED' || cancelled.status !== 130 || cancelled.ms > 12000) fail(`util jwt decode - on a pipe held open, sent SIGINT, returned ${JSON.stringify(cancelled)}`);
     return `stdin from a slow writer was read, and a pipe held open stopped at the time limit in ${limited.ms} ms and on SIGINT in ${cancelled.ms} ms`;
   })();
 }
