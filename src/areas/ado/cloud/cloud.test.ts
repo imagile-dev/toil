@@ -763,3 +763,29 @@ describe('the writes demo seeding needed (#618)', () => {
     });
   });
 });
+
+describe('work-item tag and untag on Services', () => {
+  const tagged = (tags: string | undefined): Route[] => [{ path: /^\/imagile\/_apis\/wit\/workitems\/42$/, respond: { json: { id: 42, rev: 7, fields: tags === undefined ? {} : { 'System.Tags': tags } } } }];
+  const PATCH_JSON = { 'content-type': 'application/json-patch+json' };
+
+  it('tag reads only System.Tags, then adds the new ones after a test of that revision, keeping case and order', async () => {
+    const { calls } = await run('work-item tag', { id: 42, tags: 'UI; urgent,Backend', ...write }, tagged('ui; backend'));
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([`GET ${ORG_URL}/_apis/wit/workitems/42?api-version=7.1&fields=System.Tags`, `PATCH ${ORG_URL}/_apis/wit/workitems/42?api-version=7.1`]);
+    expect(calls[1]).toMatchObject({ headers: PATCH_JSON });
+    expect(body(calls[1]!)).toEqual([{ op: 'test', path: '/rev', value: 7 }, { op: 'add', path: '/fields/System.Tags', value: 'ui; backend; urgent' }]);
+  });
+
+  it('untag replaces the list with what is left, and removes the field when nothing is', async () => {
+    const some = await run('work-item untag', { id: 42, tags: 'UI', ...write }, tagged('ui; backend'));
+    expect(body(some.calls[1]!)).toEqual([{ op: 'test', path: '/rev', value: 7 }, { op: 'replace', path: '/fields/System.Tags', value: 'backend' }]);
+    const last = await run('work-item untag', { id: 42, tags: 'ui,BACKEND', ...write }, tagged('ui; backend'));
+    expect(body(last.calls[1]!)).toEqual([{ op: 'test', path: '/rev', value: 7 }, { op: 'remove', path: '/fields/System.Tags' }]);
+  });
+
+  it('sends no write when nothing changes, and returns the item as read', async () => {
+    const already = await run('work-item tag', { id: 42, tags: 'UI', ...write }, tagged('ui'));
+    const absent = await run('work-item untag', { id: 42, tags: 'urgent', ...write }, tagged(undefined));
+    expect([already.calls.length, absent.calls.length]).toEqual([1, 1]);
+    expect(already.envelope.data).toMatchObject({ id: 42, rev: 7 });
+  });
+});
