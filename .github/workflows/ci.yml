@@ -129,7 +129,7 @@ jobs:
   # and an artifact. platforms.yml still runs the whole smoke unsharded on
   # Windows and macOS. fail-fast is off so one round shows every shard's problems.
   ui-layout:
-    name: Toil UI layout (${{ matrix.shard }}/8)
+    name: Toil UI layout (${{ matrix.shard }}/${{ strategy.job-total }})
     needs: [changes]
     if: needs.changes.outputs.full != 'false'
     runs-on: ubuntu-latest
@@ -147,7 +147,8 @@ jobs:
       # The UI's smoke installs toil's packed tarball and its own, so both are built first.
       - run: npm run build
       - run: npm run build -w ui
-      - run: npm run smoke -w ui -- --shard ${{ matrix.shard }}/8
+      # strategy.job-total is the matrix's length, so N is said once, in the list.
+      - run: npm run smoke -w ui -- --shard ${{ matrix.shard }}/${{ strategy.job-total }}
 
   # The committed dist/toil.js is the last released toil, and only the release
   # PR rebuilds it, so any other PR that changes dist/ fails here. The head

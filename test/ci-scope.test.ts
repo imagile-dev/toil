@@ -87,7 +87,9 @@ describe('ci.yml wires the scope check fail-closed', () => {
     expect(shards).toEqual(Array.from({ length: shards.length }, (_, i) => i + 1));
     expect(layout.strategy['fail-fast']).toBe(false);
     const run = layout.steps.map((s) => s.run ?? '').join('\n');
-    expect(run).toContain(`npm run smoke -w ui -- --shard \${{ matrix.shard }}/${shards.length}`);
+    // N comes from the matrix itself, in the command and the job's name, so it can't drift from the list.
+    expect(run).toContain('npm run smoke -w ui -- --shard ${{ matrix.shard }}/${{ strategy.job-total }}');
+    expect((layout as Job & { name: string }).name).toBe('Toil UI layout (${{ matrix.shard }}/${{ strategy.job-total }})');
   });
 
   it('CI ok accepts a skipped long job only when the scope check passed and said full=false', () => {
