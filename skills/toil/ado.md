@@ -336,7 +336,7 @@ Repositories:
 - `repo list`, `repo get`: Repositories in the project. `repo create --name <name>`
   makes an empty one.
 - `commit create` (Services): Commit workspace files to `--branch` in one commit, with
-  `--message`, needing no git. Each `--file <path>` (repeatable) is relative to the
+  `--message`, needing no git. Each `--input-file <path>` (repeatable) is relative to the
   workspace and is committed at the same path in the repository, replacing a file
   already there. A branch that doesn't exist is created from `--from <branch>` (the
   repository's default branch without it), or, in an empty repository, as its first
@@ -477,7 +477,7 @@ toil ado --project Imagile work-item update 42 --field state=Active --rev 3 --al
 toil ado --project Imagile --repo imagile-api pr merge 42 --strategy squash --delete-source --allow-write --connection imagile-ado
 toil ado --project Imagile sprint list --state current --connection imagile-ado
 toil ado --project Imagile sprint update "Sprint 1" --start 2026-11-16 --end 2026-11-27 --allow-write --connection imagile-ado
-toil ado --project Imagile --repo imagile-api commit create --branch fix/retries --from main --message "Add retries" --file src/retry.js --allow-write --connection imagile-ado
+toil ado --project Imagile --repo imagile-api commit create --branch fix/retries --from main --message "Add retries" --input-file src/retry.js --allow-write --connection imagile-ado
 toil ado --project Imagile --repo imagile-api work-item link 42 --pr 44 --allow-write --connection imagile-ado
 toil ado --project Imagile board get "Backlog items" --team "Imagile Team" --connection imagile-ado
 ```

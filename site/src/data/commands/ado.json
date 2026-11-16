@@ -955,7 +955,7 @@
     "flags": [
       "--branch <name>",
       "--message <text>",
-      "--file <path>",
+      "--input-file <path>",
       "--from <branch>",
       "--collection <name>",
       "--organization <name>",

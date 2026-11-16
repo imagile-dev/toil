@@ -99,7 +99,7 @@ export function quote(value: string, shell: Shell): string | null {
  * to it exactly.
  */
 export const INPUT_FILE_COMMANDS: ReadonlySet<string> = new Set([
-  'ado work-item attach', 'ado work-item categorize', 'ado work-item create', 'ado work-item update', 'alation document create',
+  'ado commit create', 'ado work-item attach', 'ado work-item categorize', 'ado work-item create', 'ado work-item update', 'alation document create',
   'alation document update', 'artifactory package license-check', 'artifactory package outdated', 'classify mix', 'classify prompt',
   'classify run', 'classify stats', 'confluence page attach', 'github issue categorize', 'jira issue attach', 'jira issue categorize',
   'jira issue create', 'jira issue update', 'ossindex vulns', 'osv vulns', 'projects brief', 'projects diagram check',
