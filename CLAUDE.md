@@ -1161,7 +1161,8 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 *Principles 2 and 4.* Four sandboxes hold made-up work for runs against real services:
 Jira `SCRUM`, Azure DevOps `Toil Sandbox`, GitHub `imagile-dev/toil-sandbox` and the
 Confluence space `OD`. **They are the only places a live run may write**, only to items
-that carry the seed mark `toil-seed` or that the run created, and only through the
+that carry the seed mark `toil-seed` or that the run created (the GitHub repository is
+seeded as a whole, so any item in it counts), and only through the
 connection's `writes` and `--allow-write`; an agent never turns `writes` on. Nothing a
 live run returns is committed but the project and repository names and the issue
 numbers inside them. Seeding, demo prep and the exceptions it takes are in the

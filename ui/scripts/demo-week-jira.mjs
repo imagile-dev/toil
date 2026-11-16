@@ -32,7 +32,14 @@ export function jira({ toil, say, fail, sprint, ends, project, item, note }) {
     say(`  sprint ${active.id}: now "${sprint}", ${start} to ${ends}`);
   }
 
-  const get = (key) => toil(['jira', 'issue', 'get', key, '--select', '{key: key, summary: fields.summary, status: fields.status.name, labels: fields.labels, assignee: fields.assignee.accountId}'], { soft: true }).data;
+  // An issue that isn't there is skipped; any other failed read stops the run.
+  const get = (key) => {
+    const read = toil(['jira', 'issue', 'get', key, '--select', '{key: key, summary: fields.summary, status: fields.status.name, labels: fields.labels, assignee: fields.assignee.accountId}'], { soft: true });
+    if (read.ok) return read.data;
+    if (read.error.code !== 'NOT_FOUND') fail(`couldn't read ${key}: ${read.error.message}`, 'Run it again; a failed read is never taken for "no such issue".');
+    say(`  skipped ${key}: it doesn't exist`);
+    return undefined;
+  };
   // The token's own account: the one issue it is assigned, if any. No one else is ever assigned.
   const me = toil(['jira', 'issue', 'search', '--jql', `project = "${project}" AND assignee = currentUser()`, '--limit', '1', '--fields', 'assignee', '--select', 'issues[0].fields.assignee.accountId']).data ?? undefined;
   const marker = `(${sprint} update, ${note})`;

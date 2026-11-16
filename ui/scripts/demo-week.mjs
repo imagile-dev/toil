@@ -10,7 +10,9 @@
 // It writes only to the three test projects in CLAUDE.md (SANDBOX in
 // demo-week-data.mjs); there is no flag to aim it anywhere else. GitHub goes
 // through gh, as seed-sandbox.mjs does (toil's github area has no milestone
-// command); what this script creates there carries the label `toil-seed`. Jira and
+// command). The GitHub sandbox repository is seeded as a whole (seed-sandbox.mjs
+// made all of it), so its items may be changed; what this script creates there
+// carries the label `toil-seed`, and the agent-ready issue is found by it. Jira and
 // Azure DevOps go through toil's own commands with --allow-write, so the
 // connection's `writes` decides and no token is ever seen here, and only items
 // that carry the seed mark are changed. Every step looks first and skips what is
@@ -176,7 +178,8 @@ function github() {
 
   // One item ready for an agent: open, with today's text, even after a recording closed it.
   const item = AGENT_ITEMS.github;
-  const agent = issues.filter((i) => i.labels.some((l) => l.name === 'agent-ready')).sort((a, b) => b.number - a.number)[0];
+  // Matched on both labels, so an agent-ready issue a person filed is never rewritten.
+  const agent = issues.filter((i) => ['agent-ready', 'toil-seed'].every((name) => i.labels.some((l) => l.name === name))).sort((a, b) => b.number - a.number)[0];
   if (!agent) {
     const i = gh('POST', `${R}/issues`, { title: item.title, body: item.body, labels: ['agent-ready', 'toil-seed', 'type: bug', 'priority: medium', 'points: 1'], milestone: current.number });
     say(`  #${i.number}: agent-ready issue created`);
@@ -185,7 +188,6 @@ function github() {
       gh('PATCH', `${R}/issues/${agent.number}`, { state: 'open', title: item.title, body: item.body, milestone: current.number });
       say(`  #${agent.number}: agent-ready issue ${agent.state !== 'open' ? 'reopened' : 'brought up to date'}`);
     }
-    if (!agent.labels.some((l) => l.name === 'toil-seed')) gh('POST', `${R}/issues/${agent.number}/labels`, { labels: ['toil-seed'] });
   }
   say(`  done: https://github.com/${owner}/${repo}/milestone/${current.number}`);
 }

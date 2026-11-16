@@ -64,7 +64,8 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
     for (let i = 0; i < ids.length; i += 100) {
       items.push(...toil(['ado', 'work-item', 'get-many', ...ids.slice(i, i + 100).map(String), '--fields', 'System.Title,System.State,System.Tags', '--select', 'value[].{id: id, title: fields."System.Title", state: fields."System.State", tags: fields."System.Tags"}']).data);
     }
-    const seeded = (w) => (w.tags ?? '').split(';').map((t) => t.trim()).includes('toil-seed');
+    const tagsOf = (w) => (w.tags ?? '').split(';').map((t) => t.trim());
+    const seeded = (w) => tagsOf(w).includes('toil-seed');
     const find = (prefix) => items.find((w) => seeded(w) && w.title?.startsWith(prefix));
     const me = toil(['ado', 'whoami']).data.authenticatedUser.providerDisplayName;
     const marker = `(${sprint} update, ${note})`;
@@ -134,8 +135,7 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
 
     // A fix waiting on review, linked to its bug.
     const branch = 'fix/batch-cutoff-merchant-midnight';
-    const prs = toil(['ado', 'pr', 'list', '--repo', repoName, ...p, '--select', '@'], { soft: true }).data;
-    const prList = Array.isArray(prs) ? prs : prs?.value ?? prs?.pullRequests ?? [];
+    const prList = toil(['ado', 'pr', 'list', '--repo', repoName, ...p]).data;
     if (!prList.some((x) => x.sourceRefName === `refs/heads/${branch}`)) {
       if (!refs(`heads/${branch}`).length) {
         const mainSha = refs('heads/main')[0].objectId;
@@ -157,19 +157,13 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
       }
     }
 
-    // One item ready for an agent: in the current sprint, unassigned, carrying the seed
-    // mark (so cleanup.mjs knows it), and open even after a recording closed it.
-    const agent = items.find((w) => w.title === item.title);
+    // One item ready for an agent: in the current sprint, unassigned, found by its own
+    // seed key (so cleanup.mjs knows it too), and open even after a recording closed it.
+    const agent = items.find((w) => tagsOf(w).includes('seed:agent-refund-reasons'));
     if (!agent) {
       const created = toil(['ado', 'work-item', 'create', '--type', 'Product Backlog Item', '--title', item.title, '--description', item.description, '--priority', '2', '--field', `System.IterationPath=${project}\\Sprint 1`, '--field', 'System.Tags=agent-ready; toil-seed; seed:agent-refund-reasons', '--field', 'Microsoft.VSTS.Scheduling.Effort=1', ...p, '--allow-write']).data;
       say(`  #${created.id}: agent-ready item created`);
     } else {
-      if (!seeded(agent)) {
-        // `work-item tag` is Server-only, so Services sets the whole tag list through update.
-        const tags = [...(agent.tags ?? '').split(';').map((t) => t.trim()).filter(Boolean), 'toil-seed', 'seed:agent-refund-reasons'].join('; ');
-        toil(['ado', 'work-item', 'update', String(agent.id), '--field', `System.Tags=${tags}`, ...p, '--allow-write']);
-        say(`  #${agent.id}: seed mark added`);
-      }
       if (agent.state === 'Done') {
         toil(['ado', 'work-item', 'transition', String(agent.id), '--state', 'Approved', ...p, '--allow-write']);
         say(`  #${agent.id}: agent-ready item back to Approved`);

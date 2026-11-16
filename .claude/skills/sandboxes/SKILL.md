@@ -44,7 +44,7 @@ run may write.
 |---|---|---|---|
 | Jira Cloud | project `SCRUM` | `jira` | `ui/scripts/jira-seed.mjs` and `demo-week.mjs`, through toil: labels `toil-seed` and `seed:<key>` |
 | Azure DevOps Services | project `Toil Sandbox` | `ado` | `ui/scripts/ado-seed/` and `demo-week.mjs`: tag `toil-seed` and a `seed:<key>` tag |
-| GitHub | repository `imagile-dev/toil-sandbox` | `github` | `ui/scripts/seed-sandbox.mjs` and `demo-week.mjs`, through `gh`: label `toil-seed` on what demo-week creates |
+| GitHub | repository `imagile-dev/toil-sandbox` | `github` | `ui/scripts/seed-sandbox.mjs` and `demo-week.mjs`, through `gh`. The repository is seeded as a whole: `seed-sandbox.mjs` made every item in it, so any item may be changed. What `demo-week.mjs` creates carries the label `toil-seed` |
 | Confluence Cloud | space `OD` | `confluence` | `ui/scripts/demo-confluence/seed.mjs`, through toil: label `toil-seed` |
 
 - **Reads may go to any of the four.** A write goes only to a test project, and only
@@ -72,7 +72,7 @@ run may write.
   say so, and toil only reads it back.
 - **A field or a project is an admin's to create.** toil never creates either. `SCRUM`
   has one category field, the dropdown `Work category` (KTLO, Feature) on its Story and
-  Task work types; the other two test projects have none. Where a
+  Task work types; the other three test projects have none. Where a
   live check needs one that doesn't exist, the PR says what is missing under what
   wasn't verified, and the check waits.
 - **The sample team is not a sandbox.** `toil sample team` and `toil-ui --sample` run

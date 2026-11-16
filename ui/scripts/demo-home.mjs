@@ -27,7 +27,7 @@
 // Repo tooling only: nothing here ships. A clean desk, set up for the camera,
 // as is traditional.
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -68,6 +68,9 @@ function fail(message, fix) {
 }
 const say = (line) => process.stdout.write(`${line}\n`);
 
+// The marker goes only on a folder this script makes, or one that already carries it,
+// so --fresh can never delete a folder of someone's files.
+if (existsSync(home) && !existsSync(join(home, MARKER)) && readdirSync(home).length) fail(`${home} already holds files and isn't a demo home this script made (it has no ${MARKER}).`, 'Pick a new or empty folder with --home.');
 if (fresh && existsSync(home)) {
   if (!existsSync(join(home, MARKER))) fail(`${home} isn't a demo home this script made (it has no ${MARKER}), so --fresh won't delete it.`, 'Pick another --home, or delete it yourself if you mean to.');
   rmSync(home, { recursive: true, force: true });
