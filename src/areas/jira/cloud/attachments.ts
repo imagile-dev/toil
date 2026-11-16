@@ -28,7 +28,7 @@ export const addAttachment = jiraArea.command({
   options: [{ flags: '--input-file <path>', field: 'inputFile', description: 'Path to the file to upload', deprecated: ['--file <path>'] }],
   examples: [{ key: 'PROJ-123', inputFile: 'screenshot.png', allowWrite: true }],
   run: async (input, ctx) => {
-    const data = ctx.files.readBytes(input.inputFile);
+    const data = await ctx.files.readBytes(input.inputFile);
     return client.uploadAttachment(ctx, input.key, basename(input.inputFile), data);
   },
 });

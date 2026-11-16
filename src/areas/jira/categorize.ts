@@ -182,7 +182,7 @@ async function readLive(
 }
 
 async function run(adapter: CategorizeAdapter, input: Input, ctx: JiraContext) {
-  const plan = readPlanFrom(ctx, input.inputFile);
+  const plan = await readPlanFrom(ctx, input.inputFile);
   const connection = ctx.connection.name;
   const { group, skipped } = planFor(plan, 'jira', connection);
   const done = (changed: CategorizeChange[], unchanged: string[], failed: Array<{ key: string; reason: string }>, fieldId?: string) => {

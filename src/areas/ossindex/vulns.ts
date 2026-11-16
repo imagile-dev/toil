@@ -158,7 +158,7 @@ export const vulnsCommand = ossindexArea.command({
   options: inventoryOptions,
   examples: [{ inputFile: 'inventory.json' }, { inputFile: 'inventory.json', ecosystem: 'maven', directOnly: true, includeDev: true }],
   run: async (input, ctx) => {
-    const packages = selectPackages(readInventory(ctx, input.inputFile, 'ossindex vulns'), input);
+    const packages = selectPackages(await readInventory(ctx, input.inputFile, 'ossindex vulns'), input);
     await requireReachable(ctx);
     if (packages.length === 0) return friskData('sonatype', 0, []);
     const vulnerable: VulnerablePackage[] = [];

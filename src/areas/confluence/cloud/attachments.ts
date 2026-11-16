@@ -62,7 +62,7 @@ export const uploadAttachment = confluenceArea.command({
     if (!ctx.files.exists(input.inputFile)) {
       throw new ToilError('INVALID_INPUT', `File not found: ${input.inputFile}`, { fix: 'Check the path. Relative paths resolve against the workspace.' });
     }
-    const data = ctx.files.readBytes(input.inputFile);
+    const data = await ctx.files.readBytes(input.inputFile);
     // The same file name on every platform: a backslash separates, as on Windows.
     return client.uploadAttachment(ctx, input.id, attachmentFileName(input.inputFile), data, input.comment);
   },
