@@ -99,19 +99,25 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       }
       if (Object.keys(entered).length === 0) throw new ToilError('INVALID_INPUT', 'Nothing was entered, so nothing changed.', { fix: `Run toil connections login ${input.name} again.` });
 
-      const before: Settings = { ...conn };
+      // The prompt may have waited minutes, and another toil may have changed
+      // the file meanwhile: check the connection is still there before storing
+      // anything, and write back the file as it is now, not as it was read.
+      const before: Settings = { ...rereadConnection(path, input.name, area.name, 'login').conn };
+      const refs: Record<string, string> = {};
       for (const [key, value] of Object.entries(entered)) {
         const ref = refFor(input.name, key);
         await storeVerified(required(secrets, ref), ref, value, ctx.signal);
-        conn[key] = `${KEYCHAIN_PREFIX}${ref}`;
+        refs[key] = `${KEYCHAIN_PREFIX}${ref}`;
       }
-      writeConfigFile(path, file);
+      const latest = rereadConnection(path, input.name, area.name, 'login');
+      Object.assign(latest.conn, refs);
+      writeConfigFile(path, latest.file);
       // Only now, with config pointing at the new copy, does an old one go.
       for (const key of Object.keys(entered)) {
         const old = before[key];
-        if (isKeychainRef(old) && old !== conn[key]) await deleteUnreferenced(file, old, secrets, ctx);
+        if (isKeychainRef(old) && old !== refs[key]) await deleteUnreferenced(latest.file, old, secrets, ctx);
       }
-      return { name: input.name, area: area.name, configFile: slashes(path), secrets: whereKept(Object.fromEntries(Object.keys(entered).map((k) => [k, conn[k]]))) };
+      return { name: input.name, area: area.name, configFile: slashes(path), secrets: whereKept(refs) };
     },
   });
 
@@ -250,9 +256,11 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
         if (typed !== input.name) throw new ToilError('CANCELLED', `Writes stay off for "${input.name}": what was typed didn't match the name.`, { fix: `Run toil connections writes ${input.name} on again.` });
       }
       if (on !== was) {
-        if (on) conn.writes = true;
-        else delete conn.writes;
-        writeConfigFile(path, file);
+        // Re-read after the question, so a change made meanwhile isn't written over.
+        const latest = rereadConnection(path, input.name, conn.area, `writes ${input.state}`);
+        if (on) latest.conn.writes = true;
+        else delete latest.conn.writes;
+        writeConfigFile(path, latest.file);
       }
       // An env var outranks the file (Configuration Precedence), so say when this change won't be what applies.
       const fromEnv = config.sources[`${input.name}.writes`] === 'env';
@@ -427,16 +435,27 @@ export async function addConnection(ctx: CommandContext<unknown>, areas: readonl
   const answer = await prompt.ask(`Save ${input.name} (${review})? y/n`, 'y', 'confirm');
   if (!/^y(es)?$/i.test(answer)) throw new ToilError('CANCELLED', 'Nothing was saved.', { fix: `Run toil connections add ${input.name} again.` });
 
+  // The questions may have taken minutes, and another toil may have changed
+  // the file meanwhile: check the name is still free before storing anything,
+  // and add to the file as it is now, not as it was read.
+  if (readConfigForEdit(path).connections[input.name]) throw changedMeanwhile(path, input.name, 'add');
   const kept = await storeNew(secrets, input.name, secretValues, ctx.signal);
-  file.connections[input.name] = { area: area.name, ...settings, ...kept };
+  return saveNew(path, input.name, area, settings, kept);
+}
+
+/** Adds connection `name` to the config file as it is at this moment, and makes it the area's default when it's the first. */
+function saveNew(path: string, name: string, area: AnyArea, settings: Settings, kept: Settings) {
+  const file = readConfigForEdit(path);
+  if (file.connections[name]) throw changedMeanwhile(path, name, 'add');
+  file.connections[name] = { area: area.name, ...settings, ...kept };
   // The first connection to an area becomes its default, so adding a
   // second one later doesn't leave the area with no default.
-  const others = Object.keys(file.connections).filter((n) => n !== input.name && file.connections[n]!.area === area.name);
+  const others = Object.keys(file.connections).filter((n) => n !== name && file.connections[n]!.area === area.name);
   if (others.length === 0 && typeof file.defaults[area.name]?.connection !== 'string') {
-    file.defaults[area.name] = { ...(file.defaults[area.name] ?? {}), connection: input.name };
+    file.defaults[area.name] = { ...(file.defaults[area.name] ?? {}), connection: name };
   }
   writeConfigFile(path, file);
-  return { name: input.name, area: area.name, configFile: slashes(path), secrets: whereKept(kept) };
+  return { name, area: area.name, configFile: slashes(path), secrets: whereKept(kept) };
 }
 
 /**
@@ -633,6 +652,27 @@ function checkName(name: string): void {
 }
 
 /** The connection as written in the file; one defined only by env vars can't be edited here. */
+/**
+ * A connection as the config file holds it now, re-read for a command that
+ * asked its questions after it first read the file. Whatever another toil
+ * saved meanwhile is kept, since only this connection is changed and the rest
+ * is written back as found. If the connection itself was removed or moved to
+ * another area meanwhile, that's refused rather than resurrected.
+ */
+function rereadConnection(path: string, name: string, area: string, command: string): { file: EditableConfig; conn: Settings & { area: string } } {
+  const file = readConfigForEdit(path);
+  const conn = file.connections[name];
+  if (!conn || conn.area !== area) throw changedMeanwhile(path, name, command);
+  return { file, conn };
+}
+
+/** The refusal when the config file changed under a command waiting for an answer. Change control, but for one file. */
+function changedMeanwhile(path: string, name: string, command: string): ToilError {
+  return new ToilError('INVALID_INPUT', `Connection "${name}" changed in ${slashes(path)} while toil was waiting for your answers, so nothing was saved.`, {
+    fix: `Run toil connections list to see it as it is now, then run toil connections ${command} ${name} again.`,
+  });
+}
+
 function fileConnection(file: EditableConfig, name: string, config: ConfigAccess['config']) {
   const conn = file.connections[name];
   if (conn) return conn;

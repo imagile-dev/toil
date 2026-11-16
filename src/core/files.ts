@@ -5,6 +5,7 @@ import { gitBool, lastValue, refusedGitRead } from './git-config.js';
 import { findGitRepo, readGitConfig, readGitIndex } from './git-repo.js';
 import { ignoredFolderWarning, isIgnored, parseIgnore, skippedLineWarning, undecodableIgnoreWarning, unreadableIgnoreWarning, type IgnoreRule } from './gitignore.js';
 import { assertLocalPath } from './local-path.js';
+import { readAllSync } from './stdin.js';
 
 /**
  * The local files a command may read or write: an `--input-file`, a file to
@@ -368,7 +369,7 @@ export function nodeFiles(options: {
     if (path === '-' && options.stdin === 'terminal') throw STDIN_IS_TERMINAL;
     if (path !== '-') check(at(path));
     try {
-      return readFileSync(path === '-' ? 0 : at(path));
+      return path === '-' ? readAllSync(0) : readFileSync(at(path));
     } catch (err) {
       throw readFailed(path, err);
     }
