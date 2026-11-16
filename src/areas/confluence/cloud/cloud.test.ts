@@ -225,6 +225,14 @@ describe('pages', () => {
     expect(body(bare.calls[0]!)).toEqual({ key: 'KW', name: 'Kettlewell Engineering' });
   });
 
+  it('space create: a key with anything but letters and digits is INVALID_INPUT before any request', async () => {
+    for (const key of ['K-W', 'k w', '~jsmith', '']) {
+      const { envelope, calls } = await run(createSpace, { key, name: 'X', ...write });
+      expect(envelope.error?.code, key).toBe('INVALID_INPUT');
+      expect(calls, key).toEqual([]);
+    }
+  });
+
   it('page create: looks up the space id, then POSTs a published page with a storage body under the parent', async () => {
     const { envelope, calls } = await run(createPage, { space: 'DOCS', title: 'Release notes', body: '<p>Shipped.</p>', parentId: '12345', ...write });
     expect(calls[0]!.url).toBe(SPACE_LOOKUP);

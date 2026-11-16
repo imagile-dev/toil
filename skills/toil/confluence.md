@@ -13,7 +13,7 @@ connection it resolves. Verification level: `unit` for both. Data Center's behav
 one the command contract records; Cloud was built from Atlassian's API documentation and has
 never run against a live site.
 
-**Supported versions:** Confluence Data Center 7.9 or later (Server REST API). toil authenticates to Data Center with a personal access token, which Confluence Data Center added in 7.9. No release has been verified yet. Confluence Cloud (a connection with `deployment` cloud) is always current: toil calls REST API v2 (`/wiki/api/v2`) and, where v2 has no endpoint, v1 (`/wiki/rest/api`: CQL search, adding and removing labels, attachment uploads), with an Atlassian account email and API token sent as Basic auth. Nothing has been run against a live Cloud site yet.
+**Supported versions:** Confluence Data Center 7.9 or later (Server REST API). toil authenticates to Data Center with a personal access token, which Confluence Data Center added in 7.9. No release has been verified yet. Confluence Cloud (a connection with `deployment` cloud) is always current: toil calls REST API v2 (`/wiki/api/v2`) and, where v2 has no endpoint, v1 (`/wiki/rest/api`: CQL search, adding and removing labels, attachment uploads), with an Atlassian account email and API token sent as Basic auth. Run live against a Confluence Cloud site on 16 November 2026: space create and get, page create, update, find and list, page labels, label and unlabel, and connections test. Data Center has not been run.
 
 ## Data Center and Cloud
 
@@ -166,7 +166,7 @@ is refused the same way.
 | `page unlabel` ✎ | `<id> --label` | `{ removed, from }` |
 | `space list` | `--type --limit`, `--cursor` (Cloud) | Every space (or `--limit` of them) |
 | `space get` | `<key>` | The space, with its plain-text description |
-| `space create` ✎ | `<key> --name --description` | The created global space; Cloud adds its `id` and `homepageId`. Confluence makes the homepage itself |
+| `space create` ✎ | `<key> --name --description` | The created global space; Cloud adds `homepageId`. Confluence makes the homepage itself |
 | `page attachments` | `<id>` | Every attachment on the page |
 | `page attach` ✎ | `<id> --input-file --comment` | The attachments created |
 | `attachment download` | `<attachment-id> --dir` | `{ saved, filename, size }`; saves to `.toil/` by default |

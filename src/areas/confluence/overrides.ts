@@ -19,7 +19,7 @@ export const overrides: Record<string, DeploymentOverride> = {
   'confluence space create': {
     description: 'Create a Confluence space',
     toolDescription:
-      'Creates a global space with a key, a name and an optional plain-text description, and returns the space Confluence created. Confluence adds the space homepage itself; put pages under it with page create. Data Center returns the space as the Server REST API does; Cloud returns it as REST API v2 does, with its id and homepageId.',
+      'Creates a global space with a key, a name and an optional plain-text description, and returns the space Confluence created. Confluence adds the space homepage itself; put pages under it with page create. Data Center returns the space as the Server REST API does; Cloud returns it as REST API v2 does, adding homepageId.',
   },
   'confluence page find': {
     description: 'Find a Confluence page by space key and exact title',

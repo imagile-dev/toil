@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { allowWriteField } from '../../../core/run.js';
 import { confluenceArea } from '../area.js';
+import { spaceKey } from '../space-key.js';
 import * as client from './client.js';
 
 /** Spaces: list them, or read one with its plain-text description. A space is a filing cabinet with a key. */
@@ -34,9 +35,6 @@ export const getSpace = confluenceArea.command({
   examples: [{ key: 'DOCS' }],
   run: (input, ctx) => client.getSpace(ctx, input.key),
 });
-
-/** A space key as Confluence takes it: letters and digits only, which it then keeps as typed. */
-const spaceKey = z.string().regex(/^[A-Za-z0-9]{1,255}$/, 'A space key is letters and digits only, such as KW or DOCS').describe('Key for the new space: letters and digits, such as KW');
 
 export const createSpace = confluenceArea.command({
   path: ['confluence', 'space', 'create'],

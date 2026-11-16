@@ -98,7 +98,7 @@ export const spaces = [
 ];
 
 export const routes: Route[] = [
-  // space create: the space as v2 returns it, shaped from the REST v2 docs, not captured.
+  // space create: the space as v2 returns it, shaped from the REST v2 docs; the shape (id, key, homepageId) matched a live Cloud site's answer on 16 November 2026.
   {
     method: 'POST',
     path: `${V2}/spaces`,
