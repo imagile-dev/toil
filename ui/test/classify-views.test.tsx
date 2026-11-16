@@ -592,8 +592,10 @@ describe("How it's doing", () => {
     const api = fixtureClassify();
     const base = await api.ledger('sample-team');
     open(`${TEAM}/board/classify`, { ...api, ledger: async () => ({ ...base, stats: null, notes: ["The ledger couldn't be read, so how it's doing is not read yet: nope."] }) });
-    // The summary reads the same before the record loads, so wait for the sentence only the failed read gives.
-    const doing = await doingWith(/The record could not be read, so this is not read yet/, true);
+    // Before the record loads the panel already reads as a failed read, so wait for the
+    // ledger's own note, which only the loaded view shows.
+    const doing = await doingWith(/how it's doing is not read yet: nope\./, true);
+    expect(doing.textContent).toMatch(/The record could not be read, so this is not read yet/);
     expect(doing.querySelector('[data-share="agreement"]')!.textContent).toBe('—');
     expect(doing.querySelector('summary')!.textContent).toBe("How it's doing: not read yet");
     expect(doing.querySelector('[data-since-tune]')!.textContent).toMatch(/not read yet/);
