@@ -73,3 +73,10 @@
 - **The skill.** `confluence.md` (Credential), `jira.md` (Credential), `core.md` (the
   `--set` paragraph) and `setup.md` (step 4) tell an agent to raise the reuse with the person,
   never to set `apiTokenFrom` itself, and that Data Center needs a token per server.
+- **The maintainer's call on #635, 2026-11-16, on the principle review's three questions:**
+  reuse stays the default answer (`y` on the CLI, "Reuse <jira>'s token" chosen in Toil UI's
+  add form), since the person still answers or presses Save; `apiTokenFrom` stays out of Toil
+  UI's add form even where nothing is offered, since a Data Center pairing never works; and
+  principle 2 keeps its wording, with one factual sentence on `shares.offer` added to
+  CLAUDE.md's cross-area credentials paragraph. These were the agent's recommendations, and
+  are kept as the maintainer's decisions.
