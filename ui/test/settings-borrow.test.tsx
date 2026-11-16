@@ -80,6 +80,14 @@ describe('reusing the Jira token for Confluence Cloud', () => {
     expect(sent[0]!.answers).toMatchObject({ answers: { 'borrow:apiToken': 'n' }, secrets: { apiToken: 'fake-token-abc12345' } });
   });
 
+  it('offers nothing from a Jira whose token comes from an env var, as toil offers nothing', async () => {
+    const { config } = recording([{ ...jiraCloud, values: { ...jiraCloud.values, apiToken: 'env' } }]);
+    await open('#/settings/connections', { config });
+    const form = await confluenceForm('Cloud', 'example-site');
+    expect(within(form).queryByRole('radio', { name: /Reuse .*'s token/ })).toBeNull();
+    expect(within(form).getByLabelText(/^apiToken/)).toBeTruthy();
+  });
+
   it('offers nothing on another site, and nothing on Data Center', async () => {
     const { config } = recording([jiraCloud, jiraDc]);
     await open('#/settings/connections', { config });

@@ -414,7 +414,8 @@ export function borrowChoices(area: FormArea, own: { settings: Readonly<Record<s
     if (!when.every(([k, v]) => ownValue(k) === v)) continue;
     if (b.sameHost && !ownHost) continue;
     const lender = rows
-      .filter((r) => r.name !== self && r.area === b.area && r.values[b.key] !== undefined)
+      // As toil requires: the lender's token is a store reference in the file, never an env var the next shell may lack.
+      .filter((r) => r.name !== self && r.area === b.area && r.values[b.key] === 'store')
       .filter((r) => when.every(([k, v]) => k !== 'deployment' || r.deployment === v))
       .filter((r) => !b.sameHost || r.host?.toLowerCase() === ownHost)
       .sort((x, y) => Number(y.isDefault) - Number(x.isDefault) || x.name.localeCompare(y.name))[0];
