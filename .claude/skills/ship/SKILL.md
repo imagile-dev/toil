@@ -48,8 +48,9 @@ these differences:
   happen only on their yes, with their own GitHub sign-in, after they've seen the
   exact issue and PR text. Check they have a GitHub account that can create
   repositories before planning around a fork.
-- **Branch** in the fork with any name (`<issue#>-<description>` reads best);
-  `kolatts/` is for maintainers. Open the PR with `gh pr create --repo
+- **Branch** in the fork as `<issue#>-<description>`; `kolatts/` is for maintainers.
+  The decisions file is named after it and the gate checks its number
+  (`test/repo-hygiene.test.ts`), so a fork PR that records decisions needs an issue. Open the PR with `gh pr create --repo
   imagile-dev/toil --base main --head <user>:<branch>`, and run `gh repo set-default
   imagile-dev/toil` first so the watcher reads the PR from the right repository.
 - **`origin/main` means upstream's `main`.** After `gh repo fork --remote`, `origin` is

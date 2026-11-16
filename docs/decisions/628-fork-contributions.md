@@ -13,7 +13,9 @@
   this work asked for CLAUDE.md wording to be proposed, not committed, and kept
   `.github/` out of scope; both proposals are in the PR description for the
   maintainer. CONTRIBUTING.md already says fork branches can take any name and that a
-  maintainer reviews and merges fork PRs, so nothing there contradicts the fork path.
+  maintainer reviews and merges fork PRs. Its "from a fork, any branch name works" is
+  wrong for a PR that writes a decisions file, whose name the gate checks for an issue
+  number; the PR description proposes the fix.
 - **A fork PR stops being watched once its checks pass,** and skips `needs-human` on
   `stalled` or `round-limit`, because a contributor can't add labels and the
   maintainer's review may take longer than the watcher's hour.

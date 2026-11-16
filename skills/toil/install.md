@@ -143,10 +143,12 @@ is the short version. In brief:
 
 - **A major item starts with an issue.** A new integration or database provider gets
   an issue before the branch; a fix inside an area doesn't need one.
-- **Commits are Conventional Commits** (`fix:`, `feat:`, `docs:`). The branch in a fork
-  can have any name; `<issue#>-<description>` reads best.
-- **Decisions made by default** go in one file for the pull request under
-  `docs/decisions/`, named after the branch.
+- **Commits are Conventional Commits** (`fix:`, `feat:`, `docs:`). Name the branch in
+  the fork `<issue#>-<description>` after the issue it refers to.
+- **Decisions made by default** go in `docs/decisions/<issue#>-<description>.md`, named
+  after the branch; the gate checks the number. A pull request that records decisions
+  therefore needs an issue, even for a fix inside an area. One with no issue writes
+  no file and makes no decision by default.
 - **The gate passes before the pull request opens:** typecheck, lint, test, build,
   `check:pure` and `smoke` (and Toil UI's gate for a change under `ui/`). Never commit
   a rebuilt `dist/`.
