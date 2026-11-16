@@ -93,7 +93,7 @@ export interface AreaInfo {
 
 /** What a person typed for one call: answers by question id, and secrets by key. */
 export interface ConfigAnswers {
-  /** `setting:<key>`, `area`, `confirm`, `confirm-name`, and `unwrap:<key>` (`n` keeps a secret's quotes or `Bearer ` prefix as typed). */
+  /** `setting:<key>`, `area`, `confirm`, `confirm-name`, `unwrap:<key>` (`n` keeps a secret's quotes or `Bearer ` prefix as typed), and `borrow:<key>` (`y` reuses another connection's secret instead of one typed). */
   answers?: Record<string, string>;
   /** Secret values by connection key. Only a hidden question is answered from these. */
   secrets?: Record<string, string>;

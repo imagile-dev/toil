@@ -162,11 +162,31 @@ describe('connections add offers Jira Cloud\'s API token to Confluence Cloud on 
     expect(t.asked.map((a) => a.id)).not.toContain('borrow:apiToken');
   });
 
+  it('never offers a Jira made of env vars, whose pairing would break in the next shell', async () => {
+    const env = { TOIL_CONN_ENV_JIRA_AREA: 'jira', TOIL_CONN_ENV_JIRA_DEPLOYMENT: 'cloud', TOIL_CONN_ENV_JIRA_BASE_URL: SITE, TOIL_CONN_ENV_JIRA_EMAIL: 'you@example.com', TOIL_CONN_ENV_JIRA_API_TOKEN: JIRA_TOKEN };
+    writeConfig({});
+    const t = terminal({ 'setting:baseUrl': SITE, 'setting:deployment': 'cloud', 'setting:email': 'you@example.com', 'secret:apiToken': OWN_TOKEN });
+    const out = await cli(['connections', 'add', 'wiki', '--area', 'confluence'], context({ prompt: t.prompt, secrets: fakeStore(), env }));
+    expect(out.envelope?.ok, out.stdout).toBe(true);
+    expect(t.asked.map((a) => a.id)).not.toContain('borrow:apiToken');
+  });
+
+  it('reads deployment from defaults.confluence, as the connection will resolve', async () => {
+    mkdirSync(join(home, '.toil'), { recursive: true });
+    writeFileSync(file, JSON.stringify({ version: 4, connections: { 'corp-jira': jiraCloud }, defaults: { confluence: { deployment: 'cloud' } } }));
+    const t = terminal({ 'setting:baseUrl': SITE });
+    const out = await cli(['connections', 'add', 'wiki', '--area', 'confluence'], context({ prompt: t.prompt, secrets: withJira() }));
+    expect(out.envelope, out.stdout).toMatchObject({ ok: true, data: { borrowed: { apiToken: 'corp-jira' } } });
+  });
+
   it('never offers a Jira whose token doesn\'t resolve', async () => {
     writeConfig({ 'corp-jira': jiraCloud });
     const { t, run } = addConfluence(fakeStore(), { baseUrl: SITE, deployment: 'cloud', email: 'you@example.com' }, { 'secret:apiToken': OWN_TOKEN });
-    expect((await run).envelope?.ok).toBe(true);
+    const out = await run;
+    expect(out.envelope?.ok).toBe(true);
     expect(t.asked.map((a) => a.id)).not.toContain('borrow:apiToken');
+    // Not in silence: the person is told why they were asked for a token they already hold.
+    expect(out.envelope!.meta.warnings).toEqual([expect.objectContaining({ code: 'SECRET_REUSE_UNAVAILABLE', message: expect.stringContaining('toil connections test corp-jira') })]);
   });
 });
 
@@ -190,6 +210,29 @@ describe('connections login offers the reuse too', () => {
     const out = await cli(['connections', 'login', 'wiki'], context({ prompt, secrets: store }));
     expect(out.envelope, out.stdout).toMatchObject({ ok: true, data: { secrets: { apiToken: 'store' }, borrowed: {} } });
     expect(readConfig().connections.wiki).toEqual({ area: 'confluence', deployment: 'cloud', baseUrl: SITE, email: 'you@example.com', apiToken: 'keychain:wiki.apiToken' });
+  });
+
+  it('offers nothing when its own token comes from env, which would still win over a pairing', async () => {
+    writeConfig({ 'corp-jira': jiraCloud, wiki: { area: 'confluence', deployment: 'cloud', baseUrl: SITE, email: 'you@example.com' } });
+    const { prompt, asked } = terminal({ 'secret:apiToken': OWN_TOKEN });
+    const out = await cli(['connections', 'login', 'wiki'], context({ prompt, secrets: withJira(), env: { TOIL_CONN_WIKI_API_TOKEN: OWN_TOKEN } }));
+    expect(out.envelope?.ok, out.stdout).toBe(true);
+    expect(asked.map((a) => a.id)).toEqual(['secret:apiToken']);
+  });
+
+  it('leaves a pairing set by hand where no offer applies, when a token of its own is entered', async () => {
+    writeConfig({ 'jira-dc': { area: 'jira', baseUrl: 'https://jira.imagile.dev', apiToken: 'keychain:jira-dc.apiToken' }, wiki: { area: 'confluence', baseUrl: 'https://jira.imagile.dev', apiTokenFrom: 'jira-dc' } });
+    const { prompt } = terminal({ 'secret:apiToken': OWN_TOKEN });
+    const out = await cli(['connections', 'login', 'wiki'], context({ prompt, secrets: fakeStore({ entries: { 'jira-dc.apiToken': JIRA_TOKEN } }) }));
+    expect(out.envelope?.ok, out.stdout).toBe(true);
+    expect(readConfig().connections.wiki).toEqual({ area: 'confluence', baseUrl: 'https://jira.imagile.dev', apiTokenFrom: 'jira-dc', apiToken: 'keychain:wiki.apiToken' });
+  });
+
+  it('says why when the page chose reuse but the Jira token does not read, instead of only "nothing was entered"', async () => {
+    writeConfig({ 'corp-jira': jiraCloud, wiki: { area: 'confluence', deployment: 'cloud', baseUrl: SITE, email: 'you@example.com', apiToken: 'keychain:wiki.apiToken' } });
+    const { prompt } = terminal({ 'borrow:apiToken': 'y' });
+    const out = await cli(['connections', 'login', 'wiki'], context({ prompt, secrets: fakeStore({ entries: { 'wiki.apiToken': OWN_TOKEN } }) }));
+    expect(out.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("corp-jira's token couldn't be read") });
   });
 
   it('asks a Data Center Confluence only for its own token', async () => {
@@ -222,6 +265,13 @@ describe('connections add --set, the agent path', () => {
     const out = await cli(['connections', 'add', 'wiki', '--area', 'confluence', '--set', 'baseUrl=https://jira.imagile.dev'], context({ secrets: fakeStore({ entries: { 'jira-dc.apiToken': JIRA_TOKEN } }) }));
     expect(out.envelope, out.stdout).toMatchObject({ ok: true, data: { secretReusable: {} } });
     expect(out.envelope!.meta.warnings!.find((w) => w.code === 'SECRET_NEEDED')!.message).not.toContain('reuse');
+  });
+
+  it('warns when the Jira connection that would work has a token that does not read', async () => {
+    writeConfig({ 'corp-jira': jiraCloud });
+    const out = await cli(['connections', 'add', 'wiki', '--area', 'confluence', '--set', `baseUrl=${SITE}`, '--set', 'deployment=cloud', '--set', 'email=you@example.com'], context({ secrets: fakeStore() }));
+    expect(out.envelope, out.stdout).toMatchObject({ ok: true, data: { secretReusable: {} } });
+    expect(out.envelope!.meta.warnings!.map((w) => w.code).sort()).toEqual(['SECRET_NEEDED', 'SECRET_REUSE_UNAVAILABLE']);
   });
 
   it('still refuses apiTokenFrom: an agent never moves a secret', async () => {

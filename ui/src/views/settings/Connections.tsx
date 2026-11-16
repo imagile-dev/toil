@@ -289,8 +289,9 @@ export function LoginForm({ connection: c, fields, config, after, confirm, borro
         if (refused) return refused;
         // Every field shown is answered, an empty one with '': toil keeps that secret as it is, as on the CLI.
         const typed = Object.fromEntries(fields.map((f) => [f.name, reuse[f.name] ? '' : (values[f.name] ?? '')]));
-        // Toil asks whether to reuse only where it can; the answer is here either way, so the call never stops on it.
-        const answers = { ...secrets.answers(), ...Object.fromEntries(borrow.map((b) => [`borrow:${b.key}`, reuse[b.key] ? 'y' : 'n'])) };
+        // Toil asks whether to reuse only where it can, which the page may judge differently (a base URL in
+        // defaults, say): every secret's borrow question is answered, n unless reuse was chosen, so the call never stops on it.
+        const answers = { ...secrets.answers(), ...Object.fromEntries(fields.map((f) => [`borrow:${f.name}`, reuse[f.name] ? 'y' : 'n'])) };
         setValues({});
         secrets.reset();
         return after(await config.run('connections login', { name: c.name }, { secrets: typed, answers }), `${c.name}'s login was updated.`);
@@ -345,16 +346,19 @@ function useSecretChoices() {
  * email). Toil decides for certain when the call is made: it offers the reuse
  * only where the other connection's token reads.
  */
+/** A setting's key in plain words for a heading: `apiToken` reads "API token". */
+const plainKey = (key: string) => key.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().replace(/^api\b/, 'API');
+
 function BorrowRadios({ choice, reusing, onChange }: { choice: BorrowChoice; reusing: boolean; onChange: (reusing: boolean) => void }) {
   return (
     <ChoiceRadios
-      label={`Which ${choice.key}?`}
+      label={`Which ${plainKey(choice.key)}?`}
       field={`borrow:${choice.key}`}
       selected={reusing ? 'borrow' : 'own'}
       onChange={(k) => onChange(k === 'borrow')}
       options={[
-        { key: 'own', label: 'Its own token' },
-        { key: 'borrow', label: `The token from ${choice.from}`, note: choice.match.length > 0 ? `Works only with the same ${choice.match.join(' and ')} as ${choice.from}.` : undefined },
+        { key: 'own', label: 'A token of its own' },
+        { key: 'borrow', label: `Reuse ${choice.from}'s token`, note: choice.match.length > 0 ? `Needs the same ${choice.match.join(' and ')} as ${choice.from}.` : undefined },
       ]}
     />
   );
@@ -541,13 +545,8 @@ export function NewConnectionForm({
     );
   };
 
-  // A setting a reused token only works with (the email) says so while the reuse is chosen.
-  const matchHint = (f: FormField) => {
-    const b = borrowing.find((x) => x.match.includes(f.name));
-    return b ? `Use the same ${f.name} as ${b.from}: its token only works with that.` : undefined;
-  };
   const plainField = (f: FormField) => (
-    <TextField key={f.name} field={f.name} label={f.name} value={form.text[f.name] ?? ''} onChange={(v) => setText(f.name, v)} onBlur={() => touch(f.name)} need={report.needs[f.name]} info={f.description} placeholder={f.default ?? undefined} problems={shown(f.name)} onSwitch={onSwitch} hint={matchHint(f)} />
+    <TextField key={f.name} field={f.name} label={f.name} value={form.text[f.name] ?? ''} onChange={(v) => setText(f.name, v)} onBlur={() => touch(f.name)} need={report.needs[f.name]} info={f.description} placeholder={f.default ?? undefined} problems={shown(f.name)} onSwitch={onSwitch} />
   );
 
   return (
@@ -600,6 +599,7 @@ export function NewConnectionForm({
             setForm((s) => ({ ...emptyState(s.name) }));
             setTouched({});
             setNotes([]);
+            setReuse({});
             secretChoices.reset();
           }}
           options={withFields.map((a) => ({ value: a.name, label: areaLabel(a.name) }))}

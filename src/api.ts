@@ -163,7 +163,10 @@ export interface Registry {
  * `confirm-name` (type the connection's name to turn writes on), `unwrap:<key>`
  * (the secret for `<key>` is in quotes or starts with `Bearer ` or `token `:
  * `y` stores it without them, `n` as entered; `checkSecret` says which before
- * the call, so a host can ask its person first), for `toil projects onboard`
+ * the call, so a host can ask its person first), `borrow:<key>` (use the
+ * secret for `<key>` from the other area's connection the question names
+ * instead of entering one: `y` or `n`; `ConnectionField.borrows` says when it
+ * is asked), for `toil projects onboard`
  * `create:<section>` (add a connection that toil project section needs: `y` or `n`),
  * `name:<section>` (the new connection's name) and `pin:<section>` (which
  * matching connection the person's own copy uses), and `consent`

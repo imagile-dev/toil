@@ -25,7 +25,7 @@ import { ToilError, withArticle } from '../core/errors.js';
 import { isKeychainRef, KEYCHAIN_PREFIX, refFor, refName, storeVerified, type SecretStore } from '../core/keychain.js';
 import type { Prompter } from '../core/prompt.js';
 import { askCheckedSecret } from '../core/secret-input.js';
-import { askBorrow, borrowOffers, borrowSetting, mismatched, type BorrowOffer } from './borrow.js';
+import { askBorrow, borrowOffers, borrowSetting, mismatched, warnUnreadable, type BorrowOffer } from './borrow.js';
 import { importCommand } from './import-command.js';
 
 /**
@@ -93,14 +93,23 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
 
       // A secret this connection could borrow instead (Jira Cloud's API token, for Confluence Cloud on the same site) is offered first.
       const own: Settings = { ...(area.defaults ?? {}), ...(config.defaults[area.name] ?? {}), ...(config.connections[input.name] ?? conn) };
-      const offers = await borrowOffers(config, area, own, secrets, ctx.signal, input.name);
+      const found = await borrowOffers(config, area, own, secrets, ctx.signal, input.name);
+      const unreadable = found.unreadable;
+      // A token of its own from env outranks any pairing, so a yes would change nothing: no offer is made.
+      const offers = found.offers.filter((o) => !['env', 'ci'].includes(config.sources[`${input.name}.${o.key}`] ?? ''));
+      warnUnreadable(ctx.warn, area, unreadable);
       const borrowed: Record<string, string> = {};
+      // Keys the person was offered a pairing for and declined: only those lose a pairing set before.
+      const declined = new Set<string>();
       const entered: Record<string, string> = {};
       for (const key of keys) {
         const offer = offers.find((o) => o.key === key);
-        if (offer && (await askBorrow(prompt, area, offer, own))) {
-          borrowed[key] = offer.from;
-          continue;
+        if (offer) {
+          if (await askBorrow(prompt, area, offer, own)) {
+            borrowed[key] = offer.from;
+            continue;
+          }
+          declined.add(key);
         }
         // An empty answer keeps what's stored, and says so; where nothing is stored, it stays unset.
         const rules = { password: area.secretKinds[key] === 'password', empty: conn[key] === undefined ? 'skip' : 'keep' } as const;
@@ -108,7 +117,9 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
         if (value !== '') entered[key] = value;
       }
       if (Object.keys(entered).length === 0 && Object.keys(borrowed).length === 0) {
-        throw new ToilError('INVALID_INPUT', 'Nothing was entered, so nothing changed.', { fix: `Run toil connections login ${input.name} again.` });
+        // Toil UI may have chosen a token toil couldn't offer, because it didn't read: say which, not just "nothing".
+        const why = unreadable.map((u) => ` ${u.from}'s token couldn't be read, so it wasn't offered: run toil connections test ${u.from}.`).join('');
+        throw new ToilError('INVALID_INPUT', `Nothing was entered, so nothing changed.${why}`, { fix: `Run toil connections login ${input.name} again${why ? ' once that works, or enter a token of its own' : ''}.` });
       }
 
       // The prompt may have waited minutes, and another toil may have changed
@@ -128,9 +139,10 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
         throw await withdrawStored(err, path, Object.values(refs), secrets, ctx);
       }
       Object.assign(latest.conn, refs);
-      // A secret of its own replaces a pairing, and a pairing replaces a secret of its own (which would
-      // otherwise win): either way the file says plainly which one the connection signs in with.
-      if (area.shares?.offer) for (const key of Object.keys(entered)) delete latest.conn[pairingKey(key)];
+      // Declining the offer and entering a token of its own drops a pairing set before, and a yes drops the
+      // connection's own token: either way the file names one source for that key, the one the person chose.
+      // A pairing nobody was asked about (set by hand, where no offer applies) is left as it was.
+      for (const key of Object.keys(entered)) if (declined.has(key)) delete latest.conn[pairingKey(key)];
       for (const [key, from] of Object.entries(borrowed)) {
         delete latest.conn[key];
         latest.conn[pairingKey(key)] = from;
@@ -149,7 +161,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     path: ['connections', 'list'],
     description: 'List connections: area, host, writes, and where each value came from. Never prints a secret.',
     toolDescription:
-      "Lists every toil connection: its name, area, whether it's the area's default, its host, whether writes are on, where each setting came from (env, ci, file, store or defaults), its deployment (server or cloud) for an area that has both, and whether the connection is in the config file (definedIn file) or made by env vars alone (env). Never returns a secret or any setting's value other than the host. Use it to find the connection name to pass as `connection` to another tool; set `area` for one area's connections only.",
+      "Lists every toil connection: its name, area, whether it's the area's default, its host, whether writes are on, where each setting came from (env, ci, file, store or defaults), its deployment (server or cloud) for an area that has both, and whether the connection is in the config file (definedIn file) or made by env vars alone (env). Never returns a secret, or any setting's value other than the host and the deployment. Use it to find the connection name to pass as `connection` to another tool; set `area` for one area's connections only.",
     input: z.object({
       area: z.string().optional().describe('Only connections to this area, e.g. jira'),
     }),
@@ -440,7 +452,12 @@ export async function addConnection(ctx: CommandContext<unknown>, areas: readonl
   if (!prompt) throw needsTerminal('add', input.name, input.area ? areaIn(areas, input.area) : undefined);
   const area = areaIn(areas, input.area ?? (await prompt.ask(`Area (${areas.map((a) => a.name).join(', ')})`, areas.length === 1 ? areas[0]!.name : undefined, 'area')));
 
-  const { settings, secretValues, borrowed } = await askSettings(prompt, area, input.name, options.suggest, (own) => borrowOffers(config, area, own, secrets, ctx.signal));
+  const { settings, secretValues, borrowed } = await askSettings(prompt, area, input.name, options.suggest, async (own) => {
+    // As the connection will resolve: the area's defaults, then defaults.<area>, then what was answered.
+    const found = await borrowOffers(config, area, { ...(area.defaults ?? {}), ...(config.defaults[area.name] ?? {}), ...own }, secrets, ctx.signal);
+    warnUnreadable(ctx.warn, area, found.unreadable);
+    return found.offers;
+  });
   // A borrowed secret is checked as present: the lender's resolved when it was offered.
   const standIns = Object.fromEntries(Object.keys(borrowed).map((k) => [k, 'borrowed']));
   const parsed = (area.connection as z.ZodObject).safeParse({ ...(area.defaults ?? {}), ...settings, ...standIns, ...secretValues });
@@ -567,8 +584,19 @@ async function addFromFlags(
   // A secret the person could borrow rather than type (Jira Cloud's API token, for Confluence Cloud on the
   // same site) is named, so the agent can tell them. Only the person says yes, at login: an agent never
   // sets the pairing, which is why --set refuses it above.
-  const offers = secretNeeded.length > 0 ? await borrowOffers(reloadConfig(access(ctx), areas), area, { ...(area.defaults ?? {}), ...settings }, access(ctx).secrets, ctx.signal, input.name).catch(() => []) : [];
-  const reusable = offers.filter((o) => secretNeeded.includes(o.key));
+  // A config that won't reload leaves the answer unknown (null), never a "none" it didn't look for.
+  let found: Awaited<ReturnType<typeof borrowOffers>> | null = { offers: [], unreadable: [] };
+  if (secretNeeded.length > 0) {
+    try {
+      const fresh = reloadConfig(access(ctx), areas);
+      found = await borrowOffers(fresh, area, { ...(area.defaults ?? {}), ...(fresh.defaults[area.name] ?? {}), ...settings }, access(ctx).secrets, ctx.signal, input.name);
+    } catch (err) {
+      if (ctx.signal.aborted) throw err;
+      found = null;
+    }
+  }
+  if (found) warnUnreadable(ctx.warn, area, found.unreadable);
+  const reusable = (found?.offers ?? []).filter((o) => secretNeeded.includes(o.key));
   if (secretNeeded.length > 0) {
     const reuse = reusable.map((o) => {
       const off = mismatched(o, settings);
@@ -580,7 +608,7 @@ async function addFromFlags(
       message: `${input.name} has no ${secretNeeded.join(', ')} yet. The person runs toil connections login ${input.name} in their own terminal, or enters it in Toil UI's Settings.${reuse.join('')} Writes are off.`,
     });
   }
-  const secretReusable = Object.fromEntries(reusable.map((o) => [o.key, o.from]));
+  const secretReusable = found ? Object.fromEntries(reusable.map((o) => [o.key, o.from])) : null;
   return { name: input.name, area: area.name, configFile: slashes(path), secrets: {}, secretNeeded, secretFromEnv: fromEnv, secretReusable, writes: false };
 }
 
@@ -815,7 +843,8 @@ async function askSettings(
   area: AnyArea,
   name: string,
   suggest: Record<string, string> = {},
-  findOffers: (own: Settings) => Promise<BorrowOffer[]> = async () => [],
+  /** Given the settings answered so far, what may be borrowed instead of asked for. */
+  findOffers: (answered: Settings) => Promise<BorrowOffer[]> = async () => [],
 ): Promise<{ settings: Settings; secretValues: Record<string, string>; borrowed: Record<string, string> }> {
   const shape = area.connection.shape as Record<string, z.ZodType>;
   const secretKeys: string[] = area.secrets ?? [];
@@ -836,7 +865,7 @@ async function askSettings(
   };
   const suggested = (key: string) => (Object.hasOwn(suggest, key) ? suggest[key] : undefined);
   for (const key of keys.filter((k) => !pairings.has(k) && !matched.has(k))) await ask(key, suggested(key));
-  const offers = offer ? await findOffers({ ...(area.defaults ?? {}), ...settings }) : [];
+  const offers = offer ? await findOffers({ ...settings }) : [];
   for (const key of keys.filter((k) => matched.has(k))) await ask(key, suggested(key) ?? offers.find((o) => o.match[key] !== undefined)?.match[key]);
   const borrowed: Record<string, string> = {};
   for (const o of offers) {

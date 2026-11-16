@@ -38,42 +38,82 @@ const hostOf = (url: unknown): string | null => {
  * The offers that apply to a connection of `area` holding `own` (as it
  * resolves: area defaults, `defaults.<area>`, then its own settings), at most
  * one per shared key: the other area's default connection first, then the
- * rest by name. A lender is offered only when its secret actually resolves, so
- * a yes never points at a connection that can't sign in. `self` is left out,
+ * rest by name. A lender is offered only when the config file holds it and
+ * its secret (a store reference, never an env var that the next shell may not
+ * have), and that secret actually resolves, so a yes never points at a
+ * connection that can't sign in. `self` is left out,
  * should the areas ever be the same.
  */
-export async function borrowOffers(config: ConfigAccess['config'], area: AnyArea, own: Settings, secrets: SecretStore | undefined, signal: AbortSignal, self?: string): Promise<BorrowOffer[]> {
+export async function borrowOffers(
+  config: ConfigAccess['config'],
+  area: AnyArea,
+  own: Settings,
+  secrets: SecretStore | undefined,
+  signal: AbortSignal,
+  self?: string,
+): Promise<{ offers: BorrowOffer[]; unreadable: Unreadable[] }> {
+  const none = { offers: [], unreadable: [] };
   const shares = area.shares;
   const offer = shares?.offer;
-  if (!shares || !offer) return [];
+  if (!shares || !offer) return none;
   const other = shares.area;
   const when = Object.entries(offer.when ?? {});
-  if (!when.every(([k, v]) => String(own[k] ?? '') === v)) return [];
+  if (!when.every(([k, v]) => String(own[k] ?? '') === v)) return none;
   const ownHost = hostOf(own.baseUrl);
-  if (offer.sameHost && !ownHost) return [];
+  if (offer.sameHost && !ownHost) return none;
   const first = defaultConnectionName(config, other.name);
   const names = Object.keys(config.connections)
     .filter((n) => n !== self && config.connections[n]!.area === other.name)
     .sort((a, b) => Number(b === first) - Number(a === first) || a.localeCompare(b));
   const found: BorrowOffer[] = [];
+  const unreadable: Unreadable[] = [];
   for (const key of shares.keys) {
     for (const name of names) {
       const theirs: Settings = { ...(other.defaults ?? {}), ...(config.defaults[other.name] ?? {}), ...config.connections[name]! };
       if (!when.every(([k, v]) => String(theirs[k] ?? '') === v)) continue;
       if (offer.sameHost && hostOf(theirs.baseUrl) !== ownHost) continue;
+      // The pairing is written to the file, so it may only point at a connection the file holds, whose
+      // token the file names (a store reference): one made of this shell's env vars is gone in the next.
+      if (config.sources[`${name}.${key}`] !== 'global') continue;
       let lender: Record<string, unknown>;
       try {
         lender = await resolveConnection(config, other, name, () => {}, secrets, signal);
-      } catch {
+      } catch (err) {
+        unreadable.push({ from: name, message: err instanceof Error ? err.message : String(err) });
         continue;
       }
-      if (lender[key] === undefined || lender[key] === '') continue;
+      if (lender[key] === undefined || lender[key] === '') {
+        unreadable.push({ from: name, message: `${name} has no ${key}.` });
+        continue;
+      }
       const match = Object.fromEntries((offer.match ?? []).filter((m) => lender[m] !== undefined).map((m) => [m, String(lender[m])]));
       found.push({ key, from: name, match });
       break;
     }
   }
-  return found;
+  // A lender skipped before the one offered doesn't matter; one skipped with nothing offered does.
+  return { offers: found, unreadable: found.length > 0 ? [] : unreadable };
+}
+
+/** The warning for each would-be lender whose secret didn't read, with the command that shows why. */
+export function warnUnreadable(warn: (w: { code: string; message: string }) => void, area: AnyArea, unreadable: Unreadable[]): void {
+  const other = area.shares?.area.name;
+  for (const u of unreadable) {
+    warn({
+      code: 'SECRET_REUSE_UNAVAILABLE',
+      message: `${u.from} (${other}) is on the same site and its token would work here, but it couldn't be read, so it wasn't offered: ${u.message} Run toil connections test ${u.from} to check it.`,
+    });
+  }
+}
+
+/**
+ * The other area's connections that would have been offered but whose secret
+ * didn't read, each with why. Said as a warning rather than skipped in
+ * silence, so a person asked for a token they already hold learns the reason.
+ */
+export interface Unreadable {
+  from: string;
+  message: string;
 }
 
 /** The match settings whose value here differs from the lender's (case aside: an email is one address in any case). */
