@@ -40,7 +40,7 @@ jobs:
     steps:
       - name: Generate Imagile Bot token
         id: imagile-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ vars.IMAGILE_BOT_APP_ID }}
           private-key: ${{ secrets.IMAGILE_BOT_PRIVATE_KEY }}
@@ -50,7 +50,7 @@ jobs:
           permission-pull-requests: write
 
       - id: rp
-        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ steps.imagile-token.outputs.token }}
           config-file: release-please-config.json
@@ -64,12 +64,12 @@ jobs:
       # on each run, so this runs whenever it opened or updated the PR.
       - name: Check out the release PR
         if: steps.rp.outputs.pr
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ fromJSON(steps.rp.outputs.pr).headBranchName }}
           token: ${{ steps.imagile-token.outputs.token }}
       - if: steps.rp.outputs.pr
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24.22.1'
           cache: npm
@@ -106,14 +106,14 @@ jobs:
       - name: Generate Imagile Bot token
         id: imagile-token
         if: needs.release-please.outputs.pr
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ vars.IMAGILE_BOT_APP_ID }}
           private-key: ${{ secrets.IMAGILE_BOT_PRIVATE_KEY }}
           permission-pull-requests: write
       # For scripts/release-pr-body.mjs, which the escape and the package check run.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24.22.1'
 
@@ -231,10 +231,10 @@ jobs:
       TAG: ${{ needs.release-please.outputs.tag_name }}
       VERSION: ${{ needs.release-please.outputs.version }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24.22.1'
           registry-url: https://registry.npmjs.org
@@ -352,18 +352,18 @@ jobs:
     steps:
       - name: Generate Imagile Bot token
         id: imagile-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           app-id: ${{ vars.IMAGILE_BOT_APP_ID }}
           private-key: ${{ secrets.IMAGILE_BOT_PRIVATE_KEY }}
           # It pushes one branch and opens one PR. Nothing else.
           permission-contents: write
           permission-pull-requests: write
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           token: ${{ steps.imagile-token.outputs.token }}
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24.22.1'
           cache: npm
@@ -429,10 +429,10 @@ jobs:
       TAG: ${{ needs.release-please.outputs.ui_tag_name }}
       VERSION: ${{ needs.release-please.outputs.ui_version }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.release-please.outputs.ui_tag_name }}
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24.22.1'
           registry-url: https://registry.npmjs.org
