@@ -21,14 +21,14 @@ export const INCLUDE_DEV_DESCRIPTION = 'Include dev/test dependencies (default: 
 
 /** The input fields and CLI flags every vulnerability source shares. */
 export const inventoryFields = {
-  from: z.string().optional().describe(FROM_DESCRIPTION),
+  inputFile: z.string().optional().describe(FROM_DESCRIPTION),
   ecosystem: z.string().optional().describe(ECOSYSTEM_DESCRIPTION),
   directOnly: z.boolean().optional().describe(DIRECT_ONLY_DESCRIPTION),
   includeDev: z.boolean().optional().describe(INCLUDE_DEV_DESCRIPTION),
 };
 
 export const inventoryOptions = [
-  { flags: '--from <file>', field: 'from', description: FROM_DESCRIPTION },
+  { flags: '--input-file <path>', field: 'inputFile', description: FROM_DESCRIPTION, deprecated: ['--from <file>'] },
   { flags: '--ecosystem <ecosystem>', field: 'ecosystem', description: ECOSYSTEM_DESCRIPTION },
   { flags: '--direct-only', field: 'directOnly', description: DIRECT_ONLY_DESCRIPTION },
   { flags: '--include-dev', field: 'includeDev', description: INCLUDE_DEV_DESCRIPTION },
@@ -41,8 +41,8 @@ export const inventoryOptions = [
 export function readInventory(ctx: InventoryContext, from: string | undefined, command: string): InventoryPackage[] {
   return readCoreInventory(ctx, from, {
     holds: 'a JSON file holding a list of { name, version, ecosystem } packages',
-    missingFix: 'Write the package list to a file in the workspace, then pass its path as from.',
-    fix: `Pass a JSON list of { name, version, ecosystem } packages to toil ${command}, with --from <file> or on stdin.`,
+    missingFix: 'Write the package list to a file in the workspace, then pass its path as inputFile.',
+    fix: `Pass a JSON list of { name, version, ecosystem } packages to toil ${command}, with --input-file <path> or on stdin.`,
     packageFix: 'Each package needs a name, version and ecosystem, e.g. { "name": "lodash", "version": "4.17.20", "ecosystem": "npm" }.',
   });
 }

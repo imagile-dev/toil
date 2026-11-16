@@ -398,7 +398,7 @@ describe('pull request comments', () => {
   });
 
   it('add-inline-comment roots the path and anchors on the side asked', async () => {
-    const { calls } = await run('pr comment-inline', { ...inRepo, id: 42, file: 'src/app.ts', line: 3, body: 'Why?', lineType: 'left', ...write });
+    const { calls } = await run('pr comment-inline', { ...inRepo, id: 42, path: 'src/app.ts', line: 3, body: 'Why?', lineType: 'left', ...write });
     expect(body(calls[0]!)).toEqual({
       comments: [{ parentCommentId: 0, content: 'Why?', commentType: 'text' }],
       status: 'active',

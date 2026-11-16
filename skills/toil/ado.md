@@ -274,10 +274,10 @@ Work items (`<id>` is the work item id):
   ignoring case. The tag list is read and written back, with no revision check. `tag`
   adds to the list; `untag` replaces it with the tags that remain (`add` would keep the
   removed one), and clears the field when the last tag comes off.
-- `work-item categorize` (`--from <file>`): Apply a classification plan: tag work items with
+- `work-item categorize` (`--input-file <path>`): Apply a classification plan: tag work items with
   their category, and set a field when the plan names one. See **Categorizing work items**.
 - `work-item attachments <id>` (Server): The attached files (id, name, url, size, dates).
-- `work-item attach <id>` (Server): Upload `--file` (a path in the workspace), then link
+- `work-item attach <id>` (Server): Upload `--input-file` (a path in the workspace), then link
   it (`--comment` optional). Returns the uploaded attachment's `{ id, url }`. If the link
   fails, the upload stays on the server.
 - `work-item download <id> <attachment-id>` (Server): Save the attachment to `--dir`
@@ -367,7 +367,7 @@ Pull requests (`<id>` is the pull request id):
   `threadContext` (null for a general comment). Server includes system comments;
   Services leaves them out unless `--include-system`. `--inline-only` or
   `--general-only` narrows it.
-- `pr comment <id>` (`--body`), `pr comment-inline <id>` (`--file /src/a.ts`,
+- `pr comment <id>` (`--body`), `pr comment-inline <id>` (`--path /src/a.ts`,
   `--line 12`, `--body`, `--line-type left|right`, default `right`; a path without a
   leading `/` gets one on Services), `pr reply <id> <thread-id>` (`--body`),
   `pr resolve <id> <thread-id>` (status `fixed`; Services takes `--status`: `fixed`
@@ -444,7 +444,7 @@ toil ado work-item link 42 --target 7 --type child --allow-write
 toil ado --repo imagile-api pr list --state all
 toil ado --repo imagile-api pr list --state all --updated-since 2026-10-01T00:00:00Z --limit 100
 toil ado --repo imagile-api pr get 42 --include reviews,checks,commits,files
-toil ado pr comment-inline 42 --file /src/app.ts --line 12 --body "Off by one?" --allow-write
+toil ado pr comment-inline 42 --path /src/app.ts --line 12 --body "Off by one?" --allow-write
 toil ado work-item search --wiql "SELECT [System.Id] FROM WorkItems" --updated-since 2026-10-01 --limit 200
 toil ado work-item get-many 42 7 --fields System.Title,System.State
 toil ado pipeline run 5 --branch main --wait --allow-write
@@ -525,7 +525,7 @@ category each work item belongs to, and this command writes that down.
 
 ```bash
 toil ado work-item get-many 42 43 47 --fields System.Title,System.Description,System.WorkItemType,System.Tags,System.Parent | toil util owi map | toil classify run --toil-project payments --summary-file plan.json
-toil ado work-item categorize --from plan.json --allow-write
+toil ado work-item categorize --input-file plan.json --allow-write
 ```
 
 The plan's keys are work item ids, which are unique in a collection (Server) or organization

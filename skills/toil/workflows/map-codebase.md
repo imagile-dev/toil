@@ -26,7 +26,7 @@ inside the workspace.
    came from.
 
    ```bash
-   toil util size . --depth 2 --top 20
+   toil util size --input-file . --depth 2 --top 20
    toil util size <source-folder> --top 20
    toil util size <one-of-the-largest-source-files>
    toil util deps scan
@@ -109,7 +109,7 @@ inside the workspace.
    commands. For Confluence, Data Center takes
    `toil confluence page update <id> --body-file <file> --markdown --allow-write`;
    Cloud takes storage format, from `toil util md <file> --to storage`, saved and sent as
-   `--body-file`. Attach the SVG with `toil confluence page attach <id> --file <svg> --allow-write`.
+   `--body-file`. Attach the SVG with `toil confluence page attach <id> --input-file <svg> --allow-write`.
 
 4. **Keep the map.** Write one JSON file at a path the person picks, inside the
    repository or the workspace they chose (propose `docs/map/map.json`, with the

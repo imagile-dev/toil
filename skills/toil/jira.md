@@ -137,10 +137,10 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 | `issue log-work` ✎ | `<key> --time-spent --comment --started` | The worklog (on Cloud plus `commentText`) |
 | `issue search` | `--jql` or `--jql-file`, `--limit --start-at --cursor --updated-since --changelog --fields --more-fields` | Data Center: `{ issues, total, startAt, maxResults }`. Cloud: `{ issues, maxResults, isLast }`. `--start-at` is Data Center only |
 | `issue label` ✎ / `issue unlabel` ✎ | `<key> --labels a,b` | `{ updated, labelsAdded }` / `{ updated, labelsRemoved }` |
-| `issue categorize` ✎ | `--from <file>` | `{ connection, scheme, field, changed, unchanged, failed, skipped, counts }`: applies a classification plan; see **Categorizing issues** |
+| `issue categorize` ✎ | `--input-file <path>` | `{ connection, scheme, field, changed, unchanged, failed, skipped, counts }`: applies a classification plan; see **Categorizing issues** |
 | `issue assign` ✎ | `<key> --assignee <user>` | `{ assigned, assignee }`: a username on Data Center, an accountId on Cloud |
 | `issue link` ✎ | `<key> --target --type` | `{ linked, to, type }` |
-| `issue attach` ✎ | `<key> --file` | The attachments created |
+| `issue attach` ✎ | `<key> --input-file` | The attachments created |
 | `issue attachments` | `<key>` | Attachments (id, filename, size, mimeType, content) |
 | `issue download` | `<key> <attachment-id> --dir` | `{ saved, filename, size }`; saves to `.toil/` by default |
 | `issue fields` | `--discover --custom-only --project --issue-type` | Registered fields, or Jira's field list with `suggestedType` and `allowedValues` |
@@ -468,7 +468,7 @@ command writes that down.
 
 ```bash
 toil jira issue search --jql "project = PAY AND statusCategory != Done" --fields summary,description,issuetype,labels,parent,customfield_10042 | toil util owi map | toil classify run --toil-project payments --summary-file plan.json
-toil jira issue categorize --from plan.json --allow-write
+toil jira issue categorize --input-file plan.json --allow-write
 ```
 
 - **Labels.** Each issue gets its category's label, and loses the scheme's other labels.

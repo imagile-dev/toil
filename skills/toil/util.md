@@ -198,7 +198,7 @@ Known quirks, which stay until they're checked against real repositories:
 - `pom.xml` plugin dependencies count as the project's.
 
 The output is the inventory the vulnerability and licence commands read from stdin
-or `--from <file>`: `toil osv vulns`, `toil ossindex vulns`, `toil sonatypeiq
+or `--input-file <path>`: `toil osv vulns`, `toil ossindex vulns`, `toil sonatypeiq
 evaluate`, and `toil artifactory package outdated` / `license-check`. Over MCP, save it to a
 file in the workspace and pass that file's path as `from`.
 
@@ -244,9 +244,9 @@ repository's staged or working-tree diff, and talks to nothing.
 
 ```bash
 toil util secrets scan --diff staged          # before git commit
-toil util secrets scan src/                   # a folder, .gitignore respected
-toil util secrets scan notes.md
-gh pr view 12 --json body -q .body | toil util secrets scan -
+toil util secrets scan --input-file src/                   # a folder, .gitignore respected
+toil util secrets scan --input-file notes.md
+gh pr view 12 --json body -q .body | toil util secrets scan --input-file -
 toil util secrets scan --text "$COMMENT"
 ```
 
@@ -379,11 +379,11 @@ file with SHA-256, SHA-1 or MD5. Each result is checked before it's returned, an
 
 ```bash
 toil util encode base64 --text 'you@example.com:abc12345'
-toil util encode base64 --decode mail-part.b64 --out logo.png
+toil util encode base64 --decode --input-file mail-part.b64 --out logo.png
 toil util encode url --text 'project = PAY AND assignee = "you@example.com"'
 toil util encode form --decode --text 'project+%3D+PAY+AND+assignee+%3D+%22you%40example.com%22'
 printf 'hello' | toil util encode hex
-toil util encode sha256 release.tgz
+toil util encode sha256 --input-file release.tgz
 ```
 
 | Argument or flag | Meaning |
@@ -464,10 +464,10 @@ explain a TLS failure from the files. It never connects to the host the certific
 is for: pass the file the server is configured with, or the chain a client saved.
 
 ```bash
-toil util cert chain.pem
-toil util cert chain.pem --host api.imagile.dev
-toil util cert server.der
-cat chain.pem | toil util cert -
+toil util cert --input-file chain.pem
+toil util cert --input-file chain.pem --host api.imagile.dev
+toil util cert --input-file server.der
+cat chain.pem | toil util cert --input-file -
 ```
 
 | Argument or flag | Meaning |
@@ -551,7 +551,7 @@ with the reason and an example of what fits. Build metadata never affects order.
 toil util semver compare 1.0.0-rc.10 1.0.0-rc.9
 toil util semver satisfies 1.3.0-rc.1 '^1.2.0' --include-prerelease
 toil util semver satisfies 5.3.39 '[5.0,6.0)' --ecosystem maven
-toil util semver sort versions.txt --range '^5.0.0'
+toil util semver sort --input-file versions.txt --range '^5.0.0'
 toil util semver bump 1.2.3 prerelease --preid rc
 ```
 
@@ -601,10 +601,10 @@ One JSON summary of a report that CI or a scanner wrote: JUnit XML, TRX, SARIF
 against its own declared totals.
 
 ```bash
-toil util report target/surefire-reports/TEST-dev.imagile.OrderTest.xml
-toil util report TestResults/build.trx
-toil util report coverage/lcov.info --lowest 5
-toil util report results.sarif
+toil util report --input-file target/surefire-reports/TEST-dev.imagile.OrderTest.xml
+toil util report --input-file TestResults/build.trx
+toil util report --input-file coverage/lcov.info --lowest 5
+toil util report --input-file results.sarif
 cat coverage.xml | toil util report --format cobertura
 ```
 
@@ -703,10 +703,10 @@ stack trace that follows it. It reads the file only, streams it, and holds memor
 constant however large the log is.
 
 ```bash
-toil util log build.log
-toil util log console.log --level error --context 3
-toil util log console.log --since 2026-10-14T09:12:00Z --grep 'Failed to execute'
-some-build 2>&1 | toil util log -
+toil util log --input-file build.log
+toil util log --input-file console.log --level error --context 3
+toil util log --input-file console.log --since 2026-10-14T09:12:00Z --grep 'Failed to execute'
+some-build 2>&1 | toil util log --input-file -
 ```
 
 | Argument or flag | Meaning |
@@ -802,9 +802,9 @@ context: bytes, lines and an estimated token count, and for one file an outline
 with line ranges, so you can read just the part you need.
 
 ```bash
-toil util size src/areas/util/size.ts
-toil util size src --depth 2 --top 5
-git show HEAD:README.md | toil util size - --language markdown
+toil util size --input-file src/areas/util/size.ts
+toil util size --input-file src --depth 2 --top 5
+git show HEAD:README.md | toil util size --input-file - --language markdown
 ```
 
 | Argument / flag | Meaning |
@@ -956,7 +956,7 @@ parts (`duration.roundtrip`, warning `DURATION_ROUNDTRIP_MISMATCH`).
 #### `toil util time business-days add` and `diff`
 
 ```bash
-toil util time business-days add 2026-12-23 3 --holidays holidays-2026.txt
+toil util time business-days add 2026-12-23 3 --holidays-file holidays-2026.txt
 toil util time business-days add 2026-12-28 -1
 toil util time business-days diff 2026-12-24T15:00 2026-12-29T10:00 --zone America/Chicago --holiday 2026-12-25
 ```
@@ -967,7 +967,7 @@ toil util time business-days diff 2026-12-24T15:00 2026-12-29T10:00 --zone Ameri
 | `<days>` | `add`: business days to add; negative subtracts |
 | `<end>` | `diff`: the end time or date |
 | `--zone <zone>` | The zone whose calendar days count, and the zone of a time without an offset (default `UTC`) |
-| `--holidays <file>` | A file in the workspace: one `YYYY-MM-DD` per line, optionally followed by a name; `#` lines are comments. Any other line is `INVALID_INPUT` naming it |
+| `--holidays-file <path>` | A file in the workspace: one `YYYY-MM-DD` per line, optionally followed by a name; `#` lines are comments. Any other line is `INVALID_INPUT` naming it |
 | `--holiday <date>` | A holiday as `YYYY-MM-DD` (repeatable) |
 
 Business days are Monday to Friday, less the holidays given. No country's holidays
@@ -1059,11 +1059,11 @@ Center). One side is always Markdown. Every result is checked by converting it
 back, so you're told exactly what didn't survive.
 
 ```bash
-toil util md description.md --to wiki
-toil util md page.md --to storage
-toil util md description.md --to adf --select output
-toil util md PROJ-142.wiki --from wiki
-toil util md description.adf.json --from adf
+toil util md --input-file description.md --to wiki
+toil util md --input-file page.md --to storage
+toil util md --input-file description.md --to adf --select output
+toil util md --input-file PROJ-142.wiki --from wiki
+toil util md --input-file description.adf.json --from adf
 ```
 
 ADF input is the document itself, `{ "type": "doc", "version": 1, "content": [...] }`:
@@ -1157,12 +1157,12 @@ or YAML, so you can call an endpoint right the first time, usually through
 each version is checked against are bundled.
 
 ```bash
-toil util openapi list jira-platform.json --tag Issues
-toil util openapi list github.yaml --path pulls
-toil util openapi show jira-platform.json --operation createIssue
-toil util openapi show bitbucket.json --method POST --path /repositories/{workspace}/{repo_slug}/pullrequests --depth 1
-toil util openapi example jira-platform.json --operation createIssue
-toil util openapi example github.yaml --operation pulls/get --response 200
+toil util openapi list --input-file jira-platform.json --tag Issues
+toil util openapi list --input-file github.yaml --path pulls
+toil util openapi show --input-file jira-platform.json --operation createIssue
+toil util openapi show --input-file bitbucket.json --method POST --path /repositories/{workspace}/{repo_slug}/pullrequests --depth 1
+toil util openapi example --input-file jira-platform.json --operation createIssue
+toil util openapi example --input-file github.yaml --operation pulls/get --response 200
 ```
 
 | Flag | Meaning |
@@ -1223,10 +1223,10 @@ server's base path plus the operation's, with `{name}` for each of
 `writes`, and the CLI line. Over MCP the same fields are `<area>_api`'s inputs.
 
 ```bash
-toil util openapi show jira-platform.json --operation editIssue --select call
+toil util openapi show --input-file jira-platform.json --operation editIssue --select call
 # { "method": "PUT", "path": "/rest/api/2/issue/{issueIdOrKey}", "bodyFile": "body.json", "writes": true,
 #   "cli": "toil <area> api PUT /rest/api/2/issue/{issueIdOrKey} --body-file body.json --allow-write", ... }
-toil util openapi example jira-platform.json --operation editIssue --select example
+toil util openapi example --input-file jira-platform.json --operation editIssue --select example
 toil jira api PUT /rest/api/2/issue/ABC-123 --body-file body.json --allow-write
 ```
 
@@ -1295,12 +1295,12 @@ their dashed boundary, and each relationship's label placed clear of the boxes.
 Nothing is installed or run, and nothing goes over the network.
 
 ```bash
-toil util c4 render docs/c4/bookshop.c4.json --view containers --out containers.svg
-toil util c4 mermaid docs/c4/bookshop.c4.json --view context
-cat model.json | toil util c4 d2 - --view components
+toil util c4 render --input-file docs/c4/bookshop.c4.json --view containers --out containers.svg
+toil util c4 mermaid --input-file docs/c4/bookshop.c4.json --view context
+cat model.json | toil util c4 d2 --input-file - --view components
 ```
 
-A model can also come from another toil command, read from the `data` of its envelope: `toil projects diagram show payments --select model | toil util c4 render - --view containers`.
+A model can also come from another toil command, read from the `data` of its envelope: `toil projects diagram show payments --select model | toil util c4 render --input-file - --view containers`.
 
 | Flag | Meaning |
 |------|---------|
@@ -1424,11 +1424,11 @@ envelope a line.
 
 ```bash
 toil jira issue search --jql "sprint in openSprints()" --fields "summary,status,issuetype,Story Points,Sprint" | toil util owi map
-toil util owi map sprint-42.jsonl
-toil util owi map changelog.json --key PAY-104
-toil util owi map batch.json --field estimate=Custom.TeamPoints --field estimateUnit=points
-toil util owi map issue.json --command "github issue get"
-toil util owi map prs.jsonl --key-pattern "PAY-{n}=corp-jira" --author-kind release-bot=BOT
+toil util owi map --input-file sprint-42.jsonl
+toil util owi map --input-file changelog.json --key PAY-104
+toil util owi map --input-file batch.json --field estimate=Custom.TeamPoints --field estimateUnit=points
+toil util owi map --input-file issue.json --command "github issue get"
+toil util owi map --input-file prs.jsonl --key-pattern "PAY-{n}=corp-jira" --author-kind release-bot=BOT
 ```
 
 | Argument / flag | Meaning |
@@ -1588,7 +1588,7 @@ Jira, Azure DevOps or GitHub.
 toil jira issue search --jql "project = PAY" | toil util owi map | toil util owi similar --query "Card payments time out at checkout"
 toil util owi similar --input-file items.owi.json --item corp-jira:PAY-101 --limit 5
 toil util owi similar --input-file items.owi.json --pairs --threshold 0.6
-toil util owi similar items.owi.json --pairs --fields title,body
+toil util owi similar --input-file items.owi.json --pairs --fields title,body
 ```
 
 | Argument / flag | Meaning |

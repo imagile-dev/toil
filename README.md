@@ -49,7 +49,7 @@ One command, one envelope, and only the fields the task asked for. A real run of
 the released `0.1.0-alpha.2`:
 
 ```console
-$ toil util size package.json --select "{bytes: bytes, tokens: tokens}"
+$ toil util size --input-file package.json --select "{bytes: bytes, tokens: tokens}"
 {"ok":true,"data":{"bytes":2162,"tokens":541},"error":null,"meta":{"command":"util size","durationMs":90,"version":"0.1.0-alpha.2","contractVersion":2,"warnings":[{"code":"APPROXIMATED","message":"tokens is approximate: ceil(characters / 4) per file, counting characters as Unicode code points. An estimate, not any model's tokenizer: real counts vary by model and by content."}]}}
 ```
 

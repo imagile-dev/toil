@@ -442,8 +442,17 @@ deployment pair is built the same way, as one area with a `deployment` field.
   flags.
 - **One idea, one flag, everywhere**: `--limit` / `--cursor` to page (never
   `--max-results` or `--top` for the same thing), `--assignee`, `--target`, `--type`,
-  `--body`, `--file` to upload, `--dir` to download into, `--input-file` for a JSON
-  document, `--field Name=value`, `--updated-since`. A new input field is named after
+  `--body`, `--field Name=value`, `--updated-since`. **Files have four flags, one per
+  idea (#622):** `--input-file <path>` (field `inputFile`, `-` for stdin on the CLI) for
+  the local file a command reads, whatever it holds (a document, an inventory, a plan, a
+  JSON input, the file an `attach` uploads); `--<flag>-file` for one field read from a
+  file (`--body-file`, `--jql-file`, `--holidays-file`); `--path` for a path inside a
+  remote repository (`pr comment-inline`, `pr diff`); and `--out <path>` for a file the
+  command writes itself, with `--dir` for downloads and the global `--output-file` for
+  the envelope. Never a positional file, `--file` or `--from <file>`. A flag renamed
+  after the first beta keeps its old spelling in the option's `deprecated` list (and a
+  retired positional sets `deprecated` to its flag), which the CLI still reads with a
+  `DEPRECATED_FLAG` warning for at least one beta. A new input field is named after
   its flag, and a positional id's field after the argument (`key` for a Jira issue,
   `id` for most others, `name` or `commit` where that's what identifies it). Where an
   idea needs two flags (`--top` beside `--limit`), `AGENT_DECISIONS.md` says why.

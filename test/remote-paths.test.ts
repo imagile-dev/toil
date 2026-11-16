@@ -145,7 +145,7 @@ describe('every entry point that takes a path, end to end with the real node con
     ['--cwd on an area command, which picks the toil project and the git remotes', ['github', 'pr', 'get', '7', '--cwd', unc]],
     ['--toil-project as a file', ['github', 'pr', 'get', '7', '--toil-project', `${unc}.json`]],
     ['toil projects import', ['projects', 'import', `${unc}.json`]],
-    ['toil projects export --file', ['projects', 'export', 'payments', '--file', `${unc}.json`]],
+    ['toil projects export --out', ['projects', 'export', 'payments', '--out', `${unc}.json`]],
     ['toil projects export --repo', ['projects', 'export', 'payments', '--repo', unc]],
     ['repos scan', ['repos', 'scan', unc]],
   ];
@@ -167,7 +167,7 @@ describe('every entry point that takes a path, end to end with the real node con
     const { http, context: ctx } = context(false);
     const session = await connectMcp({ commands, context: ctx, areas: ['util', 'github'] });
     const calls: Array<[string, Record<string, unknown>]> = [
-      ['util_md', { file: `${unc}.md`, to: 'wiki' }],
+      ['util_md', { inputFile: `${unc}.md`, to: 'wiki' }],
       ['github_pr_get', { number: '7', cwd: unc }],
       ['github_pr_get', { number: '7', toilProject: `//${PROBE}/share/x.json` }],
     ];

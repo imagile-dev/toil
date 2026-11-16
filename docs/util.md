@@ -46,7 +46,7 @@ args: [fileArgument],
 options: [textOption, { flags: '--since <time>', field: 'since', description: '…' }],
 ```
 
-That gives `toil util log build.log`, `toil util log - < build.log` (or no file at
+That gives `toil util log --input-file build.log`, `toil util log < build.log` (or no file at
 all, which also reads stdin) and `--text '…'`, and over MCP `{ file }` or
 `{ text }`. `openInput(ctx, input, options)` opens whichever was given. It refuses
 both at once, stdin over MCP (naming `file` and `text`), a folder, and binary content
