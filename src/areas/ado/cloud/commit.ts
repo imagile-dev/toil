@@ -115,10 +115,16 @@ export const commitCreateCommand = adoArea.command({
     // What the base already holds decides add or edit: the server refuses an add of a path that exists, and an edit of one that doesn't.
     const existing = new Set<string>();
     if (base !== undefined) {
-      const items = await adoc<{ value?: GitItem[] }>(ctx, `${repoPath(ctx)}/items`, {
-        query: { scopePath: `/${commonFolder(paths)}`, recursionLevel: 'Full', 'versionDescriptor.version': base, 'versionDescriptor.versionType': 'commit' },
-      });
-      for (const item of items.value ?? []) if (!item.isFolder) existing.add(item.path);
+      const scope = commonFolder(paths);
+      try {
+        const items = await adoc<{ value?: GitItem[] }>(ctx, `${repoPath(ctx)}/items`, {
+          query: { scopePath: `/${scope}`, recursionLevel: 'Full', 'versionDescriptor.version': base, 'versionDescriptor.versionType': 'commit' },
+        });
+        for (const item of items.value ?? []) if (!item.isFolder) existing.add(item.path);
+      } catch (error) {
+        // A folder the base doesn't have yet answers 404: nothing in it exists, so every file is an add.
+        if (!(scope !== '' && error instanceof ToilError && error.code === 'NOT_FOUND')) throw error;
+      }
     }
 
     const changes = paths.map((path, i) => ({

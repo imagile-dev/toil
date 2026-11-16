@@ -729,6 +729,13 @@ describe('the writes demo seeding needed (#618)', () => {
       expect((body(calls[4]!) as { refUpdates: unknown }).refUpdates).toEqual([{ name: 'refs/heads/feature/retries', oldObjectId: SHA }]);
     });
 
+    it('commits into a folder the base does not have yet, every file an add, when its listing answers 404', async () => {
+      const missing: Route[] = [{ path: '/imagile/Imagile/_apis/git/repositories/imagile-api/items', respond: { status: 404, json: { message: 'TF401174: The item \'/newdir\' could not be found.' } } }];
+      const { calls, envelope } = await run('commit create', { ...inRepo, branch: 'main', message: 'New', file: ['src/retry.js'], ...write }, missing);
+      expect(envelope.ok).toBe(true);
+      expect((body(calls[3]!) as { commits: Array<{ changes: Array<{ changeType: string }> }> }).commits[0]!.changes.map((c) => c.changeType)).toEqual(['add']);
+    });
+
     it('makes the first commit of an empty repository from the zero object id, every file an add', async () => {
       const empty: Route[] = [
         { path: `/imagile/Imagile/_apis/git/repositories/imagile-api`, respond: { json: { id: 'abc12345-0000-0000-0000-000000000003', name: 'imagile-api' } } },
