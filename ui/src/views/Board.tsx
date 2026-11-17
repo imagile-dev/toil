@@ -37,6 +37,7 @@
  * to apply it.
  */
 
+import { noteApplied } from '../applied.ts';
 import { ChevronDownIcon, ChevronRightIcon } from '../components/icons.tsx';
 import {
   DndContext,
@@ -600,6 +601,8 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
       // The extra argument is sent only for a press on "Add to the board and move": a plain drop never asks to add anything.
       const out = how.addToBoard ? await classifyApi.moveItem(toilProject.name, item.id, to as MoveColumn, { addToBoard: true }) : await classifyApi.moveItem(toilProject.name, item.id, to as MoveColumn);
       if (out.status === 'applied') {
+        // The header's line about the data stops saying nothing changed (#657, round 4).
+        noteApplied(`move:${item.id}:${to}:${Date.now()}`, new Date().toISOString());
         // Back where the data says it is, the card needs no override; anywhere else it stays where it was put until a sync says.
         if (to === base) unshow(item.id);
         else setShown((m) => new Map(m).set(item.id, { base, at: to, pending: false }));

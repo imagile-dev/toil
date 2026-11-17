@@ -3,7 +3,8 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { AssignmentRecord, AssignmentsApi } from '../src/assign/model.ts';
+import { settledState, type AssignmentRecord, type AssignmentsApi } from '../src/assign/model.ts';
+import { resetApplied } from '../src/applied.ts';
 import { fixtureAssignments } from '../src/fixtures/assignments.ts';
 import { fixtureStandards } from '../src/fixtures/standards.ts';
 import { item, open, panel, resetBrowserState } from './views-kit.tsx';
@@ -17,7 +18,10 @@ import { item, open, panel, resetBrowserState } from './views-kit.tsx';
  * saving anything.
  */
 
-beforeEach(resetBrowserState);
+beforeEach(() => {
+  resetBrowserState();
+  resetApplied();
+});
 
 const go = async (hash: string) => {
   await act(async () => {
@@ -131,7 +135,9 @@ describe('the rule rows on an item (#657)', () => {
       apply: async (id, pid) => {
         const r = structuredClone(await real.get(id));
         const p = r.proposals.find((x) => x.id === pid)!;
-        Object.assign(p, tries++ === 0 ? { status: 'failed', outcome: { at: '2026-01-01T00:00:00Z', ok: false, code: 'WRITE_DISABLED', message: off } } : { status: 'applied', outcome: { at: '2026-01-01T00:00:00Z', ok: true, message: 'Applied with toil jira issue update.' } });
+        Object.assign(p, tries++ === 0 ? { status: 'failed', outcome: { at: '2026-01-01T00:00:00Z', ok: false, code: 'WRITE_DISABLED', message: off } } : { status: 'applied', outcome: { at: '2026-10-13T09:15:00Z', ok: true, message: 'Applied with toil jira issue update.' } });
+        // Settled as the queue settles it: every proposal applied, so the questions no longer hold it on needs you.
+        if (r.state === 'needs-you') r.state = settledState(r);
         patched.set(id, r);
         return r;
       },
@@ -165,7 +171,21 @@ describe('the rule rows on an item (#657)', () => {
     await userEvent.click(within(card).getByRole('button', { name: /^Apply/ }));
     await waitFor(() => expect(within(card).getByRole('columnheader', { name: 'Before' })).toBeTruthy());
     expect(within(card).getByRole('columnheader', { name: 'After' })).toBeTruthy();
-    expect(card.querySelector('.assign-before')).toBeNull();
+    expect(card.querySelector('.assign-before, [data-diff="del"].diff-line--del')).toBeNull();
+    // Round 4: the page reads as done. The chip says Applied, the card is a record with a solid border and no pre-apply note,
+    // the lede says where the change went, and the outcome names the item and the time, with the way to it.
+    await waitFor(() => expect(document.querySelector('.item-meta .assign-state')!.textContent).toBe('Applied'));
+    expect(card.classList.contains('proposal--applied')).toBe(true);
+    expect(document.querySelector('[data-proposals-lede]')!.textContent).toMatch(/^The applied change is in Jira\. $/);
+    expect(document.body.textContent).not.toContain('Nothing changes in Jira');
+    expect(document.querySelector('[data-assignment-lead]')).toBeNull();
+    const line = card.querySelector('[data-applied-line]')!;
+    expect(line.textContent).toMatch(/^Applied to Jira PAY-103 (at|on) .*09:15 UTC\./);
+    const link = line.querySelector('a');
+    if (link) expect(link.textContent).toMatch(/^Open in Jira/);
+    expect(screen.queryByRole('button', { name: 'Mark reviewed' })).toBeNull();
+    // The header no longer says the data was read without changing anything.
+    expect(document.querySelector('header .sync')!.textContent).toMatch(/1 change applied since\./);
   });
 
   it('says no AI agent is set up, and links to setting one up, rather than offering a button that can only fail', async () => {

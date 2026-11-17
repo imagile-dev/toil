@@ -14,7 +14,8 @@ import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components';
 import type { Agent } from './agent.ts';
 import { Ambient } from './ambient/Ambient.tsx';
 import { DataContext, type Data, type StartReady } from './data.ts';
-import { dateTime, toilProjectHref } from './format.ts';
+import { dateTime, timeOnDay, toilProjectHref } from './format.ts';
+import { noteApplied, useAppliedSince } from './applied.ts';
 import { loadToilProject, loadToilProjects, type ArchivedToilProject, type ToilProjectData, type ToilProjectSummary } from './load.ts';
 import { canArchive, type ArchiveNotice } from './components/archive.tsx';
 import { SkinProvider, ThemeProvider, skinsFor } from './skins.tsx';
@@ -409,6 +410,23 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   // Every assignment this browser starts is remembered as its own, for "only for agents I started" (#306).
   const { mine, mark } = useMine();
   const assignments = useMemo(() => (given ? remembering(given, mark) : undefined), [given, mark]);
+  // Changes applied from this Toil UI that the server already holds, so the header still says so after a reload (#657, round 4).
+  const onProject = 'toilProject' in route ? route.toilProject : null;
+  useEffect(() => {
+    if (!assignments || assignments.disabled || !onProject) return;
+    let live = true;
+    assignments.list(onProject, { inbox: false }).then(
+      (l) => {
+        if (!live) return;
+        for (const a of l.assignments) for (const p of a.proposals) if (p.status === 'applied' && p.outcome?.ok) noteApplied(`assignment:${a.id}/${p.id}`, p.outcome.at);
+      },
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [assignments, onProject, now]);
+  const changedSince = useAppliedSince(now);
   const [list, setList] = useState<Loaded<{ toilProjects: ToilProjectSummary[]; archived: ArchivedToilProject[] | null; calls: Call[] }> | null>(null);
   // What the last archive or unarchive did, shown above the list with its undo (#561).
   const [archiveNotice, setArchiveNotice] = useState<ArchiveNotice | null>(null);
@@ -800,7 +818,21 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
           <Notices />
           {!(preview && phoneBanner) && (
             <p className="sync">
-              {preview ? 'Sample data' : 'Data'} read {dateTime(now)} {plain.pw('through toil, read-only.', 'without changing anything.')}
+              {changedSince > 0 ? (
+                <>
+                  {/* A change applied after the read: "without changing anything" would no longer be true, and the data no longer shows it (principle 4). */}
+                  {preview ? 'Sample data' : 'Data'} read {timeOnDay(now, new Date().toISOString())}. {changedSince === 1 ? '1 change' : `${changedSince} changes`} applied since.{' '}
+                  {onSync && (
+                    <Button className="btn btn--small" onPress={onSync} data-sync-applied="">
+                      Sync now
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {preview ? 'Sample data' : 'Data'} read {dateTime(now)} {plain.pw('through toil, read-only.', 'without changing anything.')}
+                </>
+              )}
             </p>
           )}
         </header>

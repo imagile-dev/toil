@@ -93,10 +93,29 @@ function notableOf(state: AssignState, e: Pick<AssignmentEvent, 'stop' | 'pendin
     if (e.stop === 'interrupted') return { notable: 'failed', why: 'Toil UI stopped while it ran' };
     // The run's own reason, on one line: what failed, as the assignment page says it.
     const said = e.message.split('\n')[0]!.trim();
-    return { notable: 'failed', why: said ? (said.length > 160 ? `${said.slice(0, 157)}...` : said) : 'failed' };
+    return { notable: 'failed', why: said ? clip(said, 160) : 'failed' };
   }
   return { notable: null, why: state };
 }
+
+/**
+ * A line cut to at most `max` characters for a notice: at the last sentence end that leaves most of it, else at the last
+ * word, with an ellipsis, so a notice never ends mid-word ("purcha..."). The whole message stays on the assignment's page.
+ */
+export function clip(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const room = text.slice(0, max - 1);
+  const sentence = Math.max(room.lastIndexOf('. '), room.lastIndexOf('! '), room.lastIndexOf('? '));
+  if (sentence >= max / 2) return text.slice(0, sentence + 1);
+  const word = room.lastIndexOf(' ');
+  return `${(word > 0 ? room.slice(0, word) : room).replace(/[\s,;:(]+$/, '')}…`;
+}
+
+/**
+ * Whether an assignment event means it no longer waits on a person: a notice or bell entry that said it needs you is
+ * then settled, since what it asked for is done (#657, round 4: an applied proposal kept counting).
+ */
+export const settles = (e: Pick<AssignmentEvent, 'state'>) => e.state !== 'needs-you';
 
 /** A time of day as quiet hours take it: H:MM or HH:MM, 00:00 to 23:59. */
 export const HHMM = /^([01]?\d|2[0-3]):([0-5]\d)$/;

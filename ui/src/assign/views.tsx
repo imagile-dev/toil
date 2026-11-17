@@ -21,7 +21,7 @@ import { SummaryChevron } from '../components/disclosure.tsx';
 import { ADAPTER_LABEL, addUp, usageParts } from '../model-usage.ts';
 import type { PersonEntry } from '../model/people.ts';
 import type { WorkItem } from '../toil.ts';
-import { ADAPTER_NAME, MODES, STATE_LABEL, modeInfo, renewRefusal, runMs, runText, type AssignAdapter, type Assignment, type AssignmentList, type AssignMode } from './model.ts';
+import { ADAPTER_NAME, MODES, allApplied, STATE_LABEL, modeInfo, renewRefusal, runMs, runText, type AssignAdapter, type Assignment, type AssignmentList, type AssignMode } from './model.ts';
 import { useChatScope } from '../components/ask.tsx';
 import { StaleChip, StaleNote } from '../components/stale.tsx';
 import { usePlain } from '../plain-words.ts';
@@ -65,8 +65,9 @@ export function useAssignments(toilProject: string): { list: AssignmentList | nu
   return { list, error, reload };
 }
 
-/** The state as a chip, worded and coloured by state. */
-export function StateChip({ a }: { a: Pick<Assignment, 'state' | 'waiting'> }) {
+/** The state as a chip, worded and coloured by state; a finished assignment whose every proposal was applied says Applied. */
+export function StateChip({ a }: { a: Pick<Assignment, 'state' | 'waiting'> & Partial<Pick<Assignment, 'proposals'>> }) {
+  if (allApplied(a)) return <span className="assign-state assign-state--done assign-state--applied">Applied</span>;
   const words = a.state === 'queued' && a.waiting === 'start' ? 'Queued, waiting for Start' : STATE_LABEL[a.state];
   return <span className={`assign-state assign-state--${a.state}`}>{words}</span>;
 }

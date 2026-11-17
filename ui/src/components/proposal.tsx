@@ -51,7 +51,7 @@ function setShell(shell: Shell) {
 const subscribe = (l: () => void) => (listeners.add(l), () => listeners.delete(l));
 export const useShell = () => useSyncExternalStore(subscribe, shellNow, shellNow);
 
-export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not applied', actions, why, detail, lead, hideReason = false, children }: { proposal: Proposal; /** Apply form: leave the proposal's reason out, where the page above already says it (a rule fix's agent paragraph). */ hideReason?: boolean; onDismiss?: () => void; kind?: string; actions?: ReactNode; /** Tidy form: the one line saying why this wasn't applied, in place of the proposal's own reason. */ why?: string; /** Tidy form: what else toil said, such as the moves the workflow offers. */ detail?: string; /** Apply form: what the proposal changes (its field table), shown under the title and above the actions. */ lead?: ReactNode; children?: ReactNode }) {
+export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not applied', actions, why, detail, lead, hideReason = false, applied = false, children }: { proposal: Proposal; /** Apply form: the change is in the tracker, so the card is a record with a solid border, not a dashed proposal. */ applied?: boolean; /** Apply form: leave the proposal's reason out, where the page above already says it (a rule fix's agent paragraph). */ hideReason?: boolean; onDismiss?: () => void; kind?: string; actions?: ReactNode; /** Tidy form: the one line saying why this wasn't applied, in place of the proposal's own reason. */ why?: string; /** Tidy form: what else toil said, such as the moves the workflow offers. */ detail?: string; /** Apply form: what the proposal changes (its field table), shown under the title and above the actions. */ lead?: ReactNode; children?: ReactNode }) {
   const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
   const shell = useShell();
   const { line, reason, mcp } = commandLine(proposal, shell);
@@ -141,7 +141,7 @@ export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not
   );
   if (lead !== undefined) {
     return (
-      <article className="proposal proposal--apply" aria-label={`Proposal: ${proposal.title}`}>
+      <article className={applied ? 'proposal proposal--apply proposal--applied' : 'proposal proposal--apply'} aria-label={`Proposal: ${proposal.title}`}>
         <p className="proposal-kind">{kind}</p>
         <h3>{proposal.title}</h3>
         {lead}

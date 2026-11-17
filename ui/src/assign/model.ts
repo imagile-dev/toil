@@ -493,11 +493,21 @@ export function applyResultText(a: Pick<Assignment, 'proposals'>, proposalId: st
 /** Whether a proposal still waits on a person: not yet applied, or refused by toil and not yet dismissed. */
 export const pending = (p: Pick<AssignedProposal, 'status'>) => p.status === 'pending' || p.status === 'failed';
 
-/** The state an assignment settles in once a run ends: needs you while anything waits on a person, else done. */
+/**
+ * The state an assignment settles in once a run ends, or a person acts on a
+ * proposal: needs you while a proposal waits, else done. Questions hold it on
+ * needs you only until a proposal is applied: they are answered in the
+ * tracker, and once its change is in, what is left is the tracker's
+ * conversation, not a step on this page (#657, round 4).
+ */
 export function settledState(a: Pick<Assignment, 'proposals' | 'questions' | 'stop'>): AssignState {
   if (a.stop?.reason === 'injection') return 'needs-you';
-  return a.proposals.some(pending) || a.questions.length ? 'needs-you' : 'done';
+  if (a.proposals.some(pending)) return 'needs-you';
+  return a.questions.length && !a.proposals.some((p) => p.status === 'applied') ? 'needs-you' : 'done';
 }
+
+/** Whether every proposal of a finished assignment was applied: its chip then says Applied, a success, rather than Done. */
+export const allApplied = (a: Pick<Assignment, 'state'> & Partial<Pick<Assignment, 'proposals'>>) => a.state === 'done' && Boolean(a.proposals?.length) && a.proposals!.every((p) => p.status === 'applied');
 
 /**
  * Why an assignment can't be renewed now (#305), or null when it can. Only a
@@ -522,13 +532,14 @@ export function renewRefusal(a: Pick<Assignment, 'state' | 'stale' | 'renewedBy'
  * the transcript doesn't hold: before the first call it only says the run
  * started, and a tool it doesn't know is named as it is.
  * `name` turns an OWI id into what a person reads ("Jira SCRUM-15"), and
- * `parentOf` says an item's parent where the cache knows it.
+ * `parentOf` says an item's parent where the cache knows it. Each tool call
+ * is counted as a step, the word a person watching uses.
  */
 export function liveLine(a: Pick<AssignmentRecord, 'adapter' | 'item' | 'transcript'>, name: (id: string) => string, parentOf: (id: string) => string | null = () => null): string {
   const who = a.adapter ? ADAPTER_NAME[a.adapter] : 'The agent';
   const calls = a.transcript.filter((t) => t.kind === 'tool');
   const last = [...a.transcript].reverse().find((t) => t.kind === 'tool' || t.kind === 'activity' || t.kind === 'text');
-  const so = calls.length > 1 ? ` ${calls.length} tool calls so far.` : '';
+  const so = calls.length > 1 ? ` ${calls.length} steps so far.` : '';
   if (!last) return `${who} has started on ${name(a.item)}.`;
   if (last.kind === 'text') return `${who} is writing up what it found…${so}`;
   if (last.kind === 'activity') return `${who}: ${last.title}…${so}`;

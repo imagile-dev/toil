@@ -355,6 +355,62 @@
     and what Check the workflow live reads) moved into the panel's (i); the button stays, and
     after a live read the line beside it still says when and with which command, as the
     result's source.
+- **Product review, round 4** (Toil UI, for the launch video: the fix-and-apply loop visibly
+  closes; principles 2, 4, 11 and 12):
+  - *An applied fix settles the assignment, questions and all.* `settledState`
+    (`ui/src/assign/model.ts`) now ends at done once nothing waits and at least one proposal was
+    applied, even with questions left: the questions say "Answer these in Jira", so once the
+    change is in they are the tracker's conversation, not a step on this page. A run with only
+    questions, or whose proposals were all dismissed, still needs you. The queue settles a record
+    an older Toil UI saved as needs you on start, so the demo's applied SCRUM-17 reads as done.
+    The chip says **Applied** (the done colour) when every proposal was applied, **Done**
+    otherwise (`allApplied`). Mark reviewed goes with needs you, since there is nothing left to mark.
+  - *The notice and the bell stop counting it.* An assignment event whose state isn't needs you
+    removes that assignment's needs-you line from the notices and marks its bell entries
+    `settled`, which never count as unread and stay in the list (`ui/src/history.ts`,
+    `ui/src/components/notify.tsx`); an older saved history still reads.
+  - *The applied card is a record.* Solid border (`proposal--applied`), the agent's pre-apply note
+    hidden, and "Applied to Jira SCRUM-17 at 22:39 UTC." (the date too on another day) with
+    **Open in Jira** from the item's own `url` when it has one. The server's outcome message is
+    unchanged; the page words it from the item.
+  - *Sync and check again, not "Check again".* Toil UI has no read of one item that refreshes the
+    cache (the agent's `owi_get` reads the cache; the sync is incremental per Toil project), so the
+    button syncs the Toil project and says so on itself. The press is remembered outside React
+    (`ui/src/assign/recheck.ts`), since the App remounts after a sync, and the rule's result is
+    shown only from a reading newer than the press: "now passes", "still missing: <toil's reason>",
+    "not checked" or "no longer applies". Where nothing can sync (the preview), it isn't offered,
+    since the sample's data never changes and any answer would predate the Apply.
+  - *The lede was the wrong way round.* "Nothing changes in Jira until you press Apply." showed
+    only when nothing waited. It now shows only part-way (something applied, something still
+    waiting); before any Apply the head's "Nothing has changed yet" is the reminder, and once all
+    are applied the lede reads "The applied change is in Jira."
+  - *A line-level diff.* `lineDiff` (`ui/src/assign/line-diff.ts`), an LCS over lines that ignores
+    trailing spaces and CRLF, with no dependency. Kept lines are plain in both columns; removed
+    lines are struck in Now (muted, not struck, once applied, keeping round 3's "nothing struck
+    through" for the record); added lines are bold with a bar. Each marked line says Removed, Was
+    or Added to a screen reader. A field with no earlier text shows the proposal whole, as before.
+  - *The header after an Apply.* A tally of changes Toil UI applied (`ui/src/applied.ts`), kept
+    outside React and seeded from the assignments the server holds, so a reload still knows; Board
+    moves and category changes add to it too. While any is newer than the data, the line reads
+    "Data read 22:38 UTC. 1 change applied since." (the date too when the read was on another day)
+    with **Sync now** where the app can sync. The audit log wasn't used: the page doesn't read it.
+  - *Agent failures say their cause.* Codex threw "Codex failed: …" and the host added "Codex
+    failed: " again; the adapter now throws the CLI's own words and the host says the prefix once,
+    with one full stop. `agentFailure` (`ui/server/agents/failure.ts`) reads the message for every
+    adapter: a usage, rate or quota limit says the plan's limit was reached, when it resets where
+    the message says ("at 7:50 PM"), and to try then or pick another AI agent; a sign-in failure
+    keeps the sign-in advice; anything else says to ask again and how to see the CLI's own error.
+    The notice cuts a long line at a sentence end that keeps at least half, else at a word, with
+    an ellipsis (`clip`, `ui/src/notify.ts`).
+  - *Polish.* "2 steps so far". While a run works, the record of what it started on and the
+    transcript are out of sight (the live line is the focus); they are disclosures once it ends.
+    Possible duplicates fold to one line, "4 possible duplicates · Show" (Hide once open), the
+    count as the panel's heading. The Blocked card's lede reads "Waiting on another item, done
+    already, outside the Toil project, or failing a ticket rule.": a failed ticket rule also
+    makes an item blocked, so leaving it out would undercount what the card counts.
+  - *A test flake fixed on the way.* The assignment routes test read the next event after
+    `since=latest`, which could be the end of the investigate run it had just made; it now waits
+    for that run to end first. It failed on the unchanged code too.
 
 - **A rule may name what's missing** (`missing`, a short phrase such as "no Given/When/Then criteria"), so a count reads "3 of 27 stories: no Given/When/Then criteria" instead of building grammar from the rule's name. Where: `src/core/standards/types.ts`, `read.ts`, `builtin.ts`.
 - **Flow calls any other story a Feature** (rule `story`, last). Why: on the demo week, without it, 63% of finished work read as unsure, since most stories carry no label; the Flow Framework counts new user-facing work as a feature. Last in order, so a story labelled security, bug or tech-debt keeps that category. Where: `src/core/classify/builtin.ts`.

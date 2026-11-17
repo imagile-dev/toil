@@ -9,7 +9,7 @@
 
 import { useState, useSyncExternalStore } from 'react';
 import { Button, Dialog, DialogTrigger, Heading, Popover } from 'react-aria-components';
-import { history as store, unread, type HistoryStore } from '../history.ts';
+import { history as store, isUnread, unread, type HistoryStore } from '../history.ts';
 import { dateTime } from '../format.ts';
 import { Help } from './help.tsx';
 import './news.css';
@@ -48,7 +48,7 @@ export function Bell({ history = store }: { history?: HistoryStore }) {
           {h.entries.length ? (
             <ol className="bell-list" aria-label="The last 50, newest first">
               {h.entries.map((e) => {
-                const isNew = e.seq > h.read;
+                const isNew = isUnread(h, e);
                 return (
                   <li key={e.seq} className={isNew ? 'bell-entry bell-entry--unread' : 'bell-entry'} data-kind={e.kind}>
                     <a href={e.href} onClick={() => setOpen(false)}>

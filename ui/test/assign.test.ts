@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { request } from 'node:http';
 import { cookieHeader, letInto } from './let-in.ts';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { actorOf, applyResultText, branchName, inboxMatch, liveLine, proposalDiff, richText, settledState, writesOffText, type AdapterChoice, type AssignmentEvent } from '../src/assign/model.ts';
 import { AssignError, AssignmentQueue, RunStopped, type QueueOptions, type RunContext, type RunResult } from '../src/assign/queue.ts';
 import { sampleQueue, SAMPLE_INBOX } from '../src/fixtures/assignments.ts';
@@ -214,6 +214,38 @@ describe('the assignment queue', () => {
     const b = await off.queue.assign({ toilProject: 'card-payments', item: 'corp-jira:PAY-107', mode: 'refine', adapter: 'codex' });
     expect(b.state).toBe('queued');
     expect(off.runs).toHaveLength(0);
+  });
+});
+
+describe('an applied fix settles (#657, round 4)', () => {
+  it('is done, not needs you, once every proposal is applied, even with a question left for the tracker', async () => {
+    const h = harness({}, { questions: ['What context applies?'] });
+    const a = await h.queue.assign({ toilProject: 'card-payments', item: 'corp-jira:PAY-107', mode: 'refine', adapter: 'codex' });
+    h.runs[0]!.resolve(h.result());
+    await h.tick();
+    expect(h.queue.get(a.id).state).toBe('needs-you');
+    const after = await h.queue.apply(a.id, 'p1');
+    expect(after.state).toBe('done');
+    expect(after.questions).toEqual(['What context applies?']);
+    // The event the bell and the notices hear says it no longer needs anyone.
+    expect(h.events.at(-1)).toMatchObject({ id: a.id, kind: 'state', state: 'done', previous: 'needs-you', pending: 0 });
+    // A run with only questions and nothing applied still waits on a person.
+    expect(settledState({ proposals: [{ status: 'dismissed' }] as never, questions: ['why?'], stop: null })).toBe('needs-you');
+    expect(settledState({ proposals: [{ status: 'applied' }, { status: 'failed' }] as never, questions: [], stop: null })).toBe('needs-you');
+  });
+
+  it('settles a record saved as needs you after its proposal was applied, when Toil UI starts again', async () => {
+    const seed = harness({}, { questions: ['What context applies?'] });
+    const a = await seed.queue.assign({ toilProject: 'card-payments', item: 'corp-jira:PAY-107', mode: 'refine', adapter: 'codex' });
+    seed.runs[0]!.resolve(seed.result());
+    await seed.tick();
+    // As an older Toil UI left it: the proposal applied, the questions holding it on needs you.
+    const old = seed.keeper.load().find((r) => r.id === a.id)!;
+    old.proposals[0]!.status = 'applied';
+    old.state = 'needs-you';
+    seed.keeper.save(old);
+    const reopened = harness({ keeper: seed.keeper });
+    expect(reopened.queue.get(a.id).state).toBe('done');
   });
 });
 
@@ -501,6 +533,12 @@ describe('the assignment routes', () => {
       expect(events.status).toBe(200);
       expect(JSON.parse(events.body.split('\n')[0]!)).toMatchObject({ seq: expect.any(Number), kind: expect.any(String) });
       // since=latest (#306) skips what already happened: the first line is the next event, carrying what a notice says.
+      // The investigate run made above ends on its own clock; wait for it, so its last event can't be the next one.
+      const madeId = (JSON.parse(made.body) as { id: string }).id;
+      await vi.waitFor(async () => {
+        const now = JSON.parse((await call(origin, '/api/assignments?toilProject=card-payments')).body) as { assignments: Array<{ id: string; state: string }> };
+        expect(now.assignments.find((x) => x.id === madeId)?.state).not.toMatch(/^(queued|working)$/);
+      });
       const next = call(origin, '/api/assignments/events?since=latest');
       await new Promise((r) => setTimeout(r, 50));
       await call(origin, '/api/assignments', { method: 'POST', headers: post, body: { toilProject: 'card-payments', item: 'corp-jira:PAY-103', mode: 'refine', adapter: 'codex' } });
@@ -573,8 +611,8 @@ describe('the plain words on an assignment page (#657, round 3)', () => {
     expect(liveLine({ ...base, transcript: [t('prompt', 'Task', 'x')] }, name, parentOf)).toBe('Claude has started on Jira SCRUM-15.');
     expect(liveLine({ ...base, transcript: [t('tool', 'Called: owi_get', '{"id":"jira:SCRUM-15"}')] }, name, parentOf)).toBe('Claude is reading Jira SCRUM-15…');
     const two = [t('tool', 'Called: owi_get', '{"id":"jira:SCRUM-15"}'), t('tool', 'Called: owi_get', '{"id":"jira:SCRUM-6"}')];
-    expect(liveLine({ ...base, transcript: two }, name, parentOf)).toBe('Claude is reading Jira SCRUM-15 and its parent… 2 tool calls so far.');
-    expect(liveLine({ ...base, transcript: [...two, t('text', 'The agent answered', 'done')] }, name, parentOf)).toBe('Claude is writing up what it found… 2 tool calls so far.');
+    expect(liveLine({ ...base, transcript: two }, name, parentOf)).toBe('Claude is reading Jira SCRUM-15 and its parent… 2 steps so far.');
+    expect(liveLine({ ...base, transcript: [...two, t('text', 'The agent answered', 'done')] }, name, parentOf)).toBe('Claude is writing up what it found… 2 steps so far.');
     expect(liveLine({ ...base, adapter: 'codex', transcript: [t('tool', 'Called: proposal_fields', '{}')] }, name)).toBe('Codex is checking which fields it can change…');
     expect(liveLine({ ...base, transcript: [t('tool', 'Called: jira_issue_get', '{"key":"SCRUM-15"}')] }, name)).toBe('Claude is using jira_issue_get…');
   });

@@ -4,6 +4,7 @@
  * listed, not hidden (principle 4). Full disclosure, without the twelve-page form.
  */
 
+import { useState } from 'react';
 import { Avatar, Outcome, PLAIN_INSIGHT_LABEL, StatusChip } from '../components/bits.tsx';
 import { Cited, ItemLink, typeText } from '../components/items.tsx';
 import { ReclassifyChip } from '../components/reclassify.tsx';
@@ -20,6 +21,9 @@ import { entry } from '../model/sprint.ts';
 import { useTerm, useTheme } from '../skins.tsx';
 import { usePlain } from '../plain-words.ts';
 import { ItemAssignments } from '../assign/views.tsx';
+import { SummaryChevron } from '../components/disclosure.tsx';
+
+const DUPLICATES_HOW = "By shared words in titles and bodies, title trigrams, labels, parent and links: not by meaning, so a duplicate written in other words isn't found.";
 
 /** OWI's link type in words, by direction; the source's own wording is shown beside it. */
 const LINK_WORD: Record<string, [string, string]> = {
@@ -36,6 +40,7 @@ export function ItemView({ id }: { id: string }) {
   const term = useTerm();
   const plain = usePlain();
   const { insights: prepared } = useDerived();
+  const [dupsOpen, setDupsOpen] = useState(false);
   const item = byId.get(id);
   if (!item) {
     return (
@@ -109,27 +114,41 @@ export function ItemView({ id }: { id: string }) {
       {/* Keyed by item, so a live read made on one item's page never shows on the next one's. */}
       <ReadinessPanel key={item.id} item={item} />
       <Card as="section" className="panel duplicates-panel" aria-labelledby="duplicates">
-        <h2 id="duplicates">Possible duplicates</h2>
         {duplicates.length ? (
-          <ul className="rows">
-            {duplicates.map((d) => (
-              <li key={d.id} className="duplicate">
-                <ItemLink id={d.id} withTitle /> <span className="score">· {Math.round(d.score * 100)}% alike</span>
-                <details className="duplicate-why">
-                  <summary>
-                    Why?<span className="sr-only"> {d.title}</span>
-                  </summary>
-                  <p className="note">{duplicateWhy(d.why, nameOf)}</p>
-                </details>
-              </li>
-            ))}
-          </ul>
+          // One line until it's asked for: the item is the page's focus, and a list of maybes is a step in (principle 11).
+          <details className="duplicates" data-duplicates="" onToggle={(e) => setDupsOpen(e.currentTarget.open)}>
+            <summary>
+              <SummaryChevron />
+              <h2 id="duplicates" className="duplicates__head">
+                {duplicates.length === 1 ? '1 possible duplicate' : `${duplicates.length} possible duplicates`}
+              </h2>
+              <span className="duplicates__toggle" aria-hidden="true">
+                {' '}
+                · {dupsOpen ? 'Hide' : 'Show'}
+              </span>
+            </summary>
+            <ul className="rows">
+              {duplicates.map((d) => (
+                <li key={d.id} className="duplicate">
+                  <ItemLink id={d.id} withTitle /> <span className="score">· {Math.round(d.score * 100)}% alike</span>
+                  <details className="duplicate-why">
+                    <summary>
+                      Why?<span className="sr-only"> {d.title}</span>
+                    </summary>
+                    <p className="note">{duplicateWhy(d.why, nameOf)}</p>
+                  </details>
+                </li>
+              ))}
+            </ul>
+            <p className="note">{DUPLICATES_HOW}</p>
+          </details>
         ) : (
-          <p>None in {toilProject.name}: no item shares enough words with this one.</p>
+          <>
+            <h2 id="duplicates">Possible duplicates</h2>
+            <p>None in {toilProject.name}: no item shares enough words with this one.</p>
+            <p className="note">{DUPLICATES_HOW}</p>
+          </>
         )}
-        <p className="note">
-          By shared words in titles and bodies, title trigrams, labels, parent and links: not by meaning, so a duplicate written in other words isn't found.
-        </p>
       </Card>
       <ItemAssignments item={item} />
       <div className="item-grid">

@@ -13,6 +13,7 @@
  * and then signed.
  */
 
+import { noteApplied } from '../applied.ts';
 import { useEffect, useState } from 'react';
 import { Button } from 'react-aria-components';
 import type { ApplyOutcome, ApplyPlan, ApplyResult, ApplyWork, PlanGroupView } from '../classify-api.ts';
@@ -168,6 +169,9 @@ export function ApplyCard({ connection, work, onClose }: { connection: string; w
         return item && category ? [{ id: item.id, category }] : [];
       });
       if (done.length) applied(done);
+      // Each changed item is a change in the tracker the data on screen doesn't show yet (#657, round 4).
+      const at = new Date().toISOString();
+      for (const o of r.outcomes) for (const c of o.changed) noteApplied(`classify:${c.key}:${at}`, at);
     } catch (e) {
       setResult({ error: e instanceof Error ? e.message : String(e) });
     } finally {

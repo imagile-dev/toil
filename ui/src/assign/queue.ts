@@ -214,6 +214,10 @@ export class AssignmentQueue {
         r.endedAt = o.now();
         r.stop = { reason: 'interrupted', message: 'Toil UI stopped while this assignment was running, so it never finished.', fix: 'Assign the item again.' };
         o.keeper.save(r);
+      } else if (r.state === 'needs-you' && settledState(r) !== 'needs-you') {
+        // Saved before an applied proposal settled its questions too (#657, round 4): it settles as it would today.
+        r.state = settledState(r);
+        o.keeper.save(r);
       }
       this.records.set(r.id, r);
     }

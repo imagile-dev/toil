@@ -62,6 +62,11 @@
 .item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.5rem; }
 .insights-panel { margin-bottom: 1.5rem; }
 .duplicates-panel { margin-bottom: 1.5rem; }
+/* Possible duplicates, folded to one line: the count is the heading, and the list one press in. */
+.duplicates > summary { display: flex; align-items: center; gap: 0.25rem; cursor: pointer; min-height: 44px; list-style: none; }
+.duplicates > summary::-webkit-details-marker { display: none; }
+.duplicates__head { margin: 0; font-size: inherit; font-weight: 600; }
+.duplicates__toggle { color: var(--link); }
 .duplicates-panel .score { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .duplicates-panel .duplicate-why { display: inline; margin-left: 0.5rem; }
 .duplicates-panel .duplicate-why > summary { display: inline; cursor: pointer; color: var(--link); font-size: 0.875rem; }
@@ -156,6 +161,8 @@
 /* A quiet action alone in the row lines up with the text above it, not inset by its own padding. */
 .proposal--tidy .proposal-actions > .btn--quiet:first-child { margin-left: -0.75rem; }
 .proposal--tidy, .proposal--apply { gap: 0.55rem; }
+/* An applied proposal is a record of a change made, so its border is solid: the dashes are for what hasn't happened yet. */
+.proposal--applied { border-style: solid; }
 .proposal-reason { margin: 0; }
 .proposal-command { border-top: 1px solid var(--line); padding-top: 0.4rem; }
 .proposal-command > summary { cursor: pointer; color: var(--link); font-size: 0.9375rem; }

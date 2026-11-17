@@ -50,7 +50,8 @@ describe('the Agents sidebar', () => {
     expect(inbox.textContent).not.toContain('agent:refine');
     expect(within(inbox).getByRole('button', { name: /^Start/ })).toBeTruthy();
     expect(within(lane).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Asked for AI help', 'Needs you 1', 'Working 1', 'Out of date 1', 'Recent briefings']);
-    expect([...lane.querySelectorAll('.agent-card .assign-state')].map((c) => c.textContent)).toEqual(['Needs you', 'Working', 'Failed', 'Done']);
+    expect([...lane.querySelectorAll('.agent-card .assign-state')].map((c) => c.textContent)).toEqual(['Needs you', 'Working', 'Failed', 'Applied']);
+    // The finished one had every proposal applied, so its chip says Applied (#657, round 4).
     expect(lane.querySelector('details.agents-group--earlier summary')!.textContent).toBe('Earlier (1)');
     // The limits sentence is in the (i) beside the heading.
     await userEvent.click(within(lane).getAllByRole('button', { name: /^About assigning work/ })[0]!);

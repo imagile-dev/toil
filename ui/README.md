@@ -720,7 +720,8 @@ that names none uses `Microsoft.VSTS.Common.AcceptanceCriteria`.
   states` for an Azure DevOps type. A GitHub issue needs none. That the verdict is worked
   out from the cached record with no model call, and what the button reads, are in the
   panel's (i); once read, the line beside the button says when and with which command.
-- **Possible duplicates**, under it, lists one line per item: its source, key and title and
+- **Possible duplicates**, under it, is one line until opened, "4 possible duplicates · Show"
+  (or the sentence that says there are none), and opened lists one line per item: its source, key and title and
   how alike it is ("Azure DevOps 153 Charge a stored token · 100% alike"). **Why?** opens the
   shared words, how alike the titles are, the shared labels, parent and link, in plain words;
   the sandboxes' seed marks (`toil-seed`, `seed:…`) are never given as a reason.
@@ -765,19 +766,31 @@ they are called ticket rules.
   waits, leads with "Nothing has changed yet. Review the proposal below and apply it." The
   run's times and usage are under **Run details**. While the agent works, one line says what
   it is doing, from the run's own transcript ("Claude is reading Jira SCRUM-15 and its
-  parent… 3 tool calls so far."); the transcript and the record of what the run started on
-  are disclosures below it, and an empty transcript isn't shown. On a refine or a fix the
+  parent… 3 steps so far."); the transcript and the record of what the run started on
+  are disclosures below it once the run has ended, out of sight while it runs, and an empty transcript isn't shown. On a refine or a fix the
   proposals come first, above the questions and what the agent said, under "Each change the
-  agent proposes." (with the write gate in an (i)); only when the head doesn't already say
-  nothing has changed does the lede add "Nothing changes in Jira until you press Apply." (the
-  item's own tracker). **Mark reviewed** sits below the proposals there, so it doesn't compete
+  agent proposes." (with the write gate in an (i)); only part-way through, with some
+  proposals applied and some still waiting, does the lede add "Nothing changes in Jira until
+  you press Apply." (the item's own tracker), and once every proposal is applied it reads
+  "The applied change is in Jira." instead. **Mark reviewed** sits below the proposals there, so it doesn't compete
   with Apply, and the questions end "Answer these in Jira, then ask for a new rewrite." A
   fix's card doesn't repeat the agent's paragraph. A write toil refuses because writes are off
   reads "Not applied. Writes to Jira are off on this computer, so nothing changed. Turn writes
   on for the jira connection, then press Apply again." (the tracker and the connection
   named), with toil's exact error under **Details**; any other refusal shows toil's words as
-  they are. Once applied, the table's columns read **Before** and **After**, with nothing
-  struck through. Every proposal on an
+  they are. The table compares line by line: a line the proposal keeps reads plainly in both
+  columns, a line it removes is struck through in **Now**, and a line it adds is in bold with
+  a bar beside it in **Proposed**. Once applied, the columns read **Before** and **After**,
+  with nothing struck through (a removed line is muted), the card's border turns solid, the
+  agent's note for whoever applies it goes, and the outcome reads "Applied to Jira SCRUM-17
+  at 22:39 UTC." with **Open in Jira** where the item has a link. When every proposal is
+  applied the assignment is done and its chip says **Applied**, even with a question left,
+  since that is answered in the tracker; its needs-you notice goes and the bell stops counting
+  it. A fix's applied card offers **Sync and check again**: Toil UI has no read of one item,
+  so it syncs the Toil project (incrementally) and then says, for each rule, "Acceptance
+  criteria as Given/When/Then: now passes" or "still missing: <toil's reason>", only from a
+  reading newer than the press. While a change applied from Toil UI is newer than the data on
+  screen, the header reads "Data read 22:38 UTC. 1 change applied since." with **Sync now**. Every proposal on an
   assignment page shows what it changes first, each field by its plain name ("Acceptance
   criteria" for the Toil project's acceptance criteria field) beside what it holds now
   ("empty" for a field that was read and holds nothing, a dash, "not read yet", for one the

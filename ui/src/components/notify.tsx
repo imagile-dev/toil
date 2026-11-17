@@ -18,7 +18,7 @@ import { ADAPTER_NAME, type AssignmentsApi } from '../assign/model.ts';
 import { Card } from './layout.tsx';
 import { toilProjectHref } from '../format.ts';
 import { history } from '../history.ts';
-import { Coalescer, HHMM, inQuiet, NOTABLE_LABEL, NOTABLES, parseNotify, summaryOf, transitionOf, type NotifySettings, type Transition } from '../notify.ts';
+import { Coalescer, HHMM, inQuiet, NOTABLE_LABEL, NOTABLES, parseNotify, settles, summaryOf, transitionOf, type NotifySettings, type Transition } from '../notify.ts';
 import { CheckIcon } from './icons.tsx';
 
 const SETTINGS_KEY = 'toil-ui.notify';
@@ -175,6 +175,19 @@ export function NotifyProvider({ assignments, toilProject, mine, children }: { a
     const listen = () => {
       assignments.events!(since, (e) => {
         since = e.seq;
+        // An assignment that no longer needs you (its proposal applied, it was marked reviewed): its needs-you notice goes, and the bell stops counting it.
+        if (settles(e)) {
+          const key = `assignment:${e.id}`;
+          history.settle(`${key}:needs-you`);
+          setNotices((ns) =>
+            ns
+              .map((n) => {
+                const changes = n.changes.filter((c) => !(c.key === key && c.notable === 'needs-you'));
+                return changes.length === n.changes.length || !changes.length ? { ...n, changes } : { ...n, changes, title: summaryOf(changes).title };
+              })
+              .filter((n) => n.changes.length > 0),
+          );
+        }
         const t = transitionOf(e, { mine: mine().has(e.id), href: `${toilProjectHref(e.toilProject)}/assignment/${encodeURIComponent(e.id)}` });
         if (t) coalescer.push(t, e.previous);
       }, controller.signal).then(

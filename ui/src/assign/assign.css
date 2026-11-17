@@ -33,6 +33,17 @@
 .assign-before { text-decoration: line-through; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
 .assign-after, .assign-was { white-space: pre-wrap; overflow-wrap: anywhere; }
 .assign-was { color: var(--muted); }
+/* A field's diff, line by line (#657, round 4): kept lines plain, a removed line struck and muted, an added one bold with a bar beside it. */
+.assign-lines-diff { display: block; }
+.diff-line { display: block; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 1.4em; }
+.diff-line--del { text-decoration: line-through; color: var(--muted); }
+.diff-line--was { color: var(--muted); }
+.diff-line--add { font-weight: 600; box-shadow: inset 3px 0 0 var(--ok); padding-left: 0.4rem; }
+/* Sync and check again, under an applied fix: the press, then each rule on the new reading. */
+.check-again { display: grid; gap: 0.4rem; border-top: 1px solid var(--line); padding-top: 0.5rem; }
+.check-again__rules { margin: 0; }
+.check-again--pass { color: var(--ok); font-weight: 600; }
+.check-again--missing { color: var(--warn); }
 .assign-live { margin: 0.75rem 0; color: var(--ink); overflow-wrap: anywhere; }
 .assign-actions--after { margin-top: 1rem; }
 /* A proposal's diff: a narrow Field, then Now and Proposed side by side at equal width. The widths are on the header cells, which a fixed layout reads them from; where the table stacks (layout.css) its header is hidden, so they don't apply there. */

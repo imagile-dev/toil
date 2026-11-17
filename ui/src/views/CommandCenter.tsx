@@ -152,7 +152,7 @@ export function CommandCenter() {
                 <VerdictChip verdict={v} />
               </h2>
               <p className="team-figure">{totals[v]}</p>
-              <p className="note">{v === 'ready' ? 'Every check passes.' : v === 'thin' ? plain.pw('Missing acceptance criteria, description or another check a person can waive.', 'Missing "done when" criteria, a description or another check a person can waive.') : 'Done already, blocked by an open item, or outside the Toil project.'}</p>
+              <p className="note">{v === 'ready' ? 'Every check passes.' : v === 'thin' ? plain.pw('Missing acceptance criteria, description or another check a person can waive.', 'Missing "done when" criteria, a description or another check a person can waive.') : 'Waiting on another item, done already, outside the Toil project, or failing a ticket rule.'}</p>
             </Stack>
           </li>
         ))}
