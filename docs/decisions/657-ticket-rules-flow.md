@@ -205,3 +205,52 @@
   some open item misses or couldn't be checked against; the rest fold into "Every open item
   meets the other N rules." Each line links to `?rule=<standard>/<rule>`, which narrows the
   list (on top of its own filters) and shows "Missing: <rule>" with Show every item.
+- **A rule's reason is plain words, and a pattern may carry `labels`.** A `pattern` check takes
+  an optional `labels` list, one plain name per `match` ("a Given line"), held to the same
+  one-line, length and credential checks as other short text; the presets use them. Reasons
+  read "No Given, When or Then line in the acceptance criteria or description.", "Missing a
+  Then line in the acceptance criteria.", "Has Given, When and Then lines.", and for a section
+  "No "Steps to reproduce" section in the description."; a team's unlabelled pattern still
+  quotes its regular expression. Places are named as a person would (the acceptance criteria,
+  the description, the title, a field by its alias, else its id). A place not read is left out
+  of the sentence when another was read, and stays in `source`. `source` leads with the same
+  plain name but keeps the field id in brackets (`acceptance criteria (field
+  customfield_10500)`), because the Fix with AI agent flow and its prompt read the field to
+  rewrite from it. Why: the regexes and field ids were on screen four times in the demo flow,
+  and a product owner reads neither (UX review).
+- **The UX review's round (Toil UI).** What changed, and why each:
+  - *An assignment's proposal leads with the change.* `ProposalCard` gained an apply form
+    (`lead`): the field table, then Apply, then the reason, with the command, the shell toggle
+    and the MCP JSON in a closed "Show the command". The "can't be passed safely … --input-file"
+    advice is a note inside it, not red, in the apply and tidy forms alike, since a person
+    pressing Apply never types the command. It applies to every assignment proposal; Apply
+    still runs the stored proposal through the write gate, unchanged.
+  - *Field names are plain.* `fieldName` (model/readiness.ts) names the Toil project's
+    acceptance criteria field "Acceptance criteria" and a few fields every tracker shares; an
+    unknown id still shows as code, with the id on hover where a name is shown.
+  - *The fix's head.* "To meet the ticket rule <name>." with no reason (the dialog and the rows
+    carry it), led by "Nothing has changed yet. Review the proposal below and apply it." while
+    a proposal waits and none was applied, for every mode; times and usage moved under "Run
+    details".
+  - *"Fix all N" for one standard.* `AssignRequest.standard` takes `rule` or `rules` (one
+    standard, up to 12, unique, each held to the name form); the queue keeps the rules the
+    item still misses and refuses with 409 only when none is left. `Assignment.standard`
+    became `Assignment.rules` (a non-empty list): the field had not shipped. The prompt lists
+    each rule's name, text, reason and source; the fingerprint's placeholders cover one rule
+    and two, so refine's prompt hash moved once more.
+  - *The Command Center groups a standard.* One line a standard, figure in bold; "and" when
+    every missing item misses every rule, else "or". `?rule=<standard>` filters to any rule of
+    it; `missing`, `ruleName` and `matchesRef` (src/rules.ts) take either form.
+  - *The doubled "AI AI agent" in help.* `plainify` swapped "agent" inside "AI agent"; it now
+    leaves an agent already preceded by "AI" alone, so it is idempotent and copy can say "AI
+    agent" outright. The setup and classify-ask topics had the same doubling.
+  - *Work mix "Sort by" became "Categories",* first and set apart from Split by and Measured
+    in, options named for their set ("Flow: …", "Balance: …", "KTLO: Keep the lights on /
+    Feature": the review's "KTLO / Feature" is kept as the set's short name with its plain
+    categories after it), "(your team's)" for the saved one, and a "Back to saved" link.
+  - *Rule rows* are a set-in group under "Ticket rules", one block a standard, the source one
+    press in under each row's disclosure (principle 4: reachable, never removed), Fix at the
+    row's end at desktop widths and full width under it on a phone, one button style.
+  - *The ticket-rules help* is the review's wording in two sentences, because help topics are
+    held to two (`ui/test/help.test.tsx`), and names the button "Fix with AI agent".
+

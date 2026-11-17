@@ -612,11 +612,13 @@ Of the work that was finished in the period, how much was each category, as a tr
 becomes the category shares for each value), and count items, estimates or days in progress. Beside the chart it says how the
 categories were decided (rules, labels on the items, your AI agent, people) and how much is still Unsure, which links to the Board.
 A category reads as its plain name, "Keep the lights on"; its short form and definition are on hover. The Summary's **Work
-mix** tile, in the numbers, shows the same mix for the last 90 days and opens this page. **Sort by** views the same work by
-another built-in set of categories (Keep the lights on / Feature, the balance set, or flow's Feature / Defect / Risk / Debt),
-worked out on the fly from its rules and the labels already on the items. It is in the address (`?lens=flow`) and saves
-nothing: the Toil project's own choice stays under Settings, Classification, and a person's answers, which belong to those
-categories, are left out of another set's figures.
+mix** tile, in the numbers, shows the same mix for the last 90 days and opens this page. **Categories**, the first menu
+above the chart and set apart from Split by and Measured in, views the same work by another built-in set of categories, each
+named for its set ("KTLO: Keep the lights on / Feature", "Balance: …", "Flow: Feature / Defect / Risk / Debt"), your team's
+own marked "(your team's)", worked out on the fly from its rules and the labels already on the items. It is in the address
+(`?lens=flow`) and saves nothing: a note says "Viewing as Feature / Defect / Risk / Debt. Your team's saved categories
+haven't changed." with a **Back to saved** link, the Toil project's own choice stays under Settings, Classification, and a
+person's answers, which belong to those categories, are left out of another set's figures.
 
 ### Releases
 
@@ -734,22 +736,37 @@ checked by toil's own `standards check` (`skills/toil/standards.md`), with no mo
 call. A Toil project names the rules its work is held to in `standards.use`; on screen
 they are called ticket rules.
 
-- **On each item's page**, under the five rows, a **Ticket rules** heading lists one
-  row per rule that applies to the item: passes, thin or fails, with toil's reason and
-  where it read the text. A rule toil couldn't check (the text it reads wasn't in the
-  record read, or it needs an AI agent to judge) is **Not checked**, a dash that never
+- **On each item's page**, under the five rows, a **Ticket rules** heading starts a group
+  of its own, set in, with one block a standard and one row per rule that applies to the
+  item: passes, thin or fails, with toil's reason. Where toil read the text is one press
+  in, under the row's disclosure. A rule toil couldn't check (the text it reads wasn't in
+  the record read, or it needs an AI agent to judge) is **Not checked**, a dash that never
   counts as a pass. Until the check has been read, one row says the rules are not read
-  yet. A thin or failed rule counts toward the verdict like any other row.
-- **Fix with AI agent**, on a thin or failed rule's row, asks an AI agent for a refine
-  held to that one rule: given the rule's name and text and toil's reason, it proposes
-  exactly one rewrite of the description or the acceptance criteria field, inventing
-  nothing, and asks about what the item doesn't say as questions. The proposal is
-  applied like any other, behind the connection's `writes`. The assignment is refused
-  when the rule already passes or doesn't apply. Where no AI agent is set up, the
-  dialog says so and links to setting one up.
-- **The Command Center** has a **Ticket rules** card: one line a rule, such as "3 of
-  19 stories miss 'Acceptance criteria as Given/When/Then'", counting open items, each
-  a link that filters the list to the items that miss it (`?rule=gherkin/scenarios`).
+  yet. A thin or failed rule counts toward the verdict like any other row. The checks'
+  settings (`fields.acceptanceCriteria`, `readiness.minWords`, `readiness.templates`) are
+  named in the panel's (i).
+- **Fix with AI agent**, at the end of a thin or failed rule's row (under it on a phone),
+  opens a dialog with the rule, what's missing and which AI, and **Ask for a rewrite** asks
+  an AI agent for a refine held to that rule: given the rule's name and text and toil's
+  reason, it proposes exactly one rewrite of the description or the acceptance criteria
+  field, inventing nothing, and asks about what the item doesn't say. Where a standard has
+  more than one miss on the item (a bug with no steps, expected or actual result), its block
+  offers one **Fix all 3 with AI agent** instead, which asks for one rewrite that meets them
+  all. Nothing changes in the tracker until you apply the proposal, behind the connection's
+  `writes`. The assignment is refused when no named rule still misses. Where no AI agent is
+  set up, the dialog says so and links to setting one up.
+- **The assignment page** for a fix says which rules it is meeting, and, while its proposal
+  waits, leads with "Nothing has changed yet. Review the proposal below and apply it." The
+  run's times and usage are under **Run details**. Every proposal on an assignment page
+  shows what it changes first, each field by its plain name ("Acceptance criteria" for the
+  Toil project's acceptance criteria field), then Apply; the command, its shell and any
+  advice for running it by hand are under a closed **Show the command**.
+- **The Command Center** has a **Ticket rules** card: one line a standard, the figure first,
+  such as "**3 of 19** stories miss acceptance criteria as Given/When/Then" or "**1 of 1** bug
+  misses steps to reproduce, expected result and actual result", counting open items. Each is a
+  link that filters the list to the items that miss it, or any rule of the standard
+  (`?rule=gherkin/scenarios`, `?rule=bug-repro`), with that rule's line first in each item's
+  "Why not ready" and **Clear** to take the filter off.
 - **The server** runs the check in-process over each Toil project's synced items
   (`api/standards?toilProject=`), keeps the answer until the next sync, and gives the
   agent's readiness tools the same rows.

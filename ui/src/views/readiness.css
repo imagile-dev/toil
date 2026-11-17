@@ -26,10 +26,27 @@
 .why-not { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.2rem; overflow-wrap: anywhere; }
 .readiness-slate { margin-bottom: 1.5rem; }
 
-/* Ticket rules (#657): their own short heading under the five rows, a dash for a rule nobody could check, and Fix with AI agent on a row that misses. */
-.readiness-subhead { display: flex; align-items: center; gap: 0.35rem; margin: 0.9rem 0 0.4rem; font-size: 1rem; }
+/* Ticket rules (#657): a group of their own under the five rows, set in behind a rule line so they never read as more of
+   the five; one block a standard; a dash for a rule nobody could check; each row's source one press in; and Fix with AI
+   agent at the row's end (under the text on a phone), or one Fix all on a standard with several misses. */
+.readiness-rules-group { margin: 1.25rem 0 0.25rem; padding-left: 0.9rem; border-left: 3px solid var(--line); }
+.readiness-subhead { display: flex; align-items: center; gap: 0.35rem; margin: 0 0 0.5rem; font-size: 1rem; }
+.readiness-standard + .readiness-standard { margin-top: 0.9rem; }
+.readiness-standard__fix { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 0.75rem; margin: 0 0 0.4rem; }
+.readiness-standard__fix .field { margin: 0; }
 .readiness-row--skipped .readiness-mark, .readiness-row--skipped .readiness-state { color: var(--muted); }
-.readiness-row__action { display: block; margin-top: 0.3rem; }
+.readiness-row--rule { grid-template-columns: 1.4rem minmax(0, 1fr) auto; align-items: start; }
+.readiness-row--rule .readiness-mark { padding-top: 0.15rem; }
+.readiness-row__more > summary { align-items: flex-start; border-radius: var(--radius); }
+.readiness-row__more > summary .disclosure-chevron { padding-top: 0.2rem; }
+.readiness-row__more > p { margin: 0.25rem 0 0 1.5rem; }
+.readiness-row__action { justify-self: end; }
+@media (max-width: 40rem) {
+  .readiness-row--rule { grid-template-columns: 1.4rem minmax(0, 1fr); }
+  .readiness-row__action { grid-column: 2; justify-self: stretch; }
+  .readiness-row__action .btn, .readiness-standard__fix .btn { width: 100%; justify-content: center; }
+  .readiness-standard__fix { display: grid; justify-content: stretch; }
+}
 .readiness-rules { margin: 0 0 1.5rem; }
 .readiness-rules ul { list-style: none; padding: 0; margin: 0.4rem 0 0; display: grid; gap: 0.3rem; overflow-wrap: anywhere; }
 .readiness-rule-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; margin: 0 0 0.5rem; }

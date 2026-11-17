@@ -13,9 +13,12 @@
  * missions until the paperwork for #293 clears.
  *
  * Where the toil project names ticket rules (#657), a "Ticket rules" card says,
- * one line a rule, how many of the open items each applies to miss it; each
- * line is a link that filters the list to those items (`?rule=<standard>/<rule>`
- * in the address), so the figure and the items behind it are one press apart.
+ * one line a standard, how many of the open items its rules apply to miss
+ * them; each line is a link that filters the list to those items
+ * (`?rule=<standard>/<rule>` for a one-rule standard, `?rule=<standard>` for
+ * any rule of one with several), and the filtered rule's line leads each
+ * item's "Why not ready", so the figure and the items behind it are one press
+ * apart.
  */
 
 import { useMemo, useState } from 'react';
@@ -32,8 +35,8 @@ import { toWhere } from '../filters.ts';
 import { useAddress, useWorkInsights } from '../insights-data.ts';
 import { dateTime, toilProjectHref, personText, sourceLabel, STATUS_CATEGORY_LABEL } from '../format.ts';
 import { usePlain } from '../plain-words.ts';
-import { readinessAll, tally, VERDICT_LABEL, VERDICT_PLAIN, VERDICTS, withRules, type Readiness, type Verdict } from '../model/readiness.ts';
-import { missing, ruleLines, ruleName } from '../rules.ts';
+import { readinessAll, tally, VERDICT_LABEL, VERDICT_PLAIN, VERDICTS, withRules, type Readiness, type Row, type Verdict } from '../model/readiness.ts';
+import { lineWhat, matchesRef, missing, ruleLines, ruleName } from '../rules.ts';
 import { Unread } from '../components/unread.tsx';
 import { Empty, EmptyButton } from '../components/empty.tsx';
 import type { WorkItem } from '../toil.ts';
@@ -61,10 +64,11 @@ const STATUS_FILTER = [
   { id: 'all', label: 'All' },
 ];
 
-const columns: Array<Column<Line>> = [
+/** The list's columns; with a ticket rule filtered on, its line leads each item's "Why not ready". */
+const columnsFor = (ruleRef: string | null): Array<Column<Line>> => [
   { header: 'Item', label: 'Item', rowHeader: true, cell: (l) => <ItemLink id={l.item.id} withTitle /> },
   { header: 'Verdict', label: 'Verdict', cell: (l) => <VerdictChip verdict={l.readiness.verdict} /> },
-  { header: 'Why not ready', label: 'Why not ready', cell: (l) => <WhyNot readiness={l.readiness} /> },
+  { header: 'Why not ready', label: 'Why not ready', cell: (l) => <WhyNot readiness={l.readiness} {...(ruleRef ? { first: (r: Row) => Boolean(r.rule && matchesRef(ruleRef, r.rule)) } : {})} /> },
   { header: 'Assignee', label: 'Assignee', cell: (l) => personText(l.item.assignee) },
   { header: 'Status', label: 'Status', cell: (l) => `${l.item.status ?? 'None'} (${STATUS_CATEGORY_LABEL[l.item.statusCategory]})` },
 ];
@@ -116,7 +120,7 @@ export function CommandCenter() {
   const showRules = settings.standards.length > 0 || (checked?.standards.length ?? 0) > 0;
   const linesOfRules = checked ? ruleLines(checked, open.map((l) => l.item)) : [];
   const missed = linesOfRules.filter((r) => r.miss > 0 || r.skipped > 0);
-  const met = linesOfRules.length - missed.length;
+  const met = linesOfRules.filter((r) => r.miss === 0 && r.skipped === 0).reduce((n, r) => n + r.rules.length, 0);
   const calls = [...toilProject.calls.toilProject, ...toilProject.calls.work];
 
   return (
@@ -176,7 +180,10 @@ export function CommandCenter() {
                   {missed.map((r) => (
                     <li key={r.ref}>
                       <a href={withRule(r.ref)} data-rule-line={r.ref}>
-                        {r.miss} of {r.applies} {r.noun(r.applies)} {r.miss === 1 ? 'misses' : 'miss'} '{r.name}'
+                        <strong>
+                          {r.miss} of {r.applies}
+                        </strong>{' '}
+                        {r.noun(r.applies)} {r.miss === 1 ? 'misses' : 'miss'} {lineWhat(r)}
                       </a>
                       {r.skipped > 0 && <span className="note">, {r.skipped} not checked</span>}
                     </li>
@@ -225,7 +232,7 @@ export function CommandCenter() {
             Start {count(slated.length, 'ready item')}
           </Button>
           <p id="slate-note" className="note">
-            {startReady ? plain.pw('Assigns each item above to an agent in implement mode, as listed: proposals wait for you, and nothing leaves this machine until you apply one.', 'Asks an AI agent to try a fix for each item above, as listed: its suggestions wait for you, and nothing leaves this computer until you approve one.') : plain.text('This view has no agent assignments, so it shows the plan it would start.')}
+            {startReady ? plain.pw('Assigns each item above to an agent in implement mode, as listed: proposals wait for you, and nothing leaves this machine until you apply one.', 'Asks an AI agent to try a fix for each item above, as listed: its suggestions wait for you, and nothing leaves this computer until you apply one.') : plain.text('This view has no agent assignments, so it shows the plan it would start.')}
           </p>
         </Cluster>
         <p className={started && !started.ok ? 'failure' : 'note'} role="status">
@@ -248,7 +255,7 @@ export function CommandCenter() {
               {checked && !missingRule && <span className="note"> (not one of this Toil project's rules)</span>}
             </span>
             <a className="btn btn--small" href={withRule(null)}>
-              Show every item
+              Clear<span className="sr-only"> the ticket rule filter</span>
             </a>
           </p>
         )}
@@ -256,7 +263,7 @@ export function CommandCenter() {
           Showing {count(shown.length, 'item')} of {lines.length}.
         </p>
         {shown.length ? (
-          <DataTable label="Items and their readiness" caption={`${toilProject.name}'s items and their readiness`} columns={columns} rows={shown} rowKey={(l) => l.item.id} wide />
+          <DataTable label="Items and their readiness" caption={`${toilProject.name}'s items and their readiness`} columns={columnsFor(ruleRef)} rows={shown} rowKey={(l) => l.item.id} wide />
         ) : (
           <Empty
             message="No item matches these filters."

@@ -18,6 +18,9 @@
 .decided { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; }
 .decided li { display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.9375rem; }
 .chart-menus { display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; align-items: end; }
+/* Work mix's Categories (#657) changes what the categories are, not how they are cut, so it stands apart from the menus after it. */
+.chart-menus__lens { display: flex; align-items: end; padding-right: 0.75rem; margin-right: 0.25rem; border-right: 1px solid var(--line); }
+@media (max-width: 40rem) { .chart-menus__lens { flex-basis: 100%; padding: 0 0 0.5rem; margin: 0; border-right: 0; border-bottom: 1px solid var(--line); } }
 .chart-changes { padding: 0.5rem 0.25rem; }
 .chart-changes h3 { margin: 0 0 0.3rem; font-size: 0.9375rem; }
 .chart-changes ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }

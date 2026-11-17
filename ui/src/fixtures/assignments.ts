@@ -96,35 +96,59 @@ function refineProposals(toilProject: string, item: WorkItem): Proposal[] {
 const SECTION: Record<string, string> = { steps: 'Steps to reproduce', expected: 'Expected result', actual: 'Actual result' };
 
 /**
- * The sample's canned "Fix with AI agent" (#657): one rewrite of the place
- * toil read, meeting the rule with gaps left as gaps, and the questions that
- * ask for them. A real run writes from the item; this one only shows the shape.
+ * The sample's worked rewrites, by item key: what a run that read the item and
+ * its links might propose, so the demo shows a real answer rather than a form
+ * with blanks. Any other item gets the general shape, gaps and all.
  */
-export function ruleFix(toilProject: string, item: WorkItem, r: AssignedRule): { proposal: Proposal; questions: string[] } {
-  // toil names the field it read first ("field customfield_10500 (acceptanceCriteria)", or "criteria (field …, description)" when it was empty): the fix goes there.
-  const field = /\bfield ([^\s(),;]+)/.exec(r.source)?.[1] ?? null;
-  const questions =
-    r.standard === 'bug-repro'
-      ? [`What exact steps make "${item.title}" happen, starting from where?`, 'Which version or environment was it seen in?']
-      : [`What has to be true before "${item.title}" starts: which account, card or data does it begin from?`, 'What should a person see when it worked, and what when it failed?'];
-  const text =
-    r.standard === 'bug-repro'
-      ? [`## ${SECTION[r.rule] ?? r.name}`, r.rule === 'actual' ? item.title : r.rule === 'expected' ? '[the correct behaviour: see the questions]' : '1. [the first step: see the questions]', ''].join('\n')
-      : [`Scenario: ${item.title}`, '  Given [the starting point: see the first question]', `  When someone does what the item asks: ${item.title.toLowerCase()}`, '  Then [what a person sees: see the second question]'].join('\n');
-  const where = field ?? 'the description';
+const WORKED: Record<string, { text: string[]; question: string; said: string }> = {
+  'PAY-103': {
+    text: ['Scenario: Charge a stored token', '  Given a customer with a saved card token', '  When they confirm a payment', '  Then the card is charged once and a receipt is shown'],
+    question: 'What should the customer see when the stored token is declined?',
+    said: 'as one Given/When/Then scenario: a customer with a saved card token confirms a payment, and the card is charged once with a receipt shown. The item says nothing about a declined token, so that is asked below.',
+  },
+};
+
+/** Where toil read a rule's text, leaving out what it couldn't read ("description; not read: field …" read the description). */
+const readFrom = (source: string) => source.split(/;?\s*not read:/)[0]!;
+
+/**
+ * The sample's canned "Fix with AI agent" (#657): one rewrite of the place
+ * toil read, meeting every rule it was given (one, or a standard's "Fix all"),
+ * and at most one question for what the item doesn't say. A real run writes
+ * from the item; this one shows the shape, and a worked answer for PAY-103.
+ * `criteriaField` is the Toil project's acceptance criteria field, where a
+ * rule that read the acceptance criteria is fixed.
+ */
+export function ruleFix(toilProject: string, item: WorkItem, rules: readonly AssignedRule[], criteriaField: string | null = null): { proposal: Proposal; questions: string[]; said: string } {
+  const r = rules[0]!;
+  const read = readFrom(r.source);
+  // toil names a field it read ("field customfield_10500 (acceptanceCriteria)"), or says it read the acceptance criteria: the fix goes there.
+  const field = /\bfield ([^\s(),;]+)/.exec(read)?.[1] ?? (/criteria/i.test(read) ? criteriaField : null);
+  const key = item.source.key;
+  const worked = r.standard === 'gherkin' ? WORKED[key] : undefined;
+  const bug = r.standard === 'bug-repro';
+  const text = worked
+    ? worked.text.join('\n')
+    : bug
+      ? rules.flatMap((x) => [`## ${SECTION[x.rule] ?? x.name}`, x.rule === 'actual' ? item.title : x.rule === 'expected' ? '[the correct behaviour: see the question]' : '1. [the first step: see the question]', '']).join('\n')
+      : [`Scenario: ${item.title}`, '  Given [the starting point: see the question]', `  When someone does what the item asks: ${item.title.toLowerCase()}`, '  Then [what a person sees when it worked]'].join('\n');
+  const question = worked?.question ?? (bug ? `What exact steps make "${item.title}" happen, and what should have happened instead?` : `What has to be true before "${item.title}" starts: which account, card or data does it begin from?`);
+  const place = field ? 'the acceptance criteria' : 'the description';
   const jira = item.source.area.startsWith('jira');
+  const names = rules.length === 1 ? `"${r.name}"` : `${rules.length} ticket rules`;
   return {
     proposal: {
-      id: `agent:${item.id}:rule:${r.standard}/${r.rule}`,
+      id: `agent:${item.id}:rule:${r.standard}/${rules.map((x) => x.rule).join('+')}`,
       from: 'agent',
       item: item.id,
-      title: `Rewrite ${field ? 'the acceptance criteria' : 'the description'} of ${item.source.key} to meet "${r.name}"`,
-      reason: `${r.reason} The rewrite keeps what [[${item.id}]] says and leaves what it doesn't as gaps, asked about below.`,
+      title: `Rewrite ${place} of ${key} to meet ${names}`,
+      reason: worked ? `Rewrites ${place} of [[${item.id}]] ${worked.said}` : `${rules.map((x) => x.reason).join(' ')} The rewrite keeps what [[${item.id}]] says and leaves what it doesn't as a gap, asked about below.`,
       command: jira ? 'jira issue update' : null,
-      input: jira ? { toilProject, key: item.source.key, ...(field ? { field: [`${field}=${text}`] } : { description: text }) } : null,
-      note: jira ? `Replaces ${where}. Fill in the gaps, or answer the questions first.` : 'The sample proposes this for Jira items only; make the change by hand.',
+      input: jira ? { toilProject, key, ...(field ? { field: [`${field}=${text}`] } : { description: text }) } : null,
+      note: jira ? `Replaces ${place}.` : 'The sample proposes this for Jira items only; make the change by hand.',
     },
-    questions,
+    questions: [question],
+    said: worked ? `The proposal rewrites ${place} of [[${item.id}]] ${worked.said}` : `[[${item.id}]] missed ${rules.length === 1 ? `"${r.name}"` : rules.map((x) => `"${x.name}"`).join(', ')}. The proposal rewrites ${place} to meet ${rules.length === 1 ? 'it' : 'them'}, keeping what the item says and leaving what it doesn't as a gap, with one question.`,
   };
 }
 
@@ -263,8 +287,11 @@ export function sampleRecords(cards: ToilProjectData): AssignmentRecord[] {
   ];
 }
 
-/** Canned results for a run started in the sample, a step every `delay` ms. */
-export function scriptedRunner(delay = 600): Runner {
+/**
+ * Canned results for a run started in the sample, a step every `delay` ms.
+ * `criteriaField` names a Toil project's acceptance criteria field for an area, where a canned fix writes.
+ */
+export function scriptedRunner(delay = 600, criteriaField: (toilProject: string, area: string) => string | null = () => null): Runner {
   const wait = (ms: number, signal: AbortSignal) =>
     new Promise<void>((resolve, reject) => {
       const t = setTimeout(resolve, ms);
@@ -283,10 +310,10 @@ export function scriptedRunner(delay = 600): Runner {
       ctx.record({ kind: 'tool', title: 'Called: owi_similar', detail: JSON.stringify({ id: item.id }) });
       await wait(delay, signal);
       const cite = `[[${item.id}]]`;
-      if (a.standard) {
-        const fix = ruleFix(a.toilProject, item, a.standard);
+      if (a.rules?.length) {
+        const fix = ruleFix(a.toilProject, item, a.rules, criteriaField(a.toilProject, item.source.area));
         return {
-          report: { parts: [{ text: `${cite} missed "${a.standard.name}". The proposal rewrites it to meet the rule, keeping what it says and leaving what it doesn't as gaps, with a question for each. This is the sample's canned answer; a real run writes from the item itself.` }], citations: [item.id], unverified: [], warnings: [] },
+          report: { parts: [{ text: fix.said }], citations: [item.id], unverified: [], warnings: [] },
           proposals: [fix.proposal],
           questions: fix.questions,
           injection: null,
@@ -351,7 +378,7 @@ export function sampleQueue(execute: Execute = fixtureExecute().execute, o: { de
     for (const name of ['card-payments', 'settlement', 'checkout-web']) data.set(name, await loadToilProject(execute, name));
     queue = new AssignmentQueue({
       keeper: memory(sampleRecords(data.get('card-payments')!)),
-      runner: scriptedRunner(o.delay),
+      runner: scriptedRunner(o.delay, (toilProject, area) => data.get(toilProject)?.readiness.areas[area]?.acceptanceField ?? null),
       items: (toilProject) => {
         const items = data.get(toilProject)?.items ?? null;
         return items?.map((i) => (i.id === SAMPLE_INBOX.item ? { ...i, labels: [...i.labels, SAMPLE_INBOX.label] } : i)) ?? null;

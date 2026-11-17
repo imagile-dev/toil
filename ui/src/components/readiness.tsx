@@ -1,7 +1,8 @@
 /**
  * The readiness gate's pieces (#307): the verdict chip, the five rows and the
  * ticket rules' rows (#657), why an item isn't ready, and the item page's
- * panel, where a thin or failed rule offers "Fix with AI agent". The item page and the Command Center
+ * panel, where a thin or failed rule offers "Fix with AI agent" (or a standard with several misses offers
+ * "Fix all"). The item page and the Command Center
  * both draw from here, over src/model/readiness.ts, so a verdict reads the
  * same wherever it shows. A rubber stamp, but one that says which box it
  * stamped and why.
@@ -13,10 +14,11 @@ import { useData } from '../data.ts';
 import { dateTime } from '../format.ts';
 import { usePlain } from '../plain-words.ts';
 import { liveWorkflow, readiness, VERDICT_LABEL, VERDICT_PLAIN, withRules, workflowRead, type LiveWorkflow, type Readiness, type Row, type Verdict } from '../model/readiness.ts';
-import { FixRuleButton } from '../assign/views.tsx';
+import { FixRuleButton, type RuleToFix } from '../assign/views.tsx';
 import { fixable } from '../rules.ts';
 import { CALL_OPTIONS, type WorkItem } from '../toil.ts';
 import { Help } from './help.tsx';
+import { SummaryChevron } from './disclosure.tsx';
 import { Cited } from './items.tsx';
 import { Card } from './layout.tsx';
 import { CheckIcon, CloseIcon, WarningIcon } from './icons.tsx';
@@ -38,8 +40,8 @@ export function VerdictChip({ verdict }: { verdict: Verdict }) {
   );
 }
 
-/** One row: its state in words as well as a mark, its reason, where it came from, and any action it offers. */
-function RowLine({ r, action }: { r: Row; action?: ReactNode }) {
+/** One row: its state in words as well as a mark, its reason, and where it came from. */
+function RowLine({ r }: { r: Row }) {
   return (
     <li className={`readiness-row readiness-row--${r.state}`}>
       <span className="readiness-mark" aria-hidden="true">
@@ -50,22 +52,64 @@ function RowLine({ r, action }: { r: Row; action?: ReactNode }) {
         <span className="field">
           Source: <code>{r.source}</code>
         </span>
-        {action && <span className="readiness-row__action">{action}</span>}
       </span>
+    </li>
+  );
+}
+
+/**
+ * A ticket rule's row: its state and reason, with its source one press in
+ * (principle 4 keeps it reachable, never removed), and Fix with AI agent at the
+ * row's end when the rule misses and its standard has no "Fix all".
+ */
+function RuleRowLine({ r, action }: { r: Row; action?: ReactNode }) {
+  return (
+    <li className={`readiness-row readiness-row--rule readiness-row--${r.state}`}>
+      <span className="readiness-mark" aria-hidden="true">
+        {MARK[r.state]}
+      </span>
+      <details className="readiness-row__more">
+        <summary>
+          <SummaryChevron />
+          <span>
+            <strong>{r.label}</strong> <span className="readiness-state">{STATE_WORD[r.state]}</span>: <Cited text={r.reason} />
+          </span>
+        </summary>
+        <p className="field">
+          Source: <code>{r.source}</code>
+        </p>
+      </details>
+      {action && <span className="readiness-row__action">{action}</span>}
     </li>
   );
 }
 
 const isRuleRow = (r: Row) => r.check === 'rules' || r.check.startsWith('rule:');
 
+/** The rule rows by standard, in the check's order: one group a standard, each with the rows that are its rules. */
+function byStandard(rows: Row[]): Array<{ standard: string; rows: Row[] }> {
+  const groups: Array<{ standard: string; rows: Row[] }> = [];
+  for (const r of rows) {
+    const standard = r.rule?.standard ?? '';
+    const last = groups.at(-1);
+    if (last && last.standard === standard) last.rows.push(r);
+    else groups.push({ standard, rows: [r] });
+  }
+  return groups;
+}
+
 /**
- * The five rows, then the ticket rules' rows under their own heading. With
- * `item`, a thin or failed rule offers "Fix with AI agent" on its own row:
- * the one place a fix to that rule makes sense.
+ * The five rows, then the ticket rules' rows under their own heading, set in
+ * and grouped by standard. With `item`, a rule the item misses offers "Fix with
+ * AI agent" on its row; where a standard has more than one miss, its group
+ * offers one "Fix all N with AI agent" instead, which asks for one rewrite that
+ * meets them all, rather than three buttons that would each rewrite the same
+ * description.
  */
-export function ReadinessRows({ readiness, item, ruleText }: { readiness: Readiness; item?: Pick<WorkItem, 'id' | 'title'>; ruleText?: (standard: string, rule: string) => string | null }) {
+export function ReadinessRows({ readiness, item, ruleText }: { readiness: Readiness; item?: Pick<WorkItem, 'id' | 'title' | 'source'>; ruleText?: (standard: string, rule: string) => string | null }) {
   const fixed = readiness.rows.filter((r) => !isRuleRow(r));
   const rules = readiness.rows.filter(isRuleRow);
+  const toFix = (r: Row): RuleToFix => ({ ...r.rule!, name: r.label, text: ruleText?.(r.rule!.standard, r.rule!.rule) ?? null, reason: r.reason });
   return (
     <>
       <ul className="rows readiness-rows">
@@ -74,31 +118,48 @@ export function ReadinessRows({ readiness, item, ruleText }: { readiness: Readin
         ))}
       </ul>
       {rules.length > 0 && (
-        <>
-          <h3 className="readiness-subhead">
+        <section className="readiness-rules-group" aria-labelledby="readiness-rules-head">
+          <h3 className="readiness-subhead" id="readiness-rules-head">
             Ticket rules <Help topic="ticket-rules" />
           </h3>
-          <ul className="rows readiness-rows" data-rule-rows="">
-            {rules.map((r) => (
-              <RowLine
-                key={r.check}
-                r={r}
-                {...(item && r.rule && fixable(r.state) ? { action: <FixRuleButton item={item} rule={{ ...r.rule, name: r.label, text: ruleText?.(r.rule.standard, r.rule.rule) ?? null, reason: r.reason }} /> } : {})}
-              />
-            ))}
-          </ul>
-        </>
+          <div data-rule-rows="">
+            {byStandard(rules).map((g) => {
+              const missed = item ? g.rows.filter((r) => r.rule && fixable(r.state)) : [];
+              const all = missed.length > 1;
+              return (
+                <div key={g.standard || g.rows[0]!.check} className="readiness-standard" data-rule-group={g.standard || undefined}>
+                  {all && (
+                    <p className="readiness-standard__fix">
+                      <span className="field">{missed.length} of these rules miss.</span>
+                      <FixRuleButton item={item!} rules={missed.map(toFix)} />
+                    </p>
+                  )}
+                  <ul className="rows readiness-rows">
+                    {g.rows.map((r) => (
+                      <RuleRowLine key={r.check} r={r} {...(item && !all && r.rule && fixable(r.state) ? { action: <FixRuleButton item={item} rules={[toFix(r)]} /> } : {})} />
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
     </>
   );
 }
 
-/** Why an item isn't ready, in one line: the rows that don't pass, worst first. */
-export function WhyNot({ readiness }: { readiness: Readiness }) {
+/**
+ * Why an item isn't ready, in one line: the rows that don't pass, worst first.
+ * `first` brings the rows it picks to the top, so a list filtered to a ticket
+ * rule leads with that rule's line.
+ */
+export function WhyNot({ readiness, first }: { readiness: Readiness; first?: (r: Row) => boolean }) {
   if (!readiness.why.length) return <span className="field">Every check passes.</span>;
+  const rows = first ? [...readiness.why.filter(first), ...readiness.why.filter((r) => !first(r))] : readiness.why;
   return (
     <ul className="why-not">
-      {readiness.why.map((r) => (
+      {rows.map((r) => (
         <li key={r.check}>
           <strong>{r.label}:</strong> <Cited text={r.reason} />
         </li>
@@ -136,7 +197,9 @@ export function ReadinessPanel({ item }: { item: WorkItem }) {
   };
   return (
     <Card as="section" className="panel readiness-panel" aria-labelledby="readiness">
-      <h2 id="readiness">Ready for an agent?</h2>
+      <h2>
+        <span id="readiness">Ready for an agent?</span> <Help topic="readiness-checks" note={`The checks' settings (fields.acceptanceCriteria, readiness.minWords and readiness.templates in the ${item.source.area} section) are in Toil UI's README.`} />
+      </h2>
       <p className="readiness-verdict">
         <VerdictChip verdict={r.verdict} /> {MEANING[r.verdict]}
       </p>
@@ -152,7 +215,7 @@ export function ReadinessPanel({ item }: { item: WorkItem }) {
         </p>
       )}
       <p className="note">
-        Worked out from the cached record{live ? ' and one live read' : ''}, with no model call. The checks and their settings (fields.acceptanceCriteria, readiness.minWords, readiness.templates in the {item.source.area} section) are in Toil UI's README.
+        Worked out from the cached record{live ? ' and one live read' : ''}, with no model call.
       </p>
       {settings.notes.map((n, i) => (
         <p key={i} role="note" className="failure">

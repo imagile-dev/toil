@@ -40,10 +40,17 @@
 .assign-line--error strong { color: var(--danger); }
 .assign-line--proposal strong { color: var(--link); }
 
+/* The assignment's head: the one next step first when a proposal waits on the reader, the run's times and figures one press in. */
+.assign-lead { font-weight: 600; margin: 0.25rem 0; }
+.assign-run > summary { min-height: 32px; color: var(--muted); font-size: 0.875rem; }
+.assign-run > .note { margin: 0.25rem 0 0; }
+
 /* "Fix with AI agent" (#657): the rule and what toil found, as label and value pairs. */
 .fix-rule { display: grid; grid-template-columns: minmax(7rem, max-content) 1fr; gap: 0.35rem 1rem; margin: 0; overflow-wrap: anywhere; }
 .fix-rule dt { font-weight: 600; }
 .fix-rule dd { margin: 0; }
+.fix-rule dd p { margin: 0; }
+.fix-rule dd p + p { margin-top: 0.3rem; }
 @media (max-width: 30rem) { .fix-rule { grid-template-columns: 1fr; } .fix-rule dd { margin-bottom: 0.35rem; } }
 .assign-form .agent-notice { display: grid; gap: 0.4rem; padding: 0.6rem 0.75rem; border: 1px solid var(--warn); border-left-width: 4px; border-radius: var(--radius); background: var(--bg); }
 .assign-form .agent-notice p { margin: 0; }

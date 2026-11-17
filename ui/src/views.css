@@ -152,7 +152,8 @@
 .proposal-why { margin: 0; }
 /* A quiet action alone in the row lines up with the text above it, not inset by its own padding. */
 .proposal--tidy .proposal-actions > .btn--quiet:first-child { margin-left: -0.75rem; }
-.proposal--tidy { gap: 0.55rem; }
+.proposal--tidy, .proposal--apply { gap: 0.55rem; }
+.proposal-reason { margin: 0; }
 .proposal-command { border-top: 1px solid var(--line); padding-top: 0.4rem; }
 .proposal-command > summary { cursor: pointer; color: var(--link); font-size: 0.9375rem; }
 .proposal-command[open] > summary { margin-bottom: 0.5rem; }

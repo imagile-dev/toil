@@ -115,6 +115,33 @@ export interface ReadinessSettings {
   rules?: RulesReading;
 }
 
+/** Tracker fields whose everyday name is known, by id in lower case (Azure DevOps' without `System.`). */
+const KNOWN_FIELDS: Record<string, string> = {
+  title: 'Title',
+  summary: 'Title',
+  description: 'Description',
+  body: 'Comment',
+  priority: 'Priority',
+  labels: 'Labels',
+  'story points': 'Story points',
+  storypoints: 'Story points',
+  'microsoft.vsts.scheduling.storypoints': 'Story points',
+  'microsoft.vsts.common.acceptancecriteria': 'Acceptance criteria',
+  'microsoft.vsts.tcm.reprosteps': 'Repro steps',
+};
+
+/**
+ * A field's everyday name for a proposal's table (#657): "Acceptance criteria"
+ * for the field the Toil project names as its acceptance criteria
+ * (`<area>.fields.acceptanceCriteria`, often a `customfield_…`), else a name
+ * every tracker shares; null when there is none, and the id is shown instead.
+ */
+export function fieldName(field: string, settings: Pick<ReadinessSettings, 'areas'>, area: string | null): string | null {
+  const f = field.toLowerCase().replace(/^system\./, '');
+  const criteria = (area ? [settings.areas[area]] : Object.values(settings.areas)).some((a) => a?.acceptanceField?.toLowerCase() === field.toLowerCase());
+  return criteria ? 'Acceptance criteria' : (KNOWN_FIELDS[f] ?? null);
+}
+
 /**
  * What toil's `standards check` said, as the page holds it: not read yet (the
  * call hasn't come back, or the toil project never synced), read, or failed,

@@ -11,11 +11,13 @@
  * A split by person or team is in name order and never sorted by size: the team
  * is measured, never the person. Splits by anyone's name are alphabetical, a form of fairness.
  *
- * "Sort by" (#657) views the same work by another built-in scheme, such as
+ * "Categories" (#657) views the same work by another built-in scheme, such as
  * flow's Feature, Defect, Risk and Debt, worked out on the fly from its rules
  * and the labels already on the items (`?lens=` in the address, read by
- * useWorkInsights). It changes nothing saved: the Toil project's own choice
- * lives in Settings, and this menu only borrows the other spectacles.
+ * useWorkInsights). It comes first and stands apart from Split by and Measured
+ * in, since it changes what the categories are rather than how they are cut.
+ * It changes nothing saved: the team's own choice lives in Settings, and this
+ * menu only borrows the other spectacles; "Back to saved" returns them.
  */
 
 import { Fragment } from 'react';
@@ -46,13 +48,19 @@ export function mixHeadline(ins: ReturnType<typeof useWorkInsights>): Headline {
   return { text: mixSentence(lines), note: `${periodWords(ins.today, period)}, ${result.total.value ?? 0} ${result.measure.unit} finished` };
 }
 
-/** A scheme as the Sort by menu names it: its categories, in order. */
+/** A scheme's categories, in order: "Feature / Defect / Risk / Debt". */
 const schemeLabel = (s: { categories: ReadonlyArray<Pick<Scheme['categories'][number], 'name'>> }) => s.categories.map((c) => c.name).join(' / ');
+
+/** The built-in schemes' names as the Categories menu leads with them, so two lists of categories are told apart by name. */
+const SCHEME_TITLE: Record<string, string> = { flow: 'Flow', balance: 'Balance', 'ktlo-feature': 'KTLO' };
+
+/** A scheme as the Categories menu names it: "Flow: Feature / Defect / Risk / Debt". */
+const schemeOption = (s: Pick<Scheme, 'name'> & Parameters<typeof schemeLabel>[0]) => (SCHEME_TITLE[s.name] ? `${SCHEME_TITLE[s.name]}: ${schemeLabel(s)}` : schemeLabel(s));
 
 export function MixView() {
   const ins = useWorkInsights();
   const { toilProject, classification } = useData();
-  const { filters, query, go } = useAddress();
+  const { filters, query, go, hrefWith } = useAddress();
   const drill = useDrill();
   const words = useWords();
   const source = useSourceLine(true);
@@ -78,13 +86,15 @@ export function MixView() {
   const inUse = schemeInUse(toilProject.classifyScheme, classification?.view?.scheme.name);
   const lens = lensOf(query.get('lens'), inUse);
   const saved = classification?.view?.scheme;
-  const sortBy = [
-    ...(BUILTIN_SCHEMES.some((b) => b.name === inUse) ? [] : [{ id: inUse, label: `${saved ? schemeLabel(saved) : inUse} (saved)` }]),
-    ...BUILTIN_SCHEMES.map((b) => ({ id: b.name, label: `${schemeLabel(b)}${b.name === inUse ? ' (saved)' : ''}` })),
+  const lenses = [
+    ...(BUILTIN_SCHEMES.some((b) => b.name === inUse) ? [] : [{ id: inUse, label: `${saved ? schemeLabel(saved) : inUse} (your team's)` }]),
+    ...BUILTIN_SCHEMES.map((b) => ({ id: b.name, label: `${schemeOption(b)}${b.name === inUse ? " (your team's)" : ''}` })),
   ];
   const menus = (
     <div className="chart-menus">
-      <Choice label="Sort by" value={lens ?? inUse} options={sortBy} onChange={(id) => set('lens', id === inUse ? null : id)} />
+      <div className="chart-menus__lens">
+        <Choice label="Categories" value={lens ?? inUse} options={lenses} onChange={(id) => set('lens', id === inUse ? null : id)} />
+      </div>
       <Choice label={words('charts.splitBy')} value={split} options={[{ id: TIME, label: 'Month' }, ...SPLIT_MENU.filter((d) => d.spec !== 'category').map((d) => ({ id: d.spec, label: d.label }))]} onChange={(id) => set('split', id === TIME ? null : id)} />
       <Choice label={words('charts.measuredIn')} value={unit} options={MIX_UNITS.map((u) => ({ id: u.id, label: u.label }))} onChange={(id) => set('unit', id === 'items' ? null : id)} />
     </div>
@@ -111,7 +121,7 @@ export function MixView() {
       </p>
       {lens && (
         <p className="note" data-mix-lens={lens}>
-          Sorted by {schemeLabel(ins.scheme)} for this view only; the Toil project's saved categories are unchanged.
+          Viewing as {schemeLabel(ins.scheme)}. Your team's saved categories haven't changed. <a href={hrefWith((q) => q.delete('lens'))}>Back to saved</a>
         </p>
       )}
       <FilterBar />

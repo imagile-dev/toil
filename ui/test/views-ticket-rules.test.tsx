@@ -11,8 +11,10 @@ import { item, open, panel, resetBrowserState } from './views-kit.tsx';
 /**
  * Ticket rules on screen (#657): the rule rows on an item's page and Fix with
  * AI agent on a row that misses, the dialog with and without an AI agent, the
- * Command Center's Ticket rules card and the list it drills to, and the Work
- * mix's Sort by, which views another built-in scheme without saving anything.
+ * Command Center's Ticket rules card and the list it drills to, the
+ * assignment page a fix opens (the proposal first, the command one press in),
+ * and the Work mix's Categories, which views another built-in scheme without
+ * saving anything.
  */
 
 beforeEach(resetBrowserState);
@@ -31,7 +33,10 @@ describe('the rule rows on an item (#657)', () => {
     await waitFor(() => expect(document.querySelector('[data-rule-rows]')).not.toBeNull());
     const box = panel('Ready for an agent?');
     expect(within(box).getByRole('heading', { name: /Ticket rules/ })).toBeTruthy();
-    expect(ruleRows()).toEqual([expect.stringMatching(/^Acceptance criteria as Given\/When\/Then Thin: None of the 3 patterns was found/)]);
+    // The reason is toil's own words (src/core/standards), so it is matched loosely here.
+    expect(ruleRows()).toEqual([expect.stringMatching(/^Acceptance criteria as Given\/When\/Then Thin: \S/)]);
+    // The row's source is one press in: in the page, folded under the row's own disclosure.
+    expect(document.querySelector('[data-rule-rows] details:not([open]) .field')!.textContent).toMatch(/^Source: /);
     expect(within(box).getByRole('button', { name: 'Fix with AI agent: Acceptance criteria as Given/When/Then' })).toBeTruthy();
   });
 
@@ -47,12 +52,60 @@ describe('the rule rows on an item (#657)', () => {
     await userEvent.click(await screen.findByRole('button', { name: /Fix with AI agent/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Fix with AI agent' });
     expect(dialog.textContent).toContain('State the acceptance criteria as scenarios');
-    expect(dialog.textContent).toContain('What toil found');
+    expect(dialog.textContent).toContain("What's missing");
+    expect(dialog.textContent).toContain('Nothing changes in Jira until you apply it.');
+    expect(dialog.textContent).not.toMatch(/approve/i);
     await userEvent.click(within(dialog).getByRole('radio', { name: 'Codex' }));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Fix with AI agent' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Ask for a rewrite' }));
     await waitFor(() => expect(window.location.hash).toMatch(/#\/project\/card-payments\/assignment\//));
     await go(window.location.hash);
     await waitFor(() => expect(document.body.textContent).toContain('Rewrite the acceptance criteria of PAY-103 to meet "Acceptance criteria as Given/When/Then"'), { timeout: 4000 });
+  });
+
+  it('offers one Fix all on a standard with several misses, which asks for one rewrite that meets them all', async () => {
+    const rules = fixtureStandards();
+    const bug = (await rules.check('card-payments')).result!.items.find((i) => i.results.filter((r) => r.standard === 'bug-repro' && r.state !== 'pass').length === 3)!;
+    await open(item('card-payments', bug.id), { rules, assignments: fixtureAssignments({ delay: 0 }) });
+    await waitFor(() => expect(document.querySelector('[data-rule-group="bug-repro"]')).not.toBeNull());
+    const group = document.querySelector<HTMLElement>('[data-rule-group="bug-repro"]')!;
+    expect(within(group).getAllByRole('button', { name: /Fix/ }).map((b) => b.textContent)).toEqual([expect.stringMatching(/^Fix all 3 with AI agent/)]);
+    await userEvent.click(within(group).getByRole('button', { name: /Fix all 3/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Fix with AI agent' });
+    for (const name of ['Steps to reproduce', 'Expected result', 'Actual result']) expect(dialog.textContent).toContain(name);
+    expect(dialog.textContent).toContain('Ticket rules');
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Codex' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Ask for a rewrite' }));
+    await waitFor(() => expect(window.location.hash).toMatch(/#\/project\/card-payments\/assignment\//));
+    await go(window.location.hash);
+    await waitFor(() => expect(document.querySelector('[data-assignment-rule]')?.textContent).toBe('To meet the ticket rules Steps to reproduce, Expected result and Actual result.'));
+    await waitFor(() => expect(document.body.textContent).toContain('to meet 3 ticket rules'), { timeout: 4000 });
+  });
+
+  it("leads a fix's page with what to do, and puts the change and Apply before the command", async () => {
+    await open(item('card-payments', 'corp-jira:PAY-103'), { rules: fixtureStandards(), assignments: fixtureAssignments({ delay: 0 }) });
+    await userEvent.click(await screen.findByRole('button', { name: /Fix with AI agent/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Fix with AI agent' });
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Codex' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Ask for a rewrite' }));
+    await waitFor(() => expect(window.location.hash).toMatch(/assignment\//));
+    await go(window.location.hash);
+    const card = await waitFor(() => screen.getByRole('article', { name: /Proposal: Rewrite the acceptance criteria of PAY-103/ }), { timeout: 4000 });
+    expect(document.querySelector('[data-assignment-rule]')!.textContent).toBe('To meet the ticket rule Acceptance criteria as Given/When/Then.');
+    expect(document.querySelector('[data-assignment-lead]')!.textContent).toBe('Nothing has changed yet. Review the proposal below and apply it.');
+    // The run's times and figures are one press in.
+    expect(document.querySelector('[data-assignment-run]:not([open])')!.textContent).toMatch(/Created .*sample figures/);
+    // Under the title: the field table, by its plain name, then Apply; the command and its advice are in a closed disclosure, never in red.
+    const order = [...card.querySelectorAll('h3, table, .proposal-actions, details')].map((e) => e.tagName.toLowerCase() + (e.classList.contains('proposal-actions') ? '.actions' : ''));
+    expect(order).toEqual(['h3', 'table', 'div.actions', 'details']);
+    expect(within(card).getByRole('rowheader').textContent).toMatch(/Acceptance criteria$/);
+    expect(card.textContent).toContain('Replaces the acceptance criteria.');
+    expect(within(card).getByRole('cell', { name: /Given a customer with a saved card token/ })).toBeTruthy();
+    const command = card.querySelector<HTMLDetailsElement>('details[data-proposal-command]')!;
+    expect(command.open).toBe(false);
+    expect(command.querySelector('summary')!.textContent).toBe('Show the command');
+    expect(card.querySelector('.failure')).toBeNull();
+    expect(command.querySelector('[data-command-advice]')?.className ?? 'note').toBe('note');
+    expect(within(card).getByRole('button', { name: /^Apply/ })).toBeTruthy();
   });
 
   it('says no AI agent is set up, and links to setting one up, rather than offering a button that can only fail', async () => {
@@ -63,7 +116,9 @@ describe('the rule rows on an item (#657)', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Fix with AI agent' });
     await waitFor(() => expect(dialog.querySelector('[data-no-agent]')).not.toBeNull());
     expect(within(dialog).getByRole('link', { name: 'Set up an AI agent' }).getAttribute('href')).toBe('#/settings/agent');
-    expect(within(dialog).queryByRole('button', { name: 'Fix with AI agent' })).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: 'Ask for a rewrite' })).toBeNull();
+    // The details for whoever sets it up are a disclosure with a visible chevron.
+    expect(dialog.querySelector('[data-no-agent] details > summary .disclosure-chevron')).not.toBeNull();
   });
 });
 
@@ -75,14 +130,21 @@ describe("the Command Center's Ticket rules card (#657)", () => {
       if (!el) throw new Error('not yet');
       return el.closest<HTMLElement>('[data-ticket-rules]')!;
     });
-    const line = within(card).getByRole('link', { name: "2 of 4 stories miss 'Acceptance criteria as Given/When/Then'" });
-    expect(within(card).getByRole('link', { name: "1 of 1 bug misses 'Steps to reproduce'" })).toBeTruthy();
+    const line = within(card).getByRole('link', { name: '2 of 4 stories miss acceptance criteria as Given/When/Then' });
+    expect(line.querySelector('strong')!.textContent).toBe('2 of 4');
+    // A standard with several rules is one line, and drills to items that miss any of them.
+    const repro = within(card).getByRole('link', { name: '1 of 1 bug misses steps to reproduce, expected result and actual result' });
+    expect(repro.getAttribute('href')).toContain('rule=bug-repro');
+    expect(repro.getAttribute('href')).not.toContain('rule=bug-repro%2F');
     await go(line.getAttribute('href')!);
     await waitFor(() => expect(document.querySelector('[data-rule-filter]')).not.toBeNull());
     expect(document.querySelector('[data-rule-filter]')!.textContent).toContain('Missing: Acceptance criteria as Given/When/Then');
     const table = screen.getByRole('table', { name: /items and their readiness/ });
     const keys = within(table).getAllByRole('rowheader').map((h) => /PAY-\d+/.exec(h.textContent ?? '')![0]);
     expect(keys.sort()).toEqual(['PAY-103', 'PAY-107']);
+    // The filtered rule's line leads each item's Why not ready, and Clear takes the filter off.
+    for (const row of within(table).getAllByRole('row').slice(1)) expect(row.querySelector('.why-not li')!.textContent).toMatch(/^Acceptance criteria as Given\/When\/Then:/);
+    expect(within(document.querySelector<HTMLElement>('[data-rule-filter]')!).getByRole('link', { name: /^Clear/ }).getAttribute('href')).not.toContain('rule=');
   });
 
   it('is a dash, not read yet, until the check comes back', async () => {
@@ -98,14 +160,19 @@ describe("the Command Center's Ticket rules card (#657)", () => {
   });
 });
 
-describe("the Work mix's Sort by (#657)", () => {
-  it('views the mix by flow, in the address, and says the saved categories are unchanged', async () => {
+describe("the Work mix's Categories (#657)", () => {
+  it('views the mix by flow, in the address, says the saved categories are unchanged, and goes back to them', async () => {
     await open('#/project/sample-team/summary/mix');
-    const select = await screen.findByRole('button', { name: /Sort by/ });
-    expect(select.textContent).toContain('Keep the lights on / Feature (saved)');
+    const select = await screen.findByRole('button', { name: /Categories/ });
+    expect(select.textContent).toContain("KTLO: Keep the lights on / Feature (your team's)");
+    // It comes first, apart from the menus that cut the chart.
+    expect(document.querySelector('.chart-menus > :first-child')!.classList.contains('chart-menus__lens')).toBe(true);
     await go('#/project/sample-team/summary/mix?lens=flow');
     await waitFor(() => expect(document.querySelector('[data-mix-lens="flow"]')).not.toBeNull());
-    expect(document.querySelector('[data-mix-lens]')!.textContent).toContain('Sorted by Feature / Defect / Risk / Debt for this view only');
+    const note = document.querySelector<HTMLElement>('[data-mix-lens]')!;
+    expect(note.textContent).toContain("Viewing as Feature / Defect / Risk / Debt. Your team's saved categories haven't changed.");
+    expect(within(note).getByRole('link', { name: 'Back to saved' }).getAttribute('href')).not.toContain('lens=');
+    expect(screen.getByRole('button', { name: /Categories/ }).textContent).toContain('Flow: Feature / Defect / Risk / Debt');
     expect(document.querySelector('[data-mix-lead]')!.textContent).toMatch(/Defect \d+%/);
   });
 });

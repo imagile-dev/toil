@@ -9,7 +9,7 @@
  * signature line at the bottom of every page.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Button } from 'react-aria-components';
 import { usePlain } from '../plain-words.ts';
 import { AssignModal, StateChip, assignmentHref, usageText, POLL_MS } from '../assign/views.tsx';
@@ -23,6 +23,8 @@ import { useData } from '../data.ts';
 import { Empty, EmptyLink } from '../components/empty.tsx';
 import { AGENT_SETTINGS_HREF, dateTime, toilProjectHref } from '../format.ts';
 import { EditLink } from '../components/help.tsx';
+import { SummaryChevron } from '../components/disclosure.tsx';
+import { fieldName } from '../model/readiness.ts';
 
 const when = (iso: string | null) => (iso ? dateTime(iso) : 'not yet');
 
@@ -80,6 +82,9 @@ export function AssignmentView({ id }: { id: string }) {
   };
   const a = record;
   const waitingStart = a.state === 'queued' && a.waiting === 'start';
+  // What leads the head: a proposal waits and none was applied, so nothing has changed and the next step is the reader's.
+  const open = a.proposals.filter((p) => p.status === 'pending');
+  const waitsOnYou = open.length > 0 && !a.proposals.some((p) => p.status === 'applied');
 
   return (
     <>
@@ -88,19 +93,37 @@ export function AssignmentView({ id }: { id: string }) {
           <a href={toilProjectHref(a.toilProject)}>{a.toilProject}</a> · Agent assignment
         </p>
         <h1 tabIndex={-1}>
-          {a.standard ? 'Fix with AI agent' : modeInfo(a.mode, plain.on).label}: {a.itemTitle}
+          {a.rules?.length ? 'Fix with AI agent' : modeInfo(a.mode, plain.on).label}: {a.itemTitle}
         </h1>
-        {a.standard && (
+        {a.rules?.length ? (
           <p data-assignment-rule="">
-            To meet the ticket rule <strong>{a.standard.name}</strong>. {a.standard.reason}
+            To meet {a.rules.length === 1 ? 'the ticket rule' : 'the ticket rules'}{' '}
+            {a.rules.map((r, i) => (
+              <Fragment key={r.rule}>
+                {i > 0 && (i === a.rules!.length - 1 ? ' and ' : ', ')}
+                <strong>{r.name}</strong>
+              </Fragment>
+            ))}
+            .
+          </p>
+        ) : null}
+        {waitsOnYou && (
+          <p className="assign-lead" data-assignment-lead="">
+            Nothing has changed yet. Review {open.length === 1 ? 'the proposal below and apply it' : 'the proposals below and apply the ones you want'}.
           </p>
         )}
         <p className="item-meta">
           <StateChip a={a} /> <ItemLink id={a.item} /> · {a.adapter ? ADAPTER_NAME[a.adapter] : 'no adapter chosen yet'} <EditLink href={AGENT_SETTINGS_HREF} label="Edit the agent settings" /> · {a.origin === 'tracker' ? `queued by the tracker (${a.trigger})` : 'assigned in Toil UI'}
         </p>
-        <p className="note">
-          Created {when(a.createdAt)}; started {when(a.startedAt)}; {a.endedAt ? `ended ${when(a.endedAt)}` : 'still going'}; ran {runText(a.ranMs ?? runMs(a, now))}; {usageText(a)}. {modeInfo(a.mode, plain.on).changes}
-        </p>
+        <details className="assign-run" data-assignment-run="">
+          <summary>
+            <SummaryChevron />
+            Run details
+          </summary>
+          <p className="note">
+            Created {when(a.createdAt)}; started {when(a.startedAt)}; {a.endedAt ? `ended ${when(a.endedAt)}` : 'still going'}; ran {runText(a.ranMs ?? runMs(a, now))}; {usageText(a)}. {modeInfo(a.mode, plain.on).changes}
+          </p>
+        </details>
       </div>
 
       {a.stop && (
@@ -308,11 +331,28 @@ const STATUS_WORD: Record<AssignedProposal['status'], string> = {
 
 /** One proposal with its diff, what came of it, and Apply and Dismiss while it waits. */
 function AssignedCard({ p, busy, onApply, onDismiss }: { p: AssignedProposal; busy: boolean; onApply: () => void; onDismiss: () => void }) {
+  const { toilProject, byId } = useData();
   const open = p.status === 'pending' || p.status === 'failed';
+  const area = byId.get(p.item)?.source.area ?? null;
   return (
     <ProposalCard
       proposal={p}
       kind={STATUS_WORD[p.status]}
+      lead={
+        p.diff.length > 0 ? (
+          <DataTable
+            label={`What ${p.title} changes`}
+            caption="What it changes"
+            rows={p.diff}
+            rowKey={(r) => r.field}
+            columns={[
+              { header: 'Field', label: 'Field', rowHeader: true, cell: (r) => <FieldName field={r.field} name={fieldName(r.field, toilProject.readiness, area)} /> },
+              { header: 'Now', label: 'Now', cell: (r) => (r.before === null ? <span className="note">not in the synced item</span> : r.before === '' ? <span className="note">empty</span> : <span className="assign-before">{r.before}</span>) },
+              { header: 'Proposed', label: 'Proposed', cell: (r) => <span className="assign-after">{r.after}</span> },
+            ]}
+          />
+        ) : null
+      }
       actions={
         open ? (
           <>
@@ -328,19 +368,6 @@ function AssignedCard({ p, busy, onApply, onDismiss }: { p: AssignedProposal; bu
         ) : null
       }
     >
-      {p.diff.length > 0 && (
-        <DataTable
-          label={`What ${p.title} changes`}
-          caption="What it changes"
-          rows={p.diff}
-          rowKey={(r) => r.field}
-          columns={[
-            { header: 'Field', label: 'Field', rowHeader: true, cell: (r) => <code>{r.field}</code> },
-            { header: 'Now', label: 'Now', cell: (r) => (r.before === null ? <span className="note">not in the synced item</span> : r.before === '' ? <span className="note">empty</span> : <span className="assign-before">{r.before}</span>) },
-            { header: 'Proposed', label: 'Proposed', cell: (r) => <span className="assign-after">{r.after}</span> },
-          ]}
-        />
-      )}
       {p.outcome && (
         <p className={p.outcome.ok ? 'note' : 'failure'} role="status">
           {dateTime(p.outcome.at)}: {p.outcome.message}
@@ -348,4 +375,9 @@ function AssignedCard({ p, busy, onApply, onDismiss }: { p: AssignedProposal; bu
       )}
     </ProposalCard>
   );
+}
+
+/** A field by its plain name where one is known, with the tracker's own id one hover away; the id itself where none is. */
+function FieldName({ field, name }: { field: string; name: string | null }) {
+  return name ? <span title={`In the tracker: ${field}`}>{name}</span> : <code>{field}</code>;
 }

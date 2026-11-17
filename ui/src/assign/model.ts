@@ -61,17 +61,17 @@ const MODE_PLAIN: Record<AssignMode, { label: string; does: string; changes: str
   refine: {
     label: 'Tidy up',
     does: 'Writes clearer "done when" criteria, suggests a size, splits the item if it is too big, checks for duplicates, and lists open questions.',
-    changes: 'Nothing directly: every change comes back as a suggestion for you to approve.',
+    changes: 'Nothing directly: every change comes back as a suggestion for you to apply.',
   },
   investigate: {
     label: 'Look into',
     does: "Researches the item across the Toil project's tools (related items, code reviews, builds) and writes a report that names where each fact came from.",
-    changes: 'Nothing. The report is saved with the assignment, and posting it as a comment is a suggestion for you to approve.',
+    changes: 'Nothing. The report is saved with the assignment, and posting it as a comment is a suggestion for you to apply.',
   },
   implement: {
     label: 'Try a fix',
     does: "Works on the item in a separate copy of the Toil project's code, on a new branch that exists only on this computer.",
-    changes: 'Only that copy, with no network. Sharing it and opening a code review are suggestions for you to approve.',
+    changes: 'Only that copy, with no network. Sharing it and opening a code review are suggestions for you to apply.',
   },
 };
 
@@ -164,7 +164,7 @@ export interface Branch {
 }
 
 /**
- * The ticket rule a refine was asked to meet (#657), as toil checked it when
+ * A ticket rule a refine was asked to meet (#657), as toil checked it when
  * the assignment was made: the rule's name and text, and toil's reason it
  * missed, which is what the agent is told.
  */
@@ -214,8 +214,12 @@ export interface Assignment {
   renewedBy?: string | null;
   /** What the run it renewed left, carried into its prompt as context (#305). */
   history?: string | null;
-  /** A refine asked to meet one ticket rule ("Fix with AI agent", #657); absent for any other assignment. */
-  standard?: AssignedRule | null;
+  /**
+   * A refine asked to meet ticket rules ("Fix with AI agent", #657): one rule,
+   * or every rule of one standard the item missed ("Fix all 3"), never empty.
+   * Absent for any other assignment.
+   */
+  rules?: AssignedRule[] | null;
   /**
    * Whether what it started on has changed since (#305), checked when it was
    * read: null when it hasn't, or for one that is done, renewed, or recorded
@@ -296,8 +300,12 @@ export interface AssignRequest {
   mode: AssignMode;
   adapter: AssignAdapter;
   repo?: string;
-  /** "Fix with AI agent" (#657): a refine that rewrites the item to meet this ticket rule. Refused unless the rule applies and the item misses it. */
-  standard?: { standard: string; rule: string };
+  /**
+   * "Fix with AI agent" (#657): a refine that rewrites the item to meet ticket
+   * rules of one standard, named by `rule` (one) or `rules` (several). A rule
+   * the item no longer misses is left out; refused when none still misses.
+   */
+  standard?: { standard: string; rule?: string; rules?: string[] };
 }
 
 /** The page's side: the server's routes, or the preview's sample. Every method throws with a message the page shows. */

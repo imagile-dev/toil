@@ -60,62 +60,104 @@ export const fixable = (state: RuleResult['state']) => state === 'thin' || state
 
 const NOUN: Record<string, [string, string]> = { STORY: ['story', 'stories'], BUG: ['bug', 'bugs'], TASK: ['task', 'tasks'], EPIC: ['epic', 'epics'], INCIDENT: ['incident', 'incidents'] };
 
-/** One rule's line on the Command Center: how many of the open items it applies to miss it, and how many couldn't be checked. */
+/**
+ * One standard's line on the Command Center: how many of the open items its
+ * rules apply to miss any of them, and how many couldn't be checked. A
+ * standard with one rule is that rule's line; one with several (bug-repro's
+ * steps, expected and actual) is one line, so a bug that misses all three
+ * counts once.
+ */
 export interface RuleLine {
   standard: string;
-  rule: string;
-  name: string;
-  /** `standard/rule`, the address filter's value. */
+  /** The rules of the standard that apply to the items, in the check's order. */
+  rules: Array<{ rule: string; name: string }>;
+  /** `standard/rule` for a one-rule line, the standard's name otherwise: the address filter's value. */
   ref: string;
   applies: number;
+  /** Items that miss at least one of the rules. */
   miss: number;
+  /** Whether every item that misses one misses them all: "and" in the sentence, else "or". */
+  missAll: boolean;
   skipped: number;
   /** "story" or "stories", from the types it applied to; "item" when they are mixed. */
   noun: (n: number) => string;
 }
 
+/** A rule's name inside a sentence: its first letter in lower case, unless the name starts with an acronym ("KTLO"). */
+export const inSentence = (name: string) => (/^[A-Z][a-z]/.test(name) ? name.charAt(0).toLowerCase() + name.slice(1) : name);
+
+/** Names in a sentence: "a", "a and b", "a, b and c" (or "or"). */
+export function listed(names: readonly string[], join: 'and' | 'or' = 'and'): string {
+  return names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} ${join} ${names.at(-1)}`;
+}
+
+/** What a line says the items miss: "steps to reproduce, expected result and actual result". */
+export const lineWhat = (l: Pick<RuleLine, 'rules' | 'missAll'>) => listed(l.rules.map((r) => inSentence(r.name)), l.missAll ? 'and' : 'or');
+
 /**
- * Each rule's line over these items (the open ones on screen), in the
- * check's own order: a rule that applies to none of them has no line.
+ * Each standard's line over these items (the open ones on screen), in the
+ * check's own order: a rule that applies to none of them is left out, and a
+ * standard none of whose rules apply has no line.
  */
 export function ruleLines(result: StandardsCheckResult, items: readonly WorkItem[]): RuleLine[] {
   const shown = new Set(items.map((i) => i.id));
   const typeOf = new Map(items.map((i) => [i.id, i.type]));
   const out: RuleLine[] = [];
   for (const s of result.standards) {
-    for (const r of s.rules) {
-      let applies = 0;
-      let miss = 0;
-      let skipped = 0;
-      const types = new Set<string>();
-      for (const i of result.items) {
-        if (!shown.has(i.id)) continue;
-        const hit = i.results.find((x) => x.standard === s.name && x.rule === r.id);
-        if (!hit) continue;
-        applies++;
-        types.add(typeOf.get(i.id) ?? 'OTHER');
-        if (hit.state === 'skipped') skipped++;
-        else if (fixable(hit.state)) miss++;
-      }
-      if (applies === 0) continue;
-      const [one, many] = types.size === 1 ? (NOUN[[...types][0]!] ?? ['item', 'items']) : ['item', 'items'];
-      out.push({ standard: s.name, rule: r.id, name: r.name, ref: `${s.name}/${r.id}`, applies, miss, skipped, noun: (n) => (n === 1 ? one : many) });
+    const applying: Array<{ rule: string; name: string }> = [];
+    const types = new Set<string>();
+    let applies = 0;
+    let miss = 0;
+    let missAll = true;
+    let skipped = 0;
+    for (const i of result.items) {
+      if (!shown.has(i.id)) continue;
+      const hits = i.results.filter((x) => x.standard === s.name);
+      if (hits.length === 0) continue;
+      applies++;
+      types.add(typeOf.get(i.id) ?? 'OTHER');
+      const missed = hits.filter((h) => fixable(h.state)).length;
+      if (missed > 0) {
+        miss++;
+        if (missed < hits.length) missAll = false;
+      } else if (hits.some((h) => h.state === 'skipped')) skipped++;
+      for (const h of hits) if (!applying.some((a) => a.rule === h.rule)) applying.push({ rule: h.rule, name: h.name });
     }
+    if (applies === 0) continue;
+    const rules = s.rules.flatMap((r) => (applying.some((a) => a.rule === r.id) ? [{ rule: r.id, name: r.name }] : []));
+    const [one, many] = types.size === 1 ? (NOUN[[...types][0]!] ?? ['item', 'items']) : ['item', 'items'];
+    out.push({ standard: s.name, rules, ref: rules.length === 1 ? `${s.name}/${rules[0]!.rule}` : s.name, applies, miss, missAll, skipped, noun: (n) => (n === 1 ? one : many) });
   }
   return out;
 }
 
-/** The items that miss a rule (`standard/rule`), by OWI id; null when the reference names no rule the check knows. */
-export function missing(result: StandardsCheckResult, ref: string): Set<string> | null {
+/** A filter's reference read: `standard/rule` names one rule, a bare standard every rule in it. */
+const refOf = (ref: string) => {
   const [standard, rule] = ref.split('/');
-  if (!result.standards.some((s) => s.name === standard && s.rules.some((r) => r.id === rule))) return null;
-  return new Set(result.items.filter((i) => i.results.some((r) => r.standard === standard && r.rule === rule && fixable(r.state))).map((i) => i.id));
+  return { standard: standard ?? '', rule: rule ?? null };
+};
+
+/** Whether a result is one the reference names: the rule, or any rule of the standard. */
+export const matchesRef = (ref: string, r: { standard: string; rule: string }) => {
+  const want = refOf(ref);
+  return r.standard === want.standard && (want.rule === null || r.rule === want.rule);
+};
+
+/** The items that miss a rule (`standard/rule`), or any rule of a standard (`standard`), by OWI id; null when the reference names nothing the check knows. */
+export function missing(result: StandardsCheckResult, ref: string): Set<string> | null {
+  const { standard, rule } = refOf(ref);
+  const s = result.standards.find((x) => x.name === standard);
+  if (!s || (rule !== null && !s.rules.some((r) => r.id === rule))) return null;
+  return new Set(result.items.filter((i) => i.results.some((r) => matchesRef(ref, r) && fixable(r.state))).map((i) => i.id));
 }
 
-/** A rule's name from its `standard/rule` reference, for the filter's chip; null when the check doesn't know it. */
+/** What a filter's reference names, for its chip: a rule's name, or a standard's rule names; null when the check doesn't know it. */
 export function ruleName(result: StandardsCheckResult, ref: string): string | null {
-  const [standard, rule] = ref.split('/');
-  return result.standards.find((s) => s.name === standard)?.rules.find((r) => r.id === rule)?.name ?? null;
+  const { standard, rule } = refOf(ref);
+  const s = result.standards.find((x) => x.name === standard);
+  if (!s) return null;
+  if (rule === null) return s.rules.length ? listed(s.rules.map((r, i) => (i === 0 ? r.name : inSentence(r.name))), 'or') : null;
+  return s.rules.find((r) => r.id === rule)?.name ?? null;
 }
 
 /** What the page holds for the toil project on screen: the reading the readiness rows use, and the check itself for the Command Center. */

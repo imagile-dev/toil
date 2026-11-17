@@ -75,26 +75,28 @@ const TASK: Record<Exclude<AssignMode, 'implement'>, (id: string) => string> = {
 };
 
 /**
- * "Fix with AI agent" (#657): a refine held to one ticket rule. The rule's
- * name and text are the team's, from a file toil read (one line each, capped,
- * checked for credentials); toil's reason is toil's. The agent proposes one
- * rewrite of the place toil read, and nothing else, inventing nothing: what the
- * item doesn't say becomes a QUESTION: line, so a gap is asked about rather
- * than filled in with confidence.
+ * "Fix with AI agent" (#657): a refine held to ticket rules, one rule or
+ * every rule of one standard the item missed. Each rule's name and text are the
+ * team's, from a file toil read (one line each, capped, checked for
+ * credentials); toil's reason is toil's. The agent proposes one rewrite of the
+ * place toil read, and nothing else, inventing nothing: what the item doesn't
+ * say becomes a QUESTION: line, so a gap is asked about rather than filled in
+ * with confidence.
  */
-const ruleTask = (id: string, r: AssignedRule) =>
-  [
-    `Rewrite [[${id}]] so it meets one of the team's ticket rules, which toil checked and found it misses.`,
-    `The rule: ${r.name}. What it asks: ${r.text}`,
-    `Why toil says it misses: ${r.reason} toil read the text from: ${r.source}.`,
-    "Propose exactly one change, as one proposal block: an update to the item with its tracker's update command that rewrites the place toil read (the acceptance criteria field when toil read a field, else the description) so it meets the rule. Keep everything the item already says that still holds, in its own words where you can, and change only what the rule needs.",
-    'Invent nothing: no behaviour, figure, name or detail the item, its parent or its links do not already say. Where the rule needs something the item does not say, leave a clear gap in the text and ask for it on a QUESTION: line instead.',
+const ruleTask = (id: string, rules: readonly AssignedRule[]) => {
+  const one = rules.length === 1;
+  return [
+    one ? `Rewrite [[${id}]] so it meets one of the team's ticket rules, which toil checked and found it misses.` : `Rewrite [[${id}]] so it meets ${rules.length} of the team's ticket rules, all from one standard, which toil checked and found it misses.`,
+    ...rules.map((r, i) => `${one ? 'The rule' : `Rule ${i + 1}`}: ${r.name}. What it asks: ${r.text} Why toil says it misses: ${r.reason} toil read the text from: ${r.source}.`),
+    `Propose exactly one change, as one proposal block: an update to the item with its tracker's update command that rewrites the place toil read (the acceptance criteria field when toil read a field, else the description) so it meets ${one ? 'the rule' : 'every rule above'}. Keep everything the item already says that still holds, in its own words where you can, and change only what ${one ? 'the rule needs' : 'the rules need'}.`,
+    'Invent nothing: no behaviour, figure, name or detail the item, its parent or its links do not already say. Where a rule needs something the item does not say, leave a clear gap in the text and ask for it on a QUESTION: line instead, asking as few questions as you can.',
     'Do not estimate, split the item, or propose any other change, and say in one short paragraph what you changed and why.',
   ].join(' ');
+};
 
-/** The prompts for refine and investigate: read-only modes. With `rule`, a refine is held to that one ticket rule (#657). */
-export function readPrompt(mode: Exclude<AssignMode, 'implement'>, toilProject: string, item: WorkItem, now: string, rule?: AssignedRule | null): ModePrompt {
-  const task = mode === 'refine' && rule ? ruleTask(item.id, rule) : TASK[mode](item.id);
+/** The prompts for refine and investigate: read-only modes. With `rules`, a refine is held to those ticket rules (#657). */
+export function readPrompt(mode: Exclude<AssignMode, 'implement'>, toilProject: string, item: WorkItem, now: string, rules?: readonly AssignedRule[] | null): ModePrompt {
+  const task = mode === 'refine' && rules?.length ? ruleTask(item.id, rules) : TASK[mode](item.id);
   return { system: common(toilProject, mode, now).join('\n'), prompt: `${task}\n\nThe work item:\n${fencedItem(item)}` };
 }
 
@@ -183,12 +185,17 @@ const PLACEHOLDER: WorkItem = {
   native: {},
 };
 
-/** The ticket rule a fix's prompt is fingerprinted on (#305, #657): placeholders, so the hash moves with Toil UI's words and never with a team's rule. */
-const PLACEHOLDER_RULE: AssignedRule = { standard: '<standard>', rule: '<rule>', name: '<rule name>', text: '<rule text>', reason: '<reason>', source: '<source>' };
+/**
+ * The ticket rules a fix's prompt is fingerprinted on (#305, #657): placeholders, so the hash moves with Toil UI's
+ * words and never with a team's rule. One rule and two, since a "Fix all" is worded apart from a single fix.
+ */
+const PLACEHOLDER_RULE = (n: number): AssignedRule => ({ standard: '<standard>', rule: `<rule ${n}>`, name: `<rule name ${n}>`, text: `<rule text ${n}>`, reason: `<reason ${n}>`, source: '<source>' });
 
 /** A mode's prompts in Toil UI's own words, for the fingerprint's prompts part (#305). Refine carries its ticket-rule task too (#657). */
 export function modePromptText(mode: AssignMode): string {
   const p = mode === 'implement' ? implementPrompt('<Toil project>', PLACEHOLDER, '<now>', { repo: '<repo>', branch: '<branch>' }) : readPrompt(mode, '<Toil project>', PLACEHOLDER, '<now>');
   const text = `${p.system}\n\n${withEarlierRun(p.prompt, '<earlier run>')}`;
-  return mode === 'refine' ? `${text}\n\n${readPrompt('refine', '<Toil project>', PLACEHOLDER, '<now>', PLACEHOLDER_RULE).prompt}` : text;
+  if (mode !== 'refine') return text;
+  const fix = (rules: AssignedRule[]) => readPrompt('refine', '<Toil project>', PLACEHOLDER, '<now>', rules).prompt;
+  return `${text}\n\n${fix([PLACEHOLDER_RULE(1)])}\n\n${fix([PLACEHOLDER_RULE(1), PLACEHOLDER_RULE(2)])}`;
 }
