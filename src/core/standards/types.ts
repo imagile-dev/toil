@@ -52,6 +52,8 @@ export interface StandardRule {
   id: string;
   /** A few plain words a screen shows ("Acceptance criteria as Given/When/Then"). */
   name: string;
+  /** What an item that misses it lacks, as a short noun phrase a count can lead into ("no Given/When/Then criteria"); absent when the file gives none. */
+  missing?: string;
   /** One line saying what the rule asks for, which an AI agent is told when asked to fix an item. */
   text: string;
   /** Which items it applies to; absent applies to every item. */
@@ -83,6 +85,8 @@ export interface FoundStandard {
 export interface RuleSummary {
   id: string;
   name: string;
+  /** Absent when the rule names none. */
+  missing?: string;
   text: string;
   /** Null when the rule applies to every item. */
   when: RuleWhen | null;

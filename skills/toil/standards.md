@@ -39,6 +39,9 @@ are held to is the team's call.
 - **`rules`**: 1 to 50. Each has an `id` (unique in the standard), a `name` (a few words a
   screen shows, at most 120 characters) and `text` (one line saying what the rule asks for,
   at most 500 characters, which an AI agent is told when asked to fix an item).
+  An optional `missing` (at most 120 characters) names what an item that misses the rule
+  lacks, as a short phrase a count leads into (`no Given/When/Then criteria`), for screens
+  that summarise misses.
 - **`when`** says which items the rule applies to, as a classification scheme's rules do
   (`classify.md`): `type` (the OWI type, `STORY`, or the tracker's own, `Spike`), `label`,
   `parent` (at any depth) and `title` (contains). Every key given must match; a key matches

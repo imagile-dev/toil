@@ -17,7 +17,7 @@ import { readWhen } from '../classify/when.js';
 import { CHECK_KINDS, STANDARD_NAME, STANDARD_RULE_ID, type CheckKind, type FailAs, type Place, type RuleCheck, type Standard, type StandardRule } from './types.js';
 
 const TOP_KEYS = ['name', 'revision', 'description', 'rules'];
-const RULE_KEYS = ['id', 'name', 'text', 'when', 'fail', 'check'];
+const RULE_KEYS = ['id', 'name', 'missing', 'text', 'when', 'fail', 'check'];
 const CHECK_KEYS: Record<CheckKind, readonly string[]> = {
   pattern: ['kind', 'in', 'match', 'flags', 'labels'],
   section: ['kind', 'in', 'heading', 'minWords'],
@@ -210,6 +210,10 @@ export function readStandard(raw: unknown, where: string): { standard: Standard;
         const why = textProblem(r[key], 1, max);
         if (why) no(`${at}.${key}`, `"${key}" ${why}`);
       }
+      if (r.missing !== undefined) {
+        const why = textProblem(r.missing, 1, STANDARD_LIMITS.ruleName);
+        if (why) no(`${at}.missing`, `"missing" ${why}`);
+      }
       let when: StandardRule['when'];
       if (r.when !== undefined) {
         // Absent means every item; an empty object is a mistake, never a quiet "everything".
@@ -222,7 +226,7 @@ export function readStandard(raw: unknown, where: string): { standard: Standard;
         else no(`${at}.fail`, '"fail" must be "thin" (the item needs work) or "fail" (the item is not ready).');
       }
       const check = readCheck(r.check, `${at}.check`, no, unknown);
-      if (ok && check) rules.push({ id: r.id as string, name: (r.name as string).trim(), text: (r.text as string).trim(), ...(when ? { when } : {}), fail: failAs, check });
+      if (ok && check) rules.push({ id: r.id as string, name: (r.name as string).trim(), ...(typeof r.missing === 'string' ? { missing: r.missing.trim() } : {}), text: (r.text as string).trim(), ...(when ? { when } : {}), fail: failAs, check });
     });
   }
 

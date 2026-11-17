@@ -141,7 +141,7 @@ export function standardsCommands(): AnyCommand[] {
           source: s.source,
           ...(s.file ? { file: s.file } : {}),
           description: s.standard.description ?? null,
-          rules: s.standard.rules.map((r) => ({ id: r.id, name: r.name, text: r.text, when: r.when ?? null, fail: r.fail, kind: r.check.kind })),
+          rules: s.standard.rules.map((r) => ({ id: r.id, name: r.name, ...(r.missing ? { missing: r.missing } : {}), text: r.text, when: r.when ?? null, fail: r.fail, kind: r.check.kind })),
         })),
       };
     },

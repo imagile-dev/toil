@@ -19,6 +19,7 @@ export const BUILTIN_STANDARDS: readonly Standard[] = [
       {
         id: 'scenarios',
         name: 'Acceptance criteria as Given/When/Then',
+        missing: 'no Given/When/Then criteria',
         text: 'State the acceptance criteria as scenarios: a Given line (context), a When line (action), a Then line (outcome).',
         when: { type: ['STORY'] },
         fail: 'thin',
@@ -34,6 +35,7 @@ export const BUILTIN_STANDARDS: readonly Standard[] = [
       {
         id: 'story-form',
         name: 'Written as a user story',
+        missing: 'not written as a user story',
         text: 'Open the description with the story: "As a <who>, I want <what>, so that <why>".',
         when: { type: ['STORY'] },
         fail: 'thin',
@@ -49,6 +51,7 @@ export const BUILTIN_STANDARDS: readonly Standard[] = [
       {
         id: 'steps',
         name: 'Steps to reproduce',
+        missing: 'no steps to reproduce',
         text: 'List the steps that reproduce the bug under a "Steps to reproduce" heading.',
         when: { type: ['BUG'] },
         fail: 'thin',
@@ -57,6 +60,7 @@ export const BUILTIN_STANDARDS: readonly Standard[] = [
       {
         id: 'expected',
         name: 'Expected result',
+        missing: 'no expected result',
         text: 'Say what should happen under an "Expected" heading.',
         when: { type: ['BUG'] },
         fail: 'thin',
@@ -65,6 +69,7 @@ export const BUILTIN_STANDARDS: readonly Standard[] = [
       {
         id: 'actual',
         name: 'Actual result',
+        missing: 'no actual result',
         text: 'Say what happens instead under an "Actual" heading.',
         when: { type: ['BUG'] },
         fail: 'thin',

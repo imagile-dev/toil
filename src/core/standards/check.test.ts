@@ -160,7 +160,7 @@ describe('the result', () => {
     expect(warnings.map((w) => w.code)).toEqual(['STANDARDS_DUPLICATE_ITEM', 'STANDARDS_DUPLICATE']);
     expect(result.toilProject).toBe('payments');
     expect(result.standards.map((s) => s.name)).toEqual(['gherkin', 'bug-repro']);
-    expect(result.standards[0]!.rules[0]).toEqual({ id: 'scenarios', name: 'Acceptance criteria as Given/When/Then', text: expect.any(String), when: { type: ['STORY'] }, fail: 'thin', kind: 'pattern' });
+    expect(result.standards[0]!.rules[0]).toEqual({ id: 'scenarios', name: 'Acceptance criteria as Given/When/Then', missing: 'no Given/When/Then criteria', text: expect.any(String), when: { type: ['STORY'] }, fail: 'thin', kind: 'pattern' });
     expect(result.summary).toMatchObject({ items: 2, checked: 2 });
     expect(result.summary.byRule.map((r) => [r.rule, r.types, r.applies, r.pass, r.thin])).toEqual([
       ['scenarios', ['STORY'], 1, 1, 0],

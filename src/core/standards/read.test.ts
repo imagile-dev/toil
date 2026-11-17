@@ -119,3 +119,12 @@ describe('the built-in standards', () => {
     expect(builtinStandard('nope')).toBeUndefined();
   });
 });
+
+describe('a rule\'s missing phrase', () => {
+  it('is kept when given and checked like a name', async () => {
+    const { readStandard } = await import('./read.js');
+    const base = { name: 'team', rules: [{ id: 'r1', name: 'Has a story', missing: 'no user story', text: 'Write a user story.', check: { kind: 'words', in: ['description'], min: 3 } }] };
+    expect(readStandard(base, 'test').standard.rules[0]?.missing).toBe('no user story');
+    expect(() => readStandard({ ...base, rules: [{ ...base.rules[0], missing: 'two\nlines' }] }, 'test')).toThrow();
+  });
+});
