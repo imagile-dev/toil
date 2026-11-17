@@ -200,7 +200,7 @@ export function CommandCenter() {
         <h2 id="slate">Start every ready item</h2>
         <p>
           {slated.length
-            ? plain.text(`${count(slated.length, 'item is', 'items are')} ready and would be slated, in the Toil project's order (plan ${plan.id}).`)
+            ? <span title={`Plan ${plan.id}`}>{plain.text(`${count(slated.length, 'item is', 'items are')} ready and would be slated, in the Toil project's order.`)}</span>
             : 'No open item is ready, so nothing would be slated. The list below says what each one is missing.'}
         </p>
         {slated.length > 0 && (

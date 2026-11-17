@@ -262,6 +262,9 @@ describe('the refine-to-rule prompt (#657)', () => {
     expect(modePromptText('refine')).toContain('The rule: <rule name 1>.');
     expect(modePromptText('refine')).toContain('Rule 2: <rule name 2>.');
     expect(modePromptText('refine')).toContain('Invent nothing');
+    // A fix cites its own item, and its note is plain words for the person applying it, nothing about formats.
+    expect(modePromptText('refine')).toMatch(/citing the item as \[\[[^\]]+\]\] there too/);
+    expect(modePromptText('refine')).toContain('nothing about formats, markup or how the text is sent');
     expect(modePromptText('investigate')).not.toContain('<rule name');
   });
 

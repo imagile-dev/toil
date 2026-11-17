@@ -37,7 +37,7 @@ import { ClassifyNoticeLine } from '../components/reclassify.tsx';
 import { boardHref, classifyHref, commandCenterHref, dependenciesHref, standupHref, toilProjectEditHref, toilProjectHref, peopleHref, prsHref, worklogHref } from '../format.ts';
 import { Help } from '../components/help.tsx';
 import type { HelpTopicId } from '../help.ts';
-import { needingAttention } from '../model/insights.ts';
+import { attentionReasons, needingAttention } from '../model/insights.ts';
 import { useTerm, useTheme, useWords } from '../skins.tsx';
 import { usePlain } from '../plain-words.ts';
 import { momentsOf, useEnter } from '../moments/Moments.tsx';
@@ -87,7 +87,10 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, items =
   const view = useRef<HTMLDivElement>(null);
   useEnter(shell, moments.entrance, toilProject.name, { ms: 420 });
   useEnter(view, moments.tabs, `${tab ?? ''}:${boardView ?? ''}`, { onMount: false, ms: 260 });
-  const attention = useMemo(() => needingAttention(h?.items ?? toilProject.items, insights).length, [h, toilProject, insights]);
+  const { attention, why } = useMemo(() => {
+    const flagged = needingAttention(h?.items ?? toilProject.items, insights);
+    return { attention: flagged.length, why: attentionReasons(flagged, insights) };
+  }, [h, toilProject, insights]);
   const name = (
     <Editable bare field="name" toilProject={toilProject.name} value={toilProject.name} config={config ?? null} onSaved={described ?? (() => undefined)}>
       {toilProject.name}
@@ -103,12 +106,12 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, items =
     const text = q.toString();
     return text ? `${href}?${text}` : href;
   };
-  const tabs: Array<{ id: ToilProjectTab; href: string; label: string; title?: string; count?: { n: number; label: string } }> = TOIL_PROJECT_TABS.map((t) => ({
+  const tabs: Array<{ id: ToilProjectTab; href: string; label: string; title?: string; count?: { n: number; label: string; why?: string } }> = TOIL_PROJECT_TABS.map((t) => ({
     id: t.id,
     href: t.href(toilProject.name),
     label: pw(t.label, t.plain),
     ...(plain.on && t.plain !== t.label ? { title: plain.title(t.label)! } : {}),
-    ...(t.id === 'board' ? { count: { n: attention, label: attention === 1 ? 'item needs attention' : 'items need attention' } } : {}),
+    ...(t.id === 'board' ? { count: { n: attention, label: attention === 1 ? 'item needs attention' : 'items need attention', why } } : {}),
   }));
   return (
     <div className="toil-project-shell" data-wide-sidebar={wide || undefined} data-side={(wide && (sideOpen || Boolean(peek) || Boolean(items))) || undefined} data-items={(Boolean(items) && !peek) || undefined} ref={shell}>
@@ -165,7 +168,7 @@ export function ToilProjectShell({ tab, heading, boardView, peek = null, items =
                   <a href={t.href} id={`tab-${t.id}`} aria-current={t.id === tab ? 'page' : undefined} data-tab={t.id} title={t.title}>
                     {t.label}
                     {t.count && t.count.n > 0 && (
-                      <span className="tab-count" title={`${t.count.n} ${t.count.label}`}>
+                      <span className="tab-count" title={`${t.count.n} ${t.count.label}${t.count.why ? `: ${t.count.why}` : ''}`}>
                         <span aria-hidden="true">{t.count.n}</span>
                         <span className="sr-only">
                           , {t.count.n} {t.count.label}

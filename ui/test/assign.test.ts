@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { request } from 'node:http';
 import { cookieHeader, letInto } from './let-in.ts';
 import { afterAll, describe, expect, it } from 'vitest';
-import { actorOf, applyResultText, branchName, inboxMatch, proposalDiff, richText, settledState, type AdapterChoice, type AssignmentEvent } from '../src/assign/model.ts';
+import { actorOf, applyResultText, branchName, inboxMatch, liveLine, proposalDiff, richText, settledState, writesOffText, type AdapterChoice, type AssignmentEvent } from '../src/assign/model.ts';
 import { AssignError, AssignmentQueue, RunStopped, type QueueOptions, type RunContext, type RunResult } from '../src/assign/queue.ts';
 import { sampleQueue, SAMPLE_INBOX } from '../src/fixtures/assignments.ts';
 import { loadToilProject } from '../src/load.ts';
@@ -136,7 +136,7 @@ describe('the assignment queue', () => {
     await h.tick();
     const tried = await h.queue.apply(a.id, 'p1');
     expect(tried.state).toBe('needs-you');
-    expect(tried.proposals[0]).toMatchObject({ status: 'failed', outcome: { ok: false, message: 'Writes are off on corp-jira. toil connections writes corp-jira on' } });
+    expect(tried.proposals[0]).toMatchObject({ status: 'failed', outcome: { ok: false, message: 'Writes are off on corp-jira. toil connections writes corp-jira on', code: 'WRITE_DISABLED' } });
     expect(h.queue.dismiss(a.id, 'p1').state).toBe('done');
   });
 
@@ -560,5 +560,32 @@ describe('a Toil project renamed (#342)', () => {
     expect(h.keeper.saved.get(a.id)!.toilProject).toBe('payments-v2');
     expect(h.events.at(-1)).toMatchObject({ kind: 'renamed', toilProject: 'payments-v2' });
     expect(h.queue.renameToilProject('card-payments', 'payments-v2')).toBe(0);
+  });
+});
+
+describe('the plain words on an assignment page (#657, round 3)', () => {
+  const t = (kind: 'tool' | 'text' | 'prompt' | 'activity', title: string, detail?: string) => ({ at: '2026-01-01T00:00:00Z', kind, title, ...(detail ? { detail } : {}) });
+  const name = (id: string) => (id === 'jira:SCRUM-15' ? 'Jira SCRUM-15' : id === 'jira:SCRUM-6' ? 'Jira SCRUM-6' : id);
+  const parentOf = (id: string) => (id === 'jira:SCRUM-15' ? 'jira:SCRUM-6' : null);
+
+  it("says what a working run is doing, from its own transcript, and nothing it didn't record", () => {
+    const base = { adapter: 'claude' as const, item: 'jira:SCRUM-15' };
+    expect(liveLine({ ...base, transcript: [t('prompt', 'Task', 'x')] }, name, parentOf)).toBe('Claude has started on Jira SCRUM-15.');
+    expect(liveLine({ ...base, transcript: [t('tool', 'Called: owi_get', '{"id":"jira:SCRUM-15"}')] }, name, parentOf)).toBe('Claude is reading Jira SCRUM-15…');
+    const two = [t('tool', 'Called: owi_get', '{"id":"jira:SCRUM-15"}'), t('tool', 'Called: owi_get', '{"id":"jira:SCRUM-6"}')];
+    expect(liveLine({ ...base, transcript: two }, name, parentOf)).toBe('Claude is reading Jira SCRUM-15 and its parent… 2 tool calls so far.');
+    expect(liveLine({ ...base, transcript: [...two, t('text', 'The agent answered', 'done')] }, name, parentOf)).toBe('Claude is writing up what it found… 2 tool calls so far.');
+    expect(liveLine({ ...base, adapter: 'codex', transcript: [t('tool', 'Called: proposal_fields', '{}')] }, name)).toBe('Codex is checking which fields it can change…');
+    expect(liveLine({ ...base, transcript: [t('tool', 'Called: jira_issue_get', '{"key":"SCRUM-15"}')] }, name)).toBe('Claude is using jira_issue_get…');
+  });
+
+  it('turns a writes-off refusal into plain words naming the tracker and the connection, and leaves any other refusal as toil said it', () => {
+    const off = { ok: false, code: 'WRITE_DISABLED', message: 'jira issue update changes data in jira, and writes are off for connection jira. To allow writes, set "writes": true on connection "jira" in your toil config (or TOIL_JIRA_WRITES=true), then pass --allow-write.' };
+    expect(writesOffText(off, 'Jira')).toBe('Not applied. Writes to Jira are off on this computer, so nothing changed. Turn writes on for the jira connection, then press Apply again.');
+    // A record from before codes were kept reads the same.
+    expect(writesOffText({ ok: false, message: off.message }, 'Jira')).toContain('Turn writes on for the jira connection');
+    expect(writesOffText({ ok: false, code: 'WRITE_DISABLED', message: 'jira issue update changes data in jira, and connection jira was chosen by your toil project, not by you.' }, 'Jira')).toBeNull();
+    expect(writesOffText({ ok: false, code: 'HTTP', message: 'writes are off for connection jira.' }, 'Jira')).toBeNull();
+    expect(writesOffText({ ok: true, message: 'Applied.' }, 'Jira')).toBeNull();
   });
 });

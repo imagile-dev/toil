@@ -79,7 +79,9 @@ describe('the readiness gate (#307)', () => {
     expect([...tally.querySelectorAll('.team-figure')].map((f) => f.textContent)).toEqual(['1', '3', '2']);
     const slate = panel('Start every ready item');
     expect(within(slate).getByRole('list', { name: 'Slated items' }).textContent).toContain('PAY-101');
-    expect(slate.textContent).toMatch(/1 item is ready and would be slated, in the Toil project's order \(plan [0-9a-f]{8}\)\./);
+    expect(slate.textContent).toContain("1 item is ready and would be slated, in the Toil project's order.");
+    // The plan's id is a hover away, never in the sentence.
+    expect(slate.querySelector('[title^="Plan "]')!.getAttribute('title')).toMatch(/^Plan [0-9a-f]{8}$/);
     const start = within(slate).getByRole('button', { name: 'Start 1 ready item' });
     expect(start.hasAttribute('disabled')).toBe(true);
     expect(slate.textContent).toContain('This view has no AI agent assignments, so it shows the plan it would start.');
@@ -115,7 +117,7 @@ describe('the readiness gate (#307)', () => {
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview startReady={async (plan) => (started.push(plan), "Queued.")} />);
     await screen.findByRole('heading', { level: 1, name: 'Ready to start?' });
     const slate = panel('Start every ready item');
-    const shownId = /\(plan ([0-9a-f]{8})\)/.exec(slate.textContent ?? '')![1];
+    const shownId = /^Plan ([0-9a-f]{8})$/.exec(slate.querySelector('[title^="Plan "]')!.getAttribute('title') ?? '')![1];
     expect(slate.textContent).toContain('Asks an AI agent to try a fix for each item above, as listed');
     await userEvent.click(within(slate).getByRole('button', { name: 'Start 1 ready item' }));
     expect(started).toEqual([{ id: shownId, items: ['github:imagile/payments-web#41'] }]);

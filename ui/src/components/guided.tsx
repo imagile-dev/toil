@@ -184,7 +184,7 @@ export function AnswerChecks({ answer, prompt, analyze, ms, safe }: { answer: An
     lacking: lack ? { what: lack.what, count: among.filter(lack.lacks).length, of: among.length } : null,
   });
   const usage: AnswerUsage | undefined = answer.usage;
-  const line = ['What it looked at', ...(ms !== undefined ? [`${Math.max(1, Math.round(ms / 1000))} s`] : []), ...(usage ? [usageLine(usage)] : [])].join(' · ');
+  const line = ['What it looked at', ...(ms !== undefined ? [`${Math.max(1, Math.round(ms / 1000))} s`] : []), ...(usage && usageLine(usage) ? [usageLine(usage)!] : [])].join(' · ');
   return (
     <div className="ask-sure" data-how-sure="">
       <p className="ask-sure__sure">

@@ -134,8 +134,8 @@ export type ProposalStatus = 'pending' | 'applied' | 'failed' | 'dismissed';
 export interface AssignedProposal extends Proposal {
   status: ProposalStatus;
   diff: DiffRow[];
-  /** What happened when a person applied it: toil's envelope, in words. */
-  outcome?: { at: string; ok: boolean; message: string };
+  /** What happened when a person applied it: toil's envelope, in words, with its error code when it failed (absent on one recorded before codes were kept). */
+  outcome?: { at: string; ok: boolean; message: string; code?: string };
 }
 
 /** The report an investigation (or any run) wrote, with the server's citation checks. */
@@ -513,4 +513,64 @@ export function renewRefusal(a: Pick<Assignment, 'state' | 'stale' | 'renewedBy'
   if (a.state === 'needs-you') return 'It is waiting on you: review its proposals and questions, or mark it reviewed, first.';
   if (a.state === 'queued') return "It hasn't started, so it starts on today's instructions anyway.";
   return null;
+}
+
+/**
+ * The one line a working assignment's page shows while the run goes on,
+ * built from the run's own transcript: the last tool it called and what it
+ * called it on, or the last thing it ran. Nothing here guesses at progress
+ * the transcript doesn't hold: before the first call it only says the run
+ * started, and a tool it doesn't know is named as it is.
+ * `name` turns an OWI id into what a person reads ("Jira SCRUM-15"), and
+ * `parentOf` says an item's parent where the cache knows it.
+ */
+export function liveLine(a: Pick<AssignmentRecord, 'adapter' | 'item' | 'transcript'>, name: (id: string) => string, parentOf: (id: string) => string | null = () => null): string {
+  const who = a.adapter ? ADAPTER_NAME[a.adapter] : 'The agent';
+  const calls = a.transcript.filter((t) => t.kind === 'tool');
+  const last = [...a.transcript].reverse().find((t) => t.kind === 'tool' || t.kind === 'activity' || t.kind === 'text');
+  const so = calls.length > 1 ? ` ${calls.length} tool calls so far.` : '';
+  if (!last) return `${who} has started on ${name(a.item)}.`;
+  if (last.kind === 'text') return `${who} is writing up what it found…${so}`;
+  if (last.kind === 'activity') return `${who}: ${last.title}…${so}`;
+  const tool = /^(?:Called|Tool failed): (.+)$/.exec(last.title)?.[1] ?? last.title;
+  let input: Record<string, unknown> = {};
+  try {
+    const parsed: unknown = JSON.parse((last.detail ?? '').split('\n')[0] ?? '');
+    if (parsed && typeof parsed === 'object') input = parsed as Record<string, unknown>;
+  } catch {
+    // A detail that isn't JSON names nothing to read.
+  }
+  const id = typeof input.id === 'string' ? input.id : null;
+  const readIds = new Set(calls.flatMap((t) => {
+    try {
+      const v = (JSON.parse((t.detail ?? '').split('\n')[0] ?? '') as { id?: unknown }).id;
+      return typeof v === 'string' ? [v] : [];
+    } catch {
+      return [];
+    }
+  }));
+  const what = (x: string) => (x !== a.item && parentOf(a.item) === x && readIds.has(a.item) ? `${name(a.item)} and its parent` : name(x));
+  const doing =
+    id && (tool === 'owi_get' || tool === 'readiness_get') ? `reading ${what(id)}`
+    : id && tool === 'owi_history' ? `reading the history of ${name(id)}`
+    : tool === 'owi_similar' ? (id ? `looking for items like ${name(id)}` : 'looking for similar items')
+    : tool === 'owi_query' ? 'searching the items'
+    : tool === 'proposal_fields' ? 'checking which fields it can change'
+    : tool.startsWith('pr_') ? 'reading code reviews'
+    : tool.startsWith('people') || tool === 'person_get' ? 'reading who works on what'
+    : `using ${tool}`;
+  return `${who} is ${doing}…${so}`;
+}
+
+/**
+ * A proposal toil refused because writes are off on the connection, in plain
+ * words: what didn't happen, why, and the one step that lets the next Apply
+ * through (principle 4). Read from toil's own error, so any other refusal
+ * (a binding the person hasn't adopted, the tracker's own error) gets null
+ * and keeps toil's words.
+ */
+export function writesOffText(outcome: { ok: boolean; message: string; code?: string } | undefined, tracker: string): string | null {
+  if (!outcome || outcome.ok || (outcome.code && outcome.code !== 'WRITE_DISABLED')) return null;
+  const m = /writes are off for connection ([a-z0-9-]+)\./.exec(outcome.message);
+  return m ? `Not applied. Writes to ${tracker} are off on this computer, so nothing changed. Turn writes on for the ${m[1]} connection, then press Apply again.` : null;
 }

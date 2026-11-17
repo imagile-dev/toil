@@ -13,7 +13,7 @@ import { EditLink } from '../components/help.tsx';
 import { useData, useDerived } from '../data.ts';
 import { Empty, EmptyButton, EmptyLink } from '../components/empty.tsx';
 import { STATUS_CATEGORY_LABEL, connectionEditHref, dateTime, toilProjectEditHref, toilProjectHref, estimateText, personText, shortKey, sourceLabel } from '../format.ts';
-import { possibleDuplicates } from '../model/duplicates.ts';
+import { duplicateWhy, possibleDuplicates } from '../model/duplicates.ts';
 import { age, cycleTime } from '../model/flow.ts';
 import { INSIGHT_LABEL, insights } from '../model/insights.ts';
 import { entry } from '../model/sprint.ts';
@@ -54,6 +54,10 @@ export function ItemView({ id }: { id: string }) {
   const inProgress = age(item, now);
   const round1 = (n: number) => Math.round(n * 10) / 10;
   const duplicates = possibleDuplicates(toilProject.items, id);
+  const nameOf = (other: string) => {
+    const it = byId.get(other);
+    return it ? `${sourceLabel(it.source.area)} ${shortKey(it)}` : other;
+  };
 
   return (
     <>
@@ -109,9 +113,14 @@ export function ItemView({ id }: { id: string }) {
         {duplicates.length ? (
           <ul className="rows">
             {duplicates.map((d) => (
-              <li key={d.id}>
-                <ItemLink id={d.id} withTitle /> <span className="score">{Math.round(d.score * 100)}% alike</span>{' '}
-                <span className="field">({d.why.summary.replace(/\.$/, '')})</span>
+              <li key={d.id} className="duplicate">
+                <ItemLink id={d.id} withTitle /> <span className="score">· {Math.round(d.score * 100)}% alike</span>
+                <details className="duplicate-why">
+                  <summary>
+                    Why?<span className="sr-only"> {d.title}</span>
+                  </summary>
+                  <p className="note">{duplicateWhy(d.why, nameOf)}</p>
+                </details>
               </li>
             ))}
           </ul>

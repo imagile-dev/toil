@@ -221,7 +221,7 @@ A Toil project opens on its **Overview**, the briefing, in a frame all of its pa
   line with the whole of it in its tooltip, its sources and a quiet **Edit** link at the end of that line (on a phone, a **Details** button beside the name opens them, the link with them); and the Ask bar, with the
   **AI agents** button beside it (The agent, below). Moving to another Toil project is the picker in the app's header, right after the brand, on every page (see below).
 - **The tabs**, one address each, one tab and one page: **Overview** (the Summary, `#/project/<name>`), **Board**
-  (`/board`, with how many of its cards need attention), **Dependencies**
+  (`/board`, with how many of its cards need attention, and on hover which reasons put them there: "16 blocked, 9 stale"), **Dependencies**
   (`/dependencies`), **Pull requests** (`/prs`), **People** (`/people`), **Stand-up**
   (`/standup`) and **Worklog** (`/worklog`). A page does not open with a title that repeats its tab: the tab is the
   title, the page is named by it, and what the page is sits in the (i) at the end of the tabs. The Command Center (`/command-center`)
@@ -717,12 +717,18 @@ that names none uses `Microsoft.VSTS.Common.AcceptanceCriteria`.
 - **On each item's page**, a **Ready for an agent?** panel shows the verdict and its
   rows, each with where its answer came from. **Check the workflow live** makes the one
   live read, read-only: `jira issue transitions` for a Jira issue, `ado work-item
-  states` for an Azure DevOps type. A GitHub issue needs none.
+  states` for an Azure DevOps type. A GitHub issue needs none. That the verdict is worked
+  out from the cached record with no model call, and what the button reads, are in the
+  panel's (i); once read, the line beside the button says when and with which command.
+- **Possible duplicates**, under it, lists one line per item: its source, key and title and
+  how alike it is ("Azure DevOps 153 Charge a stored token · 100% alike"). **Why?** opens the
+  shared words, how alike the titles are, the shared labels, parent and link, in plain words;
+  the sandboxes' seed marks (`toil-seed`, `seed:…`) are never given as a reason.
 - **The Command Center** (`#/project/<name>/command-center`, the Board tab's Readiness view) lists every
   work item with its verdict and, for each one that isn't ready, the rows that say why.
   It filters by verdict, status, type, assignee and source, and makes no live read.
   It is strict: only ready items are slated, in the Toil project's order, under a plan id
-  that changes when anything in the plan does.
+  that changes when anything in the plan does (on hover over the slate's sentence, not in it).
 - **Starting the plan comes with assign-to-agent (#293).** Until then the start button
   is disabled and says so; the plan it would start is shown above it.
 - **The agent** gets `readiness_list` and `readiness_get` and a starter, "Which items
@@ -757,10 +763,21 @@ they are called ticket rules.
   set up, the dialog says so and links to setting one up.
 - **The assignment page** for a fix says which rules it is meeting, and, while its proposal
   waits, leads with "Nothing has changed yet. Review the proposal below and apply it." The
-  run's times and usage are under **Run details**. On a refine or a fix the proposals come
-  first, above the questions and what the agent said, under "Each change the agent proposes.
-  Nothing changes in Jira until you press Apply." (the item's own tracker, with the write gate
-  in an (i)); a fix's card doesn't repeat the agent's paragraph. Every proposal on an
+  run's times and usage are under **Run details**. While the agent works, one line says what
+  it is doing, from the run's own transcript ("Claude is reading Jira SCRUM-15 and its
+  parent… 3 tool calls so far."); the transcript and the record of what the run started on
+  are disclosures below it, and an empty transcript isn't shown. On a refine or a fix the
+  proposals come first, above the questions and what the agent said, under "Each change the
+  agent proposes." (with the write gate in an (i)); only when the head doesn't already say
+  nothing has changed does the lede add "Nothing changes in Jira until you press Apply." (the
+  item's own tracker). **Mark reviewed** sits below the proposals there, so it doesn't compete
+  with Apply, and the questions end "Answer these in Jira, then ask for a new rewrite." A
+  fix's card doesn't repeat the agent's paragraph. A write toil refuses because writes are off
+  reads "Not applied. Writes to Jira are off on this computer, so nothing changed. Turn writes
+  on for the jira connection, then press Apply again." (the tracker and the connection
+  named), with toil's exact error under **Details**; any other refusal shows toil's words as
+  they are. Once applied, the table's columns read **Before** and **After**, with nothing
+  struck through. Every proposal on an
   assignment page shows what it changes first, each field by its plain name ("Acceptance
   criteria" for the Toil project's acceptance criteria field) beside what it holds now
   ("empty" for a field that was read and holds nothing, a dash, "not read yet", for one the
@@ -1122,7 +1139,7 @@ conversation stays, for the rest of the Toil project's pages, until you reload.
   is under 24 hours old, and at most 1 in 10 of the items the question needs a field of
   lacks it. **Medium**: one of those slipped, or the answer names one item its tools never returned. **Low**: a read failed, the data is over 3 days
   old, there are fewer than 3 items to go on (code reviews, for the question about reviews), or the answer names more than one item its tools never returned, or half of those it cites. A question from the guided start is checked against
-  the panels it needs; a typed question and Analyze against every read. Under the word and its reason is one folded line, "What it looked at · 3 s · about $0.04 of usage (estimate)", which opens to the items the answer cited as links (a cited id the project doesn't hold as the bare
+  the panels it needs; a typed question and Analyze against every read. At High the reason reads "All the data this answer needs was read, 13 minutes ago, across 134 items." ("All the saved data was read, …" for a typed question). Under the word and its reason is one folded line, "What it looked at · 3 s · about $0.04 of usage (estimate)", which opens to the items the answer cited as links (a cited id the project doesn't hold as the bare
   id) and the usage breakdown. "Suggestions only. Nothing was changed." is said under the first answer of a conversation, not every one; "Answered by" appears under an answer only when it differs from the header's. The answer's own heading is not drawn (it repeats the question), though a screen reader still has it. The existing proposal
   cards still show the command to run, with no approve button.
 - **Answers stream in** as the agent writes them, under a **status line** that says
@@ -1170,8 +1187,8 @@ conversation stays, for the rest of the Toil project's pages, until you reload.
   default from Settings, AI agent (Claude, GitHub Copilot or Codex), else the first agent
   that is ready, else as before, with the server trying the default and saying why it
   can't. A few words beside **Answered by** say which: "last used on this Toil project",
-  "your default", "your default can't run", "the first one ready" or
-  "picked for this chat". Picking another agent and asking updates the memory; a question that names no
+  "your default", "your default can't run" or "picked for this chat"; the first agent
+  ready, with no default set, needs no note. Picking another agent and asking updates the memory; a question that names no
   agent, or an answer that fails, is stopped or comes back empty, doesn't. Renaming a Toil project moves its
   memory, and a Toil project toil no longer has is forgotten on the next full sync. The sample
   remembers nothing.
@@ -1314,7 +1331,7 @@ called):
 | Codex | `turn.completed`'s `usage`: input (which holds the cached input), cached input, cache writes, output | tokens; a dollar figure only from rates you enter, labelled "computed from your rates". The SDK names no model, so a Codex record names the model you chose, or says it wasn't named |
 | GitHub Copilot | one `assistant.usage` event per model call, with `cost` as the premium-request multiplier, and `session.usage_info` for the context. Copilot bills the multiplier once per prompt: only the call the prompt started (`initiator` `user`) counts it, and the agent's follow-up calls in the tool loop count 0 | tokens and premium requests, never dollars; premium requests left from the SDK's experimental `account.getQuota`, marked experimental |
 
-- **Under each answer**, one line in its folded line, "about $0.04 of usage (estimate)", or "(not billed on your plan)" on a Claude plan. The fold opens to one line per model: `2.1k in · 380 out · 14k cached · cache
+- **Under each answer**, one line in its folded line, "about $0.04 of usage (estimate)", or "Covered by your Claude plan (about $0.12 of usage)" on a Claude plan. With no dollar figure there is no cost line: the fold's line says the tokens instead, and "What it looked at" leaves the cost out. The fold opens to one line per model: `2.1k in · 380 out · 14k cached · cache
   write not reported · ~$0.012 (SDK estimate)`. A figure the SDK didn't report reads
   "not reported", never 0. When the saved Codex rates can't be read, a Codex answer says so in the open.
 - **In the chat's footer**, from the second answer (one answer's usage is the chat's), the chat's running total, split by model, and how full

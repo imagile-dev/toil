@@ -200,7 +200,7 @@ export function ReadinessPanel({ item }: { item: WorkItem }) {
   return (
     <Card as="section" className="panel readiness-panel" aria-labelledby="readiness">
       <h2>
-        <span id="readiness">Ready for an agent?</span> <Help topic="readiness-checks" note={`The checks' settings (fields.acceptanceCriteria, readiness.minWords and readiness.templates in the ${item.source.area} section) are in Toil UI's README.`} />
+        <span id="readiness">Ready for an agent?</span> <Help topic="readiness-checks" note={`Worked out from the cached record${live ? ' and one live read' : ''}, with no model call.${read && execute ? ` Check the workflow live makes one read-only call, toil ${read.command}, to settle the done state.` : ''} The checks' settings (fields.acceptanceCriteria, readiness.minWords and readiness.templates in the ${item.source.area} section) are in Toil UI's README.`} />
       </h2>
       <p className="readiness-verdict">
         <VerdictChip verdict={r.verdict} /> {MEANING[r.verdict]}
@@ -211,14 +211,12 @@ export function ReadinessPanel({ item }: { item: WorkItem }) {
           <Button className="btn btn--small" onPress={check} isDisabled={reading}>
             {reading ? 'Reading the workflow…' : live ? 'Read the workflow again' : 'Check the workflow live'}
           </Button>{' '}
+          {/* What the live read was is the result's source, so it stays in view once there is one (principle 4); before then the (i) explains the button. */}
           <span className="field" aria-live="polite">
-            {live ? `Read live ${dateTime(live.at)} with toil ${read.command}.` : `One read-only call, toil ${read.command}, settles the done state.`}
+            {live ? `Read live ${dateTime(live.at)} with toil ${read.command}.` : ''}
           </span>
         </p>
       )}
-      <p className="note">
-        Worked out from the cached record{live ? ' and one live read' : ''}, with no model call.
-      </p>
       {settings.notes.map((n, i) => (
         <p key={i} role="note" className="failure">
           {n}

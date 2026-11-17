@@ -13,7 +13,7 @@ import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Button } from 'react-aria-components';
 import { usePlain } from '../plain-words.ts';
 import { AssignModal, StateChip, assignmentHref, usageText, POLL_MS } from '../assign/views.tsx';
-import { ADAPTER_NAME, applyResultText, modeInfo, richText, renewRefusal, runMs, runText, type AssignedProposal, type Assignment, type AssignmentRecord } from '../assign/model.ts';
+import { ADAPTER_NAME, applyResultText, liveLine, modeInfo, richText, renewRefusal, runMs, runText, writesOffText, type AssignedProposal, type Assignment, type AssignmentRecord } from '../assign/model.ts';
 import { StaleNote } from '../components/stale.tsx';
 import { AnswerText, ItemLink } from '../components/items.tsx';
 import { Card, Cluster, DataTable, Path, Scroller } from '../components/layout.tsx';
@@ -21,7 +21,7 @@ import { ProposalCard } from '../components/proposal.tsx';
 import { UsageFooter } from '../components/usage.tsx';
 import { useData } from '../data.ts';
 import { Empty, EmptyLink } from '../components/empty.tsx';
-import { AGENT_SETTINGS_HREF, dateTime, sourceLabel, toilProjectHref } from '../format.ts';
+import { AGENT_SETTINGS_HREF, dateTime, shortKey, sourceLabel, toilProjectHref } from '../format.ts';
 import { EditLink, Help } from '../components/help.tsx';
 import { Unread } from '../components/unread.tsx';
 import { SummaryChevron } from '../components/disclosure.tsx';
@@ -92,14 +92,24 @@ export function AssignmentView({ id }: { id: string }) {
   const proposalsFirst = a.mode === 'refine' || Boolean(a.rules?.length);
   const area = byId.get(a.item)?.source.area;
   const tracker = area ? sourceLabel(area) : 'the tracker';
+  // A refine or a rule fix ends in proposals to apply, so Mark reviewed sits below them rather than beside the page's first step.
+  const markReviewed = (
+    <Button className="btn" onPress={() => act('Marked reviewed.', () => api.finish(a.id))} isDisabled={busy}>
+      Mark reviewed
+    </Button>
+  );
+  const nameOf = (id: string) => {
+    const it = byId.get(id);
+    return it ? `${sourceLabel(it.source.area)} ${shortKey(it)}` : id;
+  };
   const proposals = a.proposals.length > 0 && (
     <section className="proposals" aria-labelledby="assign-proposals">
       <h2 id="assign-proposals">Proposals</h2>
       <p className="note">
-        Each change the agent proposes. Nothing changes in {tracker} until you press Apply. <Help topic="proposal" note="Apply runs its toil command through the write gate: the connection needs writes on, and this press is the call's allow-write." />
+        Each change the agent proposes.{waitsOnYou ? '' : ` Nothing changes in ${tracker} until you press Apply.`} <Help topic="proposal" note="Apply runs its toil command through the write gate: the connection needs writes on, and this press is the call's allow-write." />
       </p>
       {a.proposals.map((p) => (
-        <AssignedCard key={p.id} p={p} quiet={Boolean(a.rules?.length)} busy={busy} onApply={() => act((after) => applyResultText(after, p.id, p.title), () => api.apply(a.id, p.id))} onDismiss={() => act(`Dismissed: ${p.title}.`, () => api.dismiss(a.id, p.id))} />
+        <AssignedCard key={p.id} p={p} tracker={tracker} quiet={Boolean(a.rules?.length)} busy={busy} onApply={() => act((after) => applyResultText(after, p.id, p.title), () => api.apply(a.id, p.id))} onDismiss={() => act(`Dismissed: ${p.title}.`, () => api.dismiss(a.id, p.id))} />
       ))}
     </section>
   );
@@ -194,18 +204,21 @@ export function AssignmentView({ id }: { id: string }) {
             {a.state === 'working' ? 'Stop' : 'Take off the queue'}
           </Button>
         )}
-        {a.state === 'needs-you' && (
-          <Button className="btn" onPress={() => act('Marked reviewed.', () => api.finish(a.id))} isDisabled={busy}>
-            Mark reviewed
-          </Button>
-        )}
+        {a.state === 'needs-you' && !proposalsFirst && markReviewed}
         <span className="note" role="status">
           {said ?? ''}
         </span>
       </Cluster>
       {waitingStart && <AssignModal item={{ id: a.item, title: a.itemTitle }} start={a} isOpen={starting} onOpenChange={setStarting} onDone={reload} />}
 
+      {a.state === 'working' && (
+        <p className="assign-live" role="status" aria-live="polite" data-assignment-live="">
+          {liveLine(a, nameOf, (id) => byId.get(id)?.parent ?? null)}
+        </p>
+      )}
+
       {proposalsFirst && proposals}
+      {proposalsFirst && a.state === 'needs-you' && <Cluster className="assign-actions assign-actions--after">{markReviewed}</Cluster>}
 
       {a.questions.length > 0 && (
         <Card as="section" className="panel" aria-labelledby="assign-questions">
@@ -215,7 +228,7 @@ export function AssignmentView({ id }: { id: string }) {
               <li key={i}>{q}</li>
             ))}
           </ul>
-          <p className="note">Answer them on the item, then assign it again; or mark this reviewed.</p>
+          <p className="note">{proposalsFirst ? `Answer these in ${tracker}, then ask for a new rewrite.` : `Answer these in ${tracker}, then assign it again.`}</p>
         </Card>
       )}
 
@@ -311,8 +324,9 @@ export function AssignmentView({ id }: { id: string }) {
         </details>
       )}
 
+      {a.transcript.length > 0 && (
       <details className="assign-transcript">
-        <summary>Transcript ({a.transcript.length} lines)</summary>
+        <summary>Transcript ({a.transcript.length === 1 ? '1 line' : `${a.transcript.length} lines`})</summary>
         <ol className="assign-lines">
           {a.transcript.map((t, i) => (
             <li key={i} className={`assign-line assign-line--${t.kind}`}>
@@ -328,6 +342,7 @@ export function AssignmentView({ id }: { id: string }) {
           ))}
         </ol>
       </details>
+      )}
     </>
   );
 }
@@ -335,15 +350,18 @@ export function AssignmentView({ id }: { id: string }) {
 const STATUS_WORD: Record<AssignedProposal['status'], string> = {
   pending: 'Proposed change, not applied',
   applied: 'Applied',
-  failed: 'Not applied: toil refused it',
+  failed: 'Not applied',
   dismissed: 'Dismissed',
 };
 
 /** One proposal with its diff, what came of it, and Apply and Dismiss while it waits. */
-function AssignedCard({ p, quiet, busy, onApply, onDismiss }: { p: AssignedProposal; /** A rule fix: the agent's paragraph above already says why, so the card doesn't repeat it. */ quiet: boolean; busy: boolean; onApply: () => void; onDismiss: () => void }) {
+function AssignedCard({ p, tracker, quiet, busy, onApply, onDismiss }: { p: AssignedProposal; tracker: string; /** A rule fix: the agent's paragraph above already says why, so the card doesn't repeat it. */ quiet: boolean; busy: boolean; onApply: () => void; onDismiss: () => void }) {
   const { toilProject, byId } = useData();
   const open = p.status === 'pending' || p.status === 'failed';
   const area = byId.get(p.item)?.source.area ?? null;
+  // Once applied, the table is a record of what it was and what it became, not a choice still to make.
+  const applied = p.status === 'applied';
+  const writesOff = writesOffText(p.outcome, area ? sourceLabel(area) : tracker);
   return (
     <ProposalCard
       proposal={p}
@@ -359,8 +377,8 @@ function AssignedCard({ p, quiet, busy, onApply, onDismiss }: { p: AssignedPropo
             rowKey={(r) => r.field}
             columns={[
               { header: 'Field', label: 'Field', rowHeader: true, className: 'assign-diff-field', cell: (r) => <FieldName field={r.field} name={fieldName(r.field, toilProject.readiness, area)} /> },
-              { header: 'Now', label: 'Now', className: 'assign-diff-value', cell: (r) => (r.before === null ? <Unread className="note" titled /> : r.before === '' ? <span className="note">empty</span> : <span className="assign-before">{richText(r.before)}</span>) },
-              { header: 'Proposed', label: 'Proposed', className: 'assign-diff-value', cell: (r) => <span className="assign-after">{richText(r.after)}</span> },
+              { header: applied ? 'Before' : 'Now', label: applied ? 'Before' : 'Now', className: 'assign-diff-value', cell: (r) => (r.before === null ? <Unread className="note" titled /> : r.before === '' ? <span className="note">empty</span> : <span className={applied ? 'assign-was' : 'assign-before'}>{richText(r.before)}</span>) },
+              { header: applied ? 'After' : 'Proposed', label: applied ? 'After' : 'Proposed', className: 'assign-diff-value', cell: (r) => <span className="assign-after">{richText(r.after)}</span> },
             ]}
           />
         ) : null
@@ -380,10 +398,28 @@ function AssignedCard({ p, quiet, busy, onApply, onDismiss }: { p: AssignedPropo
         ) : null
       }
     >
-      {p.outcome && (
-        <p className={p.outcome.ok ? 'note' : 'failure'} role="status">
-          {dateTime(p.outcome.at)}: {p.outcome.message}
-        </p>
+      {p.outcome && writesOff ? (
+        <>
+          <p className="failure" role="status" data-writes-off="">
+            {writesOff}
+          </p>
+          <details className="proposal-command" data-outcome-details="">
+            <summary>
+              <SummaryChevron />
+              Details
+            </summary>
+            <p className="note">What toil said, {dateTime(p.outcome.at)}:</p>
+            <pre className="command">
+              <code>{p.outcome.message}</code>
+            </pre>
+          </details>
+        </>
+      ) : (
+        p.outcome && (
+          <p className={p.outcome.ok ? 'note' : 'failure'} role="status">
+            {dateTime(p.outcome.at)}: {p.outcome.message}
+          </p>
+        )
       )}
     </ProposalCard>
   );

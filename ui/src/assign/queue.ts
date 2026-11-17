@@ -430,7 +430,7 @@ export class AssignmentQueue {
     p.status = envelope.ok ? 'applied' : 'failed';
     p.outcome = envelope.ok
       ? { at, ok: true, message: `Applied with toil ${p.command}.` }
-      : { at, ok: false, message: `${envelope.error.message}${envelope.error.fix ? ` ${envelope.error.fix}` : ''}` };
+      : { at, ok: false, message: `${envelope.error.message}${envelope.error.fix ? ` ${envelope.error.fix}` : ''}`, code: envelope.error.code };
     this.note(r, 'proposal', `${envelope.ok ? 'Applied' : 'Tried to apply'}: ${p.title}`, p.outcome.message);
     this.settle(r, `${envelope.ok ? 'Applied' : 'Apply failed'}: ${p.title}`);
     return this.summary(r);

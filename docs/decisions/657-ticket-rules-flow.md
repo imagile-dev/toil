@@ -309,6 +309,52 @@
     from `blocksOf` in `ui/src/agent.ts`) draws `- ` and `* ` runs as a real list and keeps
     other line breaks, with citations linked in each; used for Ask, the Analyze fallback and an
     assignment's report.
+- **Product review, round 3** (Toil UI, for the launch video; principles 4, 11 and 12):
+  - *A writes-off refusal in plain words.* The card said toil's raw CLI error in red. A refusal
+    whose toil error says writes are off on the connection now reads "Not applied. Writes to
+    Jira are off on this computer, so nothing changed. Turn writes on for the jira connection,
+    then press Apply again." (the item's tracker and the connection named), still in the
+    failure style and in view, with toil's exact words under a closed **Details**
+    (`writesOffText`, `ui/src/assign/model.ts`). It is read from the message, not only the
+    code, because WRITE_DISABLED also covers a binding the person hasn't adopted, where that
+    sentence would be wrong; any other refusal keeps toil's words in view as before. The queue
+    now records the error's code on a failed outcome (optional, so older records read). The
+    card's status word is "Not applied" rather than "Not applied: toil refused it".
+  - *The running page has one live line*, from the run's own transcript (`liveLine`): the last
+    tool call and the item it read, "and its parent" only when the cache says so, and the count
+    of tool calls. Before the first call it says only that the run started; a tool it doesn't
+    know is named as it is. An empty transcript is not shown. The record of what the run
+    started on stays a closed disclosure, since it is the run's evidence.
+  - *Possible duplicates* are one line each with a **Why?** disclosure, written by Toil UI from
+    the scorer's fields (`duplicateWhy`, `ui/src/model/duplicates.ts`), since `src/` is out of
+    scope here and the CLI's `summary` is right for the CLI. Seed marks (`toil-seed`, `seed:…`)
+    never appear as a reason; the score itself is the scorer's, unchanged.
+  - *Cost lines.* With no dollar figure there is no cost line: the answer footer's fold says the
+    tokens instead, the "What it looked at" line leaves cost out, and the chat total says
+    tokens. A Claude plan's figure reads "Covered by your Claude plan (about $0.12 of usage)",
+    the adapter named from the record.
+  - *A rule fix cites its own item.* The fix prompt asks the agent to cite `[[id]]` in its
+    paragraph, and tells it the proposal's note is plain words for the person applying it,
+    nothing about formats or how the text is sent. The citation check is unchanged, so an
+    answer that still cites nothing is still flagged. The #305 fingerprint's prompts part
+    is built from the prompt text with placeholders, so it moves with these words by itself.
+  - *Applied tables* read Before and After, with nothing struck through.
+  - *Copy.* The questions end "Answer these in Jira, then ask for a new rewrite." on a refine or a
+    fix ("then assign it again" elsewhere); **Mark reviewed** moves below the proposals there;
+    the Proposals lede drops "Nothing changes in Jira until you press Apply." while the head
+    says "Nothing has changed yet". High confidence reads "All the data this answer needs was
+    read, 13 minutes ago, across 134 items." ("All the saved data was read, …" unscoped); the
+    lower levels' clauses were already in this form and are unchanged. "(the first one ready)"
+    beside **Answered by** is dropped, keeping "your default can't run".
+  - *Ready to start?* The plan id moved from the slate's sentence into its hover. The Board
+    tab's badge counts the board's items with an insight of weight 2 or more (blocked, blocking,
+    a failing build, aging, carried over, a PR with no build, stale, deployed and still open);
+    it already had "44 items need attention" for a screen reader and as a hover, and the hover
+    now adds which reasons, most first ("16 blocked, 9 stale").
+  - *The readiness panel's footer* ("Worked out from the cached record, with no model call."
+    and what Check the workflow live reads) moved into the panel's (i); the button stays, and
+    after a live read the line beside it still says when and with which command, as the
+    result's source.
 
 - **A rule may name what's missing** (`missing`, a short phrase such as "no Given/When/Then criteria"), so a count reads "3 of 27 stories: no Given/When/Then criteria" instead of building grammar from the rule's name. Where: `src/core/standards/types.ts`, `read.ts`, `builtin.ts`.
 - **Flow calls any other story a Feature** (rule `story`, last). Why: on the demo week, without it, 63% of finished work read as unsure, since most stories carry no label; the Flow Framework counts new user-facing work as a feature. Last in order, so a story labelled security, bug or tech-debt keeps that category. Where: `src/core/classify/builtin.ts`.

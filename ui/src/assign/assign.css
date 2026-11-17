@@ -31,7 +31,10 @@
 .assign-diff, .assign-detail { margin: 0; padding: 0.5rem 0.6rem; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); font-family: var(--font-mono); font-size: 0.8125rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .assign-detail { max-height: 16rem; overflow: auto; }
 .assign-before { text-decoration: line-through; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
-.assign-after { white-space: pre-wrap; overflow-wrap: anywhere; }
+.assign-after, .assign-was { white-space: pre-wrap; overflow-wrap: anywhere; }
+.assign-was { color: var(--muted); }
+.assign-live { margin: 0.75rem 0; color: var(--ink); overflow-wrap: anywhere; }
+.assign-actions--after { margin-top: 1rem; }
 /* A proposal's diff: a narrow Field, then Now and Proposed side by side at equal width. The widths are on the header cells, which a fixed layout reads them from; where the table stacks (layout.css) its header is hidden, so they don't apply there. */
 .assign-diff-table table { table-layout: fixed; }
 .assign-diff-table thead th.assign-diff-field { width: 9rem; }
