@@ -50,6 +50,15 @@ interface Read {
   names: Named[];
 }
 
+/**
+ * Tracker fields every team of that tracker has, by the words its own screens use, so a reason says "the repro steps"
+ * and not the reference name. The id stays in `source`. Naming a field after its label is the one meeting this module skipped.
+ */
+const KNOWN_FIELDS: Record<string, string> = {
+  'Microsoft.VSTS.TCM.ReproSteps': 'repro steps',
+  'Microsoft.VSTS.Common.AcceptanceCriteria': 'acceptance criteria',
+  'System.Description': 'description',
+};
 const TITLE: Named = { label: 'title', field: false };
 const DESCRIPTION: Named = { label: 'description', field: false };
 const CRITERIA: Named = { label: 'acceptance criteria', field: false };
@@ -88,7 +97,7 @@ function readers(item: WorkItem, fields: Record<string, string>) {
     return { text: body ? textOf(body.content, body.format) : '', names: [DESCRIPTION] };
   };
   /** A field by the toil project's alias or its own id, named by whichever the place gave: the alias is the team's word for it. */
-  const field = (name: string, label = name): Read => {
+  const field = (name: string, label = KNOWN_FIELDS[name] ?? name): Read => {
     const id = fields[name] ?? name;
     const found = nativeField(item, id);
     return { text: found.read ? textOf(found.value) : null, names: [{ label, field: label === name, at: `field ${id}` }] };

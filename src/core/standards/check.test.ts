@@ -98,7 +98,7 @@ describe('section: bug-repro', () => {
     const out = resultOf([bug('41', { native })], built('bug-repro'));
     expect(out.items[0]!.results.map((r) => [r.rule, r.state])).toEqual([['steps', 'pass'], ['expected', 'pass'], ['actual', 'thin']]);
     expect(out.items[0]!.results[2]!.reason).toBe('The "Actual" section is empty.');
-    expect(out.items[0]!.results[0]).toMatchObject({ reason: 'Has a "Repro steps" section.', source: 'field Microsoft.VSTS.TCM.ReproSteps, description' });
+    expect(out.items[0]!.results[0]).toMatchObject({ reason: 'Has a "Repro steps" section.', source: 'repro steps (field Microsoft.VSTS.TCM.ReproSteps), description' });
   });
 
   it('skips a rule as not read when none of its places is in the record, and never calls that empty', () => {
@@ -108,14 +108,14 @@ describe('section: bug-repro', () => {
     const out = resultOf([unread], built('bug-repro'));
     expect(out.items[0]!.verdict).toBeNull();
     expect(out.items[0]!.results.every((r) => r.state === 'skipped')).toBe(true);
-    expect(out.items[0]!.results[0]!.reason).toBe("Not read: the Microsoft.VSTS.TCM.ReproSteps field and description aren't in the record read, so this wasn't checked.");
+    expect(out.items[0]!.results[0]!.reason).toBe("Not read: the repro steps and description aren't in the record read, so this wasn't checked.");
     expect(out.summary.byRule[0]).toMatchObject({ applies: 1, skipped: 1, pass: 0, thin: 0 });
   });
 
   it('checks an empty description (body null) as read and empty', () => {
     const out = resultOf([bug('PAY-12', { body: null })], built('bug-repro'));
     // The unread field stays in the source; the sentence speaks only of the description it did read.
-    expect(out.items[0]!.results[0]).toMatchObject({ state: 'thin', reason: 'No "Steps to reproduce" section in the description.', source: 'description; not read: field Microsoft.VSTS.TCM.ReproSteps' });
+    expect(out.items[0]!.results[0]).toMatchObject({ state: 'thin', reason: 'No "Steps to reproduce" section in the description.', source: 'description; not read: repro steps (field Microsoft.VSTS.TCM.ReproSteps)' });
   });
 });
 
