@@ -253,6 +253,8 @@ export interface AssignmentEvent {
    * and what waits on a person.
    */
   itemTitle?: string;
+  /** The item as a person reads it, the tracker's name and its key ("Jira PAY-103"), where the last sync holds it. */
+  itemName?: string;
   adapter?: AssignAdapter | null;
   origin?: Assignment['origin'];
   stop?: StopReason | null;
@@ -384,9 +386,13 @@ function current(item: WorkItem | undefined, field: string): string | null {
   if (f === 'storypoints' || f === 'microsoft.vsts.scheduling.storypoints' || f === 'estimate' || f === 'points') return item.estimate ? String(item.estimate.value) : '';
   if (f === 'state' || f === 'status') return item.status ?? '';
   if (f === 'priority') return item.priority ?? '';
-  const native = item.native as { fields?: Record<string, unknown> } | undefined;
-  const fields = native?.fields;
-  if (fields && typeof fields === 'object') {
+  // native holds each read's record by the command that read it (`{ "jira issue search": { fields } }`), as the readiness gate reads it.
+  // A field the read returned holding nothing (Jira sends null for an empty custom field) is empty; one it never returned is unknown.
+  const rec = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+  for (const read of [item.native, ...Object.values(item.native ?? {})]) {
+    if (!rec(read)) continue;
+    const fields = rec(read.fields) ? read.fields : null;
+    if (!fields) continue;
     const hit = Object.entries(fields).find(([k]) => k.toLowerCase() === field.toLowerCase() || k.toLowerCase().endsWith(`.${f}`));
     if (hit) return plain(hit[1]);
   }

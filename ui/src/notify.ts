@@ -51,6 +51,8 @@ export interface Transition {
   agent: string;
   /** The item, where there is one: its id and title. */
   item: string | null;
+  /** The item as a person reads it ("Jira PAY-103"), where the event carried one; the id stands in where not. */
+  itemName?: string;
   itemTitle: string | null;
   /** One line on why, in plain words: "asked a question", "3 proposals to review". */
   why: string;
@@ -73,7 +75,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n === 1 ? 'a' : 
 export function transitionOf(e: AssignmentEvent, o: { mine: boolean; href: string }): Transition | null {
   if (e.kind !== 'state' || e.state === e.previous) return null;
   const agent = e.adapter ? ADAPTER_NAME[e.adapter as AssignAdapter] : 'An agent';
-  const base = { key: `assignment:${e.id}`, event: e.seq, state: e.state, agent, item: e.item, itemTitle: e.itemTitle ?? null, toilProject: e.toilProject, href: o.href, mine: o.mine };
+  const base = { key: `assignment:${e.id}`, event: e.seq, state: e.state, agent, item: e.item, ...(e.itemName ? { itemName: e.itemName } : {}), itemTitle: e.itemTitle ?? null, toilProject: e.toilProject, href: o.href, mine: o.mine };
   return { ...base, ...notableOf(e.state, e) };
 }
 
@@ -169,7 +171,7 @@ const VERB: Record<Notable, [string, string]> = {
 };
 
 /** One line for one change: "Codex needs you on PAY-102 Store tokens in the vault: asked a question". */
-export const lineOf = (t: Transition) => `${t.agent} ${VERB[t.notable!][0]}${t.item ? ` on ${t.item}${t.itemTitle ? ` ${t.itemTitle}` : ''}` : ` in ${t.toilProject}`}: ${t.why}`;
+export const lineOf = (t: Transition) => `${t.agent} ${VERB[t.notable!][0]}${t.item ? ` on ${t.itemName ?? t.item}${t.itemTitle ? ` ${t.itemTitle}` : ''}` : ` in ${t.toilProject}`}: ${t.why}`;
 
 /** The notice for what one window gathered: its title, and one line per change. */
 export function summaryOf(changes: readonly Transition[]): { title: string; lines: string[] } {

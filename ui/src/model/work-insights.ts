@@ -13,7 +13,7 @@
 
 import type { Verdict } from '../../../src/core/classify/types.ts';
 import {
-  addDays, applyFilters, dayOf, DIMENSION_MENU, NONE_KEY, parseDimension, pivot, releaseScope, valuesOf,
+  addDays, applyFilters, computeMeasure, dayOf, DIMENSION_MENU, NONE_KEY, parseDimension, pivot, releaseScope, valuesOf,
   type Filter, type InsightsCategory, type InsightsPerson, type PivotAxisValue, type PivotCell, type PivotResult, type PivotSpec, type ReleaseScope, type ValuesContext,
 } from '../../../src/core/insights/index.ts';
 import { bucketLabel, bucketsBetween, bucketStart } from '../../../src/core/insights/dimensions.ts';
@@ -369,6 +369,24 @@ export function mixOverview(ins: WorkInsights, f: { from?: string; to?: string; 
   const measure = MIX_UNITS.find((u) => u.id === unit)!.measure;
   const result = ins.run({ measure, split: 'category', ...period, ...(f.where && f.where.length > 0 ? { where: f.where } : {}) });
   return { result, lines: mixLines(result), period };
+}
+
+/**
+ * How the items a mix counted were decided, for the panel beside it (#657). For Items finished that is only the items
+ * finished in the period, judged by the pivot's own throughput measure, so the panel's Unsure and the headline's Unsure
+ * count the same items, with the same verdicts and one rule for unsure (no category). For the other units it is every
+ * item the measure holds, since their shares are of points or days and the panel's are of items.
+ */
+export function mixDecided(ins: WorkInsights, lead: { result: PivotResult; period: { from: string; to: string } }, unit: MixUnit = 'items'): MixSources {
+  const measure = MIX_UNITS.find((u) => u.id === unit)!.measure;
+  const byId = new Map(ins.items.map((i) => [i.id, i]));
+  const ctx = { asOf: ins.asOf, period: lead.period, unit: 'points' as const, days: new Map<string, number | null>() };
+  const counted = (id: string) => {
+    if (measure !== 'throughput') return true;
+    const item = byId.get(id);
+    return item !== undefined && computeMeasure('throughput', [item], ctx).value === 1;
+  };
+  return mixSources(lead.result.total.items.flatMap((id) => (counted(id) && ins.verdicts.get(id) ? [ins.verdicts.get(id)!] : [])));
 }
 
 /** "Feature 55% · Keep the lights on 35% · Unsure 10%", worked out from one result; null when nothing was counted. */

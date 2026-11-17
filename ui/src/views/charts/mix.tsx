@@ -33,7 +33,7 @@ import { useData } from '../../data.ts';
 import { classifyHref } from '../../format.ts';
 import { toWhere } from '../../filters.ts';
 import { lensOf, schemeInUse, useAddress, useWorkInsights } from '../../insights-data.ts';
-import { mixSources, mixOverview, mixSentence, inNameOrder, isPeopleDimension, labelOfDimension, MIX_UNITS, periodWords, SPLIT_MENU, type MixUnit } from '../../model/work-insights.ts';
+import { mixDecided, mixOverview, mixSentence, inNameOrder, isPeopleDimension, labelOfDimension, MIX_UNITS, periodWords, SPLIT_MENU, type MixUnit } from '../../model/work-insights.ts';
 import { useWords } from '../../theme-context.ts';
 import type { Dashboard, Headline } from './dashboard.ts';
 import { ChartPanel, DashboardHead, Door, useDrill, useFilterFromCell, useSourceLine } from './shared.tsx';
@@ -52,7 +52,7 @@ export function mixHeadline(ins: ReturnType<typeof useWorkInsights>): Headline {
 const schemeLabel = (s: { categories: ReadonlyArray<Pick<Scheme['categories'][number], 'name'>> }) => s.categories.map((c) => c.name).join(' / ');
 
 /** The built-in schemes' names as the Categories menu leads with them, so two lists of categories are told apart by name. */
-const SCHEME_TITLE: Record<string, string> = { flow: 'Flow', balance: 'Balance', 'ktlo-feature': 'KTLO' };
+const SCHEME_TITLE: Record<string, string> = { flow: 'Flow', balance: 'Balance' };
 
 /** A scheme as the Categories menu names it: "Flow: Feature / Defect / Risk / Debt". */
 const schemeOption = (s: Pick<Scheme, 'name'> & Parameters<typeof schemeLabel>[0]) => (SCHEME_TITLE[s.name] ? `${SCHEME_TITLE[s.name]}: ${schemeLabel(s)}` : schemeLabel(s));
@@ -76,7 +76,7 @@ export function MixView() {
   const result = split !== TIME && isPeopleDimension(split) ? inNameOrder(raw) : raw;
   const onFilter = useFilterFromCell(result);
   const scheme = { categories: ins.scheme.categories };
-  const decided = mixSources(lead.result.total.items.flatMap((id) => (ins.verdicts.get(id) ? [ins.verdicts.get(id)!] : [])));
+  const decided = mixDecided(ins, lead, unit);
   const share = (n: number) => (decided.total === 0 ? null : `${Math.round((n / decided.total) * 100)}%`);
   const sources: Array<[string, number]> = [['Rules', decided.rules], ['Labels on the items', decided.labels], ['Your AI agent', decided.agent], ['People', decided.people]];
   const splitLabel = split === TIME ? 'Month' : labelOfDimension(split);

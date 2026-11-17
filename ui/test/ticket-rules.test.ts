@@ -92,11 +92,14 @@ describe("the sample's rules and the Command Center's lines", () => {
     const lines = ruleLines(result, open);
     const scenarios = lines.find((l) => l.ref === 'gherkin/scenarios')!;
     expect([scenarios.miss, scenarios.applies, scenarios.noun(scenarios.applies)]).toEqual([2, 4, 'stories']);
-    expect(lineWhat(scenarios)).toBe('acceptance criteria as Given/When/Then');
+    expect(lineWhat(scenarios)).toBe('no Given/When/Then criteria');
     // A standard with several rules is one line: the bug that misses all three counts once, and the line drills to the standard.
     const repro = lines.find((l) => l.standard === 'bug-repro')!;
     expect([repro.ref, repro.miss, repro.applies, repro.noun(1), repro.rules.map((r) => r.rule)]).toEqual(['bug-repro', 1, 1, 'bug', ['steps', 'expected', 'actual']]);
-    expect(lineWhat(repro)).toBe('steps to reproduce, expected result and actual result');
+    expect(lineWhat(repro)).toBe('no steps to reproduce, expected result or actual result');
+    // The card's line is the count, the noun and a colon, so no verb has to agree with a plural (#657); a rule with no phrase says "missing" and its name.
+    expect(lineWhat({ rules: [{ rule: 'scenarios', name: 'Acceptance criteria as Given/When/Then' }] })).toBe('missing Acceptance criteria as Given/When/Then');
+    expect(lineWhat({ rules: [{ rule: 'a', name: 'A', missing: 'no owner' }, { rule: 'b', name: 'Linked design' }] })).toBe('no owner or missing Linked design');
     expect(missing(result, 'bug-repro')!.has(bugId)).toBe(true);
     expect(ruleName(result, 'bug-repro')).toBe('Steps to reproduce, expected result or actual result');
     expect(missing(result, 'nope')).toBeNull();

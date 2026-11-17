@@ -55,7 +55,7 @@ describe('acceptance criteria', () => {
     expect(rowOf(i, 'acceptance', [done], s)).toMatchObject({ state: 'pass', reason: '3 words in customfield_10500.', source: 'field customfield_10500' });
     // An empty field doesn't count, and the message names it.
     const empty = item('B', { body: { format: 'markdown', content: WORDS(30) }, native: { 'jira issue search': { fields: { customfield_10500: '' } } } });
-    expect(rowOf(empty, 'acceptance', [done], s)).toMatchObject({ state: 'thin', reason: 'None found. customfield_10500 is empty, and the description has no acceptance criteria heading or checklist.' });
+    expect(rowOf(empty, 'acceptance', [done], s)).toMatchObject({ state: 'thin', reason: 'None found. The acceptance criteria field is empty, and the description has no acceptance criteria heading or checklist.' });
     const tbd = item('C', { body: { format: 'markdown', content: WORDS(30) }, native: { 'jira issue search': { fields: { customfield_10500: 'TBD' } } } });
     expect(rowOf(tbd, 'acceptance', [done], s).state).toBe('thin');
   });

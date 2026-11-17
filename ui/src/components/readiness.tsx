@@ -27,6 +27,8 @@ import '../views/readiness.css';
 // A rule nobody could check is a dash, never a tick: unknown is not a pass (principle 12).
 const MARK: Record<Row['state'], ReactNode> = { pass: <CheckIcon size={14} />, thin: <WarningIcon size={14} />, fail: <CloseIcon size={14} />, skipped: '–' };
 const STATE_WORD: Record<Row['state'], string> = { pass: 'Passes', thin: 'Thin', fail: 'Fails', skipped: 'Not checked' };
+// A ticket rule that misses says what it is: missing. Its state stays thin underneath, so the verdict counts it as before.
+const RULE_WORD: Record<Row['state'], string> = { ...STATE_WORD, thin: 'Missing' };
 
 const VERDICT_MARK: Record<Verdict, ReactNode> = { ready: <CheckIcon size={14} />, thin: <WarningIcon size={14} />, blocked: <CloseIcon size={14} /> };
 
@@ -72,7 +74,7 @@ function RuleRowLine({ r, action }: { r: Row; action?: ReactNode }) {
         <summary>
           <SummaryChevron />
           <span>
-            <strong>{r.label}</strong> <span className="readiness-state">{STATE_WORD[r.state]}</span>: <Cited text={r.reason} />
+            <strong>{r.label}</strong> <span className="readiness-state">{RULE_WORD[r.state]}</span>: <Cited text={r.reason} />
           </span>
         </summary>
         <p className="field">
@@ -130,7 +132,7 @@ export function ReadinessRows({ readiness, item, ruleText }: { readiness: Readin
                 <div key={g.standard || g.rows[0]!.check} className="readiness-standard" data-rule-group={g.standard || undefined}>
                   {all && (
                     <p className="readiness-standard__fix">
-                      <span className="field">{missed.length} of these rules miss.</span>
+                      <span className="field">{missed.length === 1 ? '1 rule missed.' : `${missed.length} rules missed.`}</span>
                       <FixRuleButton item={item!} rules={missed.map(toFix)} />
                     </p>
                   )}

@@ -265,7 +265,7 @@ export function Notices() {
   );
 }
 
-const lineOfLink = (c: Transition) => `${c.item ? `${c.item}${c.itemTitle ? ` ${c.itemTitle}` : ''}` : c.toilProject}: ${c.why}`;
+const lineOfLink = (c: Transition) => `${c.item ? `${c.itemName ?? c.item}${c.itemTitle ? ` ${c.itemTitle}` : ''}` : c.toilProject}: ${c.why}`;
 
 /** One checkbox in the settings, drawn as Settings, General draws its others. */
 function Check({ on, set, children }: { on: boolean; set: (on: boolean) => void; children: ReactNode }) {

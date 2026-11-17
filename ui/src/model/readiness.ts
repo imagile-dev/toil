@@ -292,7 +292,8 @@ function acceptance(item: WorkItem, area: AreaReadiness | undefined, body: strin
   }
   const inBody = acceptanceInBody(body, area?.templateLines ?? []);
   if (inBody) return row('acceptance', 'pass', inBody === 'heading' ? 'A heading in the description lists them.' : 'The description has a checklist.', 'description');
-  const where = field ? `${field} is empty, and the description has` : 'The description has';
+  // The field by what it holds, not its tracker id: the raw key stays in the source line, where a person checking it looks.
+  const where = field ? 'The acceptance criteria field is empty, and the description has' : 'The description has';
   return row('acceptance', 'thin', `None found. ${where} no acceptance criteria heading or checklist.`, field ? `field ${field}, description` : 'description');
 }
 

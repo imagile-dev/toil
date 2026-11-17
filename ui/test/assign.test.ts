@@ -236,7 +236,13 @@ describe('the assignment model', () => {
     const i = item('corp-jira:PAY-102');
     expect(proposalDiff({ input: { toilProject: 'card-payments', key: 'PAY-102', summary: 'New', field: ['Story Points=5'] } }, i)).toEqual([
       { field: 'summary', before: i.title, after: 'New' },
-      { field: 'Story Points', before: null, after: '5' },
+      // Read from the Jira record the sync kept, by the command that read it.
+      { field: 'Story Points', before: '3', after: '5' },
+    ]);
+    // PAY-103's acceptance criteria field was read and holds nothing: empty, not unknown (#657); a field no read returned stays unknown.
+    expect(proposalDiff({ input: { key: 'PAY-103', field: ['customfield_10500=Scenario: x', 'customfield_99999=y'] } }, item('corp-jira:PAY-103'))).toEqual([
+      { field: 'customfield_10500', before: '', after: 'Scenario: x' },
+      { field: 'customfield_99999', before: null, after: 'y' },
     ]);
     expect(settledState({ proposals: [], questions: ['why?'], stop: null })).toBe('needs-you');
     expect(actorOf('abc12345')).toBe('assignment-abc12345');

@@ -51,7 +51,7 @@ function setShell(shell: Shell) {
 const subscribe = (l: () => void) => (listeners.add(l), () => listeners.delete(l));
 export const useShell = () => useSyncExternalStore(subscribe, shellNow, shellNow);
 
-export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not applied', actions, why, detail, lead, children }: { proposal: Proposal; onDismiss?: () => void; kind?: string; actions?: ReactNode; /** Tidy form: the one line saying why this wasn't applied, in place of the proposal's own reason. */ why?: string; /** Tidy form: what else toil said, such as the moves the workflow offers. */ detail?: string; /** Apply form: what the proposal changes (its field table), shown under the title and above the actions. */ lead?: ReactNode; children?: ReactNode }) {
+export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not applied', actions, why, detail, lead, hideReason = false, children }: { proposal: Proposal; /** Apply form: leave the proposal's reason out, where the page above already says it (a rule fix's agent paragraph). */ hideReason?: boolean; onDismiss?: () => void; kind?: string; actions?: ReactNode; /** Tidy form: the one line saying why this wasn't applied, in place of the proposal's own reason. */ why?: string; /** Tidy form: what else toil said, such as the moves the workflow offers. */ detail?: string; /** Apply form: what the proposal changes (its field table), shown under the title and above the actions. */ lead?: ReactNode; children?: ReactNode }) {
   const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
   const shell = useShell();
   const { line, reason, mcp } = commandLine(proposal, shell);
@@ -156,9 +156,11 @@ export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not
           {status}
         </div>
         {children}
-        <p className="proposal-reason">
-          <Cited text={proposal.reason} chips={proposal.from === 'agent'} />
-        </p>
+        {!hideReason && (
+          <p className="proposal-reason">
+            <Cited text={proposal.reason} chips={proposal.from === 'agent'} />
+          </p>
+        )}
         {(showShells || proposal.command) && (
           <details className="proposal-command" data-proposal-command="">
             <summary>

@@ -21,15 +21,16 @@ import { ProposalCard } from '../components/proposal.tsx';
 import { UsageFooter } from '../components/usage.tsx';
 import { useData } from '../data.ts';
 import { Empty, EmptyLink } from '../components/empty.tsx';
-import { AGENT_SETTINGS_HREF, dateTime, toilProjectHref } from '../format.ts';
-import { EditLink } from '../components/help.tsx';
+import { AGENT_SETTINGS_HREF, dateTime, sourceLabel, toilProjectHref } from '../format.ts';
+import { EditLink, Help } from '../components/help.tsx';
+import { Unread } from '../components/unread.tsx';
 import { SummaryChevron } from '../components/disclosure.tsx';
 import { fieldName } from '../model/readiness.ts';
 
 const when = (iso: string | null) => (iso ? dateTime(iso) : 'not yet');
 
 export function AssignmentView({ id }: { id: string }) {
-  const { toilProject, assignments: api, now } = useData();
+  const { toilProject, assignments: api, now, byId } = useData();
   const plain = usePlain();
   const [record, setRecord] = useState<AssignmentRecord | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -85,6 +86,22 @@ export function AssignmentView({ id }: { id: string }) {
   // What leads the head: a proposal waits and none was applied, so nothing has changed and the next step is the reader's.
   const open = a.proposals.filter((p) => p.status === 'pending');
   const waitsOnYou = open.length > 0 && !a.proposals.some((p) => p.status === 'applied');
+
+  // A refine or a rule fix ends in the change to review, so its proposals lead, above the questions and what the agent said; elsewhere the report leads.
+  const proposalsFirst = a.mode === 'refine' || Boolean(a.rules?.length);
+  const area = byId.get(a.item)?.source.area;
+  const tracker = area ? sourceLabel(area) : 'the tracker';
+  const proposals = a.proposals.length > 0 && (
+    <section className="proposals" aria-labelledby="assign-proposals">
+      <h2 id="assign-proposals">Proposals</h2>
+      <p className="note">
+        Each change the agent proposes. Nothing changes in {tracker} until you press Apply. <Help topic="proposal" note="Apply runs its toil command through the write gate: the connection needs writes on, and this press is the call's allow-write." />
+      </p>
+      {a.proposals.map((p) => (
+        <AssignedCard key={p.id} p={p} quiet={Boolean(a.rules?.length)} busy={busy} onApply={() => act(`Applied: ${p.title}.`, () => api.apply(a.id, p.id))} onDismiss={() => act(`Dismissed: ${p.title}.`, () => api.dismiss(a.id, p.id))} />
+      ))}
+    </section>
+  );
 
   return (
     <>
@@ -187,6 +204,8 @@ export function AssignmentView({ id }: { id: string }) {
       </Cluster>
       {waitingStart && <AssignModal item={{ id: a.item, title: a.itemTitle }} start={a} isOpen={starting} onOpenChange={setStarting} onDone={reload} />}
 
+      {proposalsFirst && proposals}
+
       {a.questions.length > 0 && (
         <Card as="section" className="panel" aria-labelledby="assign-questions">
           <h2 id="assign-questions">Questions for you</h2>
@@ -244,15 +263,7 @@ export function AssignmentView({ id }: { id: string }) {
         </Card>
       )}
 
-      {a.proposals.length > 0 && (
-        <section className="proposals" aria-labelledby="assign-proposals">
-          <h2 id="assign-proposals">Proposals</h2>
-          <p className="note">Each change the agent proposes, with what it would set. Apply runs its toil command through the write gate: the connection needs writes on, and this press is the call's allow-write. Nothing has changed until then.</p>
-          {a.proposals.map((p) => (
-            <AssignedCard key={p.id} p={p} busy={busy} onApply={() => act(`Applied: ${p.title}.`, () => api.apply(a.id, p.id))} onDismiss={() => act(`Dismissed: ${p.title}.`, () => api.dismiss(a.id, p.id))} />
-          ))}
-        </section>
-      )}
+      {!proposalsFirst && proposals}
 
       {a.startedOn && (
         <details className="assign-record">
@@ -330,7 +341,7 @@ const STATUS_WORD: Record<AssignedProposal['status'], string> = {
 };
 
 /** One proposal with its diff, what came of it, and Apply and Dismiss while it waits. */
-function AssignedCard({ p, busy, onApply, onDismiss }: { p: AssignedProposal; busy: boolean; onApply: () => void; onDismiss: () => void }) {
+function AssignedCard({ p, quiet, busy, onApply, onDismiss }: { p: AssignedProposal; /** A rule fix: the agent's paragraph above already says why, so the card doesn't repeat it. */ quiet: boolean; busy: boolean; onApply: () => void; onDismiss: () => void }) {
   const { toilProject, byId } = useData();
   const open = p.status === 'pending' || p.status === 'failed';
   const area = byId.get(p.item)?.source.area ?? null;
@@ -338,6 +349,7 @@ function AssignedCard({ p, busy, onApply, onDismiss }: { p: AssignedProposal; bu
     <ProposalCard
       proposal={p}
       kind={STATUS_WORD[p.status]}
+      hideReason={quiet}
       lead={
         p.diff.length > 0 ? (
           <DataTable
@@ -347,7 +359,7 @@ function AssignedCard({ p, busy, onApply, onDismiss }: { p: AssignedProposal; bu
             rowKey={(r) => r.field}
             columns={[
               { header: 'Field', label: 'Field', rowHeader: true, cell: (r) => <FieldName field={r.field} name={fieldName(r.field, toilProject.readiness, area)} /> },
-              { header: 'Now', label: 'Now', cell: (r) => (r.before === null ? <span className="note">not in the synced item</span> : r.before === '' ? <span className="note">empty</span> : <span className="assign-before">{r.before}</span>) },
+              { header: 'Now', label: 'Now', cell: (r) => (r.before === null ? <Unread className="note" titled /> : r.before === '' ? <span className="note">empty</span> : <span className="assign-before">{r.before}</span>) },
               { header: 'Proposed', label: 'Proposed', cell: (r) => <span className="assign-after">{r.after}</span> },
             ]}
           />

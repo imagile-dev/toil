@@ -253,4 +253,42 @@
     row's end at desktop widths and full width under it on a phone, one button style.
   - *The ticket-rules help* is the review's wording in two sentences, because help topics are
     held to two (`ui/test/help.test.tsx`), and names the button "Fix with AI agent".
+- **The second UX review's findings** (Toil UI):
+  - *Proposals first on a refine or a fix.* The Proposals section renders above "Questions for
+    you" and "What the agent said" when the mode is refine or the assignment carries rules, so
+    the field table and Apply are on the first screen at 1440×900; investigate and implement
+    keep the report first, since their proposal follows from it.
+  - *Now column.* The diff's "now" was always unknown for a tracker field: `current()`
+    (`ui/src/assign/model.ts`) read `item.native.fields`, but `native` is keyed by the command
+    that read the item. It now reads each record's `fields`, as the readiness gate does, so a
+    field the read returned as null is "empty" and one no read returned is a dash, "not read
+    yet". Fixed there rather than in the sample's `ruleFix`, since the diff is built by the
+    queue from every runner's proposals; a real run gets the same answer.
+  - *One Unsure.* The Work mix's "How it was decided" counted every item the pivot held
+    (`total.items` lists every item in the pool, finished or not), while the headline counts
+    items finished in the period. `mixDecided` (`model/work-insights.ts`) counts only the items
+    the pivot's own throughput measure counts, with the same verdicts, so the two agree under
+    any lens and on real data; for Estimate and Days in progress it still counts every item
+    the measure holds, since those shares are of points and days.
+  - *Plain field name in the acceptance check's reason*; the raw key stays in Source.
+  - *A fix's card leaves the proposal's reason out* (`ProposalCard`'s `hideReason`), since the
+    agent's paragraph above says it; other assignments keep it.
+  - *The proposals lede* names the item's tracker from its synced source, "the tracker" when the
+    item isn't in the sync, and the write gate moved into the proposal (i) as its note.
+  - *Bar labels* draw only where the 13px text and the thickest edge (a double outline, 4.5 in)
+    fit on both sides, so no figure is struck through; the figure stays in the table and drill.
+  - *"Missing" on a rule row* is display only (`RULE_WORD`); the row's state stays `thin`.
+  - *The notice names the item "Jira PAY-103".* Assignment events carry `itemName`, worked out
+    by the queue from the last sync; the notice falls back to the id where the sync doesn't
+    hold the item.
+  - *"Keep the lights on / Feature (your team's)"*: the "KTLO:" title is dropped, overturning
+    the first round's choice to keep it.
+  - *The picked AI carries a check mark*, as a menu's chosen item does, on every agent radio
+    list (the fix dialog and Assign).
+  - *Ticket rules card lines* are "**3 of 27** stories: no Given/When/Then criteria": each
+    rule's `missing` phrase, joined with "or" and a repeated leading "no" folded, or "missing"
+    and the rule's name where it gives none. The colon removes the verb, so `RuleLine.missAll`
+    went. The drill's "Missing: <rule names>" already reads well and is unchanged.
 
+- **A rule may name what's missing** (`missing`, a short phrase such as "no Given/When/Then criteria"), so a count reads "3 of 27 stories: no Given/When/Then criteria" instead of building grammar from the rule's name. Where: `src/core/standards/types.ts`, `read.ts`, `builtin.ts`.
+- **Flow calls any other story a Feature** (rule `story`, last). Why: on the demo week, without it, 63% of finished work read as unsure, since most stories carry no label; the Flow Framework counts new user-facing work as a feature. Last in order, so a story labelled security, bug or tech-debt keeps that category. Where: `src/core/classify/builtin.ts`.

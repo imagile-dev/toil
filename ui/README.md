@@ -614,7 +614,7 @@ categories were decided (rules, labels on the items, your AI agent, people) and 
 A category reads as its plain name, "Keep the lights on"; its short form and definition are on hover. The Summary's **Work
 mix** tile, in the numbers, shows the same mix for the last 90 days and opens this page. **Categories**, the first menu
 above the chart and set apart from Split by and Measured in, views the same work by another built-in set of categories, each
-named for its set ("KTLO: Keep the lights on / Feature", "Balance: …", "Flow: Feature / Defect / Risk / Debt"), your team's
+named for its set ("Keep the lights on / Feature", "Balance: …", "Flow: Feature / Defect / Risk / Debt"), your team's
 own marked "(your team's)", worked out on the fly from its rules and the labels already on the items. It is in the address
 (`?lens=flow`) and saves nothing: a note says "Viewing as Feature / Defect / Risk / Debt. Your team's saved categories
 haven't changed." with a **Back to saved** link, the Toil project's own choice stays under Settings, Classification, and a
@@ -757,13 +757,20 @@ they are called ticket rules.
   set up, the dialog says so and links to setting one up.
 - **The assignment page** for a fix says which rules it is meeting, and, while its proposal
   waits, leads with "Nothing has changed yet. Review the proposal below and apply it." The
-  run's times and usage are under **Run details**. Every proposal on an assignment page
-  shows what it changes first, each field by its plain name ("Acceptance criteria" for the
-  Toil project's acceptance criteria field), then Apply; the command, its shell and any
-  advice for running it by hand are under a closed **Show the command**.
+  run's times and usage are under **Run details**. On a refine or a fix the proposals come
+  first, above the questions and what the agent said, under "Each change the agent proposes.
+  Nothing changes in Jira until you press Apply." (the item's own tracker, with the write gate
+  in an (i)); a fix's card doesn't repeat the agent's paragraph. Every proposal on an
+  assignment page shows what it changes first, each field by its plain name ("Acceptance
+  criteria" for the Toil project's acceptance criteria field) beside what it holds now
+  ("empty" for a field that was read and holds nothing, a dash, "not read yet", for one the
+  sync never read), then Apply; the command, its shell and any advice for running it by hand
+  are under a closed **Show the command**. A rule row that misses reads **Missing**.
 - **The Command Center** has a **Ticket rules** card: one line a standard, the figure first,
-  such as "**3 of 19** stories miss acceptance criteria as Given/When/Then" or "**1 of 1** bug
-  misses steps to reproduce, expected result and actual result", counting open items. Each is a
+  such as "**3 of 19** stories: no Given/When/Then criteria" or "**1 of 1** bug: no steps to
+  reproduce, expected result or actual result", counting open items: each rule's own `missing`
+  phrase, joined with "or" and a repeated "no" folded, or "missing" and the rule's name where
+  the rule gives none. Each is a
   link that filters the list to the items that miss it, or any rule of the standard
   (`?rule=gherkin/scenarios`, `?rule=bug-repro`), with that rule's line first in each item's
   "Why not ready" and **Clear** to take the filter off.

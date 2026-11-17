@@ -183,7 +183,7 @@ export function CommandCenter() {
                         <strong>
                           {r.miss} of {r.applies}
                         </strong>{' '}
-                        {r.noun(r.applies)} {r.miss === 1 ? 'misses' : 'miss'} {lineWhat(r)}
+                        {r.noun(r.applies)}: {lineWhat(r)}
                       </a>
                       {r.skipped > 0 && <span className="note">, {r.skipped} not checked</span>}
                     </li>

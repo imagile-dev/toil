@@ -69,15 +69,13 @@ const NOUN: Record<string, [string, string]> = { STORY: ['story', 'stories'], BU
  */
 export interface RuleLine {
   standard: string;
-  /** The rules of the standard that apply to the items, in the check's order. */
-  rules: Array<{ rule: string; name: string }>;
+  /** The rules of the standard that apply to the items, in the check's order, each with what an item that misses it lacks where the rule says. */
+  rules: Array<{ rule: string; name: string; missing?: string }>;
   /** `standard/rule` for a one-rule line, the standard's name otherwise: the address filter's value. */
   ref: string;
   applies: number;
   /** Items that miss at least one of the rules. */
   miss: number;
-  /** Whether every item that misses one misses them all: "and" in the sentence, else "or". */
-  missAll: boolean;
   skipped: number;
   /** "story" or "stories", from the types it applied to; "item" when they are mixed. */
   noun: (n: number) => string;
@@ -91,8 +89,18 @@ export function listed(names: readonly string[], join: 'and' | 'or' = 'and'): st
   return names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} ${join} ${names.at(-1)}`;
 }
 
-/** What a line says the items miss: "steps to reproduce, expected result and actual result". */
-export const lineWhat = (l: Pick<RuleLine, 'rules' | 'missAll'>) => listed(l.rules.map((r) => inSentence(r.name)), l.missAll ? 'and' : 'or');
+/**
+ * What a line says the items lack, after its count and a colon (#657): each rule's own `missing` phrase ("no
+ * Given/When/Then criteria"), or "missing" and its name where the rule gives none, joined with commas and "or" (an
+ * item that misses any one of them counts), with a repeated leading "no" folded: "no steps to reproduce, expected
+ * result or actual result". The colon form needs no verb, so no plural to agree with.
+ */
+export function lineWhat(l: Pick<RuleLine, 'rules'>): string {
+  const phrases = l.rules.map((r) => r.missing?.trim() || `missing ${r.name}`);
+  const no = /^no\s+/i;
+  const folded = no.test(phrases[0] ?? '') ? phrases.map((p, i) => (i > 0 ? p.replace(no, '') : p)) : phrases;
+  return listed(folded, 'or');
+}
 
 /**
  * Each standard's line over these items (the open ones on screen), in the
@@ -108,7 +116,6 @@ export function ruleLines(result: StandardsCheckResult, items: readonly WorkItem
     const types = new Set<string>();
     let applies = 0;
     let miss = 0;
-    let missAll = true;
     let skipped = 0;
     for (const i of result.items) {
       if (!shown.has(i.id)) continue;
@@ -117,16 +124,14 @@ export function ruleLines(result: StandardsCheckResult, items: readonly WorkItem
       applies++;
       types.add(typeOf.get(i.id) ?? 'OTHER');
       const missed = hits.filter((h) => fixable(h.state)).length;
-      if (missed > 0) {
-        miss++;
-        if (missed < hits.length) missAll = false;
-      } else if (hits.some((h) => h.state === 'skipped')) skipped++;
+      if (missed > 0) miss++;
+      else if (hits.some((h) => h.state === 'skipped')) skipped++;
       for (const h of hits) if (!applying.some((a) => a.rule === h.rule)) applying.push({ rule: h.rule, name: h.name });
     }
     if (applies === 0) continue;
-    const rules = s.rules.flatMap((r) => (applying.some((a) => a.rule === r.id) ? [{ rule: r.id, name: r.name }] : []));
+    const rules = s.rules.flatMap((r) => (applying.some((a) => a.rule === r.id) ? [{ rule: r.id, name: r.name, ...(r.missing ? { missing: r.missing } : {}) }] : []));
     const [one, many] = types.size === 1 ? (NOUN[[...types][0]!] ?? ['item', 'items']) : ['item', 'items'];
-    out.push({ standard: s.name, rules, ref: rules.length === 1 ? `${s.name}/${rules[0]!.rule}` : s.name, applies, miss, missAll, skipped, noun: (n) => (n === 1 ? one : many) });
+    out.push({ standard: s.name, rules, ref: rules.length === 1 ? `${s.name}/${rules[0]!.rule}` : s.name, applies, miss, skipped, noun: (n) => (n === 1 ? one : many) });
   }
   return out;
 }

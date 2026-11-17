@@ -104,7 +104,7 @@ const WORKED: Record<string, { text: string[]; question: string; said: string }>
   'PAY-103': {
     text: ['Scenario: Charge a stored token', '  Given a customer with a saved card token', '  When they confirm a payment', '  Then the card is charged once and a receipt is shown'],
     question: 'What should the customer see when the stored token is declined?',
-    said: 'as one Given/When/Then scenario: a customer with a saved card token confirms a payment, and the card is charged once with a receipt shown. The item says nothing about a declined token, so that is asked below.',
+    said: 'as one Given/When/Then scenario: a customer with a saved card token confirms a payment, and the card is charged once with a receipt shown. The item says nothing about a declined token, so that is asked as a question.',
   },
 };
 

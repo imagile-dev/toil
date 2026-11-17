@@ -55,6 +55,7 @@ import {
   type TranscriptEntry,
 } from './model.ts';
 import { staleness, type Fingerprint, type Staleness } from '../fingerprint.ts';
+import { sourceLabel } from '../format.ts';
 import { fixable, RULE_REF, type RuleFound } from '../rules.ts';
 
 /** The most rules of one standard one fix may name: more than any built-in standard has, few enough to read in one prompt. */
@@ -503,6 +504,12 @@ export class AssignmentQueue {
     if (mode === 'implement' && choice?.implement) throw new AssignError(choice.implement, 'Choose an adapter the dialog offers for implement mode, or refine or investigate instead.');
   }
 
+  /** "Jira PAY-103" for an event, from the last sync; nothing where the sync doesn't hold the item, and the notice falls back to its id. */
+  private itemName(r: Pick<AssignmentRecord, 'toilProject' | 'item'>): { itemName?: string } {
+    const item = this.o.items(r.toilProject)?.find((i) => i.id === r.item);
+    return item ? { itemName: `${sourceLabel(item.source.area)} ${item.source.key}` } : {};
+  }
+
   private item(toilProject: string, id: string): WorkItem {
     const items = this.o.items(toilProject);
     if (!items) throw new AssignError(`Toil UI hasn't synced ${toilProject} yet, so the agent has no item to work on.`, 'Press Sync now in the Sync panel, then assign again.', 409);
@@ -601,6 +608,7 @@ export class AssignmentQueue {
       previous,
       message,
       itemTitle: r.itemTitle,
+      ...this.itemName(r),
       adapter: r.adapter,
       origin: r.origin,
       stop: r.stop?.reason ?? null,

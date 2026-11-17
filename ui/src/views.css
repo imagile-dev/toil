@@ -328,6 +328,10 @@
 .agent-adapters > .react-aria-Label, .agent-label { font-weight: 600; color: var(--ink); }
 .agent-choice { display: grid; gap: 0.15rem; min-height: 44px; padding: 0.5rem 0.75rem; border: 1px solid var(--muted); border-radius: var(--radius); background: var(--raised); color: var(--ink); cursor: pointer; }
 .agent-choice[data-selected] { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+/* The picked one also carries a check mark, as a menu's chosen item does, so it reads without the accent colour. */
+.agent-adapters > .agent-choice { position: relative; }
+.agent-adapters > .agent-choice[data-selected] { padding-right: 2.25rem; }
+.agent-adapters > .agent-choice[data-selected]::after { content: ""; position: absolute; right: 1rem; top: 50%; width: 0.35rem; height: 0.7rem; margin-top: -0.45rem; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); }
 .agent-choice[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
 .agent-choice .note, .agent-missing { font-size: 0.875rem; overflow-wrap: anywhere; }
 .agent-missing { color: var(--danger); }

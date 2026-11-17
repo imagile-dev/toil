@@ -34,7 +34,7 @@ describe('the rule rows on an item (#657)', () => {
     const box = panel('Ready for an agent?');
     expect(within(box).getByRole('heading', { name: /Ticket rules/ })).toBeTruthy();
     // The reason is toil's own words (src/core/standards), so it is matched loosely here.
-    expect(ruleRows()).toEqual([expect.stringMatching(/^Acceptance criteria as Given\/When\/Then Thin: \S/)]);
+    expect(ruleRows()).toEqual([expect.stringMatching(/^Acceptance criteria as Given\/When\/Then Missing: \S/)]);
     // The row's source is one press in: in the page, folded under the row's own disclosure.
     expect(document.querySelector('[data-rule-rows] details:not([open]) .field')!.textContent).toMatch(/^Source: /);
     expect(within(box).getByRole('button', { name: 'Fix with AI agent: Acceptance criteria as Given/When/Then' })).toBeTruthy();
@@ -106,6 +106,14 @@ describe('the rule rows on an item (#657)', () => {
     expect(card.querySelector('.failure')).toBeNull();
     expect(command.querySelector('[data-command-advice]')?.className ?? 'note').toBe('note');
     expect(within(card).getByRole('button', { name: /^Apply/ })).toBeTruthy();
+    // The proposals lead, above the questions and what the agent said, and name the item's own tracker; the agent's paragraph isn't repeated under Apply.
+    const sections = [...document.querySelectorAll('#assign-proposals, #assign-questions, #assign-report')].map((h) => h.id);
+    expect(sections).toEqual(['assign-proposals', 'assign-questions', 'assign-report']);
+    expect(document.querySelector('section.proposals > p.note')!.textContent).toMatch(/^Each change the agent proposes\. Nothing changes in Jira until you press Apply\./);
+    expect(card.querySelector('.proposal-reason')).toBeNull();
+    expect(document.querySelector('section[aria-labelledby="assign-report"]')!.textContent).toContain('so that is asked as a question.');
+    // The criteria field was read and holds nothing: empty, not unknown.
+    expect(within(card).getAllByRole('cell')[0]!.textContent).toMatch(/empty$/);
   });
 
   it('says no AI agent is set up, and links to setting one up, rather than offering a button that can only fail', async () => {
@@ -130,10 +138,10 @@ describe("the Command Center's Ticket rules card (#657)", () => {
       if (!el) throw new Error('not yet');
       return el.closest<HTMLElement>('[data-ticket-rules]')!;
     });
-    const line = within(card).getByRole('link', { name: '2 of 4 stories miss acceptance criteria as Given/When/Then' });
+    const line = within(card).getByRole('link', { name: '2 of 4 stories: no Given/When/Then criteria' });
     expect(line.querySelector('strong')!.textContent).toBe('2 of 4');
     // A standard with several rules is one line, and drills to items that miss any of them.
-    const repro = within(card).getByRole('link', { name: '1 of 1 bug misses steps to reproduce, expected result and actual result' });
+    const repro = within(card).getByRole('link', { name: '1 of 1 bug: no steps to reproduce, expected result or actual result' });
     expect(repro.getAttribute('href')).toContain('rule=bug-repro');
     expect(repro.getAttribute('href')).not.toContain('rule=bug-repro%2F');
     await go(line.getAttribute('href')!);
@@ -164,7 +172,7 @@ describe("the Work mix's Categories (#657)", () => {
   it('views the mix by flow, in the address, says the saved categories are unchanged, and goes back to them', async () => {
     await open('#/project/sample-team/summary/mix');
     const select = await screen.findByRole('button', { name: /Categories/ });
-    expect(select.textContent).toContain("KTLO: Keep the lights on / Feature (your team's)");
+    expect(select.textContent).toContain("Keep the lights on / Feature (your team's)");
     // It comes first, apart from the menus that cut the chart.
     expect(document.querySelector('.chart-menus > :first-child')!.classList.contains('chart-menus__lens')).toBe(true);
     await go('#/project/sample-team/summary/mix?lens=flow');
