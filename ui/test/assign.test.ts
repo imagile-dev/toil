@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { request } from 'node:http';
 import { cookieHeader, letInto } from './let-in.ts';
 import { afterAll, describe, expect, it } from 'vitest';
-import { actorOf, branchName, inboxMatch, proposalDiff, settledState, type AdapterChoice, type AssignmentEvent } from '../src/assign/model.ts';
+import { actorOf, applyResultText, branchName, inboxMatch, proposalDiff, richText, settledState, type AdapterChoice, type AssignmentEvent } from '../src/assign/model.ts';
 import { AssignError, AssignmentQueue, RunStopped, type QueueOptions, type RunContext, type RunResult } from '../src/assign/queue.ts';
 import { sampleQueue, SAMPLE_INBOX } from '../src/fixtures/assignments.ts';
 import { loadToilProject } from '../src/load.ts';
@@ -246,6 +246,49 @@ describe('the assignment model', () => {
     ]);
     expect(settledState({ proposals: [], questions: ['why?'], stop: null })).toBe('needs-you');
     expect(actorOf('abc12345')).toBe('assignment-abc12345');
+  });
+});
+
+describe('a diff of rich text (#657)', () => {
+  const ADF = {
+    type: 'doc',
+    version: 1,
+    content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'As a merchant, I want to charge a stored token.' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'Acceptance criteria' }, { type: 'hardBreak' }, { type: 'text', text: '- Charging works' }, { type: 'hardBreak' }, { type: 'text', text: '- Errors are handled' }] },
+    ],
+  };
+  const READ = 'As a merchant, I want to charge a stored token.\n\nAcceptance criteria\n- Charging works\n- Errors are handled';
+
+  it("shows a Jira Cloud description as its text, not the document's JSON", () => {
+    const i = { ...item('corp-jira:PAY-102'), body: { format: 'adf' as const, content: ADF } };
+    const [row] = proposalDiff({ input: { key: 'PAY-102', description: 'Given a token' } }, i);
+    expect(row).toEqual({ field: 'description', before: READ, after: 'Given a token' });
+    expect(row!.before).not.toContain('"type"');
+    // A diff stored before this fix holds the document as JSON text; the page reads that back too.
+    expect(richText(JSON.stringify(ADF))).toBe(READ);
+    // A native record's ADF field, and an ADF value a proposal sets, read the same way.
+    expect(richText(ADF)).toBe(READ);
+  });
+
+  it('shows Azure DevOps HTML and Jira wiki markup with their line breaks, and leaves plain text alone', () => {
+    expect(richText('<div>Story</div><ul><li>One &amp; two</li><li>Three</li></ul>', 'html')).toBe('Story\n\n- One & two\n- Three');
+    expect(richText('<p>First</p><p>Second</p>')).toBe('First\nSecond');
+    expect(richText('h2. Goal\nShip it', 'wiki')).toBe('## Goal\nShip it');
+    expect(richText('Plain <text> stays\n\n\nas typed', 'markdown')).toBe('Plain <text> stays\n\n\nas typed');
+    expect(richText('3')).toBe('3');
+    expect(richText({ a: 1 })).toBe('{"a":1}');
+  });
+});
+
+describe('the line after Apply (#657)', () => {
+  const with_ = (status: 'applied' | 'failed' | 'pending') => ({ proposals: [{ id: 'p1', status } as never] });
+  it('says Applied only when the proposal was applied', () => {
+    expect(applyResultText(with_('applied'), 'p1', 'Rewrite SCRUM-15')).toBe('Applied: Rewrite SCRUM-15.');
+    // The write gate's refusal comes back as a failed proposal, not a thrown error.
+    expect(applyResultText(with_('failed'), 'p1', 'Rewrite SCRUM-15')).toBe('Not applied: Rewrite SCRUM-15. toil refused it; the card below says why.');
+    expect(applyResultText(with_('pending'), 'p1', 'Rewrite SCRUM-15')).not.toMatch(/^Applied/);
+    expect(applyResultText({ proposals: [] }, 'p1', 'Rewrite SCRUM-15')).not.toMatch(/^Applied/);
   });
 });
 

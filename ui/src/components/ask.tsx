@@ -29,7 +29,7 @@ import { ANALYZE, MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, type AdapterList, type 
 import { useData, useDerived } from '../data.ts';
 import { useSkins, useTheme, useThemeChoiceContext, useWords } from '../skins.tsx';
 import { voiceOn } from '../theme-context.ts';
-import { Cited } from './items.tsx';
+import { AnswerText } from './items.tsx';
 import { useMediaQuery } from './layout.tsx';
 import { ProposalCard } from './proposal.tsx';
 import { ChatUsage, UsageFooter } from './usage.tsx';
@@ -616,9 +616,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                             p.fence !== undefined ? (
                               <FoldedCode key={i} part={p} />
                             ) : (
-                              <p key={i}>
-                                <Cited text={p.text} chips cells={e.context} />
-                              </p>
+                              <AnswerText key={i} text={p.text} chips cells={e.context} />
                             ),
                           )
                         )}

@@ -13,9 +13,9 @@ import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Button } from 'react-aria-components';
 import { usePlain } from '../plain-words.ts';
 import { AssignModal, StateChip, assignmentHref, usageText, POLL_MS } from '../assign/views.tsx';
-import { ADAPTER_NAME, modeInfo, renewRefusal, runMs, runText, type AssignedProposal, type Assignment, type AssignmentRecord } from '../assign/model.ts';
+import { ADAPTER_NAME, applyResultText, modeInfo, richText, renewRefusal, runMs, runText, type AssignedProposal, type Assignment, type AssignmentRecord } from '../assign/model.ts';
 import { StaleNote } from '../components/stale.tsx';
-import { Cited, ItemLink } from '../components/items.tsx';
+import { AnswerText, ItemLink } from '../components/items.tsx';
 import { Card, Cluster, DataTable, Path, Scroller } from '../components/layout.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
 import { UsageFooter } from '../components/usage.tsx';
@@ -68,12 +68,13 @@ export function AssignmentView({ id }: { id: string }) {
   }
   if (!record) return <p className="note">Reading the assignment…</p>;
 
-  const act = async (what: string, run: () => Promise<Assignment>) => {
+  // `what` is the line to show once the call returns: a fixed sentence, or one read from the assignment it returned.
+  const act = async (what: string | ((after: Assignment) => string), run: () => Promise<Assignment>) => {
     setBusy(true);
     setSaid(null);
     try {
-      await run();
-      setSaid(what);
+      const after = await run();
+      setSaid(typeof what === 'string' ? what : what(after));
     } catch (e) {
       setSaid(e instanceof Error ? e.message : String(e));
     } finally {
@@ -98,7 +99,7 @@ export function AssignmentView({ id }: { id: string }) {
         Each change the agent proposes. Nothing changes in {tracker} until you press Apply. <Help topic="proposal" note="Apply runs its toil command through the write gate: the connection needs writes on, and this press is the call's allow-write." />
       </p>
       {a.proposals.map((p) => (
-        <AssignedCard key={p.id} p={p} quiet={Boolean(a.rules?.length)} busy={busy} onApply={() => act(`Applied: ${p.title}.`, () => api.apply(a.id, p.id))} onDismiss={() => act(`Dismissed: ${p.title}.`, () => api.dismiss(a.id, p.id))} />
+        <AssignedCard key={p.id} p={p} quiet={Boolean(a.rules?.length)} busy={busy} onApply={() => act((after) => applyResultText(after, p.id, p.title), () => api.apply(a.id, p.id))} onDismiss={() => act(`Dismissed: ${p.title}.`, () => api.dismiss(a.id, p.id))} />
       ))}
     </section>
   );
@@ -229,9 +230,7 @@ export function AssignmentView({ id }: { id: string }) {
             </div>
           )}
           {a.report.parts.map((p, i) => (
-            <p key={i}>
-              <Cited text={p.text} chips />
-            </p>
+            <AnswerText key={i} text={p.text} chips />
           ))}
           {a.usage && <UsageFooter usage={a.usage} />}
         </Card>
@@ -353,14 +352,15 @@ function AssignedCard({ p, quiet, busy, onApply, onDismiss }: { p: AssignedPropo
       lead={
         p.diff.length > 0 ? (
           <DataTable
+            className="assign-diff-table"
             label={`What ${p.title} changes`}
             caption="What it changes"
             rows={p.diff}
             rowKey={(r) => r.field}
             columns={[
-              { header: 'Field', label: 'Field', rowHeader: true, cell: (r) => <FieldName field={r.field} name={fieldName(r.field, toilProject.readiness, area)} /> },
-              { header: 'Now', label: 'Now', cell: (r) => (r.before === null ? <Unread className="note" titled /> : r.before === '' ? <span className="note">empty</span> : <span className="assign-before">{r.before}</span>) },
-              { header: 'Proposed', label: 'Proposed', cell: (r) => <span className="assign-after">{r.after}</span> },
+              { header: 'Field', label: 'Field', rowHeader: true, className: 'assign-diff-field', cell: (r) => <FieldName field={r.field} name={fieldName(r.field, toilProject.readiness, area)} /> },
+              { header: 'Now', label: 'Now', className: 'assign-diff-value', cell: (r) => (r.before === null ? <Unread className="note" titled /> : r.before === '' ? <span className="note">empty</span> : <span className="assign-before">{richText(r.before)}</span>) },
+              { header: 'Proposed', label: 'Proposed', className: 'assign-diff-value', cell: (r) => <span className="assign-after">{richText(r.after)}</span> },
             ]}
           />
         ) : null

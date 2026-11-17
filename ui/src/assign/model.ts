@@ -26,6 +26,7 @@ import type { PersonEntry } from '../model/people.ts';
 import type { Proposal } from '../proposal.ts';
 import type { WorkItem } from '../toil.ts';
 import type { Fingerprint, Staleness } from '../fingerprint.ts';
+import { textOf } from '../../../src/core/standards/text.ts';
 
 export type AssignMode = 'refine' | 'investigate' | 'implement';
 export const MODES: readonly AssignMode[] = ['refine', 'investigate', 'implement'];
@@ -377,12 +378,50 @@ const WHERE = new Set(['id', 'key', 'toilProject', 'project', 'repo', 'owner', '
 
 const plain = (v: unknown): string => (typeof v === 'string' ? v : v === null || v === undefined ? '' : JSON.stringify(v));
 
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+/** An Atlassian Document Format document: Jira Cloud's rich text. */
+const isAdf = (v: unknown): v is Record<string, unknown> => isRecord(v) && v.type === 'doc' && Array.isArray(v.content);
+
+/**
+ * A rich-text value as a person reads it: Jira Cloud's ADF, Azure DevOps's
+ * HTML or Jira's wiki markup as plain lines, through toil's own body reader
+ * (src/core/standards/text.ts, which the readiness rows and the ticket rules
+ * read with), so a diff never shows a document's JSON. `format` is the
+ * record's own where it says one; without it, an ADF object and HTML tags are
+ * recognised by shape. A diff stored before this read its value this way
+ * holds the ADF as JSON text, so that is read back too. Any other value is
+ * itself, or its JSON.
+ */
+export function richText(v: unknown, format?: string): string {
+  if (typeof v === 'string') {
+    if ((format === undefined || format === 'adf') && v.startsWith('{"type":"doc"')) {
+      try {
+        const doc: unknown = JSON.parse(v);
+        if (isAdf(doc)) return tidy(textOf(doc));
+      } catch {
+        // Not a document after all: shown as written.
+      }
+    }
+    if (format === 'markdown' || ((format === undefined || format === 'adf') && !/<\/?[a-z][\s\S]*?>/i.test(v))) return v;
+    return tidy(textOf(v, format === 'adf' ? undefined : format));
+  }
+  if (isAdf(v)) return tidy(textOf(v));
+  return plain(v);
+}
+/** The reader puts each block on its own line, with a break before the first; one blank line between blocks is enough, and none between one list item and the next. */
+const tidy = (text: string) =>
+  text
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/(?<=^|\n)((?:- |\[ \] )[^\n]*)\n\n(?=- |\[ \] )/g, '$1\n')
+    .trim();
+
 /** What the item holds now for a field a proposal names, where the synced item says. */
 function current(item: WorkItem | undefined, field: string): string | null {
   if (!item) return null;
   const f = field.toLowerCase().replace(/^system\./, '');
   if (f === 'title' || f === 'summary') return item.title;
-  if (f === 'description' || f === 'body') return item.body ? plain(item.body.content) : '';
+  if (f === 'description' || f === 'body') return item.body ? richText(item.body.content, item.body.format) : '';
   if (f === 'storypoints' || f === 'microsoft.vsts.scheduling.storypoints' || f === 'estimate' || f === 'points') return item.estimate ? String(item.estimate.value) : '';
   if (f === 'state' || f === 'status') return item.status ?? '';
   if (f === 'priority') return item.priority ?? '';
@@ -394,7 +433,7 @@ function current(item: WorkItem | undefined, field: string): string | null {
     const fields = rec(read.fields) ? read.fields : null;
     if (!fields) continue;
     const hit = Object.entries(fields).find(([k]) => k.toLowerCase() === field.toLowerCase() || k.toLowerCase().endsWith(`.${f}`));
-    if (hit) return plain(hit[1]);
+    if (hit) return richText(hit[1]);
   }
   return null;
 }
@@ -418,7 +457,7 @@ export function proposalDiff(p: Pick<Proposal, 'input'>, item: WorkItem | undefi
       }
       continue;
     }
-    rows.push({ field: k, before: current(item, k), after: plain(v) });
+    rows.push({ field: k, before: current(item, k), after: richText(v) });
   }
   return rows;
 }
@@ -435,6 +474,20 @@ export function runText(ms: number | null): string {
   const s = Math.round(ms / 1000);
   if (s < 60) return `${s} s`;
   return `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`;
+}
+
+/**
+ * The status line after an Apply, from what the server recorded rather than
+ * from the call having returned: a write toil refused (the write gate, the
+ * tracker's own error) comes back as an assignment whose proposal failed, not
+ * as a thrown error, so "Applied" is said only when the proposal is applied
+ * (principle 4). A refusal's reason is on the card, so the line points there.
+ */
+export function applyResultText(a: Pick<Assignment, 'proposals'>, proposalId: string, title: string): string {
+  const p = a.proposals.find((x) => x.id === proposalId);
+  if (p?.status === 'applied') return `Applied: ${title}.`;
+  if (p?.status === 'failed') return `Not applied: ${title}. toil refused it; the card below says why.`;
+  return `Not applied: ${title}. The assignment no longer lists it as applied; reload to see where it stands.`;
 }
 
 /** Whether a proposal still waits on a person: not yet applied, or refused by toil and not yet dismissed. */

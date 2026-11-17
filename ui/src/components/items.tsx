@@ -6,9 +6,9 @@
  * somewhere, a first for a status report.
  */
 
-import { createContext, useContext } from 'react';
+import { Fragment, createContext, useContext } from 'react';
 import { Link, Tooltip, TooltipTrigger } from 'react-aria-components';
-import { segments } from '../agent.ts';
+import { blocksOf, segments } from '../agent.ts';
 import { useData } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, dateTime, estimateText, itemHref, personText, prName, shortKey, sourceLabel, sourceShort } from '../format.ts';
 import { themed } from '../theme-context.ts';
@@ -77,6 +77,37 @@ export function Cited({ text, chips = false, cells, onCellCitation }: { text: st
           <CellChip key={i} cite={s.cell} view={cells} onPress={onCellCitation} />
         ) : (
           <span key={i}>{s.text}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+/**
+ * One part of an agent's answer as paragraphs and lists (blocksOf): its line
+ * breaks kept, and a run of `- ` lines as a real bulleted list, with the
+ * citations in each linked as `Cited` links them.
+ */
+export function AnswerText({ text, chips = false, cells, onCellCitation }: { text: string; chips?: boolean; cells?: Pick<ViewContext, 'cells'> | null | undefined; onCellCitation?: ((column: string, row: string) => void) | undefined }) {
+  const cite = (t: string) => <Cited text={t} chips={chips} cells={cells} onCellCitation={onCellCitation} />;
+  return (
+    <>
+      {blocksOf(text).map((b, i) =>
+        b.kind === 'list' ? (
+          <ul key={i} className="answer-list">
+            {b.items.map((item, j) => (
+              <li key={j}>{cite(item)}</li>
+            ))}
+          </ul>
+        ) : (
+          <p key={i}>
+            {b.lines.map((line, j) => (
+              <Fragment key={j}>
+                {j > 0 && <br />}
+                {cite(line)}
+              </Fragment>
+            ))}
+          </p>
         ),
       )}
     </>

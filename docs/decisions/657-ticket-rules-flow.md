@@ -289,6 +289,26 @@
     rule's `missing` phrase, joined with "or" and a repeated leading "no" folded, or "missing"
     and the rule's name where it gives none. The colon removes the verb, so `RuleLine.missAll`
     went. The drill's "Missing: <rule names>" already reads well and is unchanged.
+- **The live run's findings** (Toil UI, a real agent on Jira Cloud):
+  - *Readable Now and Proposed.* A diff showed Jira Cloud's description as its ADF JSON, since
+    `current()` turned any object into JSON. `richText()` (`ui/src/assign/model.ts`) reads ADF,
+    Azure DevOps HTML and wiki markup through toil's own `textOf`, with the body's recorded
+    format where the record has one, and the page reads a diff stored before the fix (ADF as
+    JSON text) the same way, so the live run's saved assignment reads too.
+  - *Diff columns.* Field is a fixed 9rem, Now and Proposed share the rest equally, with a fixed
+    table layout; at 375 the table stacks as every `DataTable` does.
+  - *No "Applied" for a refused write.* The page's status line said "Applied: …" whenever the
+    Apply call returned, but a write toil refuses comes back as an assignment whose proposal
+    failed, not as an error. The line now comes from the returned proposal (`applyResultText`):
+    "Applied" only when it is applied, otherwise "Not applied: … toil refused it; the card below
+    says why." The queue's events already said "Apply failed", the Work log's audit match
+    counts only `outcome: ok` writes, and the bell never notices a proposal event, so nothing
+    else claimed it.
+  - *Lists in answers.* An Ask answer's list under a heading line is one part, and drawn as one
+    `<p>` its items ran together as " - one - two". `AnswerText` (`ui/src/components/items.tsx`,
+    from `blocksOf` in `ui/src/agent.ts`) draws `- ` and `* ` runs as a real list and keeps
+    other line breaks, with citations linked in each; used for Ask, the Analyze fallback and an
+    assignment's report.
 
 - **A rule may name what's missing** (`missing`, a short phrase such as "no Given/When/Then criteria"), so a count reads "3 of 27 stories: no Given/When/Then criteria" instead of building grammar from the rule's name. Where: `src/core/standards/types.ts`, `read.ts`, `builtin.ts`.
 - **Flow calls any other story a Feature** (rule `story`, last). Why: on the demo week, without it, 63% of finished work read as unsure, since most stories carry no label; the Flow Framework counts new user-facing work as a feature. Last in order, so a story labelled security, bug or tech-debt keeps that category. Where: `src/core/classify/builtin.ts`.

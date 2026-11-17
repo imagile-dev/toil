@@ -61,3 +61,6 @@
 .analysis__rec a { color: inherit; text-decoration-color: var(--line); text-underline-offset: 0.2em; }
 .analysis__rec a:hover { color: var(--link); text-decoration-color: currentColor; }
 .analysis__tag { margin-inline-start: 0.6rem; padding: 0.05rem 0.5rem; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 0.75rem; font-weight: 400; white-space: nowrap; }
+/* An agent's bulleted list in an answer (AnswerText): real bullets, close under the line that introduces it. */
+.answer-list { margin: 0.25rem 0 0.75rem; padding-left: 1.25rem; list-style: disc; }
+.answer-list > li + li { margin-top: 0.25rem; }

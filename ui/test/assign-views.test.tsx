@@ -83,6 +83,10 @@ describe('the assignment page', () => {
     await user.click(within(card).getByRole('button', { name: /^Apply/ }));
     // The sample has no tracker, and says so on the card.
     await within(screen.getByRole('article', { name: /Add acceptance criteria to PAY-102/ })).findByText(/This is sample data/);
+    // The refusal is a failed proposal, not a thrown error: the status line says so, and never "Applied" (#657).
+    const said = await screen.findByText(/^Not applied: Add acceptance criteria to PAY-102\./);
+    expect(said.getAttribute('role')).toBe('status');
+    expect(screen.queryByText(/^Applied:/)).toBeNull();
   }, 20_000);
 
   it('says why a failed run stopped, and keeps its transcript', async () => {
