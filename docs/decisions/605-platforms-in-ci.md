@@ -47,3 +47,6 @@ it out.
   job needs `issues: read` only, with the workflow's own token.
 - **Principle 8 now says so**: a check too costly to run on every OS per PR runs per
   PR on one and daily on all, and a release waits while the daily run fails.
+- **Platforms runs queue instead of cancelling each other** (from review): with the
+  report counting a cancelled job, a run started by hand on `main` that cancelled the
+  scheduled one would have filed a false failure and held the release.

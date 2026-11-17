@@ -18,9 +18,12 @@ on:
 permissions:
   contents: read
 
+# Runs on one ref queue rather than cancel each other: the report counts a
+# cancelled job as a failure (a job past its time limit ends that way), so a run
+# started by hand must never cancel the scheduled one and file a false failure.
 concurrency:
   group: platforms-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   gate:

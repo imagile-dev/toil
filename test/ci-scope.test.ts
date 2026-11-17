@@ -138,6 +138,8 @@ describe('ci.yml wires the scope check fail-closed', () => {
     expect(step.run).toContain('[ "$RESULT" != "success" ]');
     const platforms = load(readFileSync(join(root, '.github', 'workflows', 'platforms.yml'), 'utf8')) as { on: Record<string, unknown>; jobs: Record<string, Job & { permissions?: Record<string, string> }> };
     expect(Object.keys(platforms.on).sort()).toEqual(['schedule', 'workflow_dispatch']);
+    // The report counts cancelled as failed, so runs must queue, never cancel each other.
+    expect((platforms as unknown as { concurrency: { 'cancel-in-progress': boolean } }).concurrency['cancel-in-progress']).toBe(false);
     const resolve = platforms.jobs.resolve!;
     expect(resolve.needs).toEqual(['gate', 'skill-install']);
     expect(resolve.if).toBe("success() && github.ref == 'refs/heads/main'");
