@@ -101,17 +101,25 @@ describe('ci.yml wires the scope check fail-closed', () => {
     expect(job.strategy['fail-fast']).toBe(false);
     const combos = job.strategy.matrix.include.map((c) => `${c.os} ${c.node}`).sort();
     expect(combos).toEqual(['macos-latest 24.22.1', 'macos-latest 26.12.1', 'ubuntu-latest 26.12.1', 'windows-latest 24.22.1', 'windows-latest 26.12.1']);
-    const steps = job.steps as { run?: string; if?: string }[];
-    for (const run of ['npm test', 'npm run build', 'npm run check:pure', 'npm run smoke']) expect(steps.find((s) => s.run === run)?.if, run).toBeUndefined();
+    const steps = (job.steps as { run?: string; if?: string }[]).filter((s) => s.run?.startsWith('npm '));
     expect(job.env.FULL).toBe('${{ needs.changes.outputs.full }}');
-    for (const run of ['npm test -w ui', 'npm run check:package -w ui', 'npm run smoke -w ui -- --no-layout']) expect(steps.find((s) => s.run === run)?.if, run).toBe("env.FULL != 'false'");
+    // Toil UI's steps follow the scope check; toil's run on every PR, check:dist on the release PR.
+    for (const s of steps) {
+      if (s.run!.includes(' -w ui')) expect(s.if, s.run).toBe("env.FULL != 'false'");
+      else if (s.run === 'npm run check:dist') expect(s.if).toBe("startsWith(github.head_ref, 'release-please--')");
+      else expect(s.if, s.run).toBeUndefined();
+    }
+    for (const run of ['npm run typecheck', 'npm test', 'npm run build', 'npm run check:pure', 'npm run check:dist', 'npm run smoke', 'npm test -w ui', 'npm run smoke -w ui -- --no-layout']) expect(steps.some((s) => s.run === run), run).toBe(true);
     const ok = ci.jobs['ci-ok']!;
     expect(ok.needs).toContain('platforms');
     expect(ok.steps.find((s) => s.env?.RESULT === '${{ needs.platforms.result }}')!.run).toContain('[ "$RESULT" != "success" ]');
   });
 
-  it('gives every job a time limit', () => {
-    for (const [name, job] of Object.entries(ci.jobs)) expect((job as { 'timeout-minutes'?: number })['timeout-minutes'], name).toBeGreaterThan(0);
+  it('gives every job a time limit, in CI and the daily run', () => {
+    const platforms = load(readFileSync(join(root, '.github', 'workflows', 'platforms.yml'), 'utf8')) as { jobs: Record<string, Job> };
+    for (const [name, job] of [...Object.entries(ci.jobs), ...Object.entries(platforms.jobs)]) expect((job as { 'timeout-minutes'?: number })['timeout-minutes'], name).toBeGreaterThan(0);
+    // A job past its limit ends as cancelled, so the daily report counts that as a failure too.
+    expect(platforms.jobs.report!.if).toContain("contains(needs.*.result, 'cancelled')");
   });
 
   it('CI ok accepts a skipped long job only when the scope check passed and said full=false', () => {

@@ -159,11 +159,13 @@ jobs:
   # OS is first-class (principle 8), so a break on one blocks the merge like a
   # break on Linux does. Both gates run here, toil's and Toil UI's, but Toil
   # UI's smoke runs with --no-layout: the install, the server's gates, the live
-  # store and the wipe, which is what differs by OS. The layout check is the
-  # same Chrome rendering the same pages, so it runs in ui-layout on Linux on
-  # every PR, and on every OS daily (platforms.yml). One job per OS and Node
-  # keeps a run inside GitHub Free's 20 jobs at once, 5 of them macOS. Toil
-  # UI's steps follow the scope check, like the jobs above; toil's always run.
+  # store and the wipe, the parts most tied to the OS. The layout check stays in
+  # ui-layout on Linux on every PR and runs on every OS daily (platforms.yml):
+  # fonts and scrollbars do differ by OS, so this is a trade of cost for a day's
+  # delay, not a claim that they render alike. One job per OS and Node keeps a
+  # run's peak at about 18 jobs, inside GitHub Free's 20 at once (5 macOS),
+  # though two runs at once share that limit and queue. Toil UI's steps follow
+  # the scope check, like the jobs above; toil's run whenever it passed.
   # Lint and check:lockfile read the same files on every OS, so they stay on
   # Linux. The maintainer's call, 2026-11-17: a platform break should stop a
   # merge, not wait for the next morning.
@@ -402,14 +404,21 @@ jobs:
             exit 1
           fi
           echo "Toil UI's layout shards passed."
-      # Never skipped: toil's gate runs on every OS on every PR, so only success passes.
+      # Skipped only when the scope check failed, which fails above; toil's gate
+      # runs on every OS on every PR, so only success passes. On a docs-and-config
+      # PR the jobs skip Toil UI's steps, and this says so rather than claim them.
       - name: Windows, macOS and Node 26 passed
         env:
           RESULT: ${{ needs.platforms.result }}
+          FULL: ${{ needs.changes.outputs.full }}
         run: |
           if [ "$RESULT" != "success" ]; then
             echo "::error::The Windows, macOS and Node 26 jobs finished as '$RESULT', not 'success'."
             exit 1
+          fi
+          if [ "$FULL" = "false" ]; then
+            echo "toil's gate passed on Windows, macOS and Node 26; Toil UI's steps were skipped there: this PR changes only docs and config."
+            exit 0
           fi
           echo "Windows, macOS and Node 26 passed."
       - name: The database integration job passed

@@ -691,18 +691,20 @@ goes in the PR, so the work is verified before the review bot sees it (`ui/READM
 Verify before you open a PR). On a PR and on `main`, CI (`ci.yml`) runs them side by
 side: on Linux on Node 24.22.1, toil's gate, and Toil UI's as one job of checks plus
 its smoke split into eight layout shards (#640); and on Windows and macOS on Node
-24.22.1 and 26.12.1, and Linux on 26.12.1, one job each running both gates, with
-Toil UI's smoke under `--no-layout`, since the layout check renders the same pages
-in the same Chrome everywhere. Every job has a time limit. Its `CI ok`
+24.22.1 and 26.12.1, and Linux on 26.12.1, one job each running both gates except
+lint and `check:lockfile`, which read the same files on every OS, with Toil UI's
+smoke under `--no-layout`: its layout check runs per PR on Linux only, a trade of
+cost for a day's delay, and on every OS in the daily run. Every job has a time limit. Its `CI ok`
 job passes only when all of them passed, along with the database integration job and the
 `dist/` guard (below), and it's the one check `main`'s ruleset requires, so nothing
 merges on a red gate on any OS (the maintainer's call, 2026-11-17). A PR against `main` that changes only docs and config (the list in
 `scripts/ci-scope.mjs`, read from `main`) skips Toil UI's gate and the database job,
 and `CI ok` accepts that skip only when the scope check passed and said so; toil's
-gate still runs on every OS (the maintainer's call, 2026-11-16). `platforms.yml` runs the
+gate still runs (the maintainer's call, 2026-11-16). `platforms.yml` runs the
 whole smoke, layout included, on every OS and both Node lines, plus the skill install,
-daily and on demand; a failed daily run files a `platforms-failure` issue (#376). It
-no longer runs on the release PR. Other checks stay optional:
+daily and on demand; a failed or timed-out daily run files a `platforms-failure`
+issue (#376). It doesn't run on pull requests, the release PR included (the
+maintainer's call, 2026-11-17). Other checks stay optional:
 the review job (approval is required separately, and it skips the release PR), the
 daily platforms run, and path-filtered jobs, which would block PRs they never run on.
 

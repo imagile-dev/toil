@@ -1614,9 +1614,12 @@ npm run verify:ui -- --no-build --starter standup
   (`npm run smoke -w ui -- --shard 3/8`): a unit is one theme scheme on one view, and
   shard k checks every unit whose count modulo 8 is k - 1, so a new theme or view lands
   in a shard without a list to edit. Each shard still runs the smoke's install,
-  security, live and wipe checks. `verify:ui` is never sharded, and without `--shard`
-  the smoke checks everything, as it does locally and in the daily Windows and macOS
-  run.
+  security, live and wipe checks. `verify:ui` is never sharded. With `--no-layout`
+  (`npm run smoke -w ui -- --no-layout`, CI's Windows, macOS and Node 26 jobs) the
+  smoke skips the layout check and Chrome, and runs only the install, the server's
+  gates, the live store and the wipe; it can't be combined with `--shard`. With
+  neither flag the smoke checks everything, as it does locally and in the daily run
+  on every OS.
 - **First run:** `toil-ui` on an empty home, with no connections, no Toil projects and no
   `TOIL_*` variable from your shell, through the same check: its Toil projects view must
   show the three-step checklist, and the palette and the shortcuts sheet open over it.

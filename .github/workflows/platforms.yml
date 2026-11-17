@@ -25,8 +25,8 @@ concurrency:
 jobs:
   gate:
     name: ${{ matrix.os }} / Node ${{ matrix.node }}
-    # The longest passing run took 87 minutes (macOS, Node 24, the whole smoke).
-    timeout-minutes: 120
+    # The longest passing job took 99 minutes (macOS, Node 24, the whole smoke).
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
@@ -124,7 +124,8 @@ jobs:
   report:
     name: File a failed daily run
     needs: [gate, skill-install]
-    if: failure() && github.event_name == 'schedule'
+    # A job past its time limit ends as cancelled, not failed, so both count.
+    if: always() && github.event_name == 'schedule' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
