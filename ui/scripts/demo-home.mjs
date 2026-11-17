@@ -26,7 +26,8 @@
 // token over. Nothing is printed or written.
 //   - the toil project `payments-team`, made with toil's own projects commands,
 //     tying Jira SCRUM, GitHub imagile-dev/toil-sandbox, Azure DevOps "Toil
-//     Sandbox" and the ledger together.
+//     Sandbox" and the ledger together, with the ticket rules gherkin,
+//     user-story and bug-repro (a warning, not a stop, on a toil without them).
 // Repo tooling only: nothing here ships. A clean desk, set up for the camera,
 // as is traditional.
 import { spawnSync } from 'node:child_process';
@@ -203,6 +204,14 @@ if (config.connections.ado) must(toil('projects', 'link', P, 'ado', '--connectio
 must(toil('projects', 'link', P, 'db', '--connection', config.connections['payments-db'] ? 'payments-db' : 'ledger', '--replace'), 'projects link db');
 if (config.connections.confluence) must(toil('projects', 'link', P, 'confluence', '--connection', 'confluence', '--set', 'space=OD', '--replace'), 'projects link confluence');
 if (config.connections.figma) must(toil('projects', 'link', P, 'figma', '--connection', 'figma', '--replace'), 'projects link figma');
+// Ticket rules (#657): the three built-in rule sets, which the seeded stories and bugs
+// were written to (demo-week-data.mjs). A toil from before `projects standards set`
+// says so and the home is built without them: a missing rule set is a warning on
+// camera prep, not a reason to stop.
+const rules = toil('projects', 'standards', 'set', P, '--use', 'gherkin', '--use', 'user-story', '--use', 'bug-repro', '--replace');
+if (rules.ok) say(`toil project ${P}: ticket rules gherkin, user-story and bug-repro`);
+else if (/unknown command/i.test(rules.error?.message ?? '')) say(`warning: ${toilJs} has no \`projects standards set\` yet (#657), so ${P} has no ticket rules. Build toil from a checkout that has it and run this again.`);
+else say(`warning: couldn't set ${P}'s ticket rules: ${rules.error?.message}${rules.error?.fix ? ` (${rules.error.fix})` : ''}`);
 const check = toil('projects', 'check', P);
 say(`toil project ${P}: ${check.ok && check.data?.ok !== false ? 'checks out' : `check says ${JSON.stringify(check.data?.problems ?? check.error)}`}`);
 say(`demo home ready: ${home}`);

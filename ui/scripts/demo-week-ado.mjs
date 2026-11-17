@@ -3,7 +3,11 @@
 // ado-seed created (found by title among items tagged toil-seed, so a re-seed with
 // new ids still works, and nothing without the seed mark is touched), adds
 // the repository `settlement-service` with the demo code and one pull request
-// waiting on review, linked to its bug, and one item ready for an agent.
+// waiting on review, linked to its bug, and one item ready for an agent. It
+// also gives each seeded story and bug the text the ticket rules expect of it
+// (demo-week-data.mjs): the story in System.Description, Given/When/Then in
+// Microsoft.VSTS.Common.AcceptanceCriteria, and a bug's steps, expected and
+// actual in Microsoft.VSTS.TCM.ReproSteps, with one bug (RULE_GAPS) left bare.
 // Everything goes through toil with --allow-write, so the `ado` connection's
 // writes decide and the token stays in the credential store. Request bodies are
 // written to a temporary workspace for toil's --body-file, and removed after.
@@ -13,10 +17,14 @@ import { Buffer } from 'node:buffer';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { adoRepro, adoStory, BUGS, flatText, RULE_GAPS, ruleMisses, STORIES, typeOfName } from './demo-week-data.mjs';
 
 const day = 24 * 60 * 60 * 1000;
 const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
 const ZERO = '0000000000000000000000000000000000000000';
+const sameRules = (a, b) => a.length === b.length && a.every((r) => b.includes(r));
+const CRITERIA = 'Microsoft.VSTS.Common.AcceptanceCriteria';
+const REPRO = 'Microsoft.VSTS.TCM.ReproSteps';
 
 export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, note }) {
   const work = mkdtempSync(join(tmpdir(), 'demo-week-ado-'));
@@ -79,7 +87,7 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
     const ids = toil(['ado', 'work-item', 'search', ...p, '--wiql', wiql, '--limit', '500', '--select', 'workItems[].id']).data;
     const items = [];
     for (let i = 0; i < ids.length; i += 100) {
-      items.push(...toil(['ado', 'work-item', 'get-many', ...ids.slice(i, i + 100).map(String), '--fields', 'System.Title,System.State,System.Tags', '--select', 'value[].{id: id, title: fields."System.Title", state: fields."System.State", tags: fields."System.Tags"}']).data);
+      items.push(...toil(['ado', 'work-item', 'get-many', ...ids.slice(i, i + 100).map(String), '--fields', `System.Title,System.State,System.Tags,System.WorkItemType,System.Description,${CRITERIA},${REPRO}`, '--select', `value[].{id: id, title: fields."System.Title", state: fields."System.State", tags: fields."System.Tags", type: fields."System.WorkItemType", description: fields."System.Description", criteria: fields."${CRITERIA}", repro: fields."${REPRO}"}`]).data);
     }
     const tagsOf = (w) => (w.tags ?? '').split(';').map((t) => t.trim());
     const seeded = (w) => tagsOf(w).includes('toil-seed');
@@ -112,6 +120,32 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
       toil(['ado', 'work-item', 'comment', String(w.id), '--body', `${m.comment} ${marker}`, ...p, '--allow-write']);
       say(`  #${w.id} ${m.prefix}: ${m.to ? `${m.to}, ` : ''}comment added`);
     }
+
+    // Ticket rules (#657): each seeded story and bug carries the text demo-week-data.mjs
+    // gives it. Looked at first with the same checks the rules make, and written only
+    // when what's there misses something other than its planned gap, so a second run
+    // writes nothing. Repro steps go only on Bugs, the one type here whose form has the
+    // field; a Product Backlog Item would refuse it, as forms do.
+    let rulesWritten = 0;
+    for (const w of items.filter(seeded)) {
+      const seedKey = tagsOf(w).find((t) => t.startsWith('seed:'))?.slice(5);
+      const type = typeOfName(w.type);
+      const want = RULE_GAPS.ado[seedKey] ?? [];
+      let fields;
+      if (type === 'STORY' && (seedKey === 'agent-refund-reasons' || STORIES[seedKey])) {
+        if (sameRules(ruleMisses({ type, description: w.description, criteria: w.criteria }), want)) continue;
+        const text = seedKey === 'agent-refund-reasons' ? item : adoStory(seedKey);
+        fields = [`System.Description=${text.description}`, `${CRITERIA}=${text.criteria}`];
+      } else if (type === 'BUG' && BUGS[seedKey]) {
+        // The bug left bare is held to its exact text, so it's the gap the docs name.
+        if (sameRules(ruleMisses({ type, description: w.description, reproSteps: w.repro }), want) && (!want.length || flatText(w.repro) === flatText(adoRepro(seedKey)))) continue;
+        fields = [`${REPRO}=${adoRepro(seedKey)}`];
+      } else continue;
+      toil(['ado', 'work-item', 'update', String(w.id), ...fields.flatMap((f) => ['--field', f]), ...p, '--allow-write']);
+      rulesWritten++;
+      say(`  #${w.id} ${w.title.slice(0, 50)}: ticket-rule text written, ${want.length ? `missing ${want.join(', ')} on purpose` : 'passing every rule'}`);
+    }
+    if (!rulesWritten) say('  ticket rules: every seeded story and bug already as planned');
 
     // The repository, with the demo code on main.
     const repoName = 'settlement-service';
@@ -178,7 +212,7 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
     // seed key (so cleanup.mjs knows it too), and open even after a recording closed it.
     const agent = items.find((w) => tagsOf(w).includes('seed:agent-refund-reasons'));
     if (!agent) {
-      const created = toil(['ado', 'work-item', 'create', '--type', 'Product Backlog Item', '--title', item.title, '--description', item.description, '--priority', '2', '--field', `System.IterationPath=${project}\\${sprint}`, '--field', 'System.Tags=agent-ready; toil-seed; seed:agent-refund-reasons', '--field', 'Microsoft.VSTS.Scheduling.Effort=1', ...p, '--allow-write']).data;
+      const created = toil(['ado', 'work-item', 'create', '--type', 'Product Backlog Item', '--title', item.title, '--description', item.description, '--priority', '2', '--field', `${CRITERIA}=${item.criteria}`, '--field', `System.IterationPath=${project}\\${sprint}`, '--field', 'System.Tags=agent-ready; toil-seed; seed:agent-refund-reasons', '--field', 'Microsoft.VSTS.Scheduling.Effort=1', ...p, '--allow-write']).data;
       say(`  #${created.id}: agent-ready item created`);
     } else {
       if (agent.state === 'Done') {

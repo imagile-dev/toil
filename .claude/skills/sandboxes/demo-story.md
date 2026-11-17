@@ -121,6 +121,31 @@ logging, refund reasons) that the agent can read first:
 | Jira **SCRUM-55**: `maskPan()` for the logs | Checkout | The debug-log bug (GitHub #25) and the PCI audit evidence (#33) both point at card data in logs, and SCRUM-16 split the helper out |
 | ADO **#194**: refuse an unknown refund reason | Settlement | The dispute webhook (GitHub #20) needs clean reason codes |
 
+## Is the backlog ready? (ticket rules)
+
+The toil project `payments-team` checks every story and bug against three built-in
+rule sets ("Ticket rules" in Toil UI): `gherkin` (a story's acceptance criteria as
+Given/When/Then), `user-story` ("As a …, I want …, so that …") and `bug-repro`
+(steps to reproduce, expected and actual). `demo-week.mjs` writes the seeded text so
+almost everything passes and a few named items don't:
+
+| Item | Misses | Why it reads true |
+|---|---|---|
+| Jira **SCRUM-15**, charge a stored token | Given/When/Then | Its criteria are three loose bullets ("Errors are handled"), on the story the vault blocks |
+| Jira **SCRUM-17**, tokenise at the edge | Given/When/Then | Two bullets that restate the title |
+| Jira **SCRUM-32**, explain a declined payment | Given/When/Then | Two bullets, no scenario |
+| Jira **SCRUM-2**, load test the payout scheduler | the user-story form | A task written into a story |
+| Jira **SCRUM-23**, fees and interchange on the statement | the user-story form | "Finance asked for …", a request rather than a story |
+| ADO **#193**, receipt shows the wrong currency symbol | steps, expected and actual | One line from a customer's receipt; nobody has reproduced it |
+
+The agent-ready items (GitHub #38, SCRUM-55, ADO #194) pass every rule, so they stay
+Ready. Jira's bugs are Tasks labelled `bug` and GitHub's issues have no issue type,
+so the bug rules land on ADO's Bugs alone. *Demo (video 4):* "is the backlog
+ready?" The Command Center's Ticket rules card shows three stories missing
+Given/When/Then; drilling in lists SCRUM-15, 17 and 32, and "Fix with AI agent" on
+SCRUM-15 drafts the scenarios from what the story already says, for Sam to apply.
+The seeds put the gaps back on the next run.
+
 ## Friday: Black Friday readiness
 
 - `toil deps scan` and `toil osv vulns` find real advisories in `express` 4.19.2
@@ -138,5 +163,5 @@ logging, refund reasons) that the agent can read first:
 | 1 · Toil UI: Monday stand-up | The whole week in one report, the critical chain | Toil UI Summary, Stand-up, Blocked, Code reviews |
 | 2 · Toil UI: Ask | Lumen Games' payout; reconciliation at 2 a.m. | Ask over Jira, GitHub, ADO and `payments-db` |
 | 3 · The CLI | One shape across tools: the chain, the PRs, the replica | `toil jira`, `github`, `ado`, `db`, `--select` |
-| 4 · Agents | Kick off agents on #38, SCRUM-55 and #194, then watch the PRs land in Code reviews | `toil mcp`, Claude Code / Codex / Copilot |
+| 4 · Agents | "Is the backlog ready?": the ticket rules find SCRUM-15, 17 and 32 without Given/When/Then and ADO #193 without repro steps, and an agent fixes SCRUM-15; then kick off agents on #38, SCRUM-55 and #194 and watch the PRs land in Code reviews | Toil UI Command Center (Ticket rules) and item page, `toil standards check`, `toil mcp`, Claude Code / Codex / Copilot |
 | 5 · Friday readiness | Vulnerabilities, the release page, the write gate | `toil osv`, `toil confluence`, writes |
