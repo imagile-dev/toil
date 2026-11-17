@@ -54,8 +54,10 @@ const home = resolve(take('--home', join(homedir(), 'toil-demo-home')));
 const fresh = flag('--fresh');
 const launch = flag('--launch');
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-let toilJs = resolve(take('--toil', join(root, 'dist', 'toil.js')));
+const toilFlag = take('--toil');
+let toilJs = resolve(toilFlag ?? join(root, 'dist', 'toil.js'));
 if (args.length) fail(`Unknown argument: ${args.join(' ')}`, 'Use --home <dir>, --fresh, --launch and --toil <path>.');
+if (launch && toilFlag) fail("--toil and --launch can't be used together.", '--launch builds toil from this checkout itself; leave out --toil.');
 // The demo home is never your home, a folder holding it, or anything in or around this repository.
 const fold = (path) => (process.platform === 'win32' ? path.toLowerCase() : path);
 const inside = (child, parent) => {

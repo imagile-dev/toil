@@ -120,7 +120,7 @@ export async function apply({ items, api, identity = 'tags', dryRun = false, bac
   const offset = sprintOffset(paths, project);
   const sprintPath = (p) => projectPath(p, project).replace(/\\Sprint (\d+)$/i, (_, n) => `\\Sprint ${Number(n) + offset}`);
   const missing = sprintsOf(items).filter((p) => !paths.has(sprintPath(p).toLowerCase()));
-  if (missing.length) throw new SeedError(`The project has no ${missing.map((p) => sprintPath(p)).join(', ')}.`, 'Create the sprints in the project yourself, or regenerate items.owi.json without them; this script never creates iterations.');
+  if (missing.length) throw new SeedError(`The project has no ${missing.map((p) => sprintPath(p)).join(', ')}.`, 'Create the sprints in the project yourself, or regenerate items.owi.json without them; this script never creates iterations. If demo-week.mjs renamed the sprints and stopped part-way, run it again to finish the rename first.');
   if (offset) log(`The board's sprints are renumbered: the file's Sprint 1 is its Sprint ${1 + offset}.`);
   const latest = Math.max(...items.flatMap((i) => native(i).timeline.map((e) => Date.parse(e.at))));
   if (backdate && latest > now()) throw new SeedError(`The timeline reaches ${new Date(latest).toISOString()}, which is in the future.`, 'Run with --no-backdate, or regenerate items.owi.json with a later ANCHOR.');
