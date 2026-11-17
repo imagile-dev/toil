@@ -12,10 +12,13 @@ it out.
   run and the release PR's new run share it and queue, as they already did. From the
   daily run's step times, the Windows job comes to about 12 minutes, a few longer
   than the Linux layout shards' 5 to 9, which makes it a run's longest job.
-- **`--no-layout` on the UI smoke**, a flag for this alone. With it the smoke still
-  installs both tarballs offline, checks the server's Host, Origin, cookie and Fetch
-  Metadata gates, runs the live SQLite store and the wipe, which are the parts that
-  depend on the OS. It refuses to be combined with `--shard`.
+- **One `--include-tests` flag on the UI smoke, the maintainer's call (2026-11-17)**,
+  replacing #640's `--shard k/N` rather than adding a second flag for the same idea:
+  `layout` (the default), `layout:k/N` or `none`. The values name the part included,
+  so `none` can't read as "no tests": the smoke still installs both tarballs offline,
+  checks the server's Host, Origin, cookie and Fetch Metadata gates, and runs the live
+  SQLite store and the wipe. The parser moved beside the shard logic in
+  `layout-check.mjs` so it is unit-tested.
 - **Toil UI's layout check per PR on Linux only** is a trade of cost for a day's
   delay, not a claim that every OS renders alike: fonts, text metrics and scrollbars
   differ, and the daily run checks every OS.
@@ -35,3 +38,12 @@ it out.
   ran for GitHub's six hours, and the failure was never filed: a job past its limit
   ends as cancelled, which `failure()` doesn't see. The daily report now runs on a
   failed or a cancelled job.
+- **The release waits on the daily run, through its issue, the maintainer's call
+  (2026-11-17).** A `release-platforms` job, on release PRs only and required through
+  `CI ok`, fails while a `platforms-failure` issue is open. A passing platforms run on
+  `main`, scheduled or started by hand, closes the issue, so nobody has to remember
+  to. Only a scheduled run files one, as before. The issue rather than the last run's
+  result, because the issue survives a cancelled or unfinished run and says why. The
+  job needs `issues: read` only, with the workflow's own token.
+- **Principle 8 now says so**: a check too costly to run on every OS per PR runs per
+  PR on one and daily on all, and a release waits while the daily run fails.

@@ -7,30 +7,24 @@
 // after `npm run build` at the root (toil's tarball) and in ui/ (its own).
 // Stops every process it starts.
 // Then it opens every view of the sample app in every theme in headless Chrome
-// and holds the layout to scripts/layout-check.mjs. With `--shard k/N` (CI runs
-// eight side by side) it checks only shard k's part of the layout, and still
-// runs everything else, which takes seconds; without it, all of it. With
-// `--no-layout` (CI's Windows, macOS and Node 26 jobs) it skips the layout
-// check and Chrome altogether, and runs the rest: the install, the server's
-// gates, the live store and the wipe, the parts that differ by OS.
+// and holds the layout to scripts/layout-check.mjs. `--include-tests` says how
+// much of the layout: `layout` (the default) all of it, `layout:k/N` only shard
+// k's part (CI runs eight side by side on Linux), `none` none of it and no
+// Chrome (CI's Windows, macOS and Node 26 jobs). The rest, the install, the
+// server's gates, the live store and the wipe, always runs and takes seconds.
 // The tour of the building now takes in every floor, in every livery.
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MOTION_ROUTES, ROUTES, WIDTHS, checkLayout, parseShard, shardRuns, themeRuns } from './layout-check.mjs';
+import { MOTION_ROUTES, ROUTES, WIDTHS, checkLayout, parseIncludeTests, shardRuns, themeRuns } from './layout-check.mjs';
 import { npmCli } from './package-rules.mjs';
 
-const argv = process.argv.slice(2);
+let layoutOn = true;
 let shard = null;
-const layoutOn = !argv.includes('--no-layout');
 try {
-  const rest = argv.filter((a) => a !== '--no-layout');
-  if (argv.length - rest.length > 1 || (!layoutOn && rest.length) || rest.filter((a) => a === '--shard').length > 1 || rest.some((a, i) => a !== '--shard' && rest[i - 1] !== '--shard')) {
-    throw new Error(`smoke takes --shard k/N or --no-layout, not ${argv.join(' ')}.`);
-  }
-  shard = parseShard(rest.includes('--shard') ? (rest[rest.indexOf('--shard') + 1] ?? '') : undefined);
+  ({ layout: layoutOn, shard } = parseIncludeTests(process.argv.slice(2)));
 } catch (e) {
   console.error(e.message);
   process.exit(2);
@@ -190,7 +184,7 @@ try {
     for (const r of moving.reported) console.log(`  report-only (decorative theme, motion on): ${r}`);
     steps.push(`${part}layout with motion on: ${moving.checked} views and states (${MOTION_ROUTES.join(', ')}) in ${movingRuns.length} theme schemes at ${WIDTHS.join(', ')}px, the splash, a loading screen and the sprint recap playing, ${moving.problems.length} problem(s), ${moving.reported.length} report-only axe finding(s)`);
   } else {
-    steps.push('layout: skipped (--no-layout); CI checks it on Linux, and the daily run on every OS');
+    steps.push('layout: skipped (--include-tests none); CI checks it on Linux, and the daily run on every OS');
   }
 
   // toil's own execute(), from the installed package, with an empty home, behind the SQLite cache.

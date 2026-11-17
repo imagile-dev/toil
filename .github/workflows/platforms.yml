@@ -141,5 +141,26 @@ jobs:
           if [ -n "$open" ]; then
             gh issue comment "$open" --body "The daily platforms run failed again: $RUN_URL"
           else
-            gh issue create --label platforms-failure --title "The daily platforms run failed" --body "Windows, macOS or Node 26 failed on main: $RUN_URL. Close this once a daily run passes."
+            gh issue create --label platforms-failure --title "The daily platforms run failed" --body "Windows, macOS or Node 26 failed on main: $RUN_URL. The next daily run that passes closes this, and a release PR waits until then."
           fi
+
+  # A passing run on main closes the open platforms-failure issue, so the release
+  # PR's check (ci.yml, release-platforms) clears without anyone remembering to.
+  # A run started by hand on main counts too; one on another branch doesn't.
+  resolve:
+    name: Close the failure once a run passes
+    needs: [gate, skill-install]
+    if: success() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          for n in $(gh issue list --label platforms-failure --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "The platforms run passed on main: $RUN_URL"
+          done

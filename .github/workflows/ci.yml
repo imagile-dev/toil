@@ -153,12 +153,12 @@ jobs:
       - run: npm run build
       - run: npm run build -w ui
       # strategy.job-total is the matrix's length, so N is said once, in the list.
-      - run: npm run smoke -w ui -- --shard ${{ matrix.shard }}/${{ strategy.job-total }}
+      - run: npm run smoke -w ui -- --include-tests layout:${{ matrix.shard }}/${{ strategy.job-total }}
 
   # Windows and macOS on both supported Node lines, and Linux on Node 26: every
   # OS is first-class (principle 8), so a break on one blocks the merge like a
   # break on Linux does. Both gates run here, toil's and Toil UI's, but Toil
-  # UI's smoke runs with --no-layout: the install, the server's gates, the live
+  # UI's smoke runs with --include-tests none: the install, the server's gates, the live
   # store and the wipe, the parts most tied to the OS. The layout check stays in
   # ui-layout on Linux on every PR and runs on every OS daily (platforms.yml):
   # fonts and scrollbars do differ by OS, so this is a trade of cost for a day's
@@ -219,7 +219,7 @@ jobs:
       - if: env.FULL != 'false'
         run: npm run check:package -w ui
       - if: env.FULL != 'false'
-        run: npm run smoke -w ui -- --no-layout
+        run: npm run smoke -w ui -- --include-tests none
 
   # The committed dist/toil.js is the last released toil, and only the release
   # PR rebuilds it, so any other PR that changes dist/ fails here. The head
@@ -237,6 +237,32 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_REF: ${{ github.head_ref }}
+
+  # On the release PR only: the release waits while the daily run on every OS is
+  # failing. CI checks every OS on every PR, but Toil UI's layout check and the
+  # skill install run on Windows and macOS only daily (platforms.yml), and a
+  # failed or timed-out daily run keeps a platforms-failure issue open until a
+  # daily run passes, which closes it. So an open one means a known break on some
+  # OS, and nothing ships over it (principle 8; the maintainer's call,
+  # 2026-11-17). Once it closes, re-run this job.
+  release-platforms:
+    name: No open platforms failure
+    if: startsWith(github.head_ref, 'release-please--')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: read
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          open=$(gh issue list --label platforms-failure --state open --json number,url --jq '.[] | "#\(.number) \(.url)"')
+          if [ -n "$open" ]; then
+            echo "::error::The daily run on Windows, macOS and Linux is failing, so the release waits. Fix the break; the next passing daily run closes the issue (or run platforms.yml on main by hand), then re-run this job. Open: $open"
+            exit 1
+          fi
+          echo "No platforms-failure issue is open."
 
   # The database providers against real engines (`npm run test:integration`,
   # the `databases` skill). Each server engine is a service container from its
@@ -354,7 +380,7 @@ jobs:
   # fails, the long jobs skip and this fails, so nothing merges unchecked.
   ci-ok:
     name: CI ok
-    needs: [changes, gate, ui, ui-layout, platforms, integration, dist-guard]
+    needs: [changes, gate, ui, ui-layout, platforms, release-platforms, integration, dist-guard]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -421,6 +447,21 @@ jobs:
             exit 0
           fi
           echo "Windows, macOS and Node 26 passed."
+      # Runs only on the release PR; anywhere else a skip is expected.
+      - name: No open platforms failure on the release PR
+        env:
+          RESULT: ${{ needs.release-platforms.result }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          case "$HEAD_REF" in
+            release-please--*) ;;
+            *) echo "Not the release PR: the open platforms-failure check doesn't apply."; exit 0 ;;
+          esac
+          if [ "$RESULT" != "success" ]; then
+            echo "::error::The open platforms-failure check finished as '$RESULT', not 'success'."
+            exit 1
+          fi
+          echo "No platforms-failure issue is open."
       - name: The database integration job passed
         env:
           RESULT: ${{ needs.integration.result }}

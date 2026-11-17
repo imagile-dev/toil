@@ -129,8 +129,11 @@ gets made again in the next place it applies.
    with the command contract (the `integrations` skill) is a separate requirement
    and still applies.
 8. **Same behavior on Windows, macOS and Linux.** None is second-class; a feature
-   that works on one and not the others is not done. → Cross-Platform; the site
-   is mobile responsive for the same reason (`site` skill).
+   that works on one and not the others is not done. Every OS gates every merge. A
+   check too costly to run on every OS for every PR runs per PR on one and daily on
+   all, and a release waits while the daily run is failing (the maintainer's call,
+   2026-11-17, #605). → Cross-Platform; the site is mobile responsive for the same
+   reason (`site` skill).
 9. **toil talks only to what the user pointed it at.** No telemetry, no update checks,
    no call home. The only network traffic is to hosts in the user's config, or to a
    public API that a command the user ran names in its own name (`toil osv vulns`),
@@ -693,7 +696,7 @@ side: on Linux on Node 24.22.1, toil's gate, and Toil UI's as one job of checks 
 its smoke split into eight layout shards (#640); and on Windows and macOS on Node
 24.22.1 and 26.12.1, and Linux on 26.12.1, one job each running both gates except
 lint and `check:lockfile`, which read the same files on every OS, with Toil UI's
-smoke under `--no-layout`: its layout check runs per PR on Linux only, a trade of
+smoke under `--include-tests none`: its layout check runs per PR on Linux only, a trade of
 cost for a day's delay, and on every OS in the daily run. Every job has a time limit. Its `CI ok`
 job passes only when all of them passed, along with the database integration job and the
 `dist/` guard (below), and it's the one check `main`'s ruleset requires, so nothing
@@ -703,8 +706,10 @@ and `CI ok` accepts that skip only when the scope check passed and said so; toil
 gate still runs (the maintainer's call, 2026-11-16). `platforms.yml` runs the
 whole smoke, layout included, on every OS and both Node lines, plus the skill install,
 daily and on demand; a failed or timed-out daily run files a `platforms-failure`
-issue (#376). It doesn't run on pull requests, the release PR included (the
-maintainer's call, 2026-11-17). Other checks stay optional:
+issue (#376), and a passing run on `main` closes it. It doesn't run on pull requests,
+the release PR included; instead `CI ok` on the release PR fails while that issue is
+open, so nothing ships over a known break on any OS (the maintainer's call,
+2026-11-17). Other checks stay optional:
 the review job (approval is required separately, and it skips the release PR), the
 daily platforms run, and path-filtered jobs, which would block PRs they never run on.
 

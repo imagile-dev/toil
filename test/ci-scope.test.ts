@@ -88,7 +88,7 @@ describe('ci.yml wires the scope check fail-closed', () => {
     expect(layout.strategy['fail-fast']).toBe(false);
     const run = layout.steps.map((s) => s.run ?? '').join('\n');
     // N comes from the matrix itself, in the command and the job's name, so it can't drift from the list.
-    expect(run).toContain('npm run smoke -w ui -- --shard ${{ matrix.shard }}/${{ strategy.job-total }}');
+    expect(run).toContain('npm run smoke -w ui -- --include-tests layout:${{ matrix.shard }}/${{ strategy.job-total }}');
     expect(layout.name).toBe('Toil UI layout (${{ matrix.shard }}/${{ strategy.job-total }})');
   });
 
@@ -109,7 +109,7 @@ describe('ci.yml wires the scope check fail-closed', () => {
       else if (s.run === 'npm run check:dist') expect(s.if).toBe("startsWith(github.head_ref, 'release-please--')");
       else expect(s.if, s.run).toBeUndefined();
     }
-    for (const run of ['npm run typecheck', 'npm test', 'npm run build', 'npm run check:pure', 'npm run check:dist', 'npm run smoke', 'npm test -w ui', 'npm run smoke -w ui -- --no-layout']) expect(steps.some((s) => s.run === run), run).toBe(true);
+    for (const run of ['npm run typecheck', 'npm test', 'npm run build', 'npm run check:pure', 'npm run check:dist', 'npm run smoke', 'npm test -w ui', 'npm run smoke -w ui -- --include-tests none']) expect(steps.some((s) => s.run === run), run).toBe(true);
     const ok = ci.jobs['ci-ok']!;
     expect(ok.needs).toContain('platforms');
     expect(ok.steps.find((s) => s.env?.RESULT === '${{ needs.platforms.result }}')!.run).toContain('[ "$RESULT" != "success" ]');
@@ -120,6 +120,29 @@ describe('ci.yml wires the scope check fail-closed', () => {
     for (const [name, job] of [...Object.entries(ci.jobs), ...Object.entries(platforms.jobs)]) expect((job as { 'timeout-minutes'?: number })['timeout-minutes'], name).toBeGreaterThan(0);
     // A job past its limit ends as cancelled, so the daily report counts that as a failure too.
     expect(platforms.jobs.report!.if).toContain("contains(needs.*.result, 'cancelled')");
+  });
+
+  it('holds the release PR while a platforms-failure issue is open, and a passing run on main closes it (#605)', () => {
+    const job = ci.jobs['release-platforms'] as Job & { permissions: Record<string, string> };
+    expect(job.if).toBe("startsWith(github.head_ref, 'release-please--')");
+    expect(job.permissions).toEqual({ issues: 'read' });
+    const run = job.steps.map((s) => s.run ?? '').join('\n');
+    expect(run).toContain('gh issue list --label platforms-failure --state open');
+    expect(run).toContain('exit 1');
+    expect(run).not.toContain('${{');
+    const ok = ci.jobs['ci-ok']!;
+    expect(ok.needs).toContain('release-platforms');
+    const step = ok.steps.find((s) => s.env?.RESULT === '${{ needs.release-platforms.result }}')!;
+    expect(step.env!.HEAD_REF).toBe('${{ github.head_ref }}');
+    expect(step.run).toContain('release-please--*) ;;');
+    expect(step.run).toContain('[ "$RESULT" != "success" ]');
+    const platforms = load(readFileSync(join(root, '.github', 'workflows', 'platforms.yml'), 'utf8')) as { on: Record<string, unknown>; jobs: Record<string, Job & { permissions?: Record<string, string> }> };
+    expect(Object.keys(platforms.on).sort()).toEqual(['schedule', 'workflow_dispatch']);
+    const resolve = platforms.jobs.resolve!;
+    expect(resolve.needs).toEqual(['gate', 'skill-install']);
+    expect(resolve.if).toBe("success() && github.ref == 'refs/heads/main'");
+    expect(resolve.permissions).toEqual({ issues: 'write' });
+    expect(resolve.steps.map((s) => s.run ?? '').join('\n')).toContain('gh issue close');
   });
 
   it('CI ok accepts a skipped long job only when the scope check passed and said full=false', () => {
