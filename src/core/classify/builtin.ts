@@ -89,6 +89,8 @@ export const BUILTIN_SCHEMES: readonly Scheme[] = [
     rules: [
       { id: 'risk', when: { label: ['security', 'compliance'] }, then: 'risk' },
       { id: 'defect', when: { type: ['BUG'] }, then: 'defect' },
+      // Many trackers file bugs as a task or an issue with a bug label (Jira team-managed projects, GitHub without issue types).
+      { id: 'defect-label', when: { label: ['bug', 'defect'] }, then: 'defect' },
       { id: 'debt-title', when: { title: ['Bump', 'Upgrade'] }, then: 'debt' },
       { id: 'tech-debt', when: { label: ['tech-debt'] }, then: 'debt' },
     ],

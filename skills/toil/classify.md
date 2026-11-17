@@ -51,9 +51,9 @@ repository's review is.
 
 Three schemes are built in: **`ktlo-feature`**, the default (KTLO and Feature);
 **`balance`** (New capabilities, Improvements, KTLO and Productivity); and **`flow`**
-(Feature, Defect, Risk and Debt). `flow` has `signals` off and four rules, tried in order:
+(Feature, Defect, Risk and Debt). `flow` has `signals` off and five rules, tried in order:
 a `security` or `compliance` label is Risk (so a security bug is Risk, not Defect), a Bug
-is Defect, a title containing `Bump` or `Upgrade` is Debt (a case-insensitive substring
+is Defect, so is an item labelled `bug` or `defect` (for trackers that file bugs as tasks), a title containing `Bump` or `Upgrade` is Debt (a case-insensitive substring
 match, so `Upgraded` counts too), and a `tech-debt` label is Debt. Anything else is unsure,
 for a person or an AI agent to decide.
 

@@ -50,6 +50,10 @@ const decided = (one: WorkItem) => {
 };
 
 describe('the flow scheme', () => {
+  it('calls a task or issue labelled bug a defect', () => {
+    expect(decided(item('PAY-9', { type: 'TASK', typeName: 'Task', labels: ['bug'] }))).toEqual(['defect', 'rule:defect-label']);
+  });
+
   it('calls a bug a defect', () => {
     expect(decided(item('PAY-1', { type: 'BUG', typeName: 'Bug' }))).toEqual(['defect', 'rule:defect']);
   });

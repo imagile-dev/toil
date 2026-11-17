@@ -36,7 +36,7 @@ describe('the built-in schemes', () => {
   it('has flow sort by rules alone, risk before defect, with no signals', () => {
     const flow = builtinScheme('flow')!;
     expect(flow.categories.map((c) => c.id)).toEqual(['feature', 'defect', 'risk', 'debt']);
-    expect(flow.rules.map((r) => [r.id, r.then])).toEqual([['risk', 'risk'], ['defect', 'defect'], ['debt-title', 'debt'], ['tech-debt', 'debt']]);
+    expect(flow.rules.map((r) => [r.id, r.then])).toEqual([['risk', 'risk'], ['defect', 'defect'], ['defect-label', 'defect'], ['debt-title', 'debt'], ['tech-debt', 'debt']]);
     expect(flow.signals).toBe(false);
     expect(readScheme(JSON.parse(schemeContent(flow)), 'flow.json').scheme).toEqual(flow);
   });
