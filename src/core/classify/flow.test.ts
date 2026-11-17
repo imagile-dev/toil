@@ -69,8 +69,16 @@ describe('the flow scheme', () => {
     expect(decided(item('PAY-6', { labels: ['tech-debt'] }))).toEqual(['debt', 'rule:tech-debt']);
   });
 
-  it('leaves a plain story unsure, for a person or an agent to decide', () => {
-    expect(decided(item('PAY-7', { title: 'Let customers save a card' }))).toEqual([null, 'unsure']);
+  it('calls a plain story a feature', () => {
+    expect(decided(item('PAY-7', { title: 'Let customers save a card' }))).toEqual(['feature', 'rule:story']);
+  });
+
+  it('keeps a story labelled tech-debt as debt, since the story rule comes last', () => {
+    expect(decided(item('PAY-8', { title: 'Split the payments module', labels: ['tech-debt'] }))).toEqual(['debt', 'rule:tech-debt']);
+  });
+
+  it('leaves a plain task unsure, for a person or an agent to decide', () => {
+    expect(decided(item('PAY-10', { type: 'TASK', typeName: 'Task', title: 'Rotate the staging certificate' }))).toEqual([null, 'unsure']);
   });
 
   it('fires none of toil\'s signals, so an incident with no rule match stays unsure', () => {

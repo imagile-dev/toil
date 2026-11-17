@@ -93,6 +93,8 @@ export const BUILTIN_SCHEMES: readonly Scheme[] = [
       { id: 'defect-label', when: { label: ['bug', 'defect'] }, then: 'defect' },
       { id: 'debt-title', when: { title: ['Bump', 'Upgrade'] }, then: 'debt' },
       { id: 'tech-debt', when: { label: ['tech-debt'] }, then: 'debt' },
+      // Last, so a story labelled security, bug or tech-debt keeps that category; any other story is new value.
+      { id: 'story', when: { type: ['STORY'] }, then: 'feature' },
     ],
     signals: false,
     labels: {},
