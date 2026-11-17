@@ -195,7 +195,7 @@ export function answerOf(c: Ctx): Answer {
   const { total, done, left } = s.points;
   if (h.scope.count === 0 || total === null || done === null || left === null) {
     // No points were read, so "all 0 points are done" would be a claim with nothing under it (#652). The tracker
-    // may hold none, or the toil project may not name the field: "none read" is true of both. Real zeros fall through.
+    // may hold none, or the toil project may not name the field: "none read" is true of both. Real zeros are next.
     const n = h.items.length;
     return {
       status: 'none',
@@ -203,6 +203,17 @@ export function answerOf(c: Ctx): Answer {
       sentence: n === 0 ? 'the sprint has no stories yet, so there is no progress to measure.' : `progress can’t be measured for the ${n === 1 ? 'story' : `${n} stories`} in the sprint.`,
       why: 'Add points to the stories, or name the field they are kept in, and this reads the pace against them.',
       how: [`Points come from ${sourcesText(c.d)}. None were read for this sprint.`],
+      basis: 'A status needs points to measure against',
+    };
+  }
+  if (total === 0) {
+    // Real estimates of 0 were read, but there is nothing to pace against: "all 0 points are done" would call a sprint of open stories finished.
+    return {
+      status: 'none',
+      word: 'No points to measure',
+      sentence: 'the stories in the sprint are estimated at 0 points, so progress can’t be measured.',
+      why: 'Give the stories points above 0 and this reads the pace against them.',
+      how: [`Points come from ${sourcesText(c.d)}.`],
       basis: 'A status needs points to measure against',
     };
   }

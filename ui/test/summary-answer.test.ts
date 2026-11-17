@@ -25,13 +25,15 @@ interface Over {
   done?: boolean;
   /** Items in the sprint with no points read. */
   unread?: number;
+  /** The sprint's points were read and are all 0. */
+  zero?: boolean;
 }
 
 function ctx(o: Over = {}): Ctx {
   const total = o.total ?? 21;
   const item = { id: 'jira:PAY-1', title: o.title ?? 'A story', source: { area: 'jira', key: 'PAY-1' }, assignee: null, status: 'In progress', statusCategory: o.done ? 'DONE' : 'IN_PROGRESS' };
   const reasons = o.title ? [{ lens: 'failing', label: 'Failing checks', line: 'x', severity: 'danger', items: [{ id: item.id, why: 'Fails.' }] }] : [];
-  const health = { days: { gone: o.gone ?? 7, total: 10 }, items: Array.from({ length: o.stories ?? 3 }, () => ({})), unestimated: [], scope: { count: o.stories ?? 3, points: total === 0 ? null : total, unestimated: o.unread ?? 0 } };
+  const health = { days: { gone: o.gone ?? 7, total: 10 }, items: Array.from({ length: o.stories ?? 3 }, () => ({})), unestimated: [], scope: { count: o.stories ?? 3, points: o.zero ? 0 : total === 0 ? null : total, unestimated: o.unread ?? 0 } };
   return {
     d: { name: 'p', sources: [{ area: 'jira' }], items: [], people: [], calls: { work: o.failed ? [{ ok: false }] : [{ ok: true }], prs: [] } },
     name: 'p',
@@ -39,7 +41,7 @@ function ctx(o: Over = {}): Ctx {
     byId: new Map([[item.id, item]]),
     prById: new Map(),
     h: o.noSprint ? null : health,
-    view: { reasons, code: { sprint: o.noSprint ? null : { points: total === 0 ? { total: null, left: null, done: null } : { total, left: o.left ?? total, done: total - (o.left ?? total) }, projected: o.projected === undefined ? null : o.projected, pace: null } } },
+    view: { reasons, code: { sprint: o.noSprint ? null : { points: o.zero ? { total: 0, left: 0, done: 0 } : total === 0 ? { total: null, left: null, done: null } : { total, left: o.left ?? total, done: total - (o.left ?? total) }, projected: o.projected === undefined ? null : o.projected, pace: null } } },
     queue: [],
     held: new Map(),
     ready: new Map(),
@@ -64,6 +66,11 @@ describe('the answer at its edges', () => {
     expect(a.sentence).not.toContain('0 points');
     expect(a.basis).toBeTruthy();
     expect(answerOf(ctx({ total: 0, left: 0, stories: 1 })).sentence).toBe('progress can’t be measured for the story in the sprint.');
+  });
+
+  it('does not call a sprint of real 0-point estimates done: there is nothing to pace against', () => {
+    const a = answerOf(ctx({ zero: true }));
+    expect([a.status, a.word, a.sentence]).toEqual(['none', 'No points to measure', 'the stories in the sprint are estimated at 0 points, so progress can’t be measured.']);
   });
 
   it('counts every item with no points read as left out of the points, not only the open ones (#652)', () => {
