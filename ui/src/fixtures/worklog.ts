@@ -89,30 +89,6 @@ async function sampleOf(data: ToilProjectData, now: string): Promise<Sample> {
       who: blocked.assignee,
     });
   }
-  // A sprint move a sync saw yesterday, as long as the ones a real sprint planning leaves (#644): the team
-  // line's chip has to cut it inside a phone's width, with the whole sentence kept in its tooltip. It is
-  // observed, like the blocker, because the sample items' own history doesn't record it.
-  const moved = data.items.find((i) => i.statusCategory !== 'DONE' && i.id !== blocked?.id);
-  if (moved) {
-    const label = moved.source.key.replace(/^[^/]+\//, '');
-    const by = moved.assignee?.name ?? 'Sample person';
-    events.push({
-      key: `sprint:${moved.id}:${at(yesterday, '07:00')}`,
-      kind: 'sprint',
-      at: at(yesterday, '07:00'),
-      subject: moved.id,
-      source: moved.source.area,
-      label,
-      title: moved.title,
-      url: moved.url,
-      by,
-      text: 'moved from Sprint 42 to Sprint 43',
-      cites: [moved.id],
-      refs: { [moved.id]: { label, url: moved.url } },
-      observed: { previousSync: at(addDays(yesterday, -1), '07:00') },
-      who: moved.assignee,
-    });
-  }
   const scripted = await sampleRun(data.name, yesterday);
   return {
     data,
