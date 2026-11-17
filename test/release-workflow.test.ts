@@ -109,10 +109,10 @@ describe('the Imagile Bot token and workflow files', () => {
     const asking = tokenSteps.filter(({ st }) => st.with?.['permission-workflows'] !== undefined);
     expect(asking.map(({ where }) => where)).toEqual(['release.yml release-please']);
     const steps = jobs['release-please']!.steps as (TokenStep & { id?: string })[];
-    const id = asking[0]!.st as TokenStep & { id?: string };
-    expect(id.with!['permission-workflows']).toBe('write');
-    // That token goes to release-please and nowhere else: the checkout, build and push use another.
-    const uses = steps.filter((st) => JSON.stringify(st.with ?? {}).includes(`steps.${id.id}.outputs.token`));
+    const tokenStep = asking[0]!.st as TokenStep & { id?: string };
+    expect(tokenStep.with!['permission-workflows']).toBe('write');
+    // That token goes to release-please and nowhere else, by `with:` or `env:`: the checkout, build and push use another.
+    const uses = steps.filter((st) => JSON.stringify(st).includes(`steps.${tokenStep.id}.outputs.token`));
     expect(uses.map((st) => (st as { id?: string }).id)).toEqual(['rp']);
   });
 
