@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // A re-inspection booked after the work was signed off, which is the order most audits only aspire to.
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
@@ -81,14 +81,18 @@ describe('Sync and check again (#657, round 4)', () => {
     rules.pass();
     const later = new Date(Date.parse(FIXTURE_NOW) + 3_600_000).toISOString();
     await act(async () => view.rerender(<App {...props} now={later} />));
+    // The result is beside the button, in the status line, with the readiness verdict on the same reading (round 5).
     const line = await waitFor(() => {
-      const el = document.querySelector('[data-check-again] [data-again]');
+      const el = document.querySelector('[data-check-again] [data-again-result="pass"]');
       if (!el) throw new Error('not yet');
       return el;
     });
-    expect(line.textContent).toBe('Acceptance criteria as Given/When/Then: now passes');
-    expect(line.getAttribute('data-again')).toBe('pass');
-    expect(within(document.querySelector<HTMLElement>('[data-check-again]')!).getByRole('status').textContent).toMatch(/^Read /);
+    expect(line.getAttribute('role')).toBe('status');
+    expect(line.closest('.cluster, [class*="cluster"]')?.contains(document.querySelector('[data-check-again] button'))).toBe(true);
+    // The sample's PAY-103 still waits on a blocker, so the verdict says that rather than "ready to start".
+    expect(line.textContent).toBe("\u2713 Acceptance criteria as Given/When/Then now passes. PAY-103 is blocked, so it isn't ready to start: Blockers, Acceptance criteria, Description.");
+    expect(document.querySelector('[data-check-again] [data-again]')).toBeNull();
+    expect(document.querySelector('[data-check-again]')!.textContent).toMatch(/Read /);
   });
 
   it('says what is still missing when the new reading still misses the rule', async () => {
@@ -114,5 +118,16 @@ describe('Sync and check again (#657, round 4)', () => {
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} preview now={FIXTURE_NOW} assignments={api} rules={fixtureStandards()} />);
     await screen.findByRole('article', { name: /Proposal:/ }, { timeout: 4000 });
     expect(screen.queryByRole('button', { name: 'Sync and check again' })).toBeNull();
+  });
+
+  it('turns the questions into a quiet line once every change is applied, with nothing to ask for (round 5)', async () => {
+    const { api, id } = await appliedFix();
+    window.location.hash = `#/project/card-payments/assignment/${id}`;
+    render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} preview now={FIXTURE_NOW} assignments={api} rules={fixtureStandards()} />);
+    await screen.findByRole('article', { name: /Proposal:/ }, { timeout: 4000 });
+    expect(document.querySelector('section[aria-labelledby="assign-questions"]')).toBeNull();
+    const lines = [...document.querySelectorAll('[data-still-to-confirm] li')].map((l) => l.textContent);
+    expect(lines).toEqual(['Still to confirm with the team: What should the customer see when the stored token is declined?']);
+    expect(document.body.textContent).not.toContain('ask for a new rewrite');
   });
 });

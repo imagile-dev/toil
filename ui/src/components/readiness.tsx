@@ -173,7 +173,7 @@ export function WhyNot({ readiness, first }: { readiness: Readiness; first?: (r:
 /** What the verdict means for starting the item, in the words the item page shows under it. */
 const MEANING: Record<Verdict, string> = {
   ready: 'Every check passes: an agent can start on it.',
-  thin: 'Something is missing. A person can still decide to start it on its own, but the Command Center never slates it.',
+  thin: "Something is missing. A person can still decide to start it on its own, but it won't be started automatically.",
   blocked: "It can't be worked on as it is, so it is never started.",
 };
 

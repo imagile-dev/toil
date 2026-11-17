@@ -73,7 +73,7 @@ export interface Row {
   label: string;
   state: RowState;
   reason: string;
-  /** Where the row's answer came from: a field, the body, the cache, or the live command. */
+  /** Where the row's answer came from: a field, the body, the last sync (the cache, in plain words), or the live command. */
   source: string;
   /** A ticket rule's row: which rule it is, for "Fix with AI agent". */
   rule?: { standard: string; rule: string };
@@ -329,8 +329,8 @@ function doneState(item: WorkItem, byId: Map<string, WorkItem>, live: LiveWorkfl
   if (item.statusCategory === 'UNKNOWN') return row('done', 'thin', `toil couldn't tell what category the status ${item.status ?? '(none)'} is in, so it isn't known to be open.`, 'status');
   if (item.source.area === 'github') return row('done', 'pass', `Open (${item.status ?? 'open'}); a GitHub issue closes from any state.`, 'status');
   const seen = [...byId.values()].find((other) => other.id !== item.id && sameType(other, item) && reachedDone(other));
-  if (seen) return row('done', 'pass', `Open (${item.status ?? 'open'}), and another ${type} here reached Done ([[${seen.id}]]), so the workflow gets there.`, 'cache');
-  return row('done', 'thin', `Open (${item.status ?? 'open'}), but no ${type} in this Toil project has reached Done, so a way there isn't known from the cache. Check the workflow live.`, 'cache');
+  if (seen) return row('done', 'pass', `Open (${item.status ?? 'open'}), and another ${type} here reached Done ([[${seen.id}]]), so the workflow gets there.`, 'last sync');
+  return row('done', 'thin', `Open (${item.status ?? 'open'}), but no ${type} in this Toil project has reached Done, so a way there isn't known from the last sync. Check the workflow live.`, 'last sync');
 }
 
 function blockers(item: WorkItem, byId: Map<string, WorkItem>): Row {

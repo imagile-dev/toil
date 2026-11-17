@@ -42,6 +42,13 @@ describe('the headline with no sprint', () => {
     render(<AnswerHero answer={{ status: 'none', word: 'No sprint', sentence: 'No sprint is running right now.', why: 'why', how: [], basis: null, bare: true }} />);
     expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('No sprint is running right now.');
   });
+
+  it('keeps "too early to judge a pace" behind How was this worked out?, not under the headline (#657, round 5)', () => {
+    const { container } = render(<AnswerHero answer={{ status: 'at-risk', word: 'At risk', sentence: '159 of 216 points are left.', why: 'why', how: ['Points come from Jira.'], basis: 'Too early in the sprint to judge a pace' }} />);
+    const basis = container.querySelector('.sum-basis')!;
+    expect(basis.closest('details.sum-how')).toBeTruthy();
+    expect([...container.querySelectorAll('.sum-how li')].map((l) => l.textContent)).toEqual(['Too early in the sprint to judge a pace.', 'Points come from Jira.']);
+  });
 });
 
 describe('the board', () => {

@@ -265,6 +265,9 @@ describe('the refine-to-rule prompt (#657)', () => {
     // A fix cites its own item, and its note is plain words for the person applying it, nothing about formats.
     expect(modePromptText('refine')).toMatch(/citing the item as \[\[[^\]]+\]\] there too/);
     expect(modePromptText('refine')).toContain('nothing about formats, markup or how the text is sent');
+    // A question lives only on a QUESTION: line: the paragraph never says whether there are any, and the note never repeats one.
+    expect(modePromptText('refine')).toContain('the paragraph does not say whether you have questions');
+    expect(modePromptText('refine')).toContain('without repeating a QUESTION: line');
     expect(modePromptText('investigate')).not.toContain('<rule name');
   });
 

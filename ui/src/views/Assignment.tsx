@@ -9,13 +9,13 @@
  * signature line at the bottom of every page.
  */
 
-import { Fragment, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from 'react-aria-components';
 import { usePlain } from '../plain-words.ts';
 import { AssignModal, StateChip, assignmentHref, usageText, POLL_MS } from '../assign/views.tsx';
-import { ADAPTER_NAME, applyResultText, liveLine, modeInfo, richText, renewRefusal, runMs, runText, writesOffText, type AssignedProposal, type Assignment, type AssignmentRecord, type DiffRow } from '../assign/model.ts';
+import { ADAPTER_NAME, applyResultText, liveLine, modeInfo, noteRepeatsQuestion, richText, renewRefusal, runMs, runText, writesOffText, type AssignedProposal, type Assignment, type AssignmentRecord, type DiffRow } from '../assign/model.ts';
 import { lineDiff, sideOf } from '../assign/line-diff.ts';
-import { againText, askRecheck, askedAt, rulesAgain } from '../assign/recheck.ts';
+import { againText, askRecheck, askedAt, firstShowing, passedText, rulesAgain } from '../assign/recheck.ts';
 import { noteApplied } from '../applied.ts';
 import { StaleNote } from '../components/stale.tsx';
 import { AnswerText, ItemLink } from '../components/items.tsx';
@@ -28,7 +28,7 @@ import { AGENT_SETTINGS_HREF, dateTime, shortKey, sourceLabel, timeOnDay, toilPr
 import { EditLink, Help } from '../components/help.tsx';
 import { Unread } from '../components/unread.tsx';
 import { SummaryChevron } from '../components/disclosure.tsx';
-import { fieldName } from '../model/readiness.ts';
+import { fieldName, readiness, withRules } from '../model/readiness.ts';
 
 const when = (iso: string | null) => (iso ? dateTime(iso) : 'not yet');
 
@@ -119,7 +119,8 @@ export function AssignmentView({ id }: { id: string }) {
       {a.proposals.map((p) => (
         <AssignedCard
           key={p.id}
-          p={p}
+          // A note that only asks a QUESTION: line again is said once, on the Questions card below (#657, round 5).
+          p={noteRepeatsQuestion(p.note, a.questions) ? { ...p, note: null } : p}
           tracker={tracker}
           quiet={Boolean(a.rules?.length)}
           busy={busy}
@@ -167,7 +168,7 @@ export function AssignmentView({ id }: { id: string }) {
           </p>
         )}
         <p className="item-meta">
-          <StateChip a={a} /> <ItemLink id={a.item} /> · {a.adapter ? ADAPTER_NAME[a.adapter] : 'no adapter chosen yet'} <EditLink href={AGENT_SETTINGS_HREF} label="Edit the agent settings" /> · {a.origin === 'tracker' ? `queued by the tracker (${a.trigger})` : 'assigned in Toil UI'}
+          <StateChip a={a} /> <ItemLink id={a.item} /> · {a.adapter ? ADAPTER_NAME[a.adapter] : 'no adapter chosen yet'} <EditLink href={AGENT_SETTINGS_HREF} label="Edit the agent settings" /> · {a.origin === 'tracker' ? `queued by the tracker (${a.trigger})` : 'started by you'}
         </p>
         <details className="assign-run" data-assignment-run="">
           <summary>
@@ -246,7 +247,16 @@ export function AssignmentView({ id }: { id: string }) {
       {proposalsFirst && proposals}
       {proposalsFirst && a.state === 'needs-you' && <Cluster className="assign-actions assign-actions--after">{markReviewed}</Cluster>}
 
-      {a.questions.length > 0 && (
+      {a.questions.length > 0 && everyApplied ? (
+        // Once every change is in, the questions are no longer the reader's next step, only what the team still owes an answer on.
+        <ul className="rows assign-confirm" data-still-to-confirm="">
+          {a.questions.map((q, i) => (
+            <li key={i} className="note">
+              Still to confirm with the team: {q}
+            </li>
+          ))}
+        </ul>
+      ) : a.questions.length > 0 && (
         <Card as="section" className="panel" aria-labelledby="assign-questions">
           <h2 id="assign-questions">Questions for you</h2>
           <ul className="rows">
@@ -500,37 +510,48 @@ function DiffSide({ row, side, applied }: { row: DiffRow; side: 'before' | 'afte
  * until a reading newer than the press is on screen (principle 12).
  */
 function CheckAgain({ a }: { a: Assignment }) {
-  const { sync, rules, now } = useData();
+  const { sync, rules, now, toilProject, byId } = useData();
   const [, setPressed] = useState(0);
-  if (!sync || !a.rules?.length) return null;
-  const at = askedAt(a.id);
+  const box = useRef<HTMLDivElement>(null);
+  const at = a.rules?.length ? askedAt(a.id) : undefined;
   const fresh = at !== undefined && Date.parse(now) > Date.parse(at);
-  const again = fresh ? rulesAgain(a.rules, rules?.reading, a.item) : null;
+  const again = fresh && a.rules?.length ? rulesAgain(a.rules, rules?.reading, a.item) : null;
+  // The sync remounts the page at its top, so the result is brought to the button once, where the press was made (round 5).
+  useEffect(() => {
+    if (again && at !== undefined && firstShowing(a.id, at)) box.current?.scrollIntoView?.({ block: 'center' });
+  }, [again, at, a.id]);
+  if (!sync || !a.rules?.length) return null;
+  const item = byId.get(a.item);
+  // The verdict on the same reading, so "ready to start" is said only when it is (principle 12).
+  const after = again && item ? readiness({ item, settings: withRules(toilProject.readiness, rules?.reading), byId }) : null;
+  const passed = again ? passedText(again, item ? shortKey(item) : a.item, after) : null;
   const press = () => {
     askRecheck(a.id, now);
     setPressed((n) => n + 1);
     sync();
   };
   return (
-    <div className="check-again" data-check-again="">
+    <div className="check-again" data-check-again="" ref={box}>
       <Cluster>
         <Button className="btn" onPress={press} isDisabled={at !== undefined && !fresh}>
           Sync and check again
         </Button>
-        <span className="note" role="status">
+        <span className={passed ? 'check-again--pass' : 'note'} role="status" data-again-result={passed ? 'pass' : undefined}>
           {at !== undefined && !fresh
             ? 'Syncing, then checking the rule again. The Sync panel says how it is going.'
             : fresh && rules?.reading.state === 'failed'
               ? null
               : fresh && !again
                 ? 'Checking the rule on the new reading…'
-                : again
-                  ? `Read ${dateTime(now)}.`
-                  : 'Reads the Toil project again, then checks the rule on what it read.'}
+                : passed
+                  ? passed
+                  : again
+                    ? `Read ${dateTime(now)}.`
+                    : 'Reads the Toil project again, then checks the rule on what it read.'}
         </span>
       </Cluster>
       {fresh && rules?.reading.state === 'failed' && <p className="failure">toil couldn't check the ticket rules: {rules.reading.message}</p>}
-      {again && (
+      {again && !passed && (
         <ul className="rows check-again__rules">
           {again.map((r) => (
             <li key={r.name} className={r.state === 'pass' ? 'check-again--pass' : r.state === 'missing' ? 'check-again--missing' : undefined} data-again={r.state}>
@@ -539,6 +560,7 @@ function CheckAgain({ a }: { a: Assignment }) {
           ))}
         </ul>
       )}
+      {passed && <p className="note">Read {dateTime(now)}.</p>}
     </div>
   );
 }

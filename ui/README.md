@@ -258,7 +258,7 @@ further in, and each step one you choose (#494). The tab's top is the answer (#5
 
 - **The status sentence**, the biggest text on the tab: a word with a shape (On
   track, At risk, Behind, No sprint, or No points read when no points were read for any story in the sprint) and the rest of the sentence ("Behind: 18 of
-  21 points are left, and 3 working days remain."), with an (i). That it is an estimate is the first line of the fold; "Too early in the sprint to judge a pace" stays on the page. One rule
+  21 points are left, and 3 working days remain."), with an (i). That it is an estimate is the first line of the fold, and so is "Too early in the sprint to judge a pace", never a line under the headline. One rule
   picks the word (`ui/src/model/status.ts`): On track when the points left fit at
   the pace so far, At risk when at least 75% of them would land or a red reason holds
   work up, Behind below 75%; the fold says 75% is the app's own rule of thumb. Today isn't counted in the working days left, as on the
@@ -715,7 +715,8 @@ row passes. Each area's section in the Toil project sets it up:
 that names none uses `Microsoft.VSTS.Common.AcceptanceCriteria`.
 
 - **On each item's page**, a **Ready for an agent?** panel shows the verdict and its
-  rows, each with where its answer came from. **Check the workflow live** makes the one
+  rows, each with where its answer came from ("Source: last sync" for a row read from what Toil UI last synced). "Needs more detail"
+  reads "Something is missing. A person can still decide to start it on its own, but it won't be started automatically." **Check the workflow live** makes the one
   live read, read-only: `jira issue transitions` for a Jira issue, `ado work-item
   states` for an Azure DevOps type. A GitHub issue needs none. That the verdict is worked
   out from the cached record with no model call, and what the button reads, are in the
@@ -774,6 +775,9 @@ they are called ticket rules.
   you press Apply." (the item's own tracker), and once every proposal is applied it reads
   "The applied change is in Jira." instead. **Mark reviewed** sits below the proposals there, so it doesn't compete
   with Apply, and the questions end "Answer these in Jira, then ask for a new rewrite." A
+  question is asked once: a proposal's note that only asks a question again is left off the
+  card. Once every proposal is applied, the questions card gives way to one quiet line per
+  question, "Still to confirm with the team: <question>", with nothing to ask for. A
   fix's card doesn't repeat the agent's paragraph. A write toil refuses because writes are off
   reads "Not applied. Writes to Jira are off on this computer, so nothing changed. Turn writes
   on for the jira connection, then press Apply again." (the tracker and the connection
@@ -787,9 +791,12 @@ they are called ticket rules.
   applied the assignment is done and its chip says **Applied**, even with a question left,
   since that is answered in the tracker; its needs-you notice goes and the bell stops counting
   it. A fix's applied card offers **Sync and check again**: Toil UI has no read of one item,
-  so it syncs the Toil project (incrementally) and then says, for each rule, "Acceptance
-  criteria as Given/When/Then: now passes" or "still missing: <toil's reason>", only from a
-  reading newer than the press. While a change applied from Toil UI is newer than the data on
+  so it syncs the Toil project (incrementally) and then says, beside the button (brought into
+  view once, since the sync redraws the page), "✓ Acceptance criteria as Given/When/Then now
+  passes. SCRUM-32 is ready to start." when every rule passes, the second sentence only when
+  the readiness verdict on that reading is Ready and otherwise what it is ("… is blocked, so it
+  isn't ready to start: Blockers."); a rule that doesn't pass gets its own line, "still missing:
+  <toil's reason>" or "not checked: …", all only from a reading newer than the press. While a change applied from Toil UI is newer than the data on
   screen, the header reads "Data read 22:38 UTC. 1 change applied since." with **Sync now**. Every proposal on an
   assignment page shows what it changes first, each field by its plain name ("Acceptance
   criteria" for the Toil project's acceptance criteria field) beside what it holds now
@@ -1295,7 +1302,8 @@ for (docs/decisions/343-ask-up-front.md).
 - **Citations are checked.** Every answer cites the work items and pull requests it
   used as links.
   The server holds each id it names to what its tools returned, and flags any other
-  as unverified above the answer.
+  as unverified above the answer. An assignment's own item, handed to the agent in its
+  prompt (and so the item a ticket rule was checked on), counts as returned; no other id does.
 - **Writes are proposals.** A change the agent suggests comes back as a card with the
   `toil … --allow-write` command line for you to run through toil's write gate. The
   agent can't run it.

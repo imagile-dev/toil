@@ -243,6 +243,15 @@ describe('the citation check', () => {
     expect(a.unverified).toEqual(['corp-jira:PAY-404', 'PAY-777']);
   });
 
+  it("counts the ids the prompt handed over (an assignment's own item) as returned, and no other (#657)", () => {
+    const a = finish('I rewrote [[jira:SCRUM-32]]; SCRUM-32 now has scenarios.', { ...f(new Ledger()), known: ['jira:SCRUM-32'] });
+    expect(a.unverified).toEqual([]);
+    expect(a.warnings).toEqual([]);
+    const b = finish('I rewrote [[jira:SCRUM-32]], like [[jira:SCRUM-33]] and SCRUM-34.', { ...f(new Ledger()), known: ['jira:SCRUM-32'] });
+    expect(b.unverified).toEqual(['jira:SCRUM-33', 'SCRUM-34']);
+    expect(b.warnings![0]).toMatch(/never returned: jira:SCRUM-33, SCRUM-34/);
+  });
+
   it('accepts a bare key the tools did return', () => {
     expect(finish('PAY-101 is fine, see [[corp-jira:PAY-101]].', f(ledgerOf('corp-jira:PAY-101'))).unverified).toEqual([]);
   });

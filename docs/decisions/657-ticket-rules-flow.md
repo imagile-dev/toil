@@ -411,6 +411,36 @@
   - *A test flake fixed on the way.* The assignment routes test read the next event after
     `since=latest`, which could be the end of the investigate run it had just made; it now waits
     for that run to end first. It failed on the unchanged code too.
+- **Product review, round 5** (Toil UI, the last on-camera issues from a live Claude run on
+  Jira SCRUM-32; principles 4, 11 and 12):
+  - *No false citation alarm on the run's own item.* The assignment's item is handed to the agent
+    in its prompt, fenced as data, so naming it is no invention. `finish()` takes `known` ids
+    (`ui/server/agents/answer.ts`), which the assign runner sets to the assignment's item, also
+    the item a rule fix was checked on; they count as returned for the citation check and for
+    "rests on none". Every other id still has to come back from a tool (`ui/test/agents.test.ts`).
+  - *Questions only on QUESTION: lines.* The rule-fix prompt now says the paragraph never says
+    whether there are questions, and the proposal's note never repeats a QUESTION: line (null
+    when there's nothing else to check). The fingerprint picks up the new text with no new
+    placeholder, since neither sentence carries a rule's words.
+  - *A question shows once.* Before Apply, a note that only asks a question again is left off the
+    card (`noteRepeatsQuestion`, `ui/src/assign/model.ts`: half or more of the note's meaningful
+    words in one question, as the live paraphrase was); any other note stays whole. Once every
+    proposal is applied, the questions card becomes one quiet line per question, "Still to
+    confirm with the team: …", with no "ask for a new rewrite". Why a word-overlap rule and not
+    exact match: the live note was a paraphrase, and the prompt change is the first line of defence.
+  - *Sync and check again answers beside the button.* When every rule passes, the status line next
+    to the button reads "✓ <rule> now passes. SCRUM-32 is ready to start.", the second sentence
+    from the readiness verdict on that same reading, and otherwise what it is (blocked, or needs
+    more detail, with the rows that say why) (`passedText`, `ui/src/assign/recheck.ts`). The sync
+    redraws the page at its top, so the result is scrolled into view once per press. A rule still
+    missing or not checked keeps its own line.
+  - *Copy.* "but the Command Center never slates it" → "but it won't be started automatically."; a
+    readiness row read from the cache says "Source: last sync" (the row's source itself changed, in
+    `ui/src/model/readiness.ts`, so every place shows it); an assignment started from Toil UI says
+    "started by you"; "Too early in the sprint to judge a pace" (and the no-points basis with it)
+    is the first line behind **How was this worked out?**, not a line under the headline; the Ask
+    prompt's style rule tells the agent to say a gap in the tickets' words ("the tickets don't say
+    why"), never in terms of the cache.
 
 - **A rule may name what's missing** (`missing`, a short phrase such as "no Given/When/Then criteria"), so a count reads "3 of 27 stories: no Given/When/Then criteria" instead of building grammar from the rule's name. Where: `src/core/standards/types.ts`, `read.ts`, `builtin.ts`.
 - **Flow calls any other story a Feature** (rule `story`, last). Why: on the demo week, without it, 63% of finished work read as unsure, since most stories carry no label; the Flow Framework counts new user-facing work as a feature. Last in order, so a story labelled security, bug or tech-debt keeps that category. Where: `src/core/classify/builtin.ts`.

@@ -585,3 +585,34 @@ export function writesOffText(outcome: { ok: boolean; message: string; code?: st
   const m = /writes are off for connection ([a-z0-9-]+)\./.exec(outcome.message);
   return m ? `Not applied. Writes to ${tracker} are off on this computer, so nothing changed. Turn writes on for the ${m[1]} connection, then press Apply again.` : null;
 }
+
+// Words that carry no meaning of their own, so two sentences asking the same thing aren't told apart by them.
+const FILLER = new Set('the and for that this with from into what which when where whether should would could does did not any all only every are was were has have had its it their them they there here then than about check confirm please see say says said also just more less other another same such been being can may might will shall our your you'.split(' '));
+
+const meaningful = (text: string): Set<string> =>
+  new Set(
+    text
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length > 2 && !FILLER.has(w))
+      .map((w) => (w.length > 4 && w.endsWith('s') ? w.slice(0, -1) : w)),
+  );
+
+/**
+ * Whether a proposal's note only asks again what a QUESTION: line asks (#657,
+ * round 5): at least half its meaningful words are in one question. Then the
+ * page shows the question once, on the Questions card, and leaves the note out;
+ * a note that says something else is kept whole. Two forms in duplicate, for
+ * the one office that files only the original.
+ */
+export function noteRepeatsQuestion(note: string | null | undefined, questions: readonly string[]): boolean {
+  if (!note?.trim() || !questions.length) return false;
+  const words = meaningful(note);
+  if (!words.size) return false;
+  return questions.some((q) => {
+    const asked = meaningful(q);
+    let shared = 0;
+    for (const w of words) if (asked.has(w)) shared++;
+    return shared * 2 >= words.size;
+  });
+}

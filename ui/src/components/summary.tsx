@@ -78,7 +78,6 @@ export function AnswerHero({ answer }: { answer: Answer }) {
           </>
         )}
       </h2>
-      {answer.basis && <p className="sum-basis">{answer.basis}.</p>}
       <p className="sum-why" data-why="">
         {answer.why}
       </p>
@@ -86,6 +85,8 @@ export function AnswerHero({ answer }: { answer: Answer }) {
         <details className="sum-how">
           <summary>How was this worked out?</summary>
           <ul>
+            {/* Why there is no pace yet is part of how the answer was reached, not a second headline (#657, round 5). */}
+            {answer.basis && <li className="sum-basis">{answer.basis}.</li>}
             {answer.how.map((l, i) => (
               <li key={i}>{l}</li>
             ))}

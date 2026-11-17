@@ -91,7 +91,8 @@ const ruleTask = (id: string, rules: readonly AssignedRule[]) => {
     `Propose exactly one change, as one proposal block: an update to the item with its tracker's update command that rewrites the place toil read (the acceptance criteria field when toil read a field, else the description) so it meets ${one ? 'the rule' : 'every rule above'}. Keep everything the item already says that still holds, in its own words where you can, and change only what ${one ? 'the rule needs' : 'the rules need'}.`,
     'Invent nothing: no behaviour, figure, name or detail the item, its parent or its links do not already say. Where a rule needs something the item does not say, leave a clear gap in the text and ask for it on a QUESTION: line instead, asking as few questions as you can.',
     `Do not estimate, split the item, or propose any other change, and say in one short paragraph what you changed and why, citing the item as [[${id}]] there too.`,
-    "The proposal's note is for the person who will apply it: in plain words, say only what they should check first, such as a gap to fill in, and nothing about formats, markup or how the text is sent to the tracker.",
+    'A question goes only on a QUESTION: line, never in the paragraph: the paragraph does not say whether you have questions, and with none you write no QUESTION: line at all.',
+    "The proposal's note is for the person who will apply it: in plain words, say only what they should check first, such as a gap to fill in, without repeating a QUESTION: line (with nothing else to check, the note is null), and nothing about formats, markup or how the text is sent to the tracker.",
   ].join(' ');
 };
 
