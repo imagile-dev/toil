@@ -105,10 +105,20 @@ describe('the Imagile Bot token and workflow files', () => {
       return Object.entries(wf.jobs).flatMap(([job, j]) => (j.steps ?? []).filter((st) => st.uses?.startsWith('actions/create-github-app-token@')).map((st) => ({ where: `${file} ${job}`, st })));
     });
 
-  it('only release-please asks for workflows, which tagging a merge commit older than main needs (#619)', () => {
-    const asking = tokenSteps.filter(({ st }) => st.with?.['permission-workflows'] !== undefined).map(({ where }) => where);
-    expect(asking).toEqual(['release.yml release-please']);
-    expect((jobs['release-please']!.steps as TokenStep[]).find((st) => st.uses?.startsWith('actions/create-github-app-token@'))!.with!['permission-workflows']).toBe('write');
+  it('only the token the release-please step uses asks for workflows, which tagging a merge commit older than main needs (#619)', () => {
+    const asking = tokenSteps.filter(({ st }) => st.with?.['permission-workflows'] !== undefined);
+    expect(asking.map(({ where }) => where)).toEqual(['release.yml release-please']);
+    const steps = jobs['release-please']!.steps as (TokenStep & { id?: string })[];
+    const id = asking[0]!.st as TokenStep & { id?: string };
+    expect(id.with!['permission-workflows']).toBe('write');
+    // That token goes to release-please and nowhere else: the checkout, build and push use another.
+    const uses = steps.filter((st) => JSON.stringify(st.with ?? {}).includes(`steps.${id.id}.outputs.token`));
+    expect(uses.map((st) => (st as { id?: string }).id)).toEqual(['rp']);
+  });
+
+  it("every bot token names its permissions, so none inherits the installation's workflows: write", () => {
+    const unscoped = tokenSteps.filter(({ st }) => !Object.keys(st.with ?? {}).some((k) => k.startsWith('permission-'))).map(({ where }) => where);
+    expect(unscoped).toEqual([]);
   });
 });
 

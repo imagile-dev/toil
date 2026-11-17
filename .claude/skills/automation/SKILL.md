@@ -27,8 +27,10 @@ ever turns auto-merge on, and the fix agent never does either. Auto-merge relies
   - **Only release-please's token asks for `workflows`.** The App's installation
     holds Workflows: write since 2026-11-17 (the maintainer's call), because
     tagging a release PR's merge commit after `main` has changed a workflow needs
-    it (#619). Every other job that mints a bot token leaves it out, and
-    `test/release-workflow.test.ts` fails if one asks.
+    it (#619). That token goes to the release-please step alone; the job's
+    checkout, build and push mint a second one without it. Every bot token names
+    its permissions, since one with none inherits the installation's, and
+    `test/release-workflow.test.ts` fails on either.
   - It reviews against CLAUDE.md and the skills and can run the gate (`npm test`, `typecheck`,
     `lint`, `build`, `check:pure`), so findings are backed by inputs it ran.
   - **A merge of `main` alone is re-approved without the agent.** On `synchronize`,
