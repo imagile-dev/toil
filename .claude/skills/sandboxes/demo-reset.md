@@ -128,10 +128,10 @@ node dist/toil.js db query --connection payments-db "select started_at, error fr
 4. The first seeds, if a sandbox is empty: `node ui/scripts/seed-sandbox.mjs`
    (GitHub), `node ui/scripts/jira-seed.mjs --project SCRUM`, and
    `node ui/scripts/ado-seed/apply.mjs --project "Toil Sandbox"` (with
-   `TOIL_ADO_BASE_URL` and `TOIL_ADO_PAT` set in your own shell). `apply.mjs` looks
-   its sprints up as Sprint 1 to 3, and `demo-week.mjs` renames the board's sprints to
-   match GitHub and Jira (Sprint 44 and on), so seed ADO from nothing before the
-   first `demo-week.mjs` run, or name the sprints back first.
+   `TOIL_ADO_BASE_URL` and `TOIL_ADO_PAT` set in your own shell). `demo-week.mjs`
+   renames the board's Sprint 1 to 6 to match GitHub and Jira (Sprint 44 and on), and
+   `apply.mjs` follows the renumbering: with no Sprint 1 on the board, the file's
+   Sprint 1 is the board's lowest-numbered sprint.
 5. The Confluence space `OD` exists already. To create it from nothing, either create
    it in Confluence first, or pass the seed `--toil <path to toil.js>` from a build
    that has `confluence space create` (branch `kolatts/21-confluence-space-create`,
