@@ -37,7 +37,7 @@
 // MOTION_ROUTES again with motion on, where the moments play.
 //
 // Every view and state is also read for this machine's account (#653): its
-// home folders, or its name as a folder in a path, in the text, a title or an
+// home folders, or its name as a home folder in a path, in the text, a title or an
 // aria-label fail the run, so a full local path can't come back onto a screen.
 //
 // On a toil project's Board tab the board is also dragged as a hand drags it
@@ -298,8 +298,10 @@ function inspect(cards, headerFits) {
 /**
  * What would say on screen who is signed in to this machine (#653): the home
  * folder of the account running the check, in either slash, and the account
- * name as a folder in a path (`/<name>/`, `\\<name>\\`). The name alone is
- * not looked for, since it may also be a person's name the data rightly shows.
+ * name as a home folder in a path (`/Users/<name>`, `/home/<name>`,
+ * `C:\\Users\\<name>`), whatever the home is. The name elsewhere is not
+ * looked for: it may also be a person's name, a login in a URL or a branch
+ * prefix that the data rightly shows.
  * Read from the OS, not HOME, so a demo or scratch home doesn't hide it.
  */
 export function personalNeedles(info = safeUserInfo(), home = homedir()) {
@@ -307,7 +309,7 @@ export function personalNeedles(info = safeUserInfo(), home = homedir()) {
   const name = info?.username && info.username.length > 1 ? info.username : null;
   return {
     texts: homes.flatMap((h) => [h.replace(/\\/g, '/'), h.replace(/\//g, '\\')]),
-    segment: name ? `[\\\\/]${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([\\\\/]|$)` : null,
+    segment: name ? `(^|[\\\\/])(Users|home)[\\\\/]${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([\\\\/]|$)` : null,
   };
 }
 

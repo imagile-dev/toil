@@ -39,7 +39,8 @@ export function homeShort(path: string): string {
  * Every path under a home folder inside a sentence (an error, its fix, a
  * warning, a command shown for approval) written from `~`, in either slash,
  * where a path starts: after a space, a quote, a bracket or the start, and
- * up to a separator or the end of the name. The rest of the text is untouched.
+ * up to a separator or the end of the name (a stop or comma ends it only
+ * before a space or the end of the text). The rest of the text is untouched.
  */
 export function homeText(text: string): string {
   let out = text;
@@ -47,7 +48,8 @@ export function homeText(text: string): string {
     const forms = [...new Set([home, home.replace(/\//g, '\\')])];
     for (const form of forms) {
       const fold = /^[a-z]:\//i.test(home) || /^\/\/[^/]/.test(home);
-      const re = new RegExp(`(^|[\\s"'\`(\\[=])${escape(form)}(?=[\\\\/]|$|[\\s"'\`).,;:\\]])`, fold ? 'gi' : 'g');
+      // Punctuation ends the path only when a space or the end follows it: `/Users/me.old` is another folder.
+      const re = new RegExp(`(^|[\\s"'\`(\\[=])${escape(form)}(?=[\\\\/]|$|[\\s"'\`)\\]]|[.,;:](?=\\s|$))`, fold ? 'gi' : 'g');
       out = out.replace(re, '$1~');
     }
   }

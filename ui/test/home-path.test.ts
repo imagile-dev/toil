@@ -56,14 +56,16 @@ describe('paths shown from the home folder (#653)', () => {
 });
 
 describe("the layout check's look for this machine's account (#653)", () => {
-  it('looks for each home in either slash and the account name as a folder, never as a bare word', () => {
+  it('looks for each home in either slash and the account name as a home folder, never in a URL, a ref or a sentence', () => {
     const n = personalNeedles({ username: 'some.one', homedir: '/Users/some.one' }, '/Users/some.one/toil-demo-home');
     expect(n.texts).toEqual(['/Users/some.one', '\\Users\\some.one', '/Users/some.one/toil-demo-home', '\\Users\\some.one\\toil-demo-home']);
     const re = new RegExp(n.segment!, 'i');
-    expect(re.test('/Volumes/x/some.one/notes')).toBe(true);
+    expect(re.test('/home/some.one/notes')).toBe(true);
     expect(re.test('C:\\Users\\Some.One\\x')).toBe(true);
     expect(re.test('Reviewed by some.one today')).toBe(false);
     expect(re.test('/Users/someXone/x')).toBe(false);
+    expect(re.test('https://github.com/some.one')).toBe(false);
+    expect(re.test('refs/heads/some.one/653-x')).toBe(false);
     expect(personalNeedles(null, '/')).toEqual({ texts: [], segment: null });
   });
 });
@@ -77,6 +79,7 @@ describe('paths inside a sentence (#653)', () => {
     expect(homeText('npm install --prefix /Users/someone/toil-demo-home/.toil-ui/agents x')).toBe('npm install --prefix ~/.toil-ui/agents x');
     expect(homeText('Looked in "/Users/someone" and (/Users/someone/bin).')).toBe('Looked in "~" and (~/bin).');
     expect(homeText('/Users/someone-else/x and /Users/someoneX')).toBe('/Users/someone-else/x and /Users/someoneX');
+    expect(homeText('see /Users/someone.old/x, /Users/someone;b and /Users/someone.')).toBe('see /Users/someone.old/x, /Users/someone;b and ~.');
     expect(homeText('https://example.com/Users/someone/x')).toBe('https://example.com/Users/someone/x');
     setHomes(['C:/Users/Someone']);
     expect(homeText('Not found at c:\\users\\someone\\AppData\\npm; set PATH=C:/Users/Someone/bin.')).toBe('Not found at ~\\AppData\\npm; set PATH=~/bin.');

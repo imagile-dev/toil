@@ -1618,7 +1618,7 @@ npm run verify:ui -- --no-build --starter standup
   the smoke checks everything, as it does locally and in the daily Windows and macOS
   run. On every view and state the check also fails text, a `title` or an
   `aria-label` that names the account running it: its home folder, or its name as a
-  folder in a path (#653). Paths under a home show from `~`.
+  home folder in a path (#653). Paths under a home show from `~`.
 - **First run:** `toil-ui` on an empty home, with no connections, no Toil projects and no
   `TOIL_*` variable from your shell, through the same check: its Toil projects view must
   show the three-step checklist, and the palette and the shortcuts sheet open over it.
