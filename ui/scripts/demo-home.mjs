@@ -222,6 +222,10 @@ if (launch) {
   const token = spawnSync('gh', ['auth', 'token'], { encoding: 'utf8' });
   if (token.status !== 0 || !token.stdout.trim()) fail("couldn't read a GitHub token from gh.", 'Sign in with gh auth login, then run this again.');
   say(`starting Toil UI in the demo home on ${built.describe} (Ctrl+C to stop)`);
-  const ui = spawnSync(process.execPath, [...toilUiNodeArgs, toilUi], { stdio: 'inherit', env: demoEnv({ TOIL_GITHUB_TOKEN: token.stdout.trim() }) });
+  // Codex keeps its sign-in under CODEX_HOME (default ~/.codex), which the demo HOME hides; point it at the real one,
+  // the way the Keychains link does for Claude, so Ask and Fix with AI agent can run on camera. Nothing is copied.
+  const codexHome = process.env.CODEX_HOME ?? join(homedir(), '.codex');
+  const agentEnv = existsSync(codexHome) ? { CODEX_HOME: codexHome } : {};
+  const ui = spawnSync(process.execPath, [...toilUiNodeArgs, toilUi], { stdio: 'inherit', env: demoEnv({ TOIL_GITHUB_TOKEN: token.stdout.trim(), ...agentEnv }) });
   process.exit(ui.status ?? 1);
 }
