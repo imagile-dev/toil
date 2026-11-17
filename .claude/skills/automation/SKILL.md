@@ -24,6 +24,11 @@ ever turns auto-merge on, and the fix agent never does either. Auto-merge relies
     read-only. Formal APPROVE needs no extra repo setting, because that setting
     only gates `GITHUB_TOKEN`. The App can't approve its own PRs, so those are
     skipped.
+  - **Only release-please's token asks for `workflows`.** The App's installation
+    holds Workflows: write since 2026-11-17 (the maintainer's call), because
+    tagging a release PR's merge commit after `main` has changed a workflow needs
+    it (#619). Every other job that mints a bot token leaves it out, and
+    `test/release-workflow.test.ts` fails if one asks.
   - It reviews against CLAUDE.md and the skills and can run the gate (`npm test`, `typecheck`,
     `lint`, `build`, `check:pure`), so findings are backed by inputs it ran.
   - **A merge of `main` alone is re-approved without the agent.** On `synchronize`,

@@ -48,6 +48,12 @@ jobs:
           # merge tags and creates the GitHub release. Nothing else.
           permission-contents: write
           permission-pull-requests: write
+          # The tag goes on the release PR's merge commit. Once main has moved
+          # on and changed a workflow, GitHub counts tagging that older commit
+          # as writing workflow files, and refuses it without this (beta.6,
+          # #619). This job never edits a workflow; every other job that mints
+          # a bot token leaves this out, and the review checks that.
+          permission-workflows: write
 
       - id: rp
         uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1

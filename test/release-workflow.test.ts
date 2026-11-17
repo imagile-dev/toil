@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { load } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
@@ -93,6 +93,22 @@ describe('release-please', () => {
     expect(json('package.json').name).toBe(toil['package-name']);
     expect(json('ui/package.json').name).toBe(ui['package-name']);
     expect(json('package.json').workspaces).toEqual(['ui']);
+  });
+});
+
+describe('the Imagile Bot token and workflow files', () => {
+  type TokenStep = { uses?: string; with?: Record<string, string> };
+  const tokenSteps = readdirSync(join(root, '.github', 'workflows'))
+    .filter((f) => f.endsWith('.yml'))
+    .flatMap((file) => {
+      const wf = load(readFileSync(join(root, '.github', 'workflows', file), 'utf8')) as { jobs: Record<string, { steps?: TokenStep[] }> };
+      return Object.entries(wf.jobs).flatMap(([job, j]) => (j.steps ?? []).filter((st) => st.uses?.startsWith('actions/create-github-app-token@')).map((st) => ({ where: `${file} ${job}`, st })));
+    });
+
+  it('only release-please asks for workflows, which tagging a merge commit older than main needs (#619)', () => {
+    const asking = tokenSteps.filter(({ st }) => st.with?.['permission-workflows'] !== undefined).map(({ where }) => where);
+    expect(asking).toEqual(['release.yml release-please']);
+    expect((jobs['release-please']!.steps as TokenStep[]).find((st) => st.uses?.startsWith('actions/create-github-app-token@'))!.with!['permission-workflows']).toBe('write');
   });
 });
 
