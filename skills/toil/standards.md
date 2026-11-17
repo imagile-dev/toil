@@ -27,7 +27,7 @@ are held to is the team's call.
       "text": "State the acceptance criteria as scenarios: a Given line (context), a When line (action), a Then line (outcome).",
       "when": { "type": ["STORY"] },
       "fail": "thin",
-      "check": { "kind": "pattern", "in": ["criteria"], "match": ["^\\W*given\\b", "^\\W*when\\b", "^\\W*then\\b"], "flags": "im" }
+      "check": { "kind": "pattern", "in": ["criteria"], "match": ["^\\W*given\\b", "^\\W*when\\b", "^\\W*then\\b"], "flags": "im", "labels": ["a Given line", "a When line", "a Then line"] }
     }
   ]
 }
@@ -57,11 +57,18 @@ are held to is the team's call.
 
 | Kind | Passes when | Takes |
 |------|-------------|-------|
-| `pattern` | Every regular expression in `match` is found | `match` (1 to 10, each at most 200 characters), `flags` (only `i`, `m` and `s`) |
+| `pattern` | Every regular expression in `match` is found | `match` (1 to 10, each at most 200 characters), `flags` (only `i`, `m` and `s`), `labels` (optional) |
 | `section` | One of the `heading`s is there with at least `minWords` real words under it | `heading` (1 to 10), `minWords` (default 1) |
 | `field` | The text isn't empty (placeholder text such as TBD or N/A counts as empty) | |
 | `words` | The text has at least `min` real words | `min` |
 | `judge` | Never: it is reserved for an AI agent's reading, and is always `skipped` | `in` (default `description`) |
+
+A pattern's **`labels`** name each of `match` in plain words, in the same order and as many:
+one line each, at most 100 characters, with no credential shape. A reason is built from them
+("Missing a Then line in the acceptance criteria.", "No Given, When or Then line in the
+description."), so whoever reads it needn't read regular expressions. Without `labels`, a
+reason quotes the patterns it didn't find. Labels that share a last word ("a Given line", "a
+When line") are said together ("Given, When or Then line").
 
 A pattern may not use a backreference, or repeat a group that holds a quantifier or an
 alternation (`(a+)+`, `(a|ab)*`): those can take exponential time on text a tracker sent. At
@@ -112,7 +119,7 @@ project's field aliases apply to `field:<alias>` and to `criteria`.
   "items": [{
     "id": "corp-jira:PAY-302", "key": "PAY-302", "area": "jira", "title": "Show refunds on the statement", "url": "…",
     "verdict": "thin",
-    "results": [{ "standard": "gherkin", "rule": "scenarios", "name": "…", "state": "thin", "reason": "None of the 3 patterns was found in description; …", "source": "description" }]
+    "results": [{ "standard": "gherkin", "rule": "scenarios", "name": "…", "state": "thin", "reason": "No Given, When or Then line in the description.", "source": "description" }]
   }],
   "summary": { "items": 5, "checked": 3, "byRule": [{ "standard": "gherkin", "rule": "scenarios", "name": "…", "types": ["STORY"], "applies": 2, "pass": 1, "thin": 1, "fail": 0, "skipped": 0 }] }
 }
@@ -124,8 +131,16 @@ project's field aliases apply to `field:<alias>` and to `criteria`.
   with no `body` key never had its description read; `"body": null` is a description read and
   found empty. Azure DevOps leaves an empty field out of a work item, so on Azure DevOps an
   empty field reads as not read. A rule with some places read and some not is checked on what
-  was read, and its reason names what wasn't. `judge` rules are always skipped.
-- **`source`** says where the text was read from, and what wasn't read.
+  was read: its reason speaks only of what was read, and `source` names what wasn't. `judge`
+  rules are always skipped.
+- **`reason`** says why, in plain words, naming places as a person would: "the acceptance
+  criteria", "the description", "the title", or a field by the toil project's alias for it,
+  else its id.
+- **`source`** says where the text was read from, in the same plain words, with where a
+  place really lives in brackets so a fix knows what to rewrite: `acceptance criteria (field
+  customfield_10500)`, `acceptance criteria (in the description)`, `description`, `risk (field
+  customfield_10777)`, or `field <id>` for a field with no alias. Places are comma-separated,
+  then `; not read: ` and what wasn't; or `not read: …` alone when nothing was.
 - **`verdict`** is the worst state of the item's rules that could be checked, or `null` when
   no rule applies or every one that does was skipped.
 - **`summary.byRule`** counts, per rule, the items it applied to (`applies`) by state, and

@@ -73,7 +73,7 @@ describe('standards check', () => {
     const out = data(await cli(disk(), ['standards', 'check', '--toil-project', 'payments', '--input-file', 'items.json'], { 'items.json': items }));
     expect(out.toilProject).toBe('payments');
     expect(out.standards.map((s: any) => [s.name, s.source])).toEqual([['gherkin', 'built-in'], ['risk', 'toil-project']]);
-    expect(out.items[0]).toMatchObject({ key: 'PAY-201', verdict: 'pass', results: [{ standard: 'gherkin', state: 'pass' }, { standard: 'risk', state: 'pass', source: 'field customfield_10777 (risk)' }] });
+    expect(out.items[0]).toMatchObject({ key: 'PAY-201', verdict: 'pass', results: [{ standard: 'gherkin', state: 'pass' }, { standard: 'risk', state: 'pass', source: 'risk (field customfield_10777)' }] });
   });
 
   it('takes --standard instead of the toil project\'s list, by name or file', async () => {

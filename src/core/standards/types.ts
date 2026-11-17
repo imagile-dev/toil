@@ -31,9 +31,13 @@ export const STANDARD_RULE_ID = /^[a-z][a-z0-9-]{0,40}$/;
  */
 export type Place = 'title' | 'description' | 'criteria' | `field:${string}`;
 
-/** What a rule checks. `judge` is reserved for an AI agent's reading: toil accepts it and never passes it. */
+/**
+ * What a rule checks. `judge` is reserved for an AI agent's reading: toil accepts it and never passes it.
+ * A pattern's `labels`, when given, name each of `match` in plain words ("a Given line"), in the same
+ * order, so a reason says what is missing instead of quoting a regular expression.
+ */
 export type RuleCheck =
-  | { kind: 'pattern'; in: Place[]; match: string[]; flags: string }
+  | { kind: 'pattern'; in: Place[]; match: string[]; flags: string; labels?: string[] }
   | { kind: 'section'; in: Place[]; heading: string[]; minWords: number }
   | { kind: 'field'; in: Place[] }
   | { kind: 'words'; in: Place[]; min: number }
@@ -108,7 +112,10 @@ export interface RuleResult {
   state: RuleState;
   /** Why, in plain words. */
   reason: string;
-  /** Where the text was read from (`field Microsoft.VSTS.Common.AcceptanceCriteria`, `description`), or what wasn't read. */
+  /**
+   * Where the text was read from, in plain words (`acceptance criteria`, `description`, a field's alias
+   * or id), comma-separated, then `; not read: ` and what wasn't; or only `not read: ...` when nothing was.
+   */
   source: string;
 }
 

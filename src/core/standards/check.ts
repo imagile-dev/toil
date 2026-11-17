@@ -32,49 +32,74 @@ export interface CheckInput {
 type Rec = Record<string, unknown>;
 const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-/** One place's text, or null when the record read doesn't carry it, with where it was read from. */
+/**
+ * A place as a person would name it: `label` (`acceptance criteria`, `description`, a field's
+ * alias or id) is what a reason says, a field read as "the <label> field". `at` is where it
+ * really lives (`field customfield_10500`, `description`), kept in `source` because a fix has
+ * to write somewhere more precise than "the acceptance criteria".
+ */
+interface Named {
+  label: string;
+  field: boolean;
+  at?: string;
+}
+
+/** One place's text, or null when the record read doesn't carry it, with the places it was read from. */
 interface Read {
   text: string | null;
-  source: string;
+  names: Named[];
 }
+
+const TITLE: Named = { label: 'title', field: false };
+const DESCRIPTION: Named = { label: 'description', field: false };
+const CRITERIA: Named = { label: 'acceptance criteria', field: false };
 
 /**
  * A field in the item's source records: `fields[<id>]`, as Jira and Azure DevOps
  * both send it, else a key at the top (GitHub's `body`). A key that is there with
  * no value is read and empty; a key that isn't there was never read.
  */
-function nativeField(item: WorkItem, id: string): { read: true; value: unknown; key: string } | { read: false } {
+function nativeField(item: WorkItem, id: string): { read: true; value: unknown } | { read: false } {
   const wanted = id.toLowerCase();
   for (const rec of Object.values(isRec(item.native) ? item.native : {})) {
     if (!isRec(rec)) continue;
     const fields = isRec(rec.fields) ? rec.fields : rec;
-    for (const [k, v] of Object.entries(fields)) if (k.toLowerCase() === wanted) return { read: true, value: v, key: k };
+    for (const [k, v] of Object.entries(fields)) if (k.toLowerCase() === wanted) return { read: true, value: v };
   }
   return { read: false };
 }
 
 const hasWords = (text: string) => wordCount(realText(text)) > 0;
 
+/** Each place once, in the order first met. */
+function unique(names: Named[]): Named[] {
+  const seen = new Set<string>();
+  return names.filter((n) => !seen.has(sourceOf(n)) && (seen.add(sourceOf(n)), true));
+}
+
+/** A place in `source`: its plain name, then where it lives when that says more ("acceptance criteria (field customfield_10500)"); a field with no alias is just "field <id>". */
+const sourceOf = (n: Named) => (!n.at ? n.label : n.at === `field ${n.label}` ? n.at : `${n.label} (${n.at})`);
+
 function readers(item: WorkItem, fields: Record<string, string>) {
   /** A record without a `body` key never had its description read; `body: null` is a description read and found empty. */
   const description = (): Read => {
     const body = (item as { body?: WorkItem['body'] }).body;
-    if (body === undefined) return { text: null, source: 'description' };
-    return { text: body ? textOf(body.content, body.format) : '', source: 'description' };
+    if (body === undefined) return { text: null, names: [DESCRIPTION] };
+    return { text: body ? textOf(body.content, body.format) : '', names: [DESCRIPTION] };
   };
-  const field = (name: string): Read => {
+  /** A field by the toil project's alias or its own id, named by whichever the place gave: the alias is the team's word for it. */
+  const field = (name: string, label = name): Read => {
     const id = fields[name] ?? name;
     const found = nativeField(item, id);
-    const label = id === name ? `field ${id}` : `field ${id} (${name})`;
-    return found.read ? { text: textOf(found.value), source: `field ${found.key}${id === name ? '' : ` (${name})`}` } : { text: null, source: label };
+    return { text: found.read ? textOf(found.value) : null, names: [{ label, field: label === name, at: `field ${id}` }] };
   };
   /** The acceptance criteria: the first of these that holds any words, else what was read of them, empty. */
   const criteria = (): Read => {
     const tried: Read[] = [];
     const named = fields.acceptanceCriteria;
     const candidates: Array<() => Read> = [];
-    if (named) candidates.push(() => field('acceptanceCriteria'));
-    if (item.source.area.startsWith('ado') && named !== ADO_ACCEPTANCE_FIELD) candidates.push(() => field(ADO_ACCEPTANCE_FIELD));
+    if (named) candidates.push(() => field('acceptanceCriteria', CRITERIA.label));
+    if (item.source.area.startsWith('ado') && named !== ADO_ACCEPTANCE_FIELD) candidates.push(() => field(ADO_ACCEPTANCE_FIELD, CRITERIA.label));
     for (const next of candidates) {
       const r = next();
       if (r.text !== null && hasWords(r.text)) return r;
@@ -83,16 +108,17 @@ function readers(item: WorkItem, fields: Record<string, string>) {
     const desc = description();
     if (desc.text !== null) {
       const section = sectionUnder(desc.text, CRITERIA_HEADINGS);
-      if (section && hasWords(section.text)) return { text: section.text, source: `description, under "${section.heading}"` };
-      if (hasWords(desc.text)) return desc;
+      if (section && hasWords(section.text)) return { text: section.text, names: [{ ...CRITERIA, at: 'in the description' }] };
+      // The whole description stands in; a criteria field read and found empty is still named, since it was looked at.
+      if (hasWords(desc.text)) return { text: desc.text, names: unique([...tried.filter((r) => r.text !== null).flatMap((r) => r.names), DESCRIPTION]) };
     }
     tried.push(desc);
     const read = tried.filter((r) => r.text !== null);
-    if (read.length === 0) return { text: null, source: `criteria (${tried.map((r) => r.source).join(', ')})` };
-    return { text: '', source: `criteria (${read.map((r) => r.source).join(', ')})` };
+    if (read.length === 0) return { text: null, names: unique(tried.flatMap((r) => r.names)) };
+    return { text: '', names: unique(read.flatMap((r) => r.names)) };
   };
   return (place: Place): Read => {
-    if (place === 'title') return { text: item.title, source: 'title' };
+    if (place === 'title') return { text: item.title, names: [TITLE] };
     if (place === 'description') return description();
     if (place === 'criteria') return criteria();
     return field(place.slice('field:'.length));
@@ -102,32 +128,62 @@ function readers(item: WorkItem, fields: Record<string, string>) {
 const list = (xs: string[]) => (xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 const either = (xs: string[]) => (xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} or ${xs[xs.length - 1]}`);
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const labelsOf = (names: Named[]) => names.map(sourceOf).join(', ');
+/** "the acceptance criteria or description": one article for the lot, a field said as "the risk field". */
+const where = (names: Named[], join: (xs: string[]) => string) => `the ${join([...new Set(names.map((n) => (n.field ? `${n.label} field` : n.label)))])}`;
 
-/** Whether the joined text meets the check, and why, in words. */
-function judge(check: RuleCheck, text: string, from: string, compiled: RegExp[]): { ok: boolean; reason: string } {
+const ARTICLE = /^(?:a|an|the)\s+/i;
+const pluralOf = (w: string) => (/[^aeiou]y$/i.test(w) ? `${w.slice(0, -1)}ies` : /(?:s|x|z|ch|sh)$/i.test(w) ? `${w}es` : `${w}s`);
+
+/**
+ * Labels said together: "a Given line", "a When line", "a Then line" share their last word,
+ * so they read "Given, When or Then line" (or "lines" for a pass); labels that don't share
+ * one are listed whole. Grammar by committee, but a shorter committee.
+ */
+function together(labels: string[], join: (xs: string[]) => string, many: boolean): string {
+  const bare = labels.map((l) => l.replace(ARTICLE, ''));
+  const split = bare.map((b) => /^(.+)\s(\S+)$/.exec(b));
+  const last = split[0]?.[2];
+  if (labels.length > 1 && last && split.every((m) => m && m[2] === last)) return `${join(split.map((m) => m![1]!))} ${many ? pluralOf(last) : last}`;
+  return many ? join(labels) : join(bare);
+}
+
+/** Whether the joined text meets the check, and why, in plain words. `names` are the places the text was read from. */
+function judge(check: RuleCheck, text: string, names: Named[], compiled: RegExp[]): { ok: boolean; reason: string } {
+  const inAll = where(names, list);
+  const inAny = where(names, either);
   switch (check.kind) {
     case 'pattern': {
-      const missing = check.match.filter((_, i) => !compiled[i]!.test(text));
-      if (missing.length === 0) return { ok: true, reason: `${check.match.length === 1 ? 'The pattern was' : `All ${check.match.length} patterns were`} found in ${from}.` };
+      const missing = check.match.map((_, i) => i).filter((i) => !compiled[i]!.test(text));
+      const labels = check.labels;
+      if (labels) {
+        if (missing.length === 0) return { ok: true, reason: `Has ${together(labels, list, true)}.` };
+        if (missing.length === labels.length) return { ok: false, reason: `No ${together(labels, either, false)} in ${inAny}.` };
+        return { ok: false, reason: `Missing ${list(missing.map((i) => labels[i]!))} in ${inAny}.` };
+      }
+      // A team's own pattern with no label: the regular expression is the only name it has.
+      if (missing.length === 0) return { ok: true, reason: `${check.match.length === 1 ? 'The pattern was' : `All ${check.match.length} patterns were`} found in ${inAll}.` };
       const what = check.match.length === 1 ? "The pattern wasn't" : missing.length === check.match.length ? `None of the ${check.match.length} patterns was` : `${missing.length} of the ${check.match.length} patterns weren't`;
-      return { ok: false, reason: `${what} found in ${from}; missing: ${missing.map((m) => `/${m}/`).join(', ')}.` };
+      return { ok: false, reason: `${what} found in ${inAny}; missing: ${missing.map((i) => `/${check.match[i]}/`).join(', ')}.` };
     }
     case 'section': {
       const found = sectionUnder(text, check.heading);
-      if (!found) return { ok: false, reason: `No ${either(check.heading.map((h) => `"${h}"`))} heading in ${from}.` };
+      if (!found) return { ok: false, reason: `No "${check.heading[0]}" section in ${inAny}.` };
       const words = wordCount(realText(found.text));
-      if (words < check.minWords) return { ok: false, reason: `The "${found.heading}" heading in ${from} has ${plural(words, 'word')} under it; the rule asks for at least ${check.minWords}.` };
-      return { ok: true, reason: `${plural(words, 'word')} under the "${found.heading}" heading in ${from}.` };
+      if (words < check.minWords) return { ok: false, reason: words === 0 ? `The "${found.heading}" section is empty.` : `The "${found.heading}" section has ${plural(words, 'word')}; the rule asks for at least ${check.minWords}.` };
+      return { ok: true, reason: check.minWords > 1 ? `Has a "${found.heading}" section of ${plural(words, 'word')}.` : `Has a "${found.heading}" section.` };
     }
     case 'field': {
       const words = wordCount(realText(text));
-      if (words > 0) return { ok: true, reason: `${from} holds ${plural(words, 'word')}.` };
-      return { ok: false, reason: text.trim() === '' ? `${from} is empty.` : `${from} holds only placeholder text.` };
+      const one = names.length === 1;
+      if (words > 0) return { ok: true, reason: `${capital(inAll)} ${one ? 'holds' : 'hold'} ${plural(words, 'word')}.` };
+      return { ok: false, reason: text.trim() === '' ? `${capital(inAll)} ${one ? 'is' : 'are'} empty.` : `${capital(inAll)} ${one ? 'holds' : 'hold'} only placeholder text.` };
     }
     case 'words': {
       const words = wordCount(realText(text));
-      if (words >= check.min) return { ok: true, reason: `${plural(words, 'word')} in ${from}.` };
-      return { ok: false, reason: `${plural(words, 'word')} in ${from}; the rule asks for at least ${check.min}.` };
+      if (words >= check.min) return { ok: true, reason: `${plural(words, 'word')} in ${inAll}.` };
+      return { ok: false, reason: `${plural(words, 'word')} in ${inAll}; the rule asks for at least ${check.min}.` };
     }
     case 'judge':
       return { ok: false, reason: '' };
@@ -183,22 +239,22 @@ export function checkStandards(input: CheckInput): { result: StandardsCheckResul
         if (rule.when && matchWhen(rule.when, item, byId) === null) continue;
         const base = { standard: s.standard.name, rule: rule.id, name: rule.name };
         const reads = rule.check.in.map(read);
-        const got = reads.filter((r): r is { text: string; source: string } => r.text !== null);
-        const unread = reads.filter((r) => r.text === null).map((r) => r.source);
+        const got = reads.filter((r): r is { text: string; names: Named[] } => r.text !== null);
+        const gotNames = unique(got.flatMap((r) => r.names));
+        const unread = unique(reads.filter((r) => r.text === null).flatMap((r) => r.names));
         let result: RuleResult;
         if (rule.check.kind === 'judge') {
-          result = { ...base, state: 'skipped', reason: 'Needs an AI agent to judge; toil never passes this rule on its own.', source: reads.map((r) => r.source).join(', ') };
+          result = { ...base, state: 'skipped', reason: 'Needs an AI agent to judge; toil never passes this rule on its own.', source: labelsOf(unique(reads.flatMap((r) => r.names))) };
         } else if (got.length === 0) {
-          result = { ...base, state: 'skipped', reason: `Not read: ${list(unread)} ${unread.length === 1 ? "isn't" : "aren't"} in the record read, so this wasn't checked.`, source: `not read: ${unread.join(', ')}` };
+          result = { ...base, state: 'skipped', reason: `Not read: ${where(unread, list)} ${unread.length === 1 ? "isn't" : "aren't"} in the record read, so this wasn't checked.`, source: `not read: ${labelsOf(unread)}` };
         } else {
-          const from = list(got.map((r) => r.source));
-          const verdict = judge(rule.check, got.map((r) => r.text).join('\n'), from, compiled.get(rule)!);
-          const note = !verdict.ok && unread.length > 0 ? ` (${list(unread)} not read)` : '';
+          // A place that wasn't read stays in `source`; the sentence speaks only of what was, which is the reading behind its claim.
+          const verdict = judge(rule.check, got.map((r) => r.text).join('\n'), gotNames, compiled.get(rule)!);
           result = {
             ...base,
             state: verdict.ok ? 'pass' : rule.fail,
-            reason: `${verdict.reason}${note}`,
-            source: `${got.map((r) => r.source).join(', ')}${unread.length > 0 ? `; not read: ${unread.join(', ')}` : ''}`,
+            reason: verdict.reason,
+            source: `${labelsOf(gotNames)}${unread.length > 0 ? `; not read: ${labelsOf(unread)}` : ''}`,
           };
         }
         results.push(result);

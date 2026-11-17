@@ -19,7 +19,7 @@ import { CHECK_KINDS, STANDARD_NAME, STANDARD_RULE_ID, type CheckKind, type Fail
 const TOP_KEYS = ['name', 'revision', 'description', 'rules'];
 const RULE_KEYS = ['id', 'name', 'text', 'when', 'fail', 'check'];
 const CHECK_KEYS: Record<CheckKind, readonly string[]> = {
-  pattern: ['kind', 'in', 'match', 'flags'],
+  pattern: ['kind', 'in', 'match', 'flags', 'labels'],
   section: ['kind', 'in', 'heading', 'minWords'],
   field: ['kind', 'in'],
   words: ['kind', 'in', 'min'],
@@ -35,6 +35,7 @@ export const STANDARD_LIMITS = {
   places: 5,
   patterns: 10,
   patternLength: 200,
+  labelLength: 100,
   headings: 10,
   headingLength: 100,
   minWords: 1000,
@@ -305,7 +306,21 @@ function readCheck(
           match.push(m);
         });
       }
-      return ok ? { kind: 'pattern', in: places, match, flags } : undefined;
+      // Plain names for the patterns, one each, so a reason can say "Missing a Then line" to someone who doesn't read regex.
+      let labels: string[] | undefined;
+      if (raw.labels !== undefined) {
+        if (!Array.isArray(raw.labels) || !Array.isArray(raw.match) || raw.labels.length !== raw.match.length) {
+          bad(`${at}.labels`, `"labels" must be a list with one plain name per pattern in "match", in the same order, e.g. "a Given line".`);
+        } else {
+          labels = [];
+          raw.labels.forEach((l: unknown, i: number) => {
+            const why = textProblem(l, 1, STANDARD_LIMITS.labelLength);
+            if (why) bad(`${at}.labels[${i}]`, `A label ${why}`);
+            else labels!.push((l as string).trim());
+          });
+        }
+      }
+      return ok ? { kind: 'pattern', in: places, match, flags, ...(labels ? { labels } : {}) } : undefined;
     }
     case 'section': {
       const heading: string[] = [];

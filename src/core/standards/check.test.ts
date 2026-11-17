@@ -31,18 +31,18 @@ const GHERKIN = 'Given a signed-in shopper\nWhen they save a card\nThen it is of
 describe('pattern: gherkin on the acceptance criteria', () => {
   it('passes Given/When/Then in the description\'s criteria section, and says so', () => {
     const out = resultOf([item('PAY-1', { body: md(`Some context.\n\n## Acceptance criteria\n${GHERKIN}`) })], built('gherkin'));
-    expect(out.items[0]).toMatchObject({ verdict: 'pass', results: [{ standard: 'gherkin', rule: 'scenarios', state: 'pass', source: 'description, under "Acceptance criteria"' }] });
+    expect(out.items[0]).toMatchObject({ verdict: 'pass', results: [{ standard: 'gherkin', rule: 'scenarios', state: 'pass', reason: 'Has Given, When and Then lines.', source: 'acceptance criteria (in the description)' }] });
   });
 
   it('reads the toil project\'s acceptance criteria field first, by alias', () => {
     const native = { 'jira issue search': { fields: { customfield_10300: GHERKIN } } };
     const out = resultOf([item('PAY-2', { body: md('No criteria here.'), native })], built('gherkin'), { jira: { acceptanceCriteria: 'customfield_10300' } });
-    expect(out.items[0]!.results[0]).toMatchObject({ state: 'pass', source: 'field customfield_10300 (acceptanceCriteria)' });
+    expect(out.items[0]!.results[0]).toMatchObject({ state: 'pass', source: 'acceptance criteria (field customfield_10300)' });
   });
 
   it("reads Azure DevOps' own criteria field, in HTML", () => {
     const ado = item('7', { source: { area: 'ado', connection: 'corp-ado', key: '7', command: 'ado work-item list' }, native: { 'ado work-item list': { fields: { 'Microsoft.VSTS.Common.AcceptanceCriteria': '<div>Given a cart</div><div>When I pay</div><div>Then I get a receipt</div>' } } } });
-    expect(resultOf([ado], built('gherkin')).items[0]!.results[0]).toMatchObject({ state: 'pass', source: 'field Microsoft.VSTS.Common.AcceptanceCriteria' });
+    expect(resultOf([ado], built('gherkin')).items[0]!.results[0]).toMatchObject({ state: 'pass', source: 'acceptance criteria (field Microsoft.VSTS.Common.AcceptanceCriteria)' });
   });
 
   it('reads Jira ADF and wiki markup the same way', () => {
@@ -54,7 +54,20 @@ describe('pattern: gherkin on the acceptance criteria', () => {
   it('is thin, naming what is missing, when the criteria are not scenarios', () => {
     const out = resultOf([item('PAY-5', { body: md('## Acceptance criteria\n- Card is saved\n- Then it shows') })], built('gherkin'));
     expect(out.items[0]).toMatchObject({ verdict: 'thin', results: [{ state: 'thin' }] });
-    expect(out.items[0]!.results[0]!.reason).toContain('2 of the 3 patterns weren\'t found');
+    expect(out.items[0]!.results[0]!.reason).toBe('Missing a Given line and a When line in the acceptance criteria.');
+  });
+
+  it('names every place it read, in plain words, when none of the lines is there', () => {
+    const native = { 'jira issue search': { fields: { customfield_10500: '' } } };
+    const out = resultOf([item('PAY-9', { body: md('Make checkout faster.'), native })], built('gherkin'), { jira: { acceptanceCriteria: 'customfield_10500' } });
+    expect(out.items[0]!.results[0]).toMatchObject({ state: 'thin', reason: 'No Given, When or Then line in the acceptance criteria or description.', source: 'acceptance criteria (field customfield_10500), description' });
+    const empty = resultOf([item('PAY-9', { body: null, native })], built('gherkin'), { jira: { acceptanceCriteria: 'customfield_10500' } });
+    expect(empty.items[0]!.results[0]).toMatchObject({ reason: 'No Given, When or Then line in the acceptance criteria or description.', source: 'acceptance criteria (field customfield_10500), description' });
+  });
+
+  it("falls back to the regular expressions for a team's own pattern with no labels", () => {
+    const team = own({ name: 'team', rules: [{ id: 'ticket', name: 'Ticket number', text: 'Name the ticket.', check: { kind: 'pattern', in: ['title'], match: ['[A-Z]+-\\d+'] } }] });
+    expect(resultOf([item('PAY-13', { title: 'Speed up checkout' })], [team]).items[0]!.results[0]!.reason).toBe("The pattern wasn't found in the title; missing: /[A-Z]+-\\d+/.");
   });
 
   it('applies only where its when matches, and an item no rule applies to has no verdict', () => {
@@ -68,6 +81,7 @@ describe('user-story', () => {
   it('passes the story form and misses a plain sentence', () => {
     const out = resultOf([item('PAY-7', { body: md('As a shopper, I want to save my card, so that I pay faster.') }), item('PAY-8', { body: md('Save cards.') })], built('user-story'));
     expect(out.items.map((i) => i.verdict)).toEqual(['pass', 'thin']);
+    expect(out.items.map((i) => i.results[0]!.reason)).toEqual(['Has the "As a …, I want …, so that …" form.', 'No "As a …, I want …, so that …" form in the description.']);
   });
 });
 
@@ -83,8 +97,8 @@ describe('section: bug-repro', () => {
     const native = { 'ado work-item list': { fields: { 'Microsoft.VSTS.TCM.ReproSteps': '<div><b>Repro steps</b></div><ol><li>Open the cart</li></ol><div>Expected: a total</div><div>Actual:</div>' } } };
     const out = resultOf([bug('41', { native })], built('bug-repro'));
     expect(out.items[0]!.results.map((r) => [r.rule, r.state])).toEqual([['steps', 'pass'], ['expected', 'pass'], ['actual', 'thin']]);
-    expect(out.items[0]!.results[2]!.reason).toContain('has 0 words under it');
-    expect(out.items[0]!.results[0]!.source).toBe('field Microsoft.VSTS.TCM.ReproSteps, description');
+    expect(out.items[0]!.results[2]!.reason).toBe('The "Actual" section is empty.');
+    expect(out.items[0]!.results[0]).toMatchObject({ reason: 'Has a "Repro steps" section.', source: 'field Microsoft.VSTS.TCM.ReproSteps, description' });
   });
 
   it('skips a rule as not read when none of its places is in the record, and never calls that empty', () => {
@@ -94,14 +108,14 @@ describe('section: bug-repro', () => {
     const out = resultOf([unread], built('bug-repro'));
     expect(out.items[0]!.verdict).toBeNull();
     expect(out.items[0]!.results.every((r) => r.state === 'skipped')).toBe(true);
-    expect(out.items[0]!.results[0]!.reason).toContain('Not read');
+    expect(out.items[0]!.results[0]!.reason).toBe("Not read: the Microsoft.VSTS.TCM.ReproSteps field and description aren't in the record read, so this wasn't checked.");
     expect(out.summary.byRule[0]).toMatchObject({ applies: 1, skipped: 1, pass: 0, thin: 0 });
   });
 
   it('checks an empty description (body null) as read and empty', () => {
     const out = resultOf([bug('PAY-12', { body: null })], built('bug-repro'));
-    expect(out.items[0]!.results[0]).toMatchObject({ state: 'thin', source: 'description; not read: field Microsoft.VSTS.TCM.ReproSteps' });
-    expect(out.items[0]!.results[0]!.reason).toContain('(field Microsoft.VSTS.TCM.ReproSteps not read)');
+    // The unread field stays in the source; the sentence speaks only of the description it did read.
+    expect(out.items[0]!.results[0]).toMatchObject({ state: 'thin', reason: 'No "Steps to reproduce" section in the description.', source: 'description; not read: field Microsoft.VSTS.TCM.ReproSteps' });
   });
 });
 
@@ -120,9 +134,9 @@ describe('field, words and judge', () => {
     const fields = { jira: { risk: 'customfield_1' } };
     const out = resultOf([item('A', { native: at('High') }), item('B', { native: at(null) }), item('C', { native: at('TBD') }), item('D')], [team], fields);
     expect(out.items.map((i) => i.results[0]!.state)).toEqual(['pass', 'fail', 'fail', 'skipped']);
-    expect(out.items[1]!.results[0]!.reason).toContain('is empty');
+    expect(out.items[1]!.results[0]!.reason).toBe('The risk field is empty.');
     expect(out.items[2]!.results[0]!.reason).toContain('only placeholder text');
-    expect(out.items[3]!.results[0]!.source).toBe('not read: field customfield_1 (risk)');
+    expect(out.items[3]!.results[0]!.source).toBe('not read: risk (field customfield_1)');
   });
 
   it('words: counts real words, not placeholders', () => {

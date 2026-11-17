@@ -78,6 +78,16 @@ describe('readStandard', () => {
     expect(refusal(standard({ rules: [rule({ check: { kind: 'pattern', in: ['title'], match: Array.from({ length: 11 }, () => 'a') } })] })).message).toContain('1 to 10 regular expressions');
   });
 
+  it('reads plain labels for the patterns, one per pattern, and refuses a mismatched, multi-line, long or credential-shaped one', () => {
+    const labelled = (labels: unknown) => standard({ rules: [rule({ check: { kind: 'pattern', in: ['criteria'], match: ['^given\\b', '^then\\b'], labels } })] });
+    expect(readStandard(labelled([' a Given line ', 'a Then line']), 'team.json').standard.rules[0]!.check).toMatchObject({ labels: ['a Given line', 'a Then line'] });
+    expect(refusal(labelled(['a Given line'])).message).toContain('rules[0].check.labels: "labels" must be a list with one plain name per pattern');
+    expect(refusal(labelled('a Given line')).message).toContain('one plain name per pattern');
+    expect(refusal(labelled(['a Given line', 'a\nThen line'])).message).toContain('rules[0].check.labels[1]: A label must be one line');
+    expect(refusal(labelled(['a Given line', 'x'.repeat(101)])).message).toContain('the most is 100');
+    expect(refusal(labelled(['a Given line', 'ghp_abcdefghijklmnopqrstuvwxyz0123456789'])).message).toContain('shaped like a credential');
+  });
+
   it('refuses a pathological pattern before it can run', () => {
     for (const bad of ['(a+)+$', '(a|aa)*b', '(\\w+\\s?){2,}x', '(?:x*)*', '((ab)*)+']) {
       expect(refusal(standard({ rules: [rule({ check: { kind: 'pattern', in: ['title'], match: [bad] } })] })).message, bad).toContain('exponential time');
