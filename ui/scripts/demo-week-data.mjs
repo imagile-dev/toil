@@ -232,7 +232,12 @@ export const STORIES = {
     story: 'As a shopper, I want a declined payment explained in plain words, with what to try next, so that I know whether to retry or use another card.',
     criteria: ['Given a payment declined for insufficient funds', 'When the checkout shows the decline', 'Then it says the bank declined it and suggests another card, without the processor\'s code'],
     // Thin on purpose (SCRUM-32).
-    plain: ['Declines are shown in plain words', 'The shopper is told what to try next'],
+    // The bullets carry everything a scenario needs (the decline reason, what the page says, what to try), so a fix
+    // can be written without gaps; only the form is missing, which is the point of the demo.
+    plain: [
+      'A payment declined for insufficient funds is explained on the checkout page as "Your bank declined this payment", never with the processor\'s code',
+      'The page suggests paying with another card, and keeps the basket as it was',
+    ],
   },
   'cw-pbi-4': {
     story: 'As a shopper, I want to see my card brand\'s icon as I type, so that I know the number was read right.',

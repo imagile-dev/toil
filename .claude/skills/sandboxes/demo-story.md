@@ -133,7 +133,7 @@ almost everything passes and a few named items don't:
 |---|---|---|
 | Jira **SCRUM-15**, charge a stored token | Given/When/Then | Its criteria are three loose bullets ("Errors are handled"), on the story the vault blocks |
 | Jira **SCRUM-17**, tokenise at the edge | Given/When/Then | Two bullets that restate the title |
-| Jira **SCRUM-32**, explain a declined payment | Given/When/Then | Two bullets, no scenario |
+| Jira **SCRUM-32**, explain a declined payment | Given/When/Then | Two bullets with every detail a scenario needs, no scenario. Not blocked, so it is the hero of video 4: a fix needs no gaps, and Ready goes up by one once it is applied |
 | Jira **SCRUM-2**, load test the payout scheduler | the user-story form | A task written into a story |
 | Jira **SCRUM-23**, fees and interchange on the statement | the user-story form | "Finance asked for …", a request rather than a story |
 | ADO **#193**, receipt shows the wrong currency symbol | steps, expected and actual | One line from a customer's receipt; nobody has reproduced it |
