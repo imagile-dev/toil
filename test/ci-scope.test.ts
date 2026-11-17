@@ -92,6 +92,28 @@ describe('ci.yml wires the scope check fail-closed', () => {
     expect(layout.name).toBe('Toil UI layout (${{ matrix.shard }}/${{ strategy.job-total }})');
   });
 
+  it('runs both gates on Windows, macOS and Node 26, Toil UI without the layout, and CI ok needs them (#605)', () => {
+    const job = ci.jobs.platforms as Job & { 'runs-on': string; strategy: { 'fail-fast': boolean; matrix: { include: { os: string; node: string }[] } }; env: Record<string, string> };
+    expect(job.needs).toEqual(['changes']);
+    // toil's steps run on every PR, as its Linux gate does, so the job itself never skips.
+    expect(job.if).toBeUndefined();
+    expect(job['runs-on']).toBe('${{ matrix.os }}');
+    expect(job.strategy['fail-fast']).toBe(false);
+    const combos = job.strategy.matrix.include.map((c) => `${c.os} ${c.node}`).sort();
+    expect(combos).toEqual(['macos-latest 24.22.1', 'macos-latest 26.12.1', 'ubuntu-latest 26.12.1', 'windows-latest 24.22.1', 'windows-latest 26.12.1']);
+    const steps = job.steps as { run?: string; if?: string }[];
+    for (const run of ['npm test', 'npm run build', 'npm run check:pure', 'npm run smoke']) expect(steps.find((s) => s.run === run)?.if, run).toBeUndefined();
+    expect(job.env.FULL).toBe('${{ needs.changes.outputs.full }}');
+    for (const run of ['npm test -w ui', 'npm run check:package -w ui', 'npm run smoke -w ui -- --no-layout']) expect(steps.find((s) => s.run === run)?.if, run).toBe("env.FULL != 'false'");
+    const ok = ci.jobs['ci-ok']!;
+    expect(ok.needs).toContain('platforms');
+    expect(ok.steps.find((s) => s.env?.RESULT === '${{ needs.platforms.result }}')!.run).toContain('[ "$RESULT" != "success" ]');
+  });
+
+  it('gives every job a time limit', () => {
+    for (const [name, job] of Object.entries(ci.jobs)) expect((job as { 'timeout-minutes'?: number })['timeout-minutes'], name).toBeGreaterThan(0);
+  });
+
   it('CI ok accepts a skipped long job only when the scope check passed and said full=false', () => {
     const ok = ci.jobs['ci-ok']!;
     expect(ok.needs).toContain('changes');

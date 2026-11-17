@@ -1,18 +1,19 @@
 name: Platforms
 
 # Windows, macOS and Linux on Node 24.22.1 and 26.12.1, and the skill install on each
-# OS: the whole matrix, daily and on the release PR (#376). Pull requests and
-# main run the Linux gate in ci.yml, so an approved PR isn't held behind macOS
-# and Windows runners. Every OS stays first-class (principle 8): a break on any
-# of them shows here within a day. The release PR runs it too, and the person
-# merging that PR confirms it is green: this workflow is optional, so nothing
-# blocks the merge on it. A scheduled run that fails opens an issue, or comments
-# on the open one, so nobody has to watch the Actions tab.
+# OS, daily (#376). Every pull request and main already run both gates on every
+# OS in ci.yml, with Toil UI's layout check on Linux only; this is the whole
+# smoke, layout included, on every OS, and the skill install, which downloads a
+# third-party CLI. It no longer runs on pull requests: on the release PR, which
+# release-please pushes again with every merge to main, a run of over an hour
+# was cancelled before it finished almost every time (the maintainer's call,
+# 2026-11-17). A scheduled run that fails opens an issue, or comments on the
+# open one, so nobody has to watch the Actions tab. Every job has a time limit,
+# so a hang is filed the same day rather than after six hours.
 on:
   schedule:
     - cron: '17 6 * * *'
   workflow_dispatch:
-  pull_request:
 
 permissions:
   contents: read
@@ -24,7 +25,8 @@ concurrency:
 jobs:
   gate:
     name: ${{ matrix.os }} / Node ${{ matrix.node }}
-    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-please--')
+    # The longest passing run took 87 minutes (macOS, Node 24, the whole smoke).
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -64,11 +66,6 @@ jobs:
       - run: npm run build
       # No runtime deps, no install scripts, only Node built-ins, no spawning.
       - run: npm run check:pure
-      # On the release PR only, which rebuilds the committed dist/toil.js
-      # (release.yml): it is exactly what the build just produced, on every OS.
-      # Every other PR leaves dist/ alone (ci.yml's dist-guard).
-      - if: startsWith(github.head_ref, 'release-please--')
-        run: npm run check:dist
       # Install the packed tarball with scripts off; drive the CLI and MCP.
       # Then clone the checkout and run the build from the clone, no install.
       - run: npm run smoke
@@ -84,7 +81,7 @@ jobs:
       - run: npm run build -w ui
       - run: npm run check:package -w ui
       # The toil npm ci installed for Toil UI is the one ui/package.json pins
-      # (#299), on every PR, the release PR too. The state a release leaves, the
+      # (#299), here and in ci.yml on every PR. The state a release leaves, the
       # new pin over the previous toil's tarball, passes with a warning until
       # release.yml's lockfile PR merges (ui/scripts/package-rules.mjs, lockfileLag).
       - run: npm run check:lockfile -w ui
@@ -97,7 +94,7 @@ jobs:
   # Optional rather than part of CI ok, because it downloads a third-party CLI.
   skill-install:
     name: skill install / ${{ matrix.os }}
-    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release-please--')
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -129,6 +126,7 @@ jobs:
     needs: [gate, skill-install]
     if: failure() && github.event_name == 'schedule'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       issues: write
     steps:
