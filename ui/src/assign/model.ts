@@ -163,6 +163,22 @@ export interface Branch {
   cut: boolean;
 }
 
+/**
+ * The ticket rule a refine was asked to meet (#657), as toil checked it when
+ * the assignment was made: the rule's name and text, and toil's reason it
+ * missed, which is what the agent is told.
+ */
+export interface AssignedRule {
+  standard: string;
+  rule: string;
+  name: string;
+  text: string;
+  /** toil's reason the item missed the rule. */
+  reason: string;
+  /** Where toil read the text from (`field customfield_10500 (acceptanceCriteria)`, `description`): where the fix goes. */
+  source: string;
+}
+
 export interface Assignment {
   id: string;
   toilProject: string;
@@ -198,6 +214,8 @@ export interface Assignment {
   renewedBy?: string | null;
   /** What the run it renewed left, carried into its prompt as context (#305). */
   history?: string | null;
+  /** A refine asked to meet one ticket rule ("Fix with AI agent", #657); absent for any other assignment. */
+  standard?: AssignedRule | null;
   /**
    * Whether what it started on has changed since (#305), checked when it was
    * read: null when it hasn't, or for one that is done, renewed, or recorded
@@ -278,6 +296,8 @@ export interface AssignRequest {
   mode: AssignMode;
   adapter: AssignAdapter;
   repo?: string;
+  /** "Fix with AI agent" (#657): a refine that rewrites the item to meet this ticket rule. Refused unless the rule applies and the item misses it. */
+  standard?: { standard: string; rule: string };
 }
 
 /** The page's side: the server's routes, or the preview's sample. Every method throws with a message the page shows. */

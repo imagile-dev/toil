@@ -1,6 +1,7 @@
 /**
- * The readiness gate's pieces (#307): the verdict chip, the five rows, why an
- * item isn't ready, and the item page's panel. The item page and the Command Center
+ * The readiness gate's pieces (#307): the verdict chip, the five rows and the
+ * ticket rules' rows (#657), why an item isn't ready, and the item page's
+ * panel, where a thin or failed rule offers "Fix with AI agent". The item page and the Command Center
  * both draw from here, over src/model/readiness.ts, so a verdict reads the
  * same wherever it shows. A rubber stamp, but one that says which box it
  * stamped and why.
@@ -11,15 +12,19 @@ import { Button } from 'react-aria-components';
 import { useData } from '../data.ts';
 import { dateTime } from '../format.ts';
 import { usePlain } from '../plain-words.ts';
-import { liveWorkflow, readiness, VERDICT_LABEL, VERDICT_PLAIN, workflowRead, type LiveWorkflow, type Readiness, type Row, type Verdict } from '../model/readiness.ts';
+import { liveWorkflow, readiness, VERDICT_LABEL, VERDICT_PLAIN, withRules, workflowRead, type LiveWorkflow, type Readiness, type Row, type Verdict } from '../model/readiness.ts';
+import { FixRuleButton } from '../assign/views.tsx';
+import { fixable } from '../rules.ts';
 import { CALL_OPTIONS, type WorkItem } from '../toil.ts';
+import { Help } from './help.tsx';
 import { Cited } from './items.tsx';
 import { Card } from './layout.tsx';
 import { CheckIcon, CloseIcon, WarningIcon } from './icons.tsx';
 import '../views/readiness.css';
 
-const MARK: Record<Row['state'], ReactNode> = { pass: <CheckIcon size={14} />, thin: <WarningIcon size={14} />, fail: <CloseIcon size={14} /> };
-const STATE_WORD: Record<Row['state'], string> = { pass: 'Passes', thin: 'Thin', fail: 'Fails' };
+// A rule nobody could check is a dash, never a tick: unknown is not a pass (principle 12).
+const MARK: Record<Row['state'], ReactNode> = { pass: <CheckIcon size={14} />, thin: <WarningIcon size={14} />, fail: <CloseIcon size={14} />, skipped: '–' };
+const STATE_WORD: Record<Row['state'], string> = { pass: 'Passes', thin: 'Thin', fail: 'Fails', skipped: 'Not checked' };
 
 const VERDICT_MARK: Record<Verdict, ReactNode> = { ready: <CheckIcon size={14} />, thin: <WarningIcon size={14} />, blocked: <CloseIcon size={14} /> };
 
@@ -33,24 +38,58 @@ export function VerdictChip({ verdict }: { verdict: Verdict }) {
   );
 }
 
-/** The five rows, each with its state in words as well as a mark, its reason and where it came from. */
-export function ReadinessRows({ readiness }: { readiness: Readiness }) {
+/** One row: its state in words as well as a mark, its reason, where it came from, and any action it offers. */
+function RowLine({ r, action }: { r: Row; action?: ReactNode }) {
   return (
-    <ul className="rows readiness-rows">
-      {readiness.rows.map((r) => (
-        <li key={r.check} className={`readiness-row readiness-row--${r.state}`}>
-          <span className="readiness-mark" aria-hidden="true">
-            {MARK[r.state]}
-          </span>
-          <span>
-            <strong>{r.label}</strong> <span className="readiness-state">{STATE_WORD[r.state]}</span>: <Cited text={r.reason} />{' '}
-            <span className="field">
-              Source: <code>{r.source}</code>
-            </span>
-          </span>
-        </li>
-      ))}
-    </ul>
+    <li className={`readiness-row readiness-row--${r.state}`}>
+      <span className="readiness-mark" aria-hidden="true">
+        {MARK[r.state]}
+      </span>
+      <span>
+        <strong>{r.label}</strong> <span className="readiness-state">{STATE_WORD[r.state]}</span>: <Cited text={r.reason} />{' '}
+        <span className="field">
+          Source: <code>{r.source}</code>
+        </span>
+        {action && <span className="readiness-row__action">{action}</span>}
+      </span>
+    </li>
+  );
+}
+
+const isRuleRow = (r: Row) => r.check === 'rules' || r.check.startsWith('rule:');
+
+/**
+ * The five rows, then the ticket rules' rows under their own heading. With
+ * `item`, a thin or failed rule offers "Fix with AI agent" on its own row:
+ * the one place a fix to that rule makes sense.
+ */
+export function ReadinessRows({ readiness, item, ruleText }: { readiness: Readiness; item?: Pick<WorkItem, 'id' | 'title'>; ruleText?: (standard: string, rule: string) => string | null }) {
+  const fixed = readiness.rows.filter((r) => !isRuleRow(r));
+  const rules = readiness.rows.filter(isRuleRow);
+  return (
+    <>
+      <ul className="rows readiness-rows">
+        {fixed.map((r) => (
+          <RowLine key={r.check} r={r} />
+        ))}
+      </ul>
+      {rules.length > 0 && (
+        <>
+          <h3 className="readiness-subhead">
+            Ticket rules <Help topic="ticket-rules" />
+          </h3>
+          <ul className="rows readiness-rows" data-rule-rows="">
+            {rules.map((r) => (
+              <RowLine
+                key={r.check}
+                r={r}
+                {...(item && r.rule && fixable(r.state) ? { action: <FixRuleButton item={item} rule={{ ...r.rule, name: r.label, text: ruleText?.(r.rule.standard, r.rule.rule) ?? null, reason: r.reason }} /> } : {})}
+              />
+            ))}
+          </ul>
+        </>
+      )}
+    </>
   );
 }
 
@@ -81,8 +120,9 @@ const MEANING: Record<Verdict, string> = {
  * for it. Nothing here asks a model.
  */
 export function ReadinessPanel({ item }: { item: WorkItem }) {
-  const { toilProject, byId, execute } = useData();
-  const settings = toilProject.readiness;
+  const { toilProject, byId, execute, rules } = useData();
+  const settings = withRules(toilProject.readiness, rules?.reading);
+  const ruleText = (standard: string, rule: string) => rules?.view?.result?.standards.find((s) => s.name === standard)?.rules.find((x) => x.id === rule)?.text ?? null;
   const [live, setLive] = useState<{ result: LiveWorkflow; at: string } | null>(null);
   const [reading, setReading] = useState(false);
   const r = readiness({ item, settings, byId, ...(live ? { live: live.result } : {}) });
@@ -100,7 +140,7 @@ export function ReadinessPanel({ item }: { item: WorkItem }) {
       <p className="readiness-verdict">
         <VerdictChip verdict={r.verdict} /> {MEANING[r.verdict]}
       </p>
-      <ReadinessRows readiness={r} />
+      <ReadinessRows readiness={r} item={item} ruleText={ruleText} />
       {read && execute && (
         <p className="readiness-live">
           <Button className="btn btn--small" onPress={check} isDisabled={reading}>

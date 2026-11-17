@@ -88,8 +88,13 @@ export function AssignmentView({ id }: { id: string }) {
           <a href={toilProjectHref(a.toilProject)}>{a.toilProject}</a> · Agent assignment
         </p>
         <h1 tabIndex={-1}>
-          {modeInfo(a.mode, plain.on).label}: {a.itemTitle}
+          {a.standard ? 'Fix with AI agent' : modeInfo(a.mode, plain.on).label}: {a.itemTitle}
         </h1>
+        {a.standard && (
+          <p data-assignment-rule="">
+            To meet the ticket rule <strong>{a.standard.name}</strong>. {a.standard.reason}
+          </p>
+        )}
         <p className="item-meta">
           <StateChip a={a} /> <ItemLink id={a.item} /> · {a.adapter ? ADAPTER_NAME[a.adapter] : 'no adapter chosen yet'} <EditLink href={AGENT_SETTINGS_HREF} label="Edit the agent settings" /> · {a.origin === 'tracker' ? `queued by the tracker (${a.trigger})` : 'assigned in Toil UI'}
         </p>

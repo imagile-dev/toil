@@ -190,7 +190,7 @@ describe('the settings', () => {
       "The jira section's readiness.templates isn't a list of template texts, so no template is taken out of descriptions.",
       'The github section\'s "readiness" isn\'t an object of minWords and templates, so the defaults apply.',
     ]);
-    expect(readReadiness(null)).toEqual({ sources: [], repos: [], areas: {}, notes: [] });
+    expect(readReadiness(null)).toEqual({ sources: [], repos: [], areas: {}, notes: [], standards: [] });
   });
 });
 

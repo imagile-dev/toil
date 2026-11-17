@@ -612,7 +612,11 @@ Of the work that was finished in the period, how much was each category, as a tr
 becomes the category shares for each value), and count items, estimates or days in progress. Beside the chart it says how the
 categories were decided (rules, labels on the items, your AI agent, people) and how much is still Unsure, which links to the Board.
 A category reads as its plain name, "Keep the lights on"; its short form and definition are on hover. The Summary's **Work
-mix** tile, in the numbers, shows the same mix for the last 90 days and opens this page.
+mix** tile, in the numbers, shows the same mix for the last 90 days and opens this page. **Sort by** views the same work by
+another built-in set of categories (Keep the lights on / Feature, the balance set, or flow's Feature / Defect / Risk / Debt),
+worked out on the fly from its rules and the labels already on the items. It is in the address (`?lens=flow`) and saves
+nothing: the Toil project's own choice stays under Settings, Classification, and a person's answers, which belong to those
+categories, are left out of another set's figures.
 
 ### Releases
 
@@ -721,6 +725,34 @@ that names none uses `Microsoft.VSTS.Common.AcceptanceCriteria`.
   is disabled and says so; the plan it would start is shown above it.
 - **The agent** gets `readiness_list` and `readiness_get` and a starter, "Which items
   are ready for an agent?" (The agent, below).
+
+### Ticket rules
+
+A team's rules for writing an item (acceptance criteria as Given/When/Then, a story
+written as "As a … I want … so that …", a bug that says how to reproduce it) are
+checked by toil's own `standards check` (`skills/toil/standards.md`), with no model
+call. A Toil project names the rules its work is held to in `standards.use`; on screen
+they are called ticket rules.
+
+- **On each item's page**, under the five rows, a **Ticket rules** heading lists one
+  row per rule that applies to the item: passes, thin or fails, with toil's reason and
+  where it read the text. A rule toil couldn't check (the text it reads wasn't in the
+  record read, or it needs an AI agent to judge) is **Not checked**, a dash that never
+  counts as a pass. Until the check has been read, one row says the rules are not read
+  yet. A thin or failed rule counts toward the verdict like any other row.
+- **Fix with AI agent**, on a thin or failed rule's row, asks an AI agent for a refine
+  held to that one rule: given the rule's name and text and toil's reason, it proposes
+  exactly one rewrite of the description or the acceptance criteria field, inventing
+  nothing, and asks about what the item doesn't say as questions. The proposal is
+  applied like any other, behind the connection's `writes`. The assignment is refused
+  when the rule already passes or doesn't apply. Where no AI agent is set up, the
+  dialog says so and links to setting one up.
+- **The Command Center** has a **Ticket rules** card: one line a rule, such as "3 of
+  19 stories miss 'Acceptance criteria as Given/When/Then'", counting open items, each
+  a link that filters the list to the items that miss it (`?rule=gherkin/scenarios`).
+- **The server** runs the check in-process over each Toil project's synced items
+  (`api/standards?toilProject=`), keeps the answer until the next sync, and gives the
+  agent's readiness tools the same rows.
 ## Worklog
 
 Each Toil project has a **Worklog** tab (`#/project/<name>/worklog`):

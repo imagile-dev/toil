@@ -11,7 +11,7 @@
  */
 
 import type { WorkItem } from '../../src/toil.ts';
-import type { AssignMode } from '../../src/assign/model.ts';
+import type { AssignedRule, AssignMode } from '../../src/assign/model.ts';
 
 /** How much of the item's body the prompt carries; owi_get has the rest. */
 export const MAX_ITEM_BODY = 6000;
@@ -74,9 +74,28 @@ const TASK: Record<Exclude<AssignMode, 'implement'>, (id: string) => string> = {
     `Investigate [[${id}]]: read the item, its parent, children and links, likely duplicates (owi_similar), its pull requests and their checks (pr_query, pr_get), and anything the live tools hold about it. Then write a report: what the item asks for, what has already been done and where, what is known and unknown, the risks, and the next step you suggest, citing a source for every claim. Don't propose a comment: Toil UI offers your report as one.`,
 };
 
-/** The prompts for refine and investigate: read-only modes. */
-export function readPrompt(mode: Exclude<AssignMode, 'implement'>, toilProject: string, item: WorkItem, now: string): ModePrompt {
-  return { system: common(toilProject, mode, now).join('\n'), prompt: `${TASK[mode](item.id)}\n\nThe work item:\n${fencedItem(item)}` };
+/**
+ * "Fix with AI agent" (#657): a refine held to one ticket rule. The rule's
+ * name and text are the team's, from a file toil read (one line each, capped,
+ * checked for credentials); toil's reason is toil's. The agent proposes one
+ * rewrite of the place toil read, and nothing else, inventing nothing: what the
+ * item doesn't say becomes a QUESTION: line, so a gap is asked about rather
+ * than filled in with confidence.
+ */
+const ruleTask = (id: string, r: AssignedRule) =>
+  [
+    `Rewrite [[${id}]] so it meets one of the team's ticket rules, which toil checked and found it misses.`,
+    `The rule: ${r.name}. What it asks: ${r.text}`,
+    `Why toil says it misses: ${r.reason} toil read the text from: ${r.source}.`,
+    "Propose exactly one change, as one proposal block: an update to the item with its tracker's update command that rewrites the place toil read (the acceptance criteria field when toil read a field, else the description) so it meets the rule. Keep everything the item already says that still holds, in its own words where you can, and change only what the rule needs.",
+    'Invent nothing: no behaviour, figure, name or detail the item, its parent or its links do not already say. Where the rule needs something the item does not say, leave a clear gap in the text and ask for it on a QUESTION: line instead.',
+    'Do not estimate, split the item, or propose any other change, and say in one short paragraph what you changed and why.',
+  ].join(' ');
+
+/** The prompts for refine and investigate: read-only modes. With `rule`, a refine is held to that one ticket rule (#657). */
+export function readPrompt(mode: Exclude<AssignMode, 'implement'>, toilProject: string, item: WorkItem, now: string, rule?: AssignedRule | null): ModePrompt {
+  const task = mode === 'refine' && rule ? ruleTask(item.id, rule) : TASK[mode](item.id);
+  return { system: common(toilProject, mode, now).join('\n'), prompt: `${task}\n\nThe work item:\n${fencedItem(item)}` };
 }
 
 /** Implement mode's prompt: fill the clone Toil UI made in `repo`, branch, change, stage; never commit, push or fetch. */
@@ -164,8 +183,12 @@ const PLACEHOLDER: WorkItem = {
   native: {},
 };
 
-/** A mode's prompts in Toil UI's own words, for the fingerprint's prompts part (#305). */
+/** The ticket rule a fix's prompt is fingerprinted on (#305, #657): placeholders, so the hash moves with Toil UI's words and never with a team's rule. */
+const PLACEHOLDER_RULE: AssignedRule = { standard: '<standard>', rule: '<rule>', name: '<rule name>', text: '<rule text>', reason: '<reason>', source: '<source>' };
+
+/** A mode's prompts in Toil UI's own words, for the fingerprint's prompts part (#305). Refine carries its ticket-rule task too (#657). */
 export function modePromptText(mode: AssignMode): string {
   const p = mode === 'implement' ? implementPrompt('<Toil project>', PLACEHOLDER, '<now>', { repo: '<repo>', branch: '<branch>' }) : readPrompt(mode, '<Toil project>', PLACEHOLDER, '<now>');
-  return `${p.system}\n\n${withEarlierRun(p.prompt, '<earlier run>')}`;
+  const text = `${p.system}\n\n${withEarlierRun(p.prompt, '<earlier run>')}`;
+  return mode === 'refine' ? `${text}\n\n${readPrompt('refine', '<Toil project>', PLACEHOLDER, '<now>', PLACEHOLDER_RULE).prompt}` : text;
 }

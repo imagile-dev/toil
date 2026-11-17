@@ -30,6 +30,7 @@ import { CommandCenter } from './views/CommandCenter.tsx';
 import { Classify } from './views/Classify.tsx';
 import { ClassifyProvider } from './classify-state.tsx';
 import type { ClassifyApi, LedgerView } from './classify-api.ts';
+import { readingOf, type RulesApi, type RulesState } from './rules.ts';
 import { Dashboard } from './views/Dashboard.tsx';
 import { ToilProjectShell, type ToilProjectTab } from './views/ToilProjectShell.tsx';
 import { ToilProjects, type SyncedAt } from './views/ToilProjects.tsx';
@@ -353,6 +354,8 @@ export interface AppProps {
   analyses?: AnalysesApi;
   /** Sorting work into categories (#566): the person's ledger and the steps around it; the server's, or the sample's script. Without one, categories show and nothing can be changed. */
   classify?: ClassifyApi;
+  /** Ticket rules (#657): toil's check of the toil project on screen; the server's, or the sample's. Without one, a toil project that names rules shows them as not read yet. */
+  rules?: RulesApi;
   /** Each toil project's last sync, from the sync panel (#342), for its card; absent where nothing syncs (the preview). */
   synced?: Record<string, SyncedAt>;
   /** After a toil project's name or description changed in place, so the shell can read the sync status again under the new name. */
@@ -376,7 +379,7 @@ export interface AppProps {
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, themeSetting, now, preview, agentSettings, setupKeep, newProjectKeep, feedback, modelUsage, cache, worklog, startReady, assignments: given, analyses: givenAnalyses, classify: classifyApi, synced, afterDescribe, serverStatus, onSync, syncing, syncedAt, news, versions, onLeaveSample }: AppProps) {
+export function App({ execute, agent, config, themeSetting, now, preview, agentSettings, setupKeep, newProjectKeep, feedback, modelUsage, cache, worklog, startReady, assignments: given, analyses: givenAnalyses, classify: classifyApi, rules: rulesApi, synced, afterDescribe, serverStatus, onSync, syncing, syncedAt, news, versions, onLeaveSample }: AppProps) {
   const [ownAnalyses] = useState(() => memoryAnalyses());
   const analyses = givenAnalyses ?? ownAnalyses;
   const route = useRoute();
@@ -451,6 +454,19 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   useEffect(() => {
     if (wanted) void readLedger(wanted);
   }, [wanted, readLedger]);
+  // The ticket rules for the toil project on screen (#657): read when it opens and after each sync. Until the answer comes they are not read yet, and a failure is kept as one.
+  const [rulesRead, setRulesRead] = useState<{ toilProject: string; at: string; state: RulesState } | null>(null);
+  useEffect(() => {
+    if (!wanted || !rulesApi) return;
+    let live = true;
+    rulesApi.check(wanted).then(
+      (view) => live && setRulesRead({ toilProject: wanted, at: now, state: { reading: readingOf(view), view } }),
+      (e: unknown) => live && setRulesRead({ toilProject: wanted, at: now, state: { reading: readingOf(null, e instanceof Error ? e.message : String(e)), view: null } }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [wanted, rulesApi, now]);
   // The command palette and the shortcuts sheet (#416), hidden until called up; `focused` is the item the focus was on when the palette opened.
   const [palette, setPalette] = useState<{ open: boolean; focused: string | null }>({ open: false, focused: null });
   const [sheet, setSheet] = useState(false);
@@ -701,7 +717,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   } else if (!current.ok) {
     body = failure(current.message);
   } else {
-    const data: Data = { ...(preview ? { preview: true } : {}), ...(onSync ? { sync: onSync } : {}), ...(worklog ? { worklog } : {}), toilProject: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, ...(preview ? { viewedAt: new Date(Date.parse(now) + 2 * 3_600_000).toISOString() } : {}), execute, analyses, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.toilProject) } : {}), refresh: () => setToilProjects(({ [route.toilProject]: _, ...rest }) => rest), described, ...(classifyApi ? { classification: { api: classifyApi, view: ledger?.toilProject === route.toilProject ? ledger.view : null, error: ledger?.toilProject === route.toilProject ? ledger.error : null, loading: ledger?.toilProject !== route.toilProject, version: ledger?.toilProject === route.toilProject ? ledger.version : 0, reload: () => readLedger(route.toilProject) } } : {}) };
+    const data: Data = { ...(preview ? { preview: true } : {}), ...(onSync ? { sync: onSync } : {}), ...(worklog ? { worklog } : {}), toilProject: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, ...(preview ? { viewedAt: new Date(Date.parse(now) + 2 * 3_600_000).toISOString() } : {}), execute, analyses, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.toilProject) } : {}), refresh: () => setToilProjects(({ [route.toilProject]: _, ...rest }) => rest), described, ...(rulesRead?.toilProject === route.toilProject && rulesRead.at === now ? { rules: rulesRead.state } : {}), ...(classifyApi ? { classification: { api: classifyApi, view: ledger?.toilProject === route.toilProject ? ledger.view : null, error: ledger?.toilProject === route.toilProject ? ledger.error : null, loading: ledger?.toilProject !== route.toilProject, version: ledger?.toilProject === route.toilProject ? ledger.version : 0, reload: () => readLedger(route.toilProject) } } : {}) };
     body = (
       <DataContext value={data}>
         {/* The Ask bar (#343), on every toil project page; its chat is keyed by toil project, so a conversation lasts across that toil project's views. */}

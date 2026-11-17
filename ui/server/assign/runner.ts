@@ -196,7 +196,7 @@ export function hostRunner(o: HostRunnerOptions): Runner {
         workspace = { root: folder };
         modePrompt = implementPrompt(a.toilProject, item, now(), { repo: repo.name, branch });
       } else {
-        modePrompt = readPrompt(a.mode, a.toilProject, item, now());
+        modePrompt = readPrompt(a.mode, a.toilProject, item, now(), a.standard);
       }
       // A renewal (#305) carries what the run it renews left, fenced as data.
       modePrompt = { ...modePrompt, prompt: withEarlierRun(modePrompt.prompt, a.history) };

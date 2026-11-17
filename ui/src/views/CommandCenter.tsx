@@ -11,6 +11,11 @@
  * and the view says what it queued, or why it started nothing. Where there
  * are no assignments the button stays disabled and says so. Mission control, minus the
  * missions until the paperwork for #293 clears.
+ *
+ * Where the toil project names ticket rules (#657), a "Ticket rules" card says,
+ * one line a rule, how many of the open items each applies to miss it; each
+ * line is a link that filters the list to those items (`?rule=<standard>/<rule>`
+ * in the address), so the figure and the items behind it are one press apart.
  */
 
 import { useMemo, useState } from 'react';
@@ -27,7 +32,9 @@ import { toWhere } from '../filters.ts';
 import { useAddress, useWorkInsights } from '../insights-data.ts';
 import { dateTime, toilProjectHref, personText, sourceLabel, STATUS_CATEGORY_LABEL } from '../format.ts';
 import { usePlain } from '../plain-words.ts';
-import { readinessAll, tally, VERDICT_LABEL, VERDICT_PLAIN, VERDICTS, type Readiness, type Verdict } from '../model/readiness.ts';
+import { readinessAll, tally, VERDICT_LABEL, VERDICT_PLAIN, VERDICTS, withRules, type Readiness, type Verdict } from '../model/readiness.ts';
+import { missing, ruleLines, ruleName } from '../rules.ts';
+import { Unread } from '../components/unread.tsx';
 import { Empty, EmptyButton } from '../components/empty.tsx';
 import type { WorkItem } from '../toil.ts';
 
@@ -63,14 +70,18 @@ const columns: Array<Column<Line>> = [
 ];
 
 export function CommandCenter() {
-  const { toilProject, now, startReady } = useData();
+  const { toilProject, now, startReady, rules } = useData();
   const plain = usePlain();
   const [started, setStarted] = useState<{ ok: boolean; text: string } | null>(null);
   const [starting, setStarting] = useState(false);
-  const settings = toilProject.readiness;
+  const settings = useMemo(() => withRules(toilProject.readiness, rules?.reading), [toilProject, rules]);
   // The shared filter bar (#567), the Board's own: "Fix version: 2.4" narrows this list, its tally and its plan alike.
   const ins = useWorkInsights();
-  const { filters } = useAddress();
+  const { filters, query, hrefWith } = useAddress();
+  // A ticket rule's line drills here: the list keeps only the items that miss it.
+  const ruleRef = query.get('rule');
+  const checked = rules?.view?.result ?? null;
+  const missingRule = ruleRef && checked ? missing(checked, ruleRef) : null;
   const lines = useMemo<Line[]>(() => {
     const all = readinessAll(toilProject.items, settings);
     const where = toWhere(filters);
@@ -98,8 +109,14 @@ export function CommandCenter() {
       (verdict === 'all' || l.readiness.verdict === verdict) &&
       (type === 'all' || typeOf(l.item) === type) &&
       (assignee === 'all' || (assignee === 'none' ? !l.item.assignee : who(l.item) === assignee)) &&
-      (source === 'all' || l.item.source.area === source),
+      (source === 'all' || l.item.source.area === source) &&
+      (!ruleRef || !missingRule || missingRule.has(l.item.id)),
   );
+  const withRule = (ref: string | null) => hrefWith((q) => (ref ? q.set('rule', ref) : q.delete('rule')));
+  const showRules = settings.standards.length > 0 || (checked?.standards.length ?? 0) > 0;
+  const linesOfRules = checked ? ruleLines(checked, open.map((l) => l.item)) : [];
+  const missed = linesOfRules.filter((r) => r.miss > 0 || r.skipped > 0);
+  const met = linesOfRules.length - missed.length;
   const calls = [...toilProject.calls.toilProject, ...toilProject.calls.work];
 
   return (
@@ -136,6 +153,41 @@ export function CommandCenter() {
           </li>
         ))}
       </CardGrid>
+
+      {showRules && (
+        <Card as="section" className="panel readiness-rules" aria-labelledby="ticket-rules" data-ticket-rules="">
+          <h2 id="ticket-rules">
+            Ticket rules <Help topic="ticket-rules" />
+          </h2>
+          {rules?.reading.state === 'failed' ? (
+            <p role="alert" className="failure">
+              Couldn't check the ticket rules: {rules.reading.message}
+            </p>
+          ) : !checked ? (
+            <p>
+              <Unread /> <span aria-hidden="true">not read yet</span>
+            </p>
+          ) : linesOfRules.length === 0 ? (
+            <p>No open item here is one the rules apply to.</p>
+          ) : (
+            <>
+              {missed.length > 0 && (
+                <ul>
+                  {missed.map((r) => (
+                    <li key={r.ref}>
+                      <a href={withRule(r.ref)} data-rule-line={r.ref}>
+                        {r.miss} of {r.applies} {r.noun(r.applies)} {r.miss === 1 ? 'misses' : 'miss'} '{r.name}'
+                      </a>
+                      {r.skipped > 0 && <span className="note">, {r.skipped} not checked</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {met > 0 && <p className="note">{missed.length === 0 ? `Every open item meets all ${count(met, 'rule')}.` : `Every open item meets the other ${count(met, 'rule')}.`}</p>}
+            </>
+          )}
+        </Card>
+      )}
 
       <Card as="section" className="panel readiness-slate" aria-labelledby="slate">
         <h2 id="slate">Start every ready item</h2>
@@ -189,6 +241,17 @@ export function CommandCenter() {
           <Choice label="Assignee" value={assignee} onChange={setAssignee} options={[{ id: 'all', label: 'Anyone' }, { id: 'none', label: 'Unassigned' }, ...people.map((p) => ({ id: p, label: p }))]} />
           {areas.length > 1 && <Choice label="Source" value={source} onChange={setSource} options={[{ id: 'all', label: 'All' }, ...areas.map((a) => ({ id: a, label: `${sourceLabel(a)} (${a})` }))]} />}
         </Cluster>
+        {ruleRef && (
+          <p className="readiness-rule-filter" data-rule-filter={ruleRef}>
+            <span>
+              Missing: <strong>{(checked && ruleName(checked, ruleRef)) ?? ruleRef}</strong>
+              {checked && !missingRule && <span className="note"> (not one of this Toil project's rules)</span>}
+            </span>
+            <a className="btn btn--small" href={withRule(null)}>
+              Show every item
+            </a>
+          </p>
+        )}
         <p className="note" aria-live="polite">
           Showing {count(shown.length, 'item')} of {lines.length}.
         </p>

@@ -135,3 +135,73 @@
   safety-layer list** (`scripts/triage/changes.mjs`), as `src/core/classify/` is: they hold
   a bound's reads and the caps on patterns a checked-in file runs, and
   `test/triage.test.ts` requires every path `docs/bounds.md` names to be flagged.
+
+## Toil UI
+
+- **The page reads ticket rules through one server route, `GET api/standards?toilProject=`.**
+  The server runs toil's own `standards check` in-process (read-only, `caller: toil-ui`) over
+  the items the cache synced, with the items as `text`, so there is no request body limit
+  and no staged file. The answer is kept per Toil project until its `syncedAt` changes; a
+  failure is not kept. A Toil project that never synced answers `{ result: null }`, which the
+  page shows as "not read yet", never as an empty check. Where: `ui/server/standards.ts`.
+- **The sample checks in the page or the sample server with the built-in rules only.**
+  `ui/src/fixtures/standards.ts` runs `checkStandards` over the sample's items with the
+  presets a sample Toil project names; any other name is a warning, never a guess. Only
+  card-payments names rules (`gherkin`, `bug-repro`): sample-team's 84 stories have no
+  bodies, so every one would miss and the card would say nothing useful. PAY-101 and PAY-102's
+  acceptance criteria (`customfield_10500`) are now written as Given/When/Then, and the other
+  Jira items carry the field as `null`, as Jira sends an empty field it was asked for, so
+  "read and empty" is what the check sees.
+- **A rule row counts toward the verdict like any other row.** A thin rule makes the item
+  thin, a failed one blocked, so the Command Center no longer slates an item that misses a
+  rule. `skipped` (not read, or needs an AI agent) is a new row state, a dash worded "Not
+  checked", which never counts either way and stays out of "why not ready". Until the check
+  has been read, a Toil project that names rules shows one "Ticket rules: Not read yet" row.
+  A Toil project that names none shows no rule rows at all, so older Toil projects look as
+  they did.
+- **Rule rows sit under their own "Ticket rules" heading with one (i)**, below the five
+  checks, rather than interleaved, so the five fixed checks read as before and the rules are
+  one step further in. The row's source reads "<toil's source> (ticket rules: <standard>)":
+  the word "standard" stays in toil's names, not in the copy.
+- **"Fix with AI agent" is a small button on a thin or failed rule's row only,** on the
+  item page, not in the Command Center list, so it is where the fix is decided and never on
+  every row. It opens its own short dialog (rule, what toil found, which AI when more than one
+  is ready) rather than the general Assign dialog, since the mode is fixed. With no AI agent
+  ready, the dialog shows the same "Set up an AI agent" notice and link Ask shows, with the
+  adapters' problems folded under "Details for whoever sets it up", and no Fix button.
+- **The queue re-checks the rule before it queues.** `AssignRequest.standard` is
+  `{ standard, rule }` only; the queue resolves it with `ruleFor` (the server's last check, or
+  the sample's) and refuses with 409 when the rule passes, doesn't apply, or was skipped, and
+  with 404 where there is no `ruleFor`. A fix must be `refine`. The assignment keeps the rule's
+  name, text, toil's reason and toil's source (`Assignment.standard`), so a renewal carries it.
+- **The refine-to-rule prompt names where toil read the text.** Besides the rule's name, text
+  and toil's reason, it passes toil's source ("criteria (field customfield_10500
+  (acceptanceCriteria), description)"), so the one proposal rewrites that field, else the
+  description. It asks for exactly one proposal, no estimate or split, invents nothing and
+  turns gaps into QUESTION: lines. `modePromptText('refine')` now appends the rule task with
+  placeholders (`<rule name>`, `<rule text>`), so refine's prompt fingerprint (#305) moved
+  once: refine assignments made before this change will read as stale and can be renewed.
+- **The agent's readiness tools carry the same rule rows.** `AgentData.rules()` reads the
+  server's check, and `readiness_list`'s settings add `ticketRules` and `ticketRulesRead`
+  (`unread`, `read`, `failed`, or null when the Toil project names none).
+- **readiness.ts uses toil's body reader.** `textOf`, `realText`, `wordCount`,
+  `acceptanceInBody`, `lines`, `normalise` and `ADO_ACCEPTANCE_FIELD` come from
+  `src/core/standards/`, and readiness.ts re-exports the ones its tests and callers used. The
+  one behaviour change is toil's 20,000-character cap on what is read of a body.
+  `NOT_SECTIONS` now matches toil's `TOP_LEVEL` (archived, analyze, classify, standards,
+  dimensions, views), so none of those is ever taken for a source.
+- **`standards check` joined `INPUT_FILE_COMMANDS`** (`ui/src/proposal.ts`), since
+  `ui/test/registry.test.ts` holds that list to every command whose input takes `inputFile`.
+- **The flow lens is on the Work mix itself: a "Sort by" menu.** The mix is the pure classify
+  engine run on the items in the page (`insights-input.ts`), so another built-in scheme's mix
+  is one more run with that scheme, writing nothing. `?lens=<scheme>` in the address picks it;
+  `useWorkInsights` reads it from the address, so the drawer behind a segment counts the same
+  way. The menu lists the saved scheme first when it is a team's own file, then the three
+  built-ins by their category names ("Feature / Defect / Risk / Debt"), the saved one marked
+  "(saved)". Under a lens, a person's ledger answers are left out (they name the saved
+  scheme's categories), and a note says it is for this view only and the saved categories are
+  unchanged. Settings, Classification stays where the saved choice is made.
+- **The Command Center's card counts open items, as the tally does,** and lists only rules
+  some open item misses or couldn't be checked against; the rest fold into "Every open item
+  meets the other N rules." Each line links to `?rule=<standard>/<rule>`, which narrows the
+  list (on top of its own filters) and shows "Missing: <rule>" with Show every item.

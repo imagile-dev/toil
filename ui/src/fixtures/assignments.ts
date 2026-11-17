@@ -16,10 +16,11 @@
 import { loadToilProject, type ToilProjectData } from '../load.ts';
 import type { Proposal } from '../proposal.ts';
 import type { Envelope, Execute, WorkItem } from '../toil.ts';
-import { ADAPTER_NAME, branchName, proposalDiff, type AdapterChoice, type AssignmentRecord, type AssignmentsApi, type AssignSettings, type StartedOn } from '../assign/model.ts';
+import { ADAPTER_NAME, branchName, proposalDiff, type AdapterChoice, type AssignedRule, type AssignmentRecord, type AssignmentsApi, type AssignSettings, type StartedOn } from '../assign/model.ts';
 import { AssignmentQueue, type Keeper, type RunContext, type RunResult, type Runner } from '../assign/queue.ts';
 import { FIXTURE_NOW, fixtureExecute } from './execute.ts';
 import { sampleAnswerUsage } from './model-usage.ts';
+import { fixtureStandards } from './standards.ts';
 import type { Fingerprint } from '../fingerprint.ts';
 
 export const SAMPLE_ASSIGN_SETTINGS: AssignSettings = { concurrent: 2, timeLimitMinutes: 20 };
@@ -89,6 +90,42 @@ function refineProposals(toilProject: string, item: WorkItem): Proposal[] {
     note: 'A suggested size. Agree it with the team before applying.',
   });
   return out;
+}
+
+/** The headings a bug-repro rule's section goes by, for the sample's canned fix. */
+const SECTION: Record<string, string> = { steps: 'Steps to reproduce', expected: 'Expected result', actual: 'Actual result' };
+
+/**
+ * The sample's canned "Fix with AI agent" (#657): one rewrite of the place
+ * toil read, meeting the rule with gaps left as gaps, and the questions that
+ * ask for them. A real run writes from the item; this one only shows the shape.
+ */
+export function ruleFix(toilProject: string, item: WorkItem, r: AssignedRule): { proposal: Proposal; questions: string[] } {
+  // toil names the field it read first ("field customfield_10500 (acceptanceCriteria)", or "criteria (field …, description)" when it was empty): the fix goes there.
+  const field = /\bfield ([^\s(),;]+)/.exec(r.source)?.[1] ?? null;
+  const questions =
+    r.standard === 'bug-repro'
+      ? [`What exact steps make "${item.title}" happen, starting from where?`, 'Which version or environment was it seen in?']
+      : [`What has to be true before "${item.title}" starts: which account, card or data does it begin from?`, 'What should a person see when it worked, and what when it failed?'];
+  const text =
+    r.standard === 'bug-repro'
+      ? [`## ${SECTION[r.rule] ?? r.name}`, r.rule === 'actual' ? item.title : r.rule === 'expected' ? '[the correct behaviour: see the questions]' : '1. [the first step: see the questions]', ''].join('\n')
+      : [`Scenario: ${item.title}`, '  Given [the starting point: see the first question]', `  When someone does what the item asks: ${item.title.toLowerCase()}`, '  Then [what a person sees: see the second question]'].join('\n');
+  const where = field ?? 'the description';
+  const jira = item.source.area.startsWith('jira');
+  return {
+    proposal: {
+      id: `agent:${item.id}:rule:${r.standard}/${r.rule}`,
+      from: 'agent',
+      item: item.id,
+      title: `Rewrite ${field ? 'the acceptance criteria' : 'the description'} of ${item.source.key} to meet "${r.name}"`,
+      reason: `${r.reason} The rewrite keeps what [[${item.id}]] says and leaves what it doesn't as gaps, asked about below.`,
+      command: jira ? 'jira issue update' : null,
+      input: jira ? { toilProject, key: item.source.key, ...(field ? { field: [`${field}=${text}`] } : { description: text }) } : null,
+      note: jira ? `Replaces ${where}. Fill in the gaps, or answer the questions first.` : 'The sample proposes this for Jira items only; make the change by hand.',
+    },
+    questions,
+  };
 }
 
 /** The seeded assignments, one in every state, worked out from the sample's own items. */
@@ -246,6 +283,18 @@ export function scriptedRunner(delay = 600): Runner {
       ctx.record({ kind: 'tool', title: 'Called: owi_similar', detail: JSON.stringify({ id: item.id }) });
       await wait(delay, signal);
       const cite = `[[${item.id}]]`;
+      if (a.standard) {
+        const fix = ruleFix(a.toilProject, item, a.standard);
+        return {
+          report: { parts: [{ text: `${cite} missed "${a.standard.name}". The proposal rewrites it to meet the rule, keeping what it says and leaving what it doesn't as gaps, with a question for each. This is the sample's canned answer; a real run writes from the item itself.` }], citations: [item.id], unverified: [], warnings: [] },
+          proposals: [fix.proposal],
+          questions: fix.questions,
+          injection: null,
+          usage: sampleAnswerUsage(a.id, 1, a.toilProject),
+          startedOn: startedOn(item.id, a.adapter!, FIXTURE_NOW, READ_TOOLS),
+          branch: null,
+        };
+      }
       const report = {
         parts: [{ text: a.mode === 'investigate' ? `${cite} is ${item.status ?? 'open'}. This is the sample's canned report; a real run reads the Toil project's sources and cites each one.` : `${cite}: the sample's canned ${a.mode} run. A real run would ${a.mode === 'refine' ? 'draft criteria and an estimate' : 'clone the repository and stage a change'}.` }],
         citations: [item.id],
@@ -291,6 +340,7 @@ export interface SampleQueue {
 
 /** The sample's queue: the real one, on the sample's items, its seeds and the scripted runner. */
 export function sampleQueue(execute: Execute = fixtureExecute().execute, o: { delay?: number; now?: () => string; restartNeeded?: () => string | null } = {}): SampleQueue {
+  const rules = fixtureStandards(execute);
   const data = new Map<string, ToilProjectData>();
   let seq = 0;
   // The sample's clock starts at its own fixed day and runs from there, so seeds and new runs share one timeline.
@@ -309,6 +359,7 @@ export function sampleQueue(execute: Execute = fixtureExecute().execute, o: { de
       people: async (toilProject) => data.get(toilProject)?.people ?? [],
       repos: async (toilProject) => (toilProject === 'card-payments' ? [{ name: 'payments-core', path: '~/src/payments-core' }] : []),
       apply: async (_a, p) => refuse(p.command ?? 'that'),
+      ruleFor: (toilProject, item, standard, rule) => rules.ruleFor(toilProject, item, standard, rule),
       settings: () => SAMPLE_ASSIGN_SETTINGS,
       current: () => SAMPLE_FINGERPRINT_NOW,
       ...(o.restartNeeded ? { restartNeeded: o.restartNeeded } : {}),

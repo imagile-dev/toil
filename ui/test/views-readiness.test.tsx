@@ -26,7 +26,10 @@ describe('the readiness gate (#307)', () => {
       'Done state Passes',
       'Blockers Fails',
       'Scope Passes',
+      // card-payments names ticket rules (#657), and this view was given no check of them: one row says so, with a dash.
+      undefined,
     ]);
+    expect(rows()[5]).toContain('Ticket rules Not checked: Not read yet.');
     expect(box.textContent).toContain('Blocked by Jira PAY-101 (In Progress).');
     expect(within(box).getByRole('link', { name: /PAY-101/ }).getAttribute('href')).toBe('#/project/card-payments/item/corp-jira%3APAY-101');
     expect(fixture.calls.filter((c) => c.command === 'jira issue transitions')).toEqual([]);

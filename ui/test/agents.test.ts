@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { join, posix, win32 } from 'node:path';
 import * as zod from 'zod';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { fixtureStandards } from '../src/fixtures/standards.ts';
+import { readingOf } from '../src/rules.ts';
 import { noAgent } from '../server/agent.ts';
 import { finish, named, partial, writeCommands } from '../server/agents/answer.ts';
 import { claudeEnv, claudeRuntime, claudeToolName, zodShape } from '../server/agents/claude.ts';
@@ -1051,7 +1053,8 @@ describe('the readiness tools (#307)', () => {
     expect(fixture.calls.at(-1)).toMatchObject({ command: 'projects show', input: { toilProject: 'card-payments' }, ok: true });
     expect(r.rule).toContain('with no model call');
     expect(r.openByVerdict).toEqual({ ready: 1, thin: 3, blocked: 2 });
-    expect(r.settings).toEqual({ sources: ['jira', 'bitbucket', 'jenkins'], repositories: ['payments-core'], areas: expect.objectContaining({ jira: expect.objectContaining({ acceptanceCriteriaField: 'customfield_10500', minWords: 20 }) }) });
+    // card-payments names ticket rules (#657); with no check to read, they are said to be unread, never passed.
+    expect(r.settings).toEqual({ sources: ['jira', 'bitbucket', 'jenkins'], repositories: ['payments-core'], areas: expect.objectContaining({ jira: expect.objectContaining({ acceptanceCriteriaField: 'customfield_10500', minWords: 20 }) }), ticketRules: ['gherkin', 'bug-repro'], ticketRulesRead: 'unread' });
     expect(r.items.map((i) => [i.id, i.verdict])).toEqual([
       ['corp-jira:PAY-100', 'thin'],
       ['corp-jira:PAY-101', 'ready'],
@@ -1076,6 +1079,17 @@ describe('the readiness tools (#307)', () => {
     expect(r.verdict).toBe('ready');
     expect(r.rows.map((x) => [x.check, x.state])).toEqual([['Acceptance criteria', 'pass'], ['Description', 'pass'], ['Done state', 'pass'], ['Blockers', 'pass'], ['Scope', 'pass']]);
     expect(((await tool(tools('checkout-web', new Ledger()), 'readiness_get').run({ id: 'nope' })) as { error: string }).error).toBe('The cache holds no item "nope" in checkout-web. Use readiness_list or owi_query to find ids.');
+  });
+
+  it('carries the ticket rules as toil checked them (#657): a story that misses one is thin, and its row says why', async () => {
+    const rules = fixtureStandards(fixture.execute);
+    const data = { ...of('card-payments'), rules: async () => readingOf(await rules.check('card-payments')) };
+    const r = (await tool(readinessTools('card-payments', data, new Ledger(), toilProjectReader(fixture.execute, 'card-payments')), 'readiness_get').run({ id: 'corp-jira:PAY-107' })) as VerdictBrief & { rows: Array<{ check: string; state: string; reason: string }> };
+    expect(r.rows.map((x) => [x.check, x.state])).toContainEqual(['Acceptance criteria as Given/When/Then', 'thin']);
+    expect(r.notReadyBecause.map((w) => w.check)).toContain('Acceptance criteria as Given/When/Then');
+    const ok = (await tool(readinessTools('card-payments', data, new Ledger(), toilProjectReader(fixture.execute, 'card-payments')), 'readiness_get').run({ id: 'corp-jira:PAY-101' })) as VerdictBrief & { rows: Array<{ check: string; state: string }> };
+    expect(ok.rows.map((x) => [x.check, x.state])).toContainEqual(['Acceptance criteria as Given/When/Then', 'pass']);
+    expect(ok.verdict).toBe('ready');
   });
 
   it("says so when the Toil project can't be read, and every item then fails scope", async () => {

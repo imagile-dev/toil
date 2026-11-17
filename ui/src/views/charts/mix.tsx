@@ -10,9 +10,17 @@
  * because a share that hides how much of it is a guess is a misleading share.
  * A split by person or team is in name order and never sorted by size: the team
  * is measured, never the person. Splits by anyone's name are alphabetical, a form of fairness.
+ *
+ * "Sort by" (#657) views the same work by another built-in scheme, such as
+ * flow's Feature, Defect, Risk and Debt, worked out on the fly from its rules
+ * and the labels already on the items (`?lens=` in the address, read by
+ * useWorkInsights). It changes nothing saved: the Toil project's own choice
+ * lives in Settings, and this menu only borrows the other spectacles.
  */
 
 import { Fragment } from 'react';
+import { BUILTIN_SCHEMES } from '../../../../src/core/classify/builtin.ts';
+import type { Scheme } from '../../../../src/core/classify/types.ts';
 import { StackedBars, StackedColumns } from '../../components/chartkit/index.ts';
 import { CategoryName } from '../../components/category-chip.tsx';
 import { Choice } from '../../components/choice.tsx';
@@ -22,7 +30,7 @@ import { Unread } from '../../components/unread.tsx';
 import { useData } from '../../data.ts';
 import { classifyHref } from '../../format.ts';
 import { toWhere } from '../../filters.ts';
-import { useAddress, useWorkInsights } from '../../insights-data.ts';
+import { lensOf, schemeInUse, useAddress, useWorkInsights } from '../../insights-data.ts';
 import { mixSources, mixOverview, mixSentence, inNameOrder, isPeopleDimension, labelOfDimension, MIX_UNITS, periodWords, SPLIT_MENU, type MixUnit } from '../../model/work-insights.ts';
 import { useWords } from '../../theme-context.ts';
 import type { Dashboard, Headline } from './dashboard.ts';
@@ -38,9 +46,12 @@ export function mixHeadline(ins: ReturnType<typeof useWorkInsights>): Headline {
   return { text: mixSentence(lines), note: `${periodWords(ins.today, period)}, ${result.total.value ?? 0} ${result.measure.unit} finished` };
 }
 
+/** A scheme as the Sort by menu names it: its categories, in order. */
+const schemeLabel = (s: { categories: ReadonlyArray<Pick<Scheme['categories'][number], 'name'>> }) => s.categories.map((c) => c.name).join(' / ');
+
 export function MixView() {
   const ins = useWorkInsights();
-  const { toilProject } = useData();
+  const { toilProject, classification } = useData();
   const { filters, query, go } = useAddress();
   const drill = useDrill();
   const words = useWords();
@@ -63,8 +74,17 @@ export function MixView() {
   const splitLabel = split === TIME ? 'Month' : labelOfDimension(split);
   const title = split === TIME ? `Work mix by month, ${periodWords(ins.today, period)}` : `Work mix by ${labelOfDimension(split).toLowerCase()}, ${periodWords(ins.today, period)}`;
   const set = (key: string, value: string | null) => go((q) => (value === null ? q.delete(key) : q.set(key, value)));
+  // The saved scheme first when it isn't built in (a team's own file), then every built-in one; picking the saved one drops the lens.
+  const inUse = schemeInUse(toilProject.classifyScheme, classification?.view?.scheme.name);
+  const lens = lensOf(query.get('lens'), inUse);
+  const saved = classification?.view?.scheme;
+  const sortBy = [
+    ...(BUILTIN_SCHEMES.some((b) => b.name === inUse) ? [] : [{ id: inUse, label: `${saved ? schemeLabel(saved) : inUse} (saved)` }]),
+    ...BUILTIN_SCHEMES.map((b) => ({ id: b.name, label: `${schemeLabel(b)}${b.name === inUse ? ' (saved)' : ''}` })),
+  ];
   const menus = (
     <div className="chart-menus">
+      <Choice label="Sort by" value={lens ?? inUse} options={sortBy} onChange={(id) => set('lens', id === inUse ? null : id)} />
       <Choice label={words('charts.splitBy')} value={split} options={[{ id: TIME, label: 'Month' }, ...SPLIT_MENU.filter((d) => d.spec !== 'category').map((d) => ({ id: d.spec, label: d.label }))]} onChange={(id) => set('split', id === TIME ? null : id)} />
       <Choice label={words('charts.measuredIn')} value={unit} options={MIX_UNITS.map((u) => ({ id: u.id, label: u.label }))} onChange={(id) => set('unit', id === 'items' ? null : id)} />
     </div>
@@ -89,6 +109,11 @@ export function MixView() {
           </>
         )}
       </p>
+      {lens && (
+        <p className="note" data-mix-lens={lens}>
+          Sorted by {schemeLabel(ins.scheme)} for this view only; the Toil project's saved categories are unchanged.
+        </p>
+      )}
       <FilterBar />
       <div className="chart-page__grid">
         <div className="chart-page__main">

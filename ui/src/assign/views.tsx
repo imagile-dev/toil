@@ -87,7 +87,7 @@ export function AssignmentCard({ a, now }: { a: Assignment; now: string }) {
       <Stack gap="xs">
         <Cluster className="assign-card__top">
           <StateChip a={a} />
-          <span className="assign-mode">{modeInfo(a.mode, plain.on).label}</span>
+          <span className="assign-mode">{a.standard ? 'Fix with AI agent' : modeInfo(a.mode, plain.on).label}</span>
         </Cluster>
         <p className="assign-card__item">
           <ItemLink id={a.item} /> <span className="assign-card__title">{a.itemTitle}</span>
@@ -276,6 +276,165 @@ export function AssignButton({ item }: { item: Pick<WorkItem, 'id' | 'title'> })
         Assign to agent<span className="sr-only"> {item.id}</span>
       </Button>
       <AssignModal item={item} />
+    </DialogTrigger>
+  );
+}
+
+/** The ticket rule a "Fix with AI agent" is about (#657): its name and text, and toil's reason the item misses it. */
+export interface RuleToFix {
+  standard: string;
+  rule: string;
+  name: string;
+  text: string | null;
+  reason: string;
+}
+
+/**
+ * "Fix with AI agent" on a thin or failed ticket-rule row (#657): a refine held
+ * to that one rule. The agent proposes one rewrite and asks about what the item
+ * doesn't say; nothing changes until a person approves the proposal. Where no
+ * AI agent can run here, the dialog says so and links to setting one up, as
+ * Ask does, rather than offering a button that can only fail.
+ */
+function FixRuleForm({ item, rule, list, close }: { item: Pick<WorkItem, 'id' | 'title'>; rule: RuleToFix; list: AssignmentList; close: () => void }) {
+  const { assignments: api, toilProject } = useData();
+  const usable = list.adapters.filter((a) => !a.problem);
+  const [adapter, setAdapter] = useState<AssignAdapter | null>(usable.find((a) => a.name === list.preferred)?.name ?? usable[0]?.name ?? null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const canSend = Boolean(api && !api.disabled && adapter && !busy);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!canSend || !api || !adapter) return;
+    setBusy(true);
+    setProblem(null);
+    try {
+      const a = await api.assign({ toilProject: toilProject.name, item: item.id, mode: 'refine', adapter, standard: { standard: rule.standard, rule: rule.rule } });
+      close();
+      window.location.hash = assignmentHref(a.toilProject, a.id);
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form className="assign-form" onSubmit={submit} noValidate data-fix-rule="">
+      <Heading slot="title" level={2} id="assign-title">
+        Fix with AI agent
+      </Heading>
+      <p className="note">
+        <ItemLink id={item.id} /> {item.title}
+      </p>
+      <dl className="fix-rule">
+        <dt>Ticket rule</dt>
+        <dd>
+          <strong>{rule.name}</strong>
+          {rule.text && <span className="note"> {rule.text}</span>}
+        </dd>
+        <dt>What toil found</dt>
+        <dd>{rule.reason}</dd>
+      </dl>
+      <p>An AI agent rewrites the item to meet the rule and asks about anything the item doesn't say. Nothing changes until you approve its suggestion.</p>
+      {usable.length === 0 ? (
+        <div className="agent-notice" data-no-agent="">
+          <p>
+            No AI agent is set up on this computer yet. <a href="#/settings/agent">Set up an AI agent</a>
+          </p>
+          {list.adapters.some((a) => a.problem) && (
+            <details>
+              <summary>Details for whoever sets it up</summary>
+              <ul className="plain">
+                {list.adapters.map((a) => (
+                  <li key={a.name} className="note">
+                    {a.label}: {a.problem}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      ) : usable.length > 1 ? (
+        <RadioGroup className="agent-adapters" value={adapter ?? ''} onChange={(v) => setAdapter(v as AssignAdapter)}>
+          <Label>Which AI</Label>
+          {usable.map((a) => (
+            <Radio key={a.name} value={a.name} className="agent-choice">
+              <strong>{a.label}</strong>
+            </Radio>
+          ))}
+        </RadioGroup>
+      ) : (
+        <p className="note">It runs on {usable[0]!.label}, on your own AI subscription, for up to {list.settings.timeLimitMinutes} minutes.</p>
+      )}
+      {list.settings.problem && <p className="failure">{list.settings.problem}</p>}
+      {api?.disabled && <p className="failure">{api.disabled}</p>}
+      {problem && (
+        <p role="alert" className="failure">
+          {problem}
+        </p>
+      )}
+      <div className="assign-actions">
+        {usable.length > 0 && (
+          <Button type="submit" className="btn btn--accent" isDisabled={!canSend}>
+            {busy ? 'Asking…' : 'Fix with AI agent'}
+          </Button>
+        )}
+        <Button className="btn" onPress={close}>
+          {usable.length > 0 ? 'Cancel' : 'Close'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function FixRuleBody({ item, rule, close }: { item: Pick<WorkItem, 'id' | 'title'>; rule: RuleToFix; close: () => void }) {
+  const { assignments: api, toilProject } = useData();
+  const [list, setList] = useState<AssignmentList | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  useEffect(() => {
+    if (!api) return void setProblem('This view has no AI agent assignments.');
+    if (api.disabled) return void setProblem(api.disabled);
+    let live = true;
+    api.list(toilProject.name, { inbox: false }).then(
+      (l) => live && setList(l),
+      (e: unknown) => live && setProblem(e instanceof Error ? e.message : String(e)),
+    );
+    return () => {
+      live = false;
+    };
+  }, [api, toilProject.name]);
+  if (list) return <FixRuleForm item={item} rule={rule} list={list} close={close} />;
+  return (
+    <div className="assign-form">
+      <Heading slot="title" level={2} id="assign-title">
+        Fix with AI agent
+      </Heading>
+      <p className={problem ? 'failure' : 'note'}>{problem ?? 'Reading the AI agents on this computer…'}</p>
+      <div className="assign-actions">
+        <Button className="btn" onPress={close}>
+          Close
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** "Fix with AI agent" for one ticket rule on one item, and the dialog it opens. Absent where nothing can be assigned. */
+export function FixRuleButton({ item, rule }: { item: Pick<WorkItem, 'id' | 'title'>; rule: RuleToFix }) {
+  const { assignments: api } = useData();
+  if (!api) return null;
+  return (
+    <DialogTrigger>
+      <Button className="btn btn--small" data-fix-rule-open={`${rule.standard}/${rule.rule}`}>
+        Fix with AI agent<span className="sr-only">: {rule.name}</span>
+      </Button>
+      <ModalOverlay className="feedback-overlay" data-backdrop="" isDismissable>
+        <Modal className="feedback-modal">
+          <Dialog className="feedback-dialog" aria-labelledby="assign-title">
+            {({ close }) => <FixRuleBody item={item} rule={rule} close={close} />}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
     </DialogTrigger>
   );
 }

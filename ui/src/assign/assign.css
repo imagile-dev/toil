@@ -39,3 +39,12 @@
 .assign-line p { overflow-wrap: anywhere; }
 .assign-line--error strong { color: var(--danger); }
 .assign-line--proposal strong { color: var(--link); }
+
+/* "Fix with AI agent" (#657): the rule and what toil found, as label and value pairs. */
+.fix-rule { display: grid; grid-template-columns: minmax(7rem, max-content) 1fr; gap: 0.35rem 1rem; margin: 0; overflow-wrap: anywhere; }
+.fix-rule dt { font-weight: 600; }
+.fix-rule dd { margin: 0; }
+@media (max-width: 30rem) { .fix-rule { grid-template-columns: 1fr; } .fix-rule dd { margin-bottom: 0.35rem; } }
+.assign-form .agent-notice { display: grid; gap: 0.4rem; padding: 0.6rem 0.75rem; border: 1px solid var(--warn); border-left-width: 4px; border-radius: var(--radius); background: var(--bg); }
+.assign-form .agent-notice p { margin: 0; }
+.assign-form .agent-notice summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
