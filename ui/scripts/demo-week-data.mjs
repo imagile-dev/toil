@@ -236,7 +236,7 @@ export const STORIES = {
     // can be written without gaps; only the form is missing, which is the point of the demo.
     plain: [
       'A payment declined for insufficient funds is explained on the checkout page as "Your bank declined this payment", never with the processor\'s code',
-      'The page suggests paying with another card, and keeps the basket as it was',
+      'After that decline, the page suggests paying with another card, and keeps the basket as it was',
     ],
   },
   'cw-pbi-4': {
