@@ -16,7 +16,8 @@ import { stubToil, type StubToil } from './toil-stub.ts';
  * move and the search "since" never lists the item. The sync reads the link
  * feed beside the search and re-reads both ends; when the feed fails, it
  * re-reads every item; and on the day of the whole listing it re-reads every
- * item anyway.
+ * item anyway. A dependency nobody depends on any more is still a dependency
+ * until the register of dependencies is told, which is what this file checks.
  */
 
 const ctx: RequestContext = { viewer: { id: 'local', name: 'you', via: 'loopback' }, signal: new AbortController().signal };
@@ -74,9 +75,9 @@ describe('a link-only change in Azure DevOps (#664)', () => {
     // The link feed was asked from the same watermark, for the same project, without the search's WIQL.
     const feed = named(toil, LINK_FEED);
     expect(feed).toHaveLength(1);
-    const { wiql: _wiql, ...searchInput } = search.input;
+    const searchInput = Object.fromEntries(Object.entries(search.input).filter(([k]) => k !== 'wiql'));
     expect(feed[0]!.input).toEqual(searchInput);
-    expect(job.messages).toContain(`settlement: ${LINK_FEED} since ${String(search.input.updatedSince)}: 1 link changes`);
+    expect(job.messages).toContain(`settlement: ${LINK_FEED} since ${String(search.input.updatedSince)}: 1 changed links`);
     // get-many re-read both ends of the link, and nothing else.
     expect(named(toil, GET_MANY).map((c) => c.input.id)).toEqual([[a, b]]);
     expect(blocks(cache, a)).toEqual([]);
@@ -86,6 +87,8 @@ describe('a link-only change in Azure DevOps (#664)', () => {
     const toil = stubToil();
     const { sync, advance } = await setup(toil);
     expect((await sync.run(ctx)).error).toBeNull();
+    // A first sync has no watermark, so it reads get-many whole and never asks the link feed.
+    expect(named(toil, LINK_FEED)).toEqual([]);
     advance(HOUR);
     toil.reset();
     expect((await sync.run(ctx)).error).toBeNull();

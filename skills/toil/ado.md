@@ -287,7 +287,7 @@ Work items (`<id>` is the work item id):
   sourceId, targetId, changedDate, isActive, ... }` as Azure DevOps reports it: `rel` is
   the link type's reference name (`System.LinkTypes.Dependency-Forward`), and `isActive`
   is `false` for a link that was removed. `--updated-since` takes the same date forms as
-  `work-item search`; without it the feed starts at the project's first link. Read batch
+  `work-item search`; without it the feed starts at the beginning of the project. Read batch
   by batch, with `--limit` and `--cursor` like any list.
 - `work-item comments <id>`, `work-item comment <id>` (`--body`): Comments. Listing
   reads the first page only on Server; on Services it returns every comment, following

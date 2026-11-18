@@ -317,7 +317,7 @@ describe('the sync\'s own reads', () => {
     const def = byName.get('ado work-item link-feed');
     expect(def, 'toil has no API command "ado work-item link-feed"').toBeDefined();
     expect(def!.writes).toBe(false);
-    const { wiql: _wiql, ...input } = call.input;
+    const input = Object.fromEntries(Object.entries(call.input).filter(([k]) => k !== 'wiql'));
     const result = new Validator(def!.inputSchema as object, '2020-12', false).validate({ ...input, updatedSince: '2026-10-01T09:00:00.000Z' });
     expect(result.errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);
   });

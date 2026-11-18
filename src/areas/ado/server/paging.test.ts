@@ -244,6 +244,7 @@ describe('work-item feed (the reporting feed)', () => {
 describe('work-item link-feed (the reporting links feed, #664)', () => {
   it('reads link changes from a start date, then follows the continuation token without the date, removals included', async () => {
     const { calls, data, envelope } = await run('work-item link-feed', { ...AT, updatedSince: '2026-09-01' });
+    expect(calls[0]!.headers).toMatchObject({ authorization: expect.stringMatching(/^Basic /), accept: 'application/json' });
     expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
       `GET ${ADO}${COLL}/Imagile/_apis/wit/reporting/workitemlinks?api-version=7.1&startDateTime=2026-09-01T00%3A00%3A00.000Z`,
       `GET ${ADO}${COLL}/Imagile/_apis/wit/reporting/workitemlinks?api-version=7.1&continuationToken=abc12345`,

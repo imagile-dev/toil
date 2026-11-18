@@ -48,8 +48,8 @@
  *   whole, asking for ids only where the command can (Jira's `--fields key`;
  *   a WIQL answer is ids already), and a cached item it no longer lists is
  *   dropped. On that day Azure DevOps' `get-many` is read whole too, which
- *   catches anything the link feed missed. Between those, the merge by id goes on as before. GitHub's
- *   issue list has no window, so it is left out. A whole listing that fails
+ *   catches anything the link feed missed. Between those, the merge by id
+ *   goes on as before. GitHub's issue list has no window, so it is left out. A whole listing that fails
  *   keeps the merged delta, says so in the job's messages and is tried again
  *   by the next sync.
  * - **The window.** The loader asks Jira and Azure DevOps for open items and
@@ -488,12 +488,12 @@ export class SyncService {
     const env = await this.call(ADO_LINK_FEED, { ...input, updatedSince: watermark }, signal);
     if (!env.ok || !Array.isArray(env.data)) {
       source.rereadBatches = true;
-      this.say(`${run.toilProject}: ${ADO_LINK_FEED} since ${watermark} failed${env.ok ? '' : `, ${env.error.message}`}; reading every work item again so no removed link stays`);
+      this.say(`${run.toilProject}: ${ADO_LINK_FEED} since ${watermark} failed, ${env.ok ? 'its answer was not a list' : env.error.message}; reading every work item again so no removed link stays`);
       return;
     }
     const ends = recs(env.data).flatMap((l) => [l.sourceId, l.targetId]).filter((id) => id !== undefined && id !== null).map(String);
     source.changed = new Set([...(source.changed ?? []), ...ends]);
-    this.say(`${run.toilProject}: ${ADO_LINK_FEED} since ${watermark}: ${env.data.length} link changes`);
+    this.say(`${run.toilProject}: ${ADO_LINK_FEED} since ${watermark}: ${env.data.length} changed links`);
   }
 
   private async fetch(run: Run, source: Source, command: string, input: Rec, signal: AbortSignal): Promise<Envelope> {
