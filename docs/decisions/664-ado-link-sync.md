@@ -1,0 +1,20 @@
+# Azure DevOps link changes in Toil UI's sync (#664)
+
+Defaults this PR chose; the maintainer's decisions on #664 are not repeated.
+
+## toil
+
+- **The command is `ado work-item link-feed`, on both deployments, with `--updated-since`, `--limit` and `--cursor`.** It sits beside `work-item feed` (the revision feed) under `work-item`, and is named after it so the two read as a pair; `work-item link` is the write that adds a link, so the read could not take that name. `--updated-since` is the area's "changed since" flag, with the same date forms and the same `wiqlInstant` check. No `--link-types` or `--types` flag: the caller narrows with `--select`, and the sync wants every link type (principle 3, few options).
+- **Data is the feed's `values`, as Azure DevOps sends them**: `{ rel, sourceId, targetId, changedDate, isActive, ... }`, a removal reported with `isActive: false`. Paging is the revision feed's, shared in `src/areas/ado/feed.ts` (`feedPages` is now generic over the record type): `startDateTime` on the first request only, `continuationToken` after, not followed once `isLastBatch` is true. Ten-minute time limit, as the revision feed has.
+- **Requests**: Services `{org}/{project}/_apis/wit/reporting/workitemlinks?api-version=7.1[&startDateTime=…]`, Server `{collection}/{project}/_apis/wit/reporting/workitemlinks?…`, both `GET`.
+- **Additive**: `docs/command-contract.json` and the divergences gain nothing, as with `work-item feed` (#511).
+- **API facts relied on, from Microsoft's public reference** (https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/reporting-work-item-links/get?view=azure-devops-rest-7.1): the URI; `startDateTime`, `continuationToken`, `linkTypes`, `types`; the response `values`, `continuationToken`, `isLastBatch`, `nextLink`; a link record's `rel`, `sourceId`, `targetId`, `changedDate`, `isActive`, `changedOperation`. The fixtures are invented from that reference and say so.
+- **Unverified, to check live and appended to the Azure DevOps suspected-bug issue:** (1) that a removal is reported with `isActive: false` on both deployments, as the issue's live run suggests; (2) whether `startDateTime` compares `changedDate` and whether it is strict (the sync's five-minute margin covers either); (3) that a link between items in two projects is reported to the project-scoped feed of either end.
+
+## Toil UI
+
+- **The link feed is read only beside an incremental `ado work-item search`**, with the search's own input less `wiql`, from the same watermark. Both ends of every link change join the source's changed items, so `get-many` reads them again. A first read has no watermark and reads `get-many` whole anyway.
+- **The link feed is the sync's own call, not the dashboard's**: it is not stored in the cache, not in `READ_COMMANDS`, and a failure does not mark the source failed, because the data is still read correctly: the sync says so in its messages and reads every `get-many` slice whole that run.
+- **On the day the search is listed whole (`RECONCILE_MS`), `get-many` is read whole too**, whatever the link feed said: the fallback the issue asked for, and the guard against anything the feed misses. The ids-only listing stays ids only.
+- **Histories are unaffected.** An item whose links changed joins the changed set, so if it is one the revision feed doesn't hold whole it is read with `work-item history` again; a link change adds no revision, so that costs a call and changes nothing.
+- **Pinning.** Toil UI from this commit asks for `ado work-item link-feed`, which the pinned toil doesn't have yet. Against it the call fails with an unknown command, the sync says so and reads `get-many` whole each sync, which is correct and costs a few batch requests; a `toil-ui-v…` release goes out with or after the toil release that has the command.
