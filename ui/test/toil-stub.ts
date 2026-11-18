@@ -137,7 +137,7 @@ export function stubToil(): StubToil {
       return ok(command, feed);
     }
     if (command === 'ado work-item link-feed') {
-      return ok(command, structuredClone(linkChanges.filter((l) => since === null || Date.parse(String(l.changedDate)) >= since)));
+      return ok(command, structuredClone(linkChanges.filter((l) => since === null || Date.parse(String((l.attributes as Rec).changedDate)) >= since)));
     }
     if (command === 'ado work-item get-many' || command === 'github issue get') {
       const exact = find(command, rest);
@@ -222,7 +222,8 @@ export function stubToil(): StubToil {
           w.relations = active ? [...kept, { rel, url, attributes: { isLocked: false, name: 'Successor' } }] : kept;
         }
       }
-      linkChanges.push({ rel, sourceId, targetId, changedDate: at, isActive: active, changedOperation: active ? 'create' : 'remove' });
+      // The shape Azure DevOps Services sends (test/fixtures/ado.fixture.ts, feedLink): the topology in rel, the rest under attributes.
+      linkChanges.push({ rel: 'System.LinkTypes.Dependency', attributes: { linkType: rel, sourceId, targetId, changedDate: at, isActive: active, changedOperation: active ? 'create' : 'remove' } });
     },
     renameIteration(from, to) {
       for (const list of revisions.values()) for (const r of list) {

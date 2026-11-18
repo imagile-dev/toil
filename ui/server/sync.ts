@@ -491,7 +491,11 @@ export class SyncService {
       this.say(`${run.toilProject}: ${ADO_LINK_FEED} since ${watermark} failed, ${env.ok ? 'its answer was not a list' : env.error.message}; reading every work item again so no removed link stays`);
       return;
     }
-    const ends = recs(env.data).flatMap((l) => [l.sourceId, l.targetId]).filter((id) => id !== undefined && id !== null).map(String);
+    // Azure DevOps Services nests a link change under `attributes`; the reference's example has it flat, so either is read.
+    const ends = recs(env.data).flatMap((l) => {
+      const a = isRec(l.attributes) ? l.attributes : l;
+      return [a.sourceId, a.targetId];
+    }).filter((id) => typeof id === 'number' || (typeof id === 'string' && id !== '')).map(String);
     source.changed = new Set([...(source.changed ?? []), ...ends]);
     this.say(`${run.toilProject}: ${ADO_LINK_FEED} since ${watermark}: ${env.data.length} changed links`);
   }

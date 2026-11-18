@@ -95,16 +95,26 @@ const feedBatch = (r: { url: string }) => {
     : { json: { values: [feedRevision(42, 1, 'New'), feedRevision(42, 2, 'Active'), feedRevision(7, 1, 'New')], nextLink: 'https://dev.azure.com/imagile/_apis/wit/reporting/workItemRevisions?continuationToken=abc12345', continuationToken: 'abc12345', isLastBatch: false } };
 };
 
-// Invented from Reporting Work Item Links - Get (7.1): { rel, sourceId, targetId, changedDate, isActive, changedOperation },
-// a removed link reported with isActive false. Paged as the revision feed is: continuationToken, then isLastBatch.
+// Captured from Azure DevOps Services (Reporting Work Item Links - Get, 7.1) on the sandbox, sanitized to placeholders:
+// { rel, attributes: { linkType, sourceId, targetId, isActive, changedDate, changedBy, comment, changedOperation,
+// sourceProjectId, targetProjectId } }, a removed link with isActive false and changedOperation "remove". That is not
+// the flat record the reference's example shows. Server is assumed to send the same; it is unverified there (#69).
+// Paged as the revision feed is: continuationToken, then isLastBatch.
 // (https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/reporting-work-item-links/get?view=azure-devops-rest-7.1)
 export const feedLink = (sourceId: number, targetId: number, isActive: boolean) => ({
-  rel: 'System.LinkTypes.Dependency-Forward',
-  sourceId,
-  targetId,
-  changedDate: '2026-09-04T12:00:00Z',
-  isActive,
-  changedOperation: isActive ? 'create' : 'remove',
+  rel: 'System.LinkTypes.Dependency',
+  attributes: {
+    linkType: 'System.LinkTypes.Dependency-Forward',
+    sourceId,
+    targetId,
+    isActive,
+    changedDate: '2026-09-04T12:00:00Z',
+    changedBy: { id: 'abc12345-0000-0000-0000-000000000000', displayName: 'Jane Doe', uniqueName: 'you@example.com' },
+    comment: null,
+    changedOperation: isActive ? 'create' : 'remove',
+    sourceProjectId: 'abc12345-0000-0000-0000-000000000000',
+    targetProjectId: 'abc12345-0000-0000-0000-000000000000',
+  },
 });
 const linkBatch = (r: { url: string }) =>
   new URL(r.url).searchParams.has('continuationToken')

@@ -284,9 +284,11 @@ Work items (`<id>` is the work item id):
   API, on both deployments). Azure DevOps records a link change under the item's current
   revision without moving `System.ChangedDate`, so neither `work-item search
   --updated-since` nor `work-item feed` shows one; this does. Each entry is `{ rel,
-  sourceId, targetId, changedDate, isActive, ... }` as Azure DevOps reports it: `rel` is
-  the link type's reference name (`System.LinkTypes.Dependency-Forward`), and `isActive`
-  is `false` for a link that was removed. `--updated-since` takes the same date forms as
+  attributes: { linkType, sourceId, targetId, isActive, changedDate, changedOperation,
+  changedBy, ... } }` as Azure DevOps reports it: `rel` is the link topology
+  (`System.LinkTypes.Dependency`), `attributes.linkType` the direction from source to
+  target (`System.LinkTypes.Dependency-Forward`), and a removed link has `isActive:
+  false` and `changedOperation: "remove"`. `--updated-since` takes the same date forms as
   `work-item search`; without it the feed starts at the beginning of the project. Read batch
   by batch, with `--limit` and `--cursor` like any list.
 - `work-item comments <id>`, `work-item comment <id>` (`--body`): Comments. Listing
