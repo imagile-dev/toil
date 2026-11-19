@@ -3,7 +3,7 @@
   "name": "Split.IO",
   "group": "testing",
   "order": 2,
-  "covers": "Feature flags, environments, change requests",
+  "covers": "Feature flags, segments, flag sets, environments, change requests",
   "credential": "Admin API key",
   "credentialWhere": "Admin settings → API keys → Create API key, type Admin",
   "status": "unit",
