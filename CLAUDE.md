@@ -187,7 +187,19 @@ gets made again in the next place it applies.
     code review), with toil's own term one hover away. A theme speaks only where
     nothing depends on the words: explanations and ledes, loading and progress text,
     empty-state sentences and its moments. So plain words has no switch: it is
-    always on (the maintainer's call, 2026-11-05, #561). → Toil UI's help
+    always on (the maintainer's call, 2026-11-05, #561). **A control looks like
+    one, and the screen leads with what the source tools don't show** (the
+    maintainer's call, 2026-11-18, #657): anything that acts or moves within the app
+    is a button, and a link only leaves it (to the item in its source, to the docs);
+    the tabs are few, and a view the source already gives well (a sprint board) is a
+    drill-in, never the main focus; motion brings what was clicked into focus, and
+    stills under reduced motion; and toil's own internals (versions, commits,
+    prompt changes) never reach a card, only what the person should do about them.
+    A control that starts an AI agent says so at a glance, with the theme's own
+    agent mark, the same mark on every such control; what it does and what it reads
+    go in its tooltip, never in an expander or a paragraph beside it; and the
+    controls of one row line up on one baseline (the maintainer's call, 2026-11-18,
+    #657). → Toil UI's help
     topics (`ui/src/help.ts`, #346) and the **Screen review** in the `ship` skill.
 12. **Unknown is not zero.** A figure nobody has read yet, because nothing has synced,
     a source failed, or the data isn't there, is *unknown*, and says so. A real count

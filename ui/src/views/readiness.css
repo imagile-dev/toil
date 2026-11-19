@@ -35,8 +35,8 @@
 .readiness-standard__fix { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 0.75rem; margin: 0 0 0.4rem; }
 .readiness-standard__fix .field { margin: 0; }
 .readiness-row--skipped .readiness-mark, .readiness-row--skipped .readiness-state { color: var(--muted); }
-.readiness-row--rule { grid-template-columns: 1.4rem minmax(0, 1fr) auto; align-items: start; }
-.readiness-row--rule .readiness-mark { padding-top: 0.15rem; }
+/* The mark, the rule's line and its Fix with AI agent share one baseline (#657): the button's label sits on the rule's first line. */
+.readiness-row--rule { grid-template-columns: 1.4rem minmax(0, 1fr) auto; align-items: baseline; }
 .readiness-row__more > summary { align-items: flex-start; border-radius: var(--radius); }
 .readiness-row__more > summary .disclosure-chevron { padding-top: 0.2rem; }
 .readiness-row__more > p { margin: 0.25rem 0 0 1.5rem; }
@@ -50,3 +50,15 @@
 .readiness-rules { margin: 0 0 1.5rem; }
 .readiness-rules ul { list-style: none; padding: 0; margin: 0.4rem 0 0; display: grid; gap: 0.3rem; overflow-wrap: anywhere; }
 .readiness-rule-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; margin: 0 0 0.5rem; }
+.readiness-rules__lines .btn--row { margin-inline: -0.6rem; width: calc(100% + 1.2rem); font-weight: 400; }
+.readiness-rules__lines .btn--row[aria-current="true"] { background: var(--raised); }
+.readiness-board { margin: 0 0 0.75rem; }
+/* A quiet button, so .btn would centre it: it starts on the rows' own left edge instead (#657). */
+.readiness-passing > summary { list-style: none; justify-content: flex-start; width: fit-content; margin-inline-start: -0.6rem; cursor: pointer; }
+.readiness-passing > summary::-webkit-details-marker { display: none; }
+/* The ready items on one line (#657): "16 ready" and its Start button, the items one press in. */
+.readiness-slate__line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; }
+.readiness-slate__line h2 { margin: 0; }
+.readiness-slate__items { margin-top: 0.5rem; }
+.readiness-slate__items > summary { min-height: 44px; margin-inline-start: -0.6rem; padding-inline: 0.6rem; border-radius: var(--radius); }
+.readiness-slate .note { margin: 0.5rem 0 0; max-width: 60ch; }

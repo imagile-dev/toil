@@ -72,6 +72,7 @@ import { appliesItself, boardBlock, canMove, columns, dropRefusal, proposeMove, 
 import { isMoveColumn, type AddToBoard, type MoveColumn, type MoveOptions, type NextStep } from '../board-api.ts';
 import { useBoardMoves } from '../board-moves.ts';
 import { flows } from '../model/flow.ts';
+import { asMapped } from '../model/people.ts';
 import { boardLanes, mixOfItems, type Lane } from '../model/lanes.ts';
 import { useWorkInsights } from '../insights-data.ts';
 import { labelOfDimension } from '../model/work-insights.ts';
@@ -182,6 +183,9 @@ const attentionClass = (item: WorkItem, p: Prepared) => (flagsAttention(insights
 
 function CardFace({ item, ids }: { item: WorkItem; ids?: string }) {
   const { insights: prepared } = useDerived();
+  const { toilProject } = useData();
+  // The assignee as the toil project's people name them: one person, one name and one avatar, whichever account is on the item.
+  const who = asMapped(toilProject.people ?? [], item.source.area, item.assignee);
   const { Card: Skin } = useSkins();
   const key = shortKey(item);
   const found = insights(item, prepared);
@@ -216,7 +220,7 @@ function CardFace({ item, ids }: { item: WorkItem; ids?: string }) {
       </p>
       <div className="card-foot">
         <span className="who">
-          <Avatar person={item.assignee} /> {personText(item.assignee)}
+          <Avatar person={who} /> {personText(who)}
         </span>
         <span className="card-meta">
           <InsightChips insights={found} compact titles={prepared.byId} />

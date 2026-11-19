@@ -8,6 +8,7 @@
  * The one page the weekly status meeting was trying to be, now with tabs.
  */
 
+import { NavButton } from '../components/nav-button.tsx';
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Checkbox } from 'react-aria-components';
 import { Outcome } from '../components/bits.tsx';
@@ -304,7 +305,12 @@ function BoardFilter({ name, shown, all }: { name: string | null; shown: number;
           Showing {name}'s items: {on(shown)} on this board{all > shown ? `, of ${on(all)} assigned to them in all` : ''}.{' '}
         </>
       )}
-      <a href={boardHref(toilProject.name)}>Show everyone's</a> · <a href={peopleHref(toilProject.name)}>Back to People</a>
+      <NavButton href={boardHref(toilProject.name)} size="sm">
+        Show everyone's
+      </NavButton>{' '}
+      <NavButton href={peopleHref(toilProject.name)} kind="quiet" size="sm">
+        Back to People
+      </NavButton>
     </p>
   );
 }

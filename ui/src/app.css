@@ -28,6 +28,8 @@ h2 { font-size: 1.15rem; line-height: 1.3; }
 h3 { font-size: 1rem; line-height: 1.35; }
 h1:focus { outline: none; }
 h1:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
+/* The focus the app moves to a new page's heading (focusQuietly in App.tsx) draws no ring; a keyboard's own focus does (#657). */
+[data-nav-focus]:focus, [data-nav-focus]:focus-visible { outline: none; }
 
 :focus-visible {
   outline: 3px solid var(--focus);
@@ -234,6 +236,8 @@ button { cursor: pointer; text-align: left; }
 button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 button:disabled { cursor: progress; }
 
+/* The button kinds (primary, secondary, quiet) and the small size are in views.css, after .btn, so they win over it. */
+
 .sync { padding: 0.5rem 16px; color: var(--muted); font-size: 0.875rem; }
 
 main {
@@ -279,6 +283,12 @@ main {
 .env { font-family: var(--font-mono); font-size: 0.9375rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 
 .item-link { text-decoration: none; }
+/* An item as a row (ItemRow): the key in the source colour, the title in ink, the chevron at its end; it wraps rather than widens. */
+.item-rows { display: grid; gap: 0.1rem; margin: 0; padding: 0; }
+.item-row.btn--row { justify-content: flex-start; font-weight: 400; overflow-wrap: anywhere; }
+.item-row .btn__text { flex: 1; min-width: 0; }
+.item-row .source { color: var(--link); }
+.item-rows__more { justify-self: start; align-self: start; }
 .item-link .key { display: inline; }
 .item-link .source { color: var(--link); }
 .item-link .title { color: var(--ink); }
@@ -341,3 +351,7 @@ tbody th { font-weight: 400; }
 
 /* A link alone in a note, or an item named in an evidence line, has a hit area of at least 24px (WCAG 2.5.8) without changing how it reads. */
 .back-link, .evidence .item-link { display: inline-block; min-height: 24px; padding-block: 2px; box-sizing: border-box; }
+
+/* A line's source as a badge (SourceTip): small and muted, its detail in the tooltip; a 24px hit area keeps it pressable. */
+.source-tip { display: inline-flex; align-items: center; min-height: 24px; padding: 0 0.45rem; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 0.75rem; cursor: help; vertical-align: baseline; }
+.source-tip[data-hovered], .source-tip[data-focus-visible] { color: var(--ink); border-color: var(--ink); }

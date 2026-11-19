@@ -54,3 +54,7 @@
 .sure--low { --sure: var(--danger); }
 .sure__dots { flex: none; }
 
+/* A guided question starts the AI agent, so it leads with the agent mark (#657), beside its text and note. */
+.guided-q { grid-template-columns: auto minmax(0, 1fr); column-gap: 0.5rem; align-items: center; }
+.guided-q > .agent-mark { grid-row: 1 / span 2; margin: 0; }
+.guided-q > :not(.agent-mark) { grid-column: 2; }

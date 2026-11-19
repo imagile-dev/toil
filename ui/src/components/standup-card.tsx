@@ -4,7 +4,8 @@
  * them, and a way in to the rest. It loads and words everything through the
  * stand-up page's own parts (`useStandupReport`, `BucketRow`, `PersonName`,
  * `Dash`), so the two can't disagree. The rows are the ones that matter first:
- * questions nobody has answered, then what is blocked, done, in progress. With
+ * questions nobody has answered, then what is blocked, done, in progress, one row
+ * per person however many of those they have. With
  * no sync behind it, the rows are a dash that says "not read yet", never "nothing
  * happened" (principle 12).
  */
@@ -81,10 +82,12 @@ export function StandupCard({ api }: { api: WorklogApi }) {
           ) : (
             <ul className="sum-standup__rows">
               {rows.map((r) => (
-                <li key={`${r.group.key}/${r.bucket}`} className="sum-standup__row">
+                <li key={r.title} className="sum-standup__row">
                   <CardName group={r.group} />
                   <dl className="standup-rows">
-                    <BucketRow report={report!} group={r.group} bucket={r.bucket} lines={r.group.lines[r.bucket].filter((l) => r.bucket !== 'comments' || l.comment?.outstanding)} cited={NONE} />
+                    {r.parts.map((p) => (
+                      <BucketRow key={`${p.group.key}/${p.bucket}`} report={report!} group={p.group} bucket={p.bucket} lines={p.group.lines[p.bucket].filter((l) => p.bucket !== 'comments' || l.comment?.outstanding)} cited={NONE} />
+                    ))}
                   </dl>
                 </li>
               ))}

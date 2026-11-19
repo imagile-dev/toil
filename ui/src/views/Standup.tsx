@@ -13,7 +13,7 @@
  * with the minutes already taken.
  */
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Button, Form, Input, Label, TextField } from 'react-aria-components';
 import type { Answer } from '../agent.ts';
 import { PersonGlyph } from '../components/avatar.tsx';
@@ -22,7 +22,7 @@ import { Path } from '../components/layout.tsx';
 import { Help } from '../components/help.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
 import { useData } from '../data.ts';
-import { itemHref, sourceLabel, standupHref, worklogHref } from '../format.ts';
+import { AGENT_SETTINGS_HREF, itemHref, sourceLabel, standupHref, worklogHref } from '../format.ts';
 import { allLines, BUCKETS, BUCKET_TITLE, chipsOf, commentsReadFor, defaultRange, factsCited, groupTitle, PRESET_LABEL, PRESETS, presetOf, presetRange, rangeProblem, shorten, standupWriteUp, whenText, type Bucket, type Chip, type Preset, type StandupGroup, type StandupLine, type StandupReport } from '../model/standup.ts';
 import { health } from '../model/sprint.ts';
 import { dayOf, shortDay, timeOf } from '../model/worklog.ts';
@@ -31,6 +31,7 @@ import { voiceOn } from '../theme-context.ts';
 import type { WorklogApi, WorklogExport, WorklogStandup } from '../worklog.ts';
 import { Loader } from '../moments/Moments.tsx';
 import { HelpIcon } from '../components/icons.tsx';
+import { AgentMark } from '../components/agent-mark.tsx';
 import './standup.css';
 
 export type Loaded<T> = { ok: true; value: T } | { ok: false; message: string } | null;
@@ -188,10 +189,13 @@ function CopyText({ value }: { value: string | null }) {
   );
 }
 
-/** A dash for an empty row, which says what it stands for to anything that reads it aloud: "none", or "not read yet" where nothing was read (principle 12). */
+/**
+ * A dash for an empty row, which says what it stands for to anything that reads it aloud: "none", or "not read yet" where nothing was read (principle 12).
+ * No `title`: the words beside every dash already say what it stands for, and a hover that shows the raw word "none" floated a stray tooltip over the page (#657).
+ */
 export function Dash({ what = 'none' }: { what?: 'none' | 'not read yet' }) {
   return (
-    <span className="standup-dash" title={what} data-dash={what === 'none' ? 'none' : 'not-read'}>
+    <span className="standup-dash" data-dash={what === 'none' ? 'none' : 'not-read'}>
       <span aria-hidden="true">–</span>
       <span className="sr-only">{what}</span>
     </span>
@@ -417,6 +421,7 @@ function Report({ api, data, onRebuilt }: { api: WorklogApi; data: WorklogStandu
     }
   };
   const cited = new Set(writeUp ? factsCited(writeUp.parts.map((p) => p.text).join('\n'), report) : []);
+  const exporting = useExport(api, data);
   return (
     <>
       <SourceLine report={report} />
@@ -442,26 +447,19 @@ function Report({ api, data, onRebuilt }: { api: WorklogApi; data: WorklogStandu
           <Dash /> Nobody is in the Toil project's people, and the worklog recorded nobody on these days.
         </p>
       )}
-      <details className="standup-more" data-standup-writeup-section="">
-        <summary>Write it up with the agent</summary>
-        {moved && (
-          <p role="status" className="note">
-            A sync landed while the agent wrote, so the report above was built again from what the agent read, and its fact numbers match the write-up.
-          </p>
-        )}
-        <WriteUp report={report} answer={writeUp} onAnswer={(a) => void answered(a)} />
-      </details>
-      <details className="standup-more" data-standup-export-section="">
-        <summary>Export as a Markdown file</summary>
-        <Export api={api} data={data} />
-      </details>
+      <WriteUp report={report} answer={writeUp} moved={moved} onAnswer={(a) => void answered(a)} exporting={exporting} />
     </>
   );
 }
 
-/** Export writes the Markdown to a new file in a folder the person names, through toil's file service; publishing it is a proposal. */
-function Export({ api, data }: { api: WorklogApi; data: WorklogStandup }) {
+/**
+ * Export, as one button in the actions row (#657): pressing it shows the folder field and Export on the next line, and
+ * what it does is in its (i). It writes the Markdown to a new file in a folder the person names, through toil's file
+ * service; publishing it is a proposal.
+ */
+function useExport(api: WorklogApi, data: WorklogStandup): { control: ReactNode; body: ReactNode } {
   const { report } = data;
+  const [open, setOpen] = useState(false);
   const [folder, setFolder] = useState('');
   const [result, setResult] = useState<{ ok: true; value: WorklogExport } | { ok: false; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -477,45 +475,54 @@ function Export({ api, data }: { api: WorklogApi; data: WorklogStandup }) {
       setBusy(false);
     }
   };
-  return (
-    <div className="standup-export">
-      <p className="note">Writes the full report as Markdown to a new file in a folder you name, through toil's own file service. Publishing it to Confluence or GitHub is then a proposal, for you to run through toil's write gate.</p>
-      {api.disabled ? (
-        <p className="note">{api.disabled}</p>
-      ) : (
-        <Form className="worklog-export" onSubmit={(e) => void submit(e)}>
-          <TextField className="field-text" value={folder} onChange={setFolder} isRequired>
-            <Label>Folder, as a full path</Label>
-            <Input autoComplete="off" spellCheck={false} />
-          </TextField>
-          <Button type="submit" className="btn" isDisabled={busy || !folder.trim()}>
-            Export
-          </Button>
-        </Form>
-      )}
-      {result &&
-        (result.ok ? (
-          <>
-            <p role="status">
-              toil wrote {plural(result.value.bytes, 'byte')} to <Path value={result.value.path} what="exported file's path" />.
-            </p>
-            {result.value.proposals.length ? (
-              result.value.proposals.map((p) => <ProposalCard key={p.id} proposal={p} />)
-            ) : (
-              <p className="note">This Toil project names no Confluence space and no GitHub repository, so there is nowhere to propose publishing it.</p>
-            )}
-          </>
+  return {
+    control: (
+      <span className="control-row__group">
+        <Button className="btn btn--secondary btn--sm" aria-expanded={open} aria-controls="standup-export" onPress={() => setOpen(!open)} data-standup-export-open="">
+          Export as Markdown
+        </Button>
+        <Help topic="standup-export" />
+      </span>
+    ),
+    body: open ? (
+      <div className="standup-export" id="standup-export" data-standup-export-section="">
+        {api.disabled ? (
+          <p className="note">{api.disabled}</p>
         ) : (
-          <p role="alert" className="failure">
-            {result.message}
-          </p>
-        ))}
-    </div>
-  );
+          <Form className="standup-export__form" onSubmit={(e) => void submit(e)}>
+            <TextField className="field-text" value={folder} onChange={setFolder} isRequired>
+              <Label>Folder, as a full path</Label>
+              <Input autoComplete="off" spellCheck={false} />
+            </TextField>
+            <Button type="submit" className="btn" isDisabled={busy || !folder.trim()}>
+              Export
+            </Button>
+          </Form>
+        )}
+        {result &&
+          (result.ok ? (
+            <>
+              <p role="status">
+                toil wrote {plural(result.value.bytes, 'byte')} to <Path value={result.value.path} what="exported file's path" />.
+              </p>
+              {result.value.proposals.length ? (
+                result.value.proposals.map((p) => <ProposalCard key={p.id} proposal={p} />)
+              ) : (
+                <p className="note">This Toil project names no Confluence space and no GitHub repository, so there is nowhere to propose publishing it.</p>
+              )}
+            </>
+          ) : (
+            <p role="alert" className="failure">
+              {result.message}
+            </p>
+          ))}
+      </div>
+    ) : null,
+  };
 }
 
 /** "Write it up": the agent retells the same facts in a few sentences, labelled as its own and naming the fact lines it used. */
-function WriteUp({ report, answer, onAnswer }: { report: StandupReport; answer: Answer | null; onAnswer: (a: Answer | null) => void }) {
+function WriteUp({ report, answer, moved, onAnswer, exporting }: { report: StandupReport; answer: Answer | null; moved: boolean; onAnswer: (a: Answer | null) => void; exporting: { control: ReactNode; body: ReactNode } }) {
   const { agent, toilProject } = useData();
   const theme = useTheme();
   const choice = useThemeChoiceContext();
@@ -536,16 +543,33 @@ function WriteUp({ report, answer, onAnswer }: { report: StandupReport; answer: 
     }
   };
   const used = answer ? factsCited(answer.parts.map((p) => p.text).join('\n'), report) : [];
+  // No agent is a state that stays on screen (principle 4): the button is disabled and one line offers the setting that fixes it.
+  const noAgent = Boolean(agent.notice);
   return (
-    <div className="standup-writeup-body">
-      <p className="note">Optional. The agent turns the facts above into a short narrative, in the theme's voice when that is on. It reads the same report, names the fact lines it used, and its usage counts like any chat's. The report above stays the record.</p>
-      {agent.notice && <p className="note agent-notice">{agent.notice}</p>}
-      <div className="worklog-actions">
-        <Button className="btn" data-standup-writeup="" isDisabled={busy} onPress={() => void ask()}>
-          {answer ? 'Write it up again' : 'Write it up'}
-        </Button>
+    <div className="standup-writeup-body" data-standup-writeup-section="">
+      {/* One row: the agent's write-up and the export, each a button with its (i); what each does is in the tooltip, never a paragraph beside it (principle 11, #657). */}
+      <div className="control-row" data-standup-actions="">
+        <span className="control-row__group">
+          <Button className="btn btn--sm" data-standup-writeup="" isDisabled={busy || noAgent} onPress={() => void ask()}>
+            <AgentMark />
+            {answer ? 'Write it up again' : 'Write it up'}
+          </Button>
+          <Help topic="standup-writeup" />
+        </span>
+        {exporting.control}
         {busy && <span role="status">The agent is writing it up.</span>}
       </div>
+      {noAgent && (
+        <p className="note agent-notice" data-standup-no-agent="">
+          No AI agent is set up yet. <a href={AGENT_SETTINGS_HREF}>Set one up in Settings, AI agent</a>.
+        </p>
+      )}
+      {exporting.body}
+      {moved && (
+        <p role="status" className="note">
+          A sync landed while the agent wrote, so the report above was built again from what the agent read, and its fact numbers match the write-up.
+        </p>
+      )}
       {problem && (
         <p role="alert" className="failure">
           {problem}

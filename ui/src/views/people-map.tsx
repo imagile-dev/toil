@@ -183,22 +183,24 @@ export function SaveToRepo() {
   };
   return (
     <Stack gap="xs" className="save-to-repo">
-      <Cluster>
+      <div className="control-row">
+        <span className="control-row__group">
         <button type="button" className="btn" onClick={run} disabled={off !== null || busy} aria-describedby={off ? offId : undefined}>
           {busy ? 'Saving…' : 'Save to this repository'}
         </button>
-        {off && (
-          <span id={offId} className="note">
-            Turned off: {off}
-          </span>
-        )}
         <InfoTip label="saving the people" tip={SAVE_EXPLAINED} placement="bottom start" triggerProps={{ 'data-save-to-repo-info': '' }}>
           <p>{SAVE_EXPLAINED}</p>
           <label className="map-replace">
             <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} /> Take mine where the repository lists the same person differently
           </label>
         </InfoTip>
-      </Cluster>
+        </span>
+        {off && (
+          <span id={offId} className="note">
+            Turned off: {off}
+          </span>
+        )}
+      </div>
       <OutcomeLine outcome={outcome} />
     </Stack>
   );

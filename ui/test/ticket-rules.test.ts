@@ -23,8 +23,8 @@ import { ruleFix, sampleQueue } from '../src/fixtures/assignments.ts';
 import { fixtureExecute } from '../src/fixtures/execute.ts';
 import { fixtureStandards } from '../src/fixtures/standards.ts';
 import { loadToilProject } from '../src/load.ts';
-import { fieldName, readiness, readReadiness, RULES_UNREAD, type RulesReading } from '../src/model/readiness.ts';
-import { fixable, lineWhat, missing, readingOf, ruleIn, ruleLines, ruleName } from '../src/rules.ts';
+import { blockedBesidesRules, fieldName, readiness, readReadiness, RULES_UNREAD, type RulesReading } from '../src/model/readiness.ts';
+import { firstToFix, fixable, lineWhat, missing, readingOf, ruleIn, ruleLines, ruleName } from '../src/rules.ts';
 import type { RuleResult } from '../../src/core/standards/types.ts';
 import type { Execute, WorkItem } from '../src/toil.ts';
 import { letIn } from './let-in.ts';
@@ -106,6 +106,27 @@ describe("the sample's rules and the Command Center's lines", () => {
     expect([...missing(result, 'gherkin/scenarios')!].sort()).toEqual(['corp-jira:PAY-103', 'corp-jira:PAY-107', ...['corp-jira:PAY-92', 'corp-jira:PAY-95', 'corp-jira:PAY-98', 'corp-jira:PAY-105'].filter((id) => missing(result, 'gherkin/scenarios')!.has(id))].sort());
     expect(missing(result, 'gherkin/nope')).toBeNull();
     expect(ruleName(result, 'gherkin/scenarios')).toBe('Acceptance criteria as Given/When/Then');
+  });
+
+  it('leads a line with the first item that could start once it meets the rule, and with the first of all only when every one is blocked', () => {
+    const open = new Set(cards.items.filter((i) => i.statusCategory !== 'DONE').map((i) => i.id));
+    const missers = result.items.filter((i) => open.has(i.id) && i.results.some((r) => r.standard === 'gherkin' && fixable(r.state))).map((i) => i.id);
+    expect(missers.length).toBeGreaterThan(1);
+    const [first, second] = missers as [string, string];
+    expect(firstToFix(result, 'gherkin', open, () => false)!.id).toBe(first);
+    // The first is blocked by another item, so fixing its rule can't make it ready: the next one leads.
+    expect(firstToFix(result, 'gherkin', open, (id) => id === first)!.id).toBe(second);
+    expect(firstToFix(result, 'gherkin', open, () => true)!.id).toBe(first);
+    expect(firstToFix(result, 'nope', open, () => false)).toBeUndefined();
+  });
+
+  it('calls an item blocked besides its rules when an open item blocks it, never for a rule it misses', () => {
+    const settings = cards.readiness;
+    const story = cards.items.find((i) => i.statusCategory !== 'DONE' && !blockedBesidesRules(i, settings, byId))!;
+    const blocker = cards.items.find((i) => i.id !== story.id && i.statusCategory !== 'DONE')!;
+    expect(blockedBesidesRules(story, { ...settings, rules: read({ [story.id]: [res('fail')] }) }, byId)).toBe(false);
+    const held = { ...story, links: [...story.links, { type: 'blocks' as const, direction: 'inward' as const, target: blocker.id, name: 'is blocked by' }] };
+    expect(blockedBesidesRules(held, settings, new Map([...byId, [held.id, held]]))).toBe(true);
   });
 
   it('reads as not read yet until a check comes back, never as an empty one', () => {

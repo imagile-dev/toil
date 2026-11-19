@@ -4,6 +4,11 @@
 // new ids still works, and nothing without the seed mark is touched), adds
 // the repository `settlement-service` with the demo code and one pull request
 // waiting on review, linked to its bug, and one item ready for an agent. It
+// takes off the seed's dependency links that copy a Jira chain item for item
+// (ADO_DUPLICATE_BLOCKS), so the blocker timeline draws each chain once, and
+// tries a Target Date on the two items whose link stays (ADO_DUE_DAYS); both
+// ends of each removed link get a tag put on and taken off, so Toil UI's sync
+// re-reads them (#664). It
 // also gives each seeded story and bug the text the ticket rules expect of it
 // (demo-week-data.mjs): the story in System.Description, Given/When/Then in
 // Microsoft.VSTS.Common.AcceptanceCriteria, and a bug's steps, expected and
@@ -17,7 +22,7 @@ import { Buffer } from 'node:buffer';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { adoRepro, adoStory, BUGS, flatText, RULE_GAPS, ruleMisses, STORIES, typeOfName } from './demo-week-data.mjs';
+import { ADO_DUE_DAYS, ADO_DUPLICATE_BLOCKS, adoRepro, adoStory, BUGS, flatText, RULE_GAPS, ruleMisses, sprintDay, STORIES, typeOfName } from './demo-week-data.mjs';
 
 const day = 24 * 60 * 60 * 1000;
 const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -25,6 +30,10 @@ const ZERO = '0000000000000000000000000000000000000000';
 const sameRules = (a, b) => a.length === b.length && a.every((r) => b.includes(r));
 const CRITERIA = 'Microsoft.VSTS.Common.AcceptanceCriteria';
 const REPRO = 'Microsoft.VSTS.TCM.ReproSteps';
+const TARGET = 'Microsoft.VSTS.Scheduling.TargetDate';
+const FORWARD = 'System.LinkTypes.Dependency-Forward';
+/** A tag put on and taken straight off again, so an item's change date moves with its fields as they were (#664). */
+const RESYNC_TAG = 'toil-resync';
 
 export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, note }) {
   const work = mkdtempSync(join(tmpdir(), 'demo-week-ado-'));
@@ -87,7 +96,7 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
     const ids = toil(['ado', 'work-item', 'search', ...p, '--wiql', wiql, '--limit', '500', '--select', 'workItems[].id']).data;
     const items = [];
     for (let i = 0; i < ids.length; i += 100) {
-      items.push(...toil(['ado', 'work-item', 'get-many', ...ids.slice(i, i + 100).map(String), '--fields', `System.Title,System.State,System.Tags,System.WorkItemType,System.Description,${CRITERIA},${REPRO}`, '--select', `value[].{id: id, title: fields."System.Title", state: fields."System.State", tags: fields."System.Tags", type: fields."System.WorkItemType", description: fields."System.Description", criteria: fields."${CRITERIA}", repro: fields."${REPRO}"}`]).data);
+      items.push(...toil(['ado', 'work-item', 'get-many', ...ids.slice(i, i + 100).map(String), '--fields', `System.Title,System.State,System.Tags,System.WorkItemType,System.Description,${CRITERIA},${REPRO},${TARGET}`, '--select', `value[].{id: id, title: fields."System.Title", state: fields."System.State", tags: fields."System.Tags", type: fields."System.WorkItemType", description: fields."System.Description", criteria: fields."${CRITERIA}", repro: fields."${REPRO}", target: fields."${TARGET}"}`]).data);
     }
     const tagsOf = (w) => (w.tags ?? '').split(';').map((t) => t.trim());
     const seeded = (w) => tagsOf(w).includes('toil-seed');
@@ -119,6 +128,49 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
       if (m.to && w.state !== m.to) toil(['ado', 'work-item', 'transition', String(w.id), '--state', m.to, ...p, '--allow-write']);
       toil(['ado', 'work-item', 'comment', String(w.id), '--body', `${m.comment} ${marker}`, ...p, '--allow-write']);
       say(`  #${w.id} ${m.prefix}: ${m.to ? `${m.to}, ` : ''}comment added`);
+    }
+
+    // One copy of each chain: the seed's links that repeat a Jira chain come off, read
+    // first, so a second run changes nothing. Taking a link off the blocker takes it off
+    // both ends; the test on /rev makes a change that raced this one fail rather than
+    // remove the wrong relation.
+    const bySeed = (key) => items.find((w) => seeded(w) && tagsOf(w).includes(`seed:${key}`));
+    let unlinked = 0;
+    const unlinkedEnds = new Map();
+    for (const [from, to] of ADO_DUPLICATE_BLOCKS) {
+      const [a, b] = [bySeed(from), bySeed(to)];
+      if (!a || !b) continue;
+      const read = api('GET', `/${enc}/_apis/wit/workitems/${a.id}?$expand=relations&api-version=7.1`).data;
+      const at = (read.relations ?? []).findIndex((r) => r.rel === FORWARD && new RegExp(`/workItems/${b.id}$`, 'i').test(r.url));
+      unlinkedEnds.set(a.id, a).set(b.id, b);
+      if (at < 0) continue;
+      api('PATCH', `/${enc}/_apis/wit/workitems/${a.id}?api-version=7.1`, [{ op: 'test', path: '/rev', value: read.rev }, { op: 'remove', path: `/relations/${at}` }], { contentType: 'application/json-patch+json' });
+      unlinked++;
+      say(`  #${a.id} no longer blocks #${b.id}: Jira holds the same chain`);
+    }
+    if (!unlinked) say('  dependency links: no copy of a Jira chain left');
+    // Until #664 is fixed, Toil UI's incremental sync misses a removed link, because
+    // taking a link off changes no field it reads, so both ends of every link that is
+    // gone get a field change it does: the tag RESYNC_TAG added, then taken off
+    // again, leaving the tags as they were (the seed's compare still matches). It runs
+    // whether the link went this run or an earlier one, since a sync in between
+    // would already have missed it. Only on items carrying the toil-seed mark (bySeed).
+    // Remove this block once #664 is fixed.
+    for (const w of unlinkedEnds.values()) {
+      const tags = tagsOf(w).filter(Boolean);
+      const write = (list) => api('PATCH', `/${enc}/_apis/wit/workitems/${w.id}?api-version=7.1`, [{ op: 'replace', path: '/fields/System.Tags', value: list.join('; ') }], { contentType: 'application/json-patch+json' });
+      write([...tags, RESYNC_TAG]);
+      write(tags);
+    }
+    if (unlinkedEnds.size) say(`  ${unlinkedEnds.size} item(s) either side of a removed link touched, so Toil UI's next sync re-reads them (#664)`);
+
+    // The sprint plan: a Target Date on the items whose link stays. Scrum's stories may not have the field, so a refusal is said and the run goes on.
+    for (const [key, n] of Object.entries(ADO_DUE_DAYS)) {
+      const w = bySeed(key);
+      const due = sprintDay(ends, n);
+      if (!w || w.target?.startsWith(due)) continue;
+      const set = toil(['ado', 'work-item', 'update', String(w.id), '--field', `${TARGET}=${due}T00:00:00Z`, ...p, '--allow-write'], { soft: true });
+      say(set.ok ? `  #${w.id}: target date ${due}` : `  #${w.id}: couldn't set a target date (${set.error.message}); the timeline draws it without a plan`);
     }
 
     // Ticket rules (#657): each seeded story and bug carries the text demo-week-data.mjs

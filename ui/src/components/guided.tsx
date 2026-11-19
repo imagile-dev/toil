@@ -27,6 +27,7 @@ import { TicketChip } from './items.tsx';
 import { UsageBreakdown, UsageNotices, usageLine } from './usage.tsx';
 import type { AnswerUsage } from '../model-usage.ts';
 import './guided.css';
+import { AgentMark } from './agent-mark.tsx';
 
 /** Below this width the questions come first and "Before you ask" folds to a line, so a phone opens on something to press. */
 export const PHONE = '(max-width: 699px)';
@@ -130,6 +131,7 @@ export function GuidedStart({ noAgent, notice, details, link, busy, onPick }: { 
                   return (
                     <li key={id} title={`Good for ${plain.text(q.good)}`}>
                       <Button className="guided-q" isDisabled={busy || noAgent} onPress={() => onPick(q, text)} data-question={id}>
+                        <AgentMark />
                         <span className="guided-q__text">{text}</span>
                         {q.note && <span className="guided-q__good">{q.note}</span>}
                       </Button>

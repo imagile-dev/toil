@@ -36,13 +36,20 @@ export const JIRA_ACCEPTANCE: Record<string, string> = {
   'PAY-102': ['Given a stored token', 'When it is charged twice with the same idempotency key', 'Then it charges once', 'And the second charge is refused'].join('\n'),
 };
 
+/**
+ * Due dates for the card-payments chain, so the blocker timeline has a plan to
+ * draw (PAY-101 holds PAY-102, which holds PAY-103): one a day to the sprint's
+ * end. Added here for the same reason as the criteria above.
+ */
+export const JIRA_DUE: Record<string, string> = { 'PAY-101': '2026-10-14', 'PAY-102': '2026-10-15', 'PAY-103': '2026-10-16' };
+
 /** `jira issue search`'s data: Jira's own search answer. */
 export const JIRA_SEARCH = {
   startAt: 0,
   maxResults: 50,
   total: jiraIssues.length,
   // Jira sends a field it was asked for as null when it is empty, so the rest carry it empty: read, and found empty.
-  issues: jiraIssues.map((i) => ({ ...i, fields: { ...(i as { fields?: Record<string, unknown> }).fields, customfield_10500: JIRA_ACCEPTANCE[i.key] ?? null } })),
+  issues: jiraIssues.map((i) => ({ ...i, fields: { ...(i as { fields?: Record<string, unknown> }).fields, customfield_10500: JIRA_ACCEPTANCE[i.key] ?? null, ...(JIRA_DUE[i.key] ? { duedate: JIRA_DUE[i.key] } : {}) } })),
 };
 export const JIRA_KEYS = jiraIssues.map((i) => i.key);
 

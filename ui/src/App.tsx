@@ -33,7 +33,7 @@ import { ClassifyProvider } from './classify-state.tsx';
 import type { ClassifyApi, LedgerView } from './classify-api.ts';
 import { readingOf, type RulesApi, type RulesState } from './rules.ts';
 import { Dashboard } from './views/Dashboard.tsx';
-import { ToilProjectShell, type ToilProjectTab } from './views/ToilProjectShell.tsx';
+import { ToilProjectShell, type TeamPage, type ToilProjectTab } from './views/ToilProjectShell.tsx';
 import { ToilProjects, type SyncedAt } from './views/ToilProjects.tsx';
 import type { Described } from './components/toil-project-head.tsx';
 import { markLooked, renameLooked } from './looked.ts';
@@ -155,6 +155,18 @@ export function upgradeHash(hash: string): string {
     .replace(/^#\/settings\/projects\/\+new(?=\/|\?|$)/, '#/new-project');
 }
 
+/**
+ * Moves focus to where a new page starts without drawing the keyboard ring there (#657): the heading the app focuses on
+ * navigation is for a screen reader to hear, and a ring round it reads like a text field. `data-nav-focus` turns the
+ * outline off until the element loses focus; a person's own Tab still draws it everywhere else, and the skip link, which
+ * a keyboard user pressed, keeps it. It never scrolls: the page has already opened at its top.
+ */
+export function focusQuietly(el: HTMLElement): void {
+  el.setAttribute('data-nav-focus', '');
+  el.addEventListener('blur', () => el.removeAttribute('data-nav-focus'), { once: true });
+  el.focus({ preventScroll: true });
+}
+
 export function parseRoute(rawHash: string): Route {
   const hash = upgradeHash(rawHash);
   const at = hash.indexOf('?');
@@ -228,37 +240,46 @@ function parsePath(hash: string): RouteOf {
 }
 
 /**
- * Which of a toil project's tabs a route shows (#394). The old addresses keep
- * working on the tab they belong to: the Command Center is the Board's
- * readiness view, and an item lands on the
- * Board it came from. An assignment belongs to no tab: the Agents sidebar is its home.
+ * Which of a toil project's three tabs a route shows (#394, #657). The pages that are no longer tabs keep their own
+ * addresses and light the tab they are a step in from: the board, what blocks what, code reviews, sorting into
+ * categories, the charts, the earlier briefings and the architecture are steps in from the Summary; an item is a ticket;
+ * People, Stand-up and What happened are Team's. An assignment belongs to no tab: the Agents sidebar is its home.
  */
 export function tabOf(route: Route): ToilProjectTab | null {
   switch (route.view) {
     case 'dashboard':
-      return route.tab ?? 'overview';
-    // A page one step in from the Summary keeps the Summary's tab lit.
     case 'diagram':
-      return 'overview';
     case 'prs':
-      return 'prs';
-    case 'people':
-      return 'people';
-    // The charts' full pages and the earlier briefings are steps in from the Summary, so the Summary stays selected.
     case 'charts':
     case 'briefings':
-      return 'overview';
-    case 'worklog':
-      return 'worklog';
-    case 'standup':
-      return 'standup';
-    case 'command-center':
     case 'classify':
+      return 'overview';
+    case 'command-center':
     case 'item':
-      return 'board';
+      return 'tickets';
+    case 'people':
+    case 'worklog':
+    case 'standup':
+      return 'team';
     default:
       return null;
   }
+}
+
+/** Which of Team's pages a route shows, for its segmented control. */
+export function teamOf(route: Route): TeamPage | undefined {
+  return route.view === 'people' || route.view === 'standup' || route.view === 'worklog' ? route.view : undefined;
+}
+
+/**
+ * The one way back up from a drill-in (#657): the board, what blocks what, code reviews and sorting into categories go
+ * back to the Summary. The charts, the earlier briefings and the architecture draw their own, since theirs can be
+ * two steps deep.
+ */
+export function backOf(route: Route): { label: string; href: string } | null {
+  if (!('toilProject' in route)) return null;
+  const drill = (route.view === 'dashboard' && (route.tab === 'board' || route.tab === 'dependencies')) || route.view === 'prs' || route.view === 'classify';
+  return drill ? { label: 'Summary', href: toilProjectHref(route.toilProject) } : null;
 }
 
 /** Rewrites an old address in place (no new history entry), so the bar shows the one that is shared and bookmarked from now on. */
@@ -650,13 +671,26 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
     }
     pending.current = !landing;
   }, [routeKey, landing]);
+  // A new page opens at its top, tabs and title in view (#657), unless the address names a place to land (an edit link's
+  // target, or a ticket rule's filter, which their pages scroll to). A drawer opening or a filter changing keeps the page where it was.
+  const pageKey = JSON.stringify({ ...route, peek: undefined, items: undefined, filters: undefined });
+  const firstPage = useRef(true);
+  useEffect(() => {
+    if (firstPage.current) {
+      firstPage.current = false;
+      return;
+    }
+    // A target the page brings into view itself (a ticket rule's filter, through useFocusArrival) is a named one too.
+    const named = landing || document.querySelector('[data-arrived]') !== null || /[?&]rule=/.test(window.location.hash);
+    if (!named) window.scrollTo?.({ top: 0, left: 0 });
+  }, [pageKey, landing]);
   useEffect(() => {
     // A board filtered to one person (#292) takes focus at the filter's line instead, which is what the link was for.
     if (game.open) return;
     const h1 = pending.current ? (main.current?.querySelector<HTMLElement>('#board-filter') ?? main.current?.querySelector<HTMLElement>('h1') ?? main.current?.querySelector<HTMLElement>('[data-tab-panel]')) : null;
     if (h1) {
       pending.current = false;
-      h1.focus({ preventScroll: h1.id === 'board-filter' });
+      focusQuietly(h1);
     }
   });
 
@@ -715,6 +749,8 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   );
 
   let body;
+  // A toil project's page says when its data was read in a badge beside its name (#657), so the header's line stays for every other page.
+  let inShell = false;
   if (/^#\/chartkit(\?|$)/.test(window.location.hash)) {
     // The chart kit's gallery (#567): no screen links to it; it is for review and for the layout check.
     body = (
@@ -735,6 +771,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   } else if (!current.ok) {
     body = failure(current.message);
   } else {
+    inShell = true;
     const data: Data = { ...(preview ? { preview: true } : {}), ...(onSync ? { sync: onSync } : {}), ...(worklog ? { worklog } : {}), toilProject: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, ...(preview ? { viewedAt: new Date(Date.parse(now) + 2 * 3_600_000).toISOString() } : {}), execute, analyses, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.toilProject) } : {}), refresh: () => setToilProjects(({ [route.toilProject]: _, ...rest }) => rest), described, ...(rulesRead?.toilProject === route.toilProject && rulesRead.at === now ? { rules: rulesRead.state } : {}), ...(classifyApi ? { classification: { api: classifyApi, view: ledger?.toilProject === route.toilProject ? ledger.view : null, error: ledger?.toilProject === route.toilProject ? ledger.error : null, loading: ledger?.toilProject !== route.toilProject, version: ledger?.toilProject === route.toilProject ? ledger.version : 0, reload: () => readLedger(route.toilProject) } } : {}) };
     body = (
       <DataContext value={data}>
@@ -742,7 +779,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
         <ChatScope key={route.toilProject}>
           <AnalyzeAfterSync syncedAt={syncedAt ?? null} />
           <ClassifyProvider>
-          <ToilProjectShell tab={tabOf(route)} peek={route.peek ?? null} items={route.items ?? null} heading={route.view === 'dashboard'} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'classify' ? { boardView: 'classify' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
+          <ToilProjectShell tab={tabOf(route)} team={teamOf(route)} back={backOf(route)} peek={route.peek ?? null} items={route.items ?? null} heading={route.view === 'dashboard'}>
             {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'job' ? <JobPage id={route.job} target={route.target} /> : route.view === 'diagram' ? <Diagram viewKey={route.key} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'charts' ? <Charts dashboard={route.dashboard ?? null} /> : route.view === 'briefings' ? <Analyses {...(route.id ? { open: route.id } : {})} /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : route.view === 'classify' ? <Classify /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} />}
           </ToilProjectShell>
           </ClassifyProvider>
@@ -816,7 +853,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
           </div>
           <ServerStale load={serverStatus} />
           <Notices />
-          {!(preview && phoneBanner) && (
+          {!(preview && phoneBanner) && !(inShell && changedSince === 0) && (
             <p className="sync">
               {changedSince > 0 ? (
                 <>

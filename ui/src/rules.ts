@@ -136,6 +136,16 @@ export function ruleLines(result: StandardsCheckResult, items: readonly WorkItem
   return out;
 }
 
+/**
+ * The item a standard's line leads with, and Fix with AI agent asks to fix: the first open item, in the check's order, that
+ * misses one of the standard's rules and could start once it meets them; when every one is held up by something else
+ * (`blocked`: another item blocks it, say), the first that misses them.
+ */
+export function firstToFix(result: StandardsCheckResult, standard: string, open: ReadonlySet<string>, blocked: (id: string) => boolean): StandardsCheckResult['items'][number] | undefined {
+  const missing = result.items.filter((i) => open.has(i.id) && i.results.some((r) => r.standard === standard && fixable(r.state)));
+  return missing.find((i) => !blocked(i.id)) ?? missing[0];
+}
+
 /** A filter's reference read: `standard/rule` names one rule, a bare standard every rule in it. */
 const refOf = (ref: string) => {
   const [standard, rule] = ref.split('/');

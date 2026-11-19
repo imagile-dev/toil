@@ -38,6 +38,7 @@ import { matches, matchesAny, typingIn } from '../shortcuts.ts';
 import { useWords } from '../skins.tsx';
 import { plainDates } from './charts/format.ts';
 import '../components/classify.css';
+import { AgentMark } from '../components/agent-mark.tsx';
 
 /** The most items one question to the agent holds from this view: more than a person would sort in a sitting. */
 export const ASK_AT_MOST = 100;
@@ -327,6 +328,7 @@ export function Classify() {
 
       <section className="classify__bar" aria-label="Ask your AI agent">
         <Button className="btn" onPress={() => void ask()} isDisabled={asking || unsure.length === 0 || ready.length === 0 || !c.api} data-ask-agent="">
+          <AgentMark />
           {asking ? 'Asking your AI agent…' : words('classify.ask')}
         </Button>
         {agents.length > 1 && (

@@ -6,12 +6,19 @@
 .people-section > h2 { margin-bottom: 0.5rem; }
 .people-section > .note { margin-bottom: 0.75rem; max-width: 70ch; }
 
-.team-strip { margin-top: 0.5rem; }
-.team-tile { padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; height: 100%; box-sizing: border-box; }
+.team-strip { margin-top: 0.5rem; align-items: start; }
+.team-tile { padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; box-sizing: border-box; }
 .team-tile h3 { font-size: 1rem; margin: 0; }
 .team-figure { font-family: var(--font-display); font-size: 2rem; font-weight: 700; line-height: 1; color: var(--ink); }
 
 .person-card { background: var(--raised); overflow-wrap: anywhere; }
+/* Each card is its summary line until opened, so cards in a row keep their own heights. */
+.people-cards { align-items: start; }
+.person-more > summary { min-height: 44px; border-radius: var(--radius); padding-inline: 0.25rem; }
+.person-plate { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; font-size: 0.9375rem; }
+.person-plate b { font-variant-numeric: tabular-nums; }
+.person-more .disclosure-body { margin-top: 0.5rem; }
+.team-more > summary { min-height: 44px; font-size: 0.875rem; border-radius: var(--radius); }
 .person-card h4 { font-size: 0.9375rem; margin: 0.25rem 0 0; }
 .person-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; }
 .person-head h3 { margin: 0; font-size: 1.125rem; }

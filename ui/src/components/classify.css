@@ -127,6 +127,8 @@
 .cedit label { overflow-wrap: anywhere; }
 .cedit__part label { display: grid; gap: 0.15rem; font-size: 0.875rem; }
 .cedit .check-line { display: flex; align-items: flex-start; gap: 0.5rem; }
-.cat-chip--button { min-height: 44px; padding: 0 0.9rem; align-items: center; }
+/* A chip that opens Change the category: the chip's own size beside a status chip, with a 44px hit area as .btn--sm keeps. */
+.cat-chip--button { position: relative; align-items: center; }
+.cat-chip--button::after { content: ""; position: absolute; inset: -12px 0; }
 .cedit__problems { margin: 0; padding-inline-start: 1.25rem; }
 .cedit__count { margin: 0; }

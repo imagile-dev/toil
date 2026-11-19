@@ -92,7 +92,7 @@ describe('the Analyses tab', () => {
     const evidence = panel.querySelector('details.analysis-evidence') as HTMLDetailsElement;
     expect(evidence.open).toBe(false);
     expect(evidence.querySelector('summary')!.textContent).toMatch(/^Evidence \(\d+ paragraphs\)$/);
-    expect(within(panel).getByRole('link', { name: 'Earlier briefings' }).getAttribute('href')).toBe('#/project/card-payments/summary/briefings');
+    expect(within(panel).getByRole('link', { name: /Back to Earlier briefings/ }).getAttribute('href')).toBe('#/project/card-payments/summary/briefings');
     expect(panel.textContent).toContain('Newly blocked');
   });
 

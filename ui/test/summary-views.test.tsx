@@ -111,20 +111,24 @@ describe('the answer first', () => {
 
   it("says who wrote the briefing when it is the code's, outside the fold too", async () => {
     const region = await open('card-payments', false);
+    // A badge on the headline (#657): two words to the eye, the whole sentence in its tooltip and to a screen reader.
     const by = region.querySelector('[data-briefing-by]')!;
-    expect(by.textContent).toBe("Worked out by the app's own rules, no AI");
+    expect(by.getAttribute('title')).toBe("Worked out by the app's own rules, no AI");
+    expect(by.textContent).toBe("Rules, no AIWorked out by the app's own rules, no AI");
     expect(full(region).contains(by)).toBe(false);
   });
 });
 
 describe('what needs attention', () => {
-  it('shows at most three cards, each with one link, the ticket key small after the title', async () => {
+  it('shows at most three cards, each one button, the ticket key small after the title', async () => {
     const region = await open('card-payments');
     expect(cardIds(region)).toEqual(['risk', 'blocked', 'review']);
     for (const c of region.querySelectorAll('.sum-card')) expect(c.querySelectorAll('a')).toHaveLength(1);
     const risk = region.querySelector('.sum-card')!;
-    expect(risk.querySelector('h3')!.firstChild!.textContent).toBe('Tokenise card numbers at the edge');
-    expect(risk.querySelector('h3 .sum-key')!.textContent!.trim()).toBe('Jira PAY-101');
+    expect(risk.querySelector('.sum-card__title')!.firstChild!.textContent).toBe('Tokenise card numbers at the edge');
+    expect(risk.querySelector('.sum-card__title .sum-key')!.textContent!.trim()).toBe('Jira PAY-101');
+    // Stories that can't start open what blocks what.
+    expect(region.querySelector('.sum-card[data-card="blocked"] a')!.getAttribute('href')).toBe('#/project/card-payments/dependencies');
     expect(risk.querySelector('a')!.getAttribute('href')).toBe('#/project/card-payments?item=corp-jira%3APAY-101');
   });
 
@@ -180,8 +184,6 @@ describe('the stand-up on the Summary', () => {
     const order = [...region.children].map((c) => c.getAttribute('data-standup-card') !== null ? 'card' : c.matches('[data-full-briefing]') ? 'full' : '');
     expect(order.indexOf('card')).toBeGreaterThan(-1);
     expect(order.indexOf('card')).toBeLessThan(order.indexOf('full'));
-    expect(within(region).getByRole('navigation', { name: /^More on/ }).textContent).toContain('Stand-up');
-    expect(within(region).getByRole('link', { name: 'Stand-up' }).getAttribute('href')).toBe('#/project/card-payments/standup');
   });
 
   it('says not read yet, with Sync now, when no sync has read the days, and never nothing happened', async () => {

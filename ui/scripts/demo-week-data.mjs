@@ -415,3 +415,77 @@ export function ruleMisses({ type, description, criteria, reproSteps }) {
 
 /** toil's type for a tracker's type name, for the types the rules look at. */
 export const typeOfName = (name) => ({ story: 'STORY', 'user story': 'STORY', 'product backlog item': 'STORY', requirement: 'STORY', bug: 'BUG', defect: 'BUG' })[String(name).toLowerCase()] ?? 'OTHER';
+
+// The sprint plan ----------------------------------------------------------------------
+//
+// What the blocker timeline (Dependencies tab) draws: each chain's items due one after
+// another across the sprint's ten working days, so the sprint reads as a plan as well
+// as a history, and one blocked item (SCRUM-15, held by the vault work) already past
+// its due date. The day is the sprint's working day, 0 for its first Monday, so a new
+// --ends moves the plan with it. Jira holds a due date on every issue; Azure DevOps'
+// Scrum stories and bugs may have no Target Date, so its writes are tried and a
+// refusal is said, not fatal. GitHub issues have no due date toil reads, so the
+// GitHub chain (#11 -> #12 -> #17 -> #18) shows its waits and no plan.
+
+/** Jira issue key to the working day of the sprint it is due. Done issues have none. */
+export const JIRA_DUE_DAYS = {
+  'SCRUM-15': 1, // Charge a stored token: due Tuesday, still waiting on the vault (SCRUM-14)
+  'SCRUM-14': 3, // Store tokens in the vault
+  'SCRUM-43': 3, // Backfill three months of settlement batches
+  'SCRUM-24': 4, // Group settlements by merchant, after the vault
+  'SCRUM-17': 5, // Tokenise card numbers at the edge, after the vault
+  'SCRUM-23': 5, // Show fees and interchange separately
+  'SCRUM-18': 6, // Expiry month 12, after the edge
+  'SCRUM-21': 7, // Stored-card charge currency, after the edge
+  'SCRUM-33': 7, // Show card brand icons
+  'SCRUM-25': 8, // Export the daily settlement CSV, after fees and the backfill
+  'SCRUM-30': 9, // End-to-end test for 3-D Secure, last
+};
+
+/**
+ * Blocks links demo-week makes in Jira, as [blocker, blocked]. With the seed's own
+ * (SCRUM-14 blocks 15, 17 and 24; 17 blocks 18, 21 and 30) they make the vault chain
+ * SCRUM-14 -> 17 -> 18 -> 21 -> 30, 18 points, the heaviest chain of open blockers, so
+ * the critical chain is the one with a plan to draw.
+ */
+export const JIRA_BLOCKS = [
+  ['SCRUM-14', 'SCRUM-15'],
+  ['SCRUM-18', 'SCRUM-21'],
+  ['SCRUM-21', 'SCRUM-30'],
+];
+
+/**
+ * The GitHub estimate demo-week sets, by title prefix: the rolling reserve is 3 points,
+ * not seed-sandbox's 8, so the GitHub chain #11 -> #12 -> #17 -> #18 holds 16 points
+ * and the Jira vault chain's 18 lead.
+ */
+export const GITHUB_POINTS = { 'Rolling reserve': 3 };
+
+/** ADO seed key to the working day it is due (Microsoft.VSTS.Scheduling.TargetDate). */
+export const ADO_DUE_DAYS = { 'cp-pbi-1': 4, 'st-pbi-3': 6 };
+
+/**
+ * The ado-seed's dependency links that copy a Jira chain item for item (the same
+ * stories are in both trackers), as [blocker, blocked] seed keys. The timeline
+ * would draw each chain twice, so demo-week takes these off; #152 -> #169
+ * (cp-pbi-1 -> st-pbi-3), the one the demo story names, stays.
+ */
+export const ADO_DUPLICATE_BLOCKS = [
+  ['cp-pbi-1', 'cp-pbi-5'],
+  ['cp-pbi-5', 'cp-bug-1'],
+  ['cp-pbi-5', 'cw-pbi-1'],
+  ['st-bug-1', 'st-pbi-2'],
+  ['st-pbi-2', 'st-pbi-4'],
+  ['cw-pbi-5', 'cw-pbi-4'],
+  ['cw-pbi-4', 'cw-bug-2'],
+];
+
+/** The date (YYYY-MM-DD) of working day `n` of the sprint ending on `ends`, which starts on the Monday 11 days before. */
+export function sprintDay(ends, n) {
+  let at = Date.parse(`${ends}T00:00:00Z`) - 11 * 24 * 60 * 60 * 1000;
+  for (let left = n; ; at += 24 * 60 * 60 * 1000) {
+    const weekday = new Date(at).getUTCDay();
+    if (weekday === 0 || weekday === 6) continue;
+    if (left-- === 0) return new Date(at).toISOString().slice(0, 10);
+  }
+}

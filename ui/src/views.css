@@ -13,14 +13,39 @@
 .btn[data-focus-visible], .starter[data-focus-visible], .menu-item[data-focus-visible], .card-grip:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .btn[data-disabled], .starter[data-disabled] { cursor: not-allowed; opacity: 0.75; }
 .btn--small { padding: 0 0.6rem; font-size: 0.875rem; }
-.btn--quiet { border-color: transparent; background: transparent; color: var(--link); text-decoration: underline; }
 .btn--accent { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+/* Three kinds of button, so a control always looks like one and a link only ever leaves the app (principle 11).
+   Primary (`.btn--accent`, the accent fill every theme dresses) is the one action a screen leads with: Ask, Fix with AI
+   agent, Apply. Secondary is a framed button on the raised fill, for a step in ("Open the board"). Quiet has no frame and
+   no fill until hovered, in ink, never in link blue, for a row or a disclosure that sits inside other content. */
+.btn--secondary { background: var(--raised); border: 1px solid var(--line); color: var(--ink); }
+.btn--secondary:hover, .btn.btn--secondary[data-hovered] { border-color: var(--ink); }
+.btn--quiet, .btn.btn--quiet { border-color: transparent; background: transparent; color: var(--ink); text-decoration: none; }
+.btn.btn--quiet:hover, .btn.btn--quiet[data-hovered] { background: var(--raised); border-color: transparent; }
+/* Small, 32px to the eye inside a card or a row, and still 44px to a finger: the hit area reaches past the frame. */
+.btn.btn--sm { position: relative; min-height: 32px; padding: 0 0.6rem; font-size: 0.875rem; }
+.btn--sm::after { content: ""; position: absolute; inset: -6px 0; }
+/* A whole row as one button: full width, its words on the left and a chevron on the right. */
+.btn--row { display: flex; width: 100%; justify-content: space-between; text-align: start; gap: 0.75rem; min-height: 44px; padding: 0.4rem 0.6rem; }
+.btn--row > .btn__chevron { flex: none; color: var(--muted); }
 .choice { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9375rem; color: var(--muted); }
 /* Choices stacked in a card share one label column and one control width, so their controls line up (ui/README.md, Forms and rows of controls). */
 .panel > .choice { display: grid; grid-template-columns: 8.5rem minmax(12rem, 18rem); align-items: center; gap: 0.4rem 0.75rem; }
 .panel > .choice .choice-button { min-width: 0; width: 100%; }
 @media (max-width: 29.99rem) { .panel > .choice { grid-template-columns: minmax(0, 1fr); } }
 .choice-button { color: var(--ink); min-width: 7rem; justify-content: space-between; }
+
+/* A row of controls (#657): a button, a menu with its label, an (i), all on one vertical centre from one left edge,
+   and one height. Every button and menu in the row is 32px to the eye, as .btn--sm, with the same 44px hit area, so
+   a 44px button never sits beside a 32px (i) and a 36px menu. A group keeps a control and its (i) together when the
+   row wraps. Use this, not margins on one control, wherever a row mixes them. */
+.control-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; min-width: 0; }
+.control-row > *, .control-row__group > * { min-width: 0; }
+.control-row__group { display: inline-flex; align-items: center; gap: 0.25rem; }
+.control-row :is(.btn, .choice-button):not(.info-trigger) { position: relative; min-height: 32px; padding-block: 0; padding-inline: 0.6rem; font-size: 0.875rem; line-height: 1.25; }
+.control-row :is(.btn, .choice-button):not(.info-trigger)::after { content: ""; position: absolute; inset: -6px 0; }
+.control-row .choice { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0; line-height: 1.25; }
+.control-row .choice > label { margin: 0; }
 .popover { background: var(--raised); border: 1px solid var(--muted); border-radius: var(--radius); box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); min-width: var(--trigger-width, 10rem); }
 .menu { padding: 0.25rem; outline: none; max-height: 60vh; overflow: auto; }
 .menu-item { display: flex; align-items: center; min-height: 44px; padding: 0 0.75rem; border-radius: var(--radius); color: var(--ink); cursor: pointer; outline: none; text-decoration: none; }
@@ -60,6 +85,9 @@
 .insight--icon .insight-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .card-grip:focus-visible .insight-word { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
 .item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.5rem; }
+.item-open { gap: 0.35rem; text-decoration: none; }
+/* What blocks the item, said once under its title (#657), in the danger colour's rule rather than a panel. */
+.item-blocked { margin: 0.5rem 0 0; padding: 0.35rem 0 0.35rem 0.75rem; border-left: 3px solid var(--danger); display: grid; gap: 0.2rem; }
 .insights-panel { margin-bottom: 1.5rem; }
 .duplicates-panel { margin-bottom: 1.5rem; }
 /* Possible duplicates, folded to one line: the count is the heading, and the list one press in. */
@@ -470,3 +498,5 @@
 .edit-group { border-top: 1px solid var(--line); padding: 0.75rem 0; }
 .edit-group > summary { cursor: pointer; font-weight: 600; font-size: 1.05rem; }
 .edit-group[open] > summary { margin-bottom: 0.75rem; }
+/* Merged per week on the Code reviews page: drawn at its own size, never stretched to the panel's width (#657). */
+.pr-spark { max-width: 35rem; }

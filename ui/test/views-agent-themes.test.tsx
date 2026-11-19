@@ -92,7 +92,8 @@ describe('an item', () => {
     const box = screen.getByRole('region', { name: 'Worth a look' });
     expect(box.textContent).toContain('Open a long time');
     expect(box.textContent).toContain('Carried over from Payments\\Sprint 41');
-    expect(box.textContent).toContain('Source: history.iterations');
+    // The source is a badge, named in its tooltip and its accessible name (#657).
+    expect(within(box).getByRole('button', { name: 'Source: history.iterations' })).toBeTruthy();
     expect(box.textContent).toMatch(/In progress for 15 days, since 28 Sept? 2026, 09:00 UTC/);
   });
 

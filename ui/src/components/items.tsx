@@ -6,8 +6,9 @@
  * somewhere, a first for a status report.
  */
 
-import { Fragment, createContext, useContext } from 'react';
-import { Link, Tooltip, TooltipTrigger } from 'react-aria-components';
+import { Fragment, createContext, useContext, useId, useState } from 'react';
+import { Button, Link, Tooltip, TooltipTrigger } from 'react-aria-components';
+import { NavButton } from './nav-button.tsx';
 import { blocksOf, segments } from '../agent.ts';
 import { useData } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, dateTime, estimateText, itemHref, personText, prName, shortKey, sourceLabel, sourceShort } from '../format.ts';
@@ -39,6 +40,54 @@ export function ItemLink({ id, withTitle = false }: { id: string; withTitle?: bo
       </span>
       {withTitle && <span className="title"> {item.title}</span>}
     </a>
+  );
+}
+
+/**
+ * An item as a row (principle 11, #657): the whole row is a quiet button to the item's page, its source and key then its
+ * title, so a list of items reads as rows to press rather than a wall of underlined links. A pull request, whose page is
+ * on its host, stays a link, since it leaves the app.
+ */
+export function ItemRow({ id }: { id: string }) {
+  const { byId, prById, toilProject } = useData();
+  const hrefOf = useContext(ItemHrefContext);
+  const item = byId.get(id);
+  const pr = item ? undefined : prById?.get(id);
+  if (pr) return <PrLink change={pr} withTitle />;
+  if (!item) return <code className="missing">{id}</code>;
+  return (
+    <NavButton href={hrefOf ? hrefOf(toilProject.name, id) : itemHref(toilProject.name, id)} kind="quiet" size="sm" row className="item-row" data-item-row={id}>
+      <span className="key">
+        <span className="source">{sourceLabel(item.source.area)}</span> {shortKey(item)}
+      </span>{' '}
+      <span className="title">{item.title}</span>
+    </NavButton>
+  );
+}
+
+/**
+ * A list of items as rows, the first `max` shown and the rest one press away behind "Show all N" (principle 11): a count
+ * and a few to act on, never a wall. Nothing is dropped, only folded.
+ */
+export function ItemRows({ ids, label, max = 3 }: { ids: string[]; label: string; max?: number }) {
+  const [all, setAll] = useState(false);
+  const listId = useId();
+  const shown = all ? ids : ids.slice(0, max);
+  return (
+    <>
+      <ul className="plain item-rows" id={listId} aria-label={label}>
+        {shown.map((id) => (
+          <li key={id}>
+            <ItemRow id={id} />
+          </li>
+        ))}
+      </ul>
+      {ids.length > max && (
+        <Button className="btn btn--secondary btn--sm item-rows__more" aria-expanded={all} aria-controls={listId} onPress={() => setAll((a) => !a)} data-show-all="">
+          {all ? 'Show fewer' : `Show all ${ids.length}`}
+        </Button>
+      )}
+    </>
   );
 }
 

@@ -60,13 +60,18 @@ Four threads run through the week, and each one crosses tools.
 ### 1. Stored cards are stuck behind the vault (the critical chain)
 
 Priya's vault work holds everything else up.
-- Jira **SCRUM-14** (store tokens in the vault, in progress) blocks **SCRUM-17**
-  (tokenise at the edge), and that blocks SCRUM-18, SCRUM-21 and SCRUM-30. It also
-  blocks **SCRUM-15** (charge a stored token).
-- The same work in ADO: **#152** (vault storage) → **#169**; the code side on
+- Jira **SCRUM-14** (store tokens in the vault, in progress, due 19 Nov) blocks
+  **SCRUM-17** (tokenise at the edge, due 23 Nov), and that blocks SCRUM-18 (due 24),
+  SCRUM-21 (due 25) and SCRUM-30 (due 27), which also wait on each other in that
+  order. The critical chain is **SCRUM-14 → 17 → 18 → 21 → 30**, 18 points. SCRUM-14
+  also blocks SCRUM-24 (due 20) and **SCRUM-15** (charge a stored token), which was due
+  17 Nov and is still waiting: its blocked bar runs past its due date.
+- The same work in ADO: **#152** (vault storage) → **#169**, the one ADO dependency
+  left (demo-week takes off the seed's links that copy a Jira chain); the code side on
   GitHub: **#7** (tokenise at the edge) → **#8** (rotate vault keys).
-- *Demo:* Toil UI's Blocked view shows the chain across Jira, GitHub and ADO, and
-  the stand-up says what holds Sprint 44.
+- *Demo:* What blocks what's blocker timeline draws the chain as a plan across the
+  sprint, the chains first (a button shows every row), and the stand-up says what
+  holds Sprint 44.
 
 ### 2. Lumen Games' payout is wrong (the split payout, and the Payout preview)
 
@@ -81,7 +86,9 @@ Lumen Games, a high-risk game studio in Texas, switched from daily to weekly pay
   Fri 20 Nov). Ana's comments in Figma ask how the split should look, which is exactly
   bug #15.
 - #17 is blocked by **#12** (a shared idempotency store), which is blocked by
-  **#11** (duplicate captures). The rolling reserve, **#18**, waits on #17.
+  **#11** (duplicate captures). The rolling reserve, **#18** (3 points), waits on
+  #17. GitHub issues have no due date toil reads, so this chain shows its waits and
+  no plan, and at 16 points it is second to the vault chain.
 - *Demo:* "Why is Lumen Games' payout wrong?" Ask reads `payments-db`, finds the
   split, links #15 and #17, and the agent reads the Figma frames and comments to
   write #17's acceptance criteria.

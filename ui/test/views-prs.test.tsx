@@ -3,7 +3,10 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { render } from '@testing-library/react';
 import { open, panel, tabs, resetBrowserState } from './views-kit.tsx';
+import { Flow } from '../src/views/PullRequests.tsx';
+import { prMetrics } from '../src/model/prs.ts';
 
 beforeEach(resetBrowserState);
 
@@ -88,14 +91,40 @@ describe('the pull requests view', () => {
     await open('#/project/checkout-web/prs');
     const reviewers = panel('Suggested reviewers');
     expect(reviewers.textContent).toContain('imagile/payments-web: CODEOWNERS read from .github/CODEOWNERS.');
-    expect(reviewers.textContent).toContain('Ask bo-web to review payments-web #51');
+    expect(reviewers.textContent).toContain('Ask Bo W. (bo-web) to review payments-web #51');
     expect(reviewers.textContent).toContain("toil github pr add-reviewers '51'");
   });
 
-  it("is a tab of the Toil project's, current on its own page", async () => {
+  it('names an author kind with nothing in the period once, never as a column of "No data" (#657)', async () => {
     await open('#/project/settlement/prs');
-    const tab = within(tabs('settlement')).getByRole('link', { name: 'Code reviews' });
-    expect(tab.getAttribute('href')).toBe('#/project/settlement/prs');
-    expect(tab.getAttribute('aria-current')).toBe('page');
+    const flow = panel('Flow');
+    expect(flow.textContent).toContain('None by bots in this period.');
+    const metrics = flow.querySelector('.pr-metrics')!;
+    expect(within(metrics as HTMLElement).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Median', 'All', 'People', 'Agents']);
+    expect(flow.querySelector('.pr-spark svg')).not.toBeNull();
+  });
+
+  it('collapses an empty Flow to one line that says whether nothing was read or nothing happened (#657, principle 12)', () => {
+    const m = prMetrics([], '2026-10-19T12:00:00Z');
+    const unread = render(<Flow m={m} read={false} />);
+    expect(unread.container.textContent).toBe('– No pull requests read yet, so there is no flow to measure.');
+    expect(unread.container.querySelector('table, svg')).toBeNull();
+    unread.unmount();
+    const zero = render(<Flow m={m} read />);
+    expect(zero.container.textContent).toMatch(/^No pull requests opened or merged in the \d+ weeks from .*, so there is no flow to measure\.$/);
+  });
+
+  it('gathers the pull requests with no one to suggest into one line', async () => {
+    await open('#/project/checkout-web/prs');
+    const lines = panel('Suggested reviewers').querySelectorAll('[data-no-suggestion]');
+    expect(lines).toHaveLength(1);
+    expect(lines[0]!.textContent).toBe('No one to suggest for GitHub payments-web #53: no CODEOWNERS rule and no earlier review covers its paths.');
+    expect(panel('Suggested reviewers').textContent!.match(/No one to suggest/g)).toHaveLength(1);
+  });
+
+  it('is a drill-in from the Summary, with its own address and a Back to Summary (#657)', async () => {
+    await open('#/project/settlement/prs');
+    expect(within(tabs('settlement')).getByRole('link', { name: 'Summary' }).getAttribute('aria-current')).toBe('page');
+    expect(document.querySelector('[data-back]')!.getAttribute('href')).toBe('#/project/settlement');
   });
 });

@@ -86,6 +86,8 @@ describe('the page', () => {
     for (const dash of page.querySelectorAll('[data-dash="none"]')) {
       expect(dash.textContent).toBe('–none');
       expect(dash.querySelector('[aria-hidden="true"]')!.textContent).toBe('–');
+      // No hover with the raw word: a title of "none" floated a stray tooltip between the write-up and the export (#657).
+      expect(dash.hasAttribute('title')).toBe(false);
     }
     for (const li of empty) expect(li.children).toHaveLength(2);
     // A person with something still has all five rows, in a fixed order.
@@ -186,15 +188,23 @@ describe('the days', () => {
   });
 });
 
-describe('write it up and export, folded below', () => {
+describe('write it up and export, one row of buttons below (#657)', () => {
   it("asks the agent to write it up, labelled as the agent's, marking the fact lines it names", async () => {
     const asked: string[] = [];
     const agent = scriptedAgent();
     window.location.hash = standupHref('card-payments', { from: '2026-10-12', to: '2026-10-13' });
     render(<App execute={fixtureExecute().execute} agent={{ ...agent, ask: (d, p, style, chat) => (asked.push(p), agent.ask(d, p, style, chat)) }} now={FIXTURE_NOW} preview worklog={fixtureWorklog()} />);
     await waitFor(() => expect(document.querySelector('[data-standup-source]')).toBeTruthy());
-    expect(document.querySelector<HTMLDetailsElement>('[data-standup-writeup-section]')!.open).toBe(false);
-    await userEvent.click(screen.getByRole('button', { name: 'Write it up' }));
+    // One agent-marked button and its (i), not a caret over a paragraph: what it does is in the tooltip (principle 11).
+    const row = document.querySelector('[data-standup-actions]')!;
+    expect(document.querySelector('[data-standup-writeup-section] details')).toBeNull();
+    const button = screen.getByRole('button', { name: 'Write it up' });
+    expect(row.contains(button)).toBe(true);
+    expect(button.querySelector('.agent-mark[aria-hidden="true"]')).toBeTruthy();
+    expect(row.querySelector('[data-help="standup-writeup"]')).toBeTruthy();
+    expect(row.querySelector('[data-help="standup-export"]')).toBeTruthy();
+    expect(document.body.textContent).not.toContain('Optional. The agent turns the facts above');
+    await userEvent.click(button);
     expect(await screen.findByRole('heading', { name: 'Written by the agent (a scripted preview, not a model), not by Toil UI' })).toBeTruthy();
     expect(asked).toEqual(['Write up the stand-up for 2026-10-12 to 2026-10-13']);
     expect(screen.getByText(/^Rests on 2 fact lines of the report/)).toBeTruthy();
@@ -239,7 +249,12 @@ describe('write it up and export, folded below', () => {
     window.location.hash = standupHref('card-payments', { from: '2026-10-12', to: '2026-10-13' });
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview worklog={api} />);
     await waitFor(() => expect(document.querySelector('[data-standup-source]')).toBeTruthy());
-    expect(document.querySelector<HTMLDetailsElement>('[data-standup-export-section]')!.open).toBe(false);
+    // The folder field waits behind one button, Export as Markdown, which is not an agent run and has no mark.
+    expect(document.querySelector('[data-standup-export-section]')).toBeNull();
+    const open = screen.getByRole('button', { name: 'Export as Markdown' });
+    expect(open.querySelector('.agent-mark')).toBeNull();
+    await userEvent.click(open);
+    expect(open.getAttribute('aria-expanded')).toBe('true');
     await userEvent.type(screen.getByRole('textbox', { name: 'Folder, as a full path' }), 'C:/Users/you/Documents');
     await userEvent.click(screen.getByRole('button', { name: 'Export' }));
     expect((await screen.findByText(/^toil wrote 99 bytes to/)).textContent).toContain('standup-card-payments-2026-10-12-to-2026-10-13.md');

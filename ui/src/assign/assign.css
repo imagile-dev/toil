@@ -74,3 +74,8 @@
 .assign-form .agent-notice { display: grid; gap: 0.4rem; padding: 0.6rem 0.75rem; border: 1px solid var(--warn); border-left-width: 4px; border-radius: var(--radius); background: var(--bg); }
 .assign-form .agent-notice p { margin: 0; }
 .assign-form .agent-notice summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+
+/* An agent's work on the People view: one line per kind ("Tidy up · 8"), each opening to its runs. */
+.assign-kinds { display: grid; gap: 0.25rem; margin: 0; padding: 0; list-style: none; }
+.assign-kind > summary { min-height: 44px; flex-wrap: wrap; gap: 0.25rem 0.5rem; border-radius: var(--radius); }
+.assign-kind .rows { margin-top: 0.25rem; }

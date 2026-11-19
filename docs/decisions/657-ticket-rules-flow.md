@@ -444,3 +444,28 @@
 
 - **A rule may name what's missing** (`missing`, a short phrase such as "no Given/When/Then criteria"), so a count reads "3 of 27 stories: no Given/When/Then criteria" instead of building grammar from the rule's name. Where: `src/core/standards/types.ts`, `read.ts`, `builtin.ts`.
 - **Flow calls any other story a Feature** (rule `story`, last). Why: on the demo week, without it, 63% of finished work read as unsure, since most stories carry no label; the Flow Framework counts new user-facing work as a feature. Last in order, so a story labelled security, bug or tech-debt keeps that category. Where: `src/core/classify/builtin.ts`.
+
+## Crate's polish and the motion helpers
+
+- **Crate's `line` is its own, no longer the site's.** The dark hairline is `#2a303a`
+  (light `#e0dcd3`), quieter than the site's `#3a414d`. `test/brand-sync.test.ts` now
+  holds it between the site's surface and the site's line instead of equal to the line.
+  Why: the maintainer found Crate too busy; nothing relies on `--line` as a control's
+  boundary (buttons and fields are outlined in `--muted`, which keeps 3:1), so cards and
+  rules can go quieter without failing WCAG 1.4.11.
+- **Crate's dust is off until Motion is set to Full** (`"ambient": { "default": "off" }`,
+  read by `src/ambient/Ambient.tsx`). Picking Full already switches a theme's particles on.
+- **Nested cards are raised and unoutlined in Crate only** (theme.css), not in the shared
+  `views.css`, so the other themes keep their frames.
+- **Motion lives in `src/motion.css`, loaded by `src/motion.ts`**, which every entry loads,
+  rather than in each of the two entries. Closing a disclosure is instant: there is no
+  way to animate a `<details>` closing without script, and leaving is not worth the wait.
+
+## The agent mark and tooltips over expanders
+
+- **One agent mark per theme, drawn as a mask in the text colour** (`agentMark` in each theme.json, `src/components/agent-mark.tsx`). Why: a mask follows the button's own ink on the accent fill and in both schemes, so no theme can ship a mark that vanishes on one fill; the cost is one colour per mark, which suits a 16px glyph. A theme without one borrows Plain's.
+- **Which controls carry it:** those that start a run when pressed (Ask in the bar and the pane, Write it up, Fix with AI agent and Ask for a rewrite, Assign to agent and its Assign or Start, the inbox's Start, Run again, Renew and Renew all, Get a briefing, a job's Run and the job menu's items, Improve with your AI agent, Classify's ask, Start N on Tickets, the guided start's questions, the chart's suggested questions, and the setup guide's starters and Ask), plus the AI agents button, as asked. Left without it: links that only open a job's page (Draw its architecture, Draw it again), and the chart menu's Ask about this chart, which opens the pane without asking.
+- **Converted to an (i):** the stand-up's two expanders (Write it up and Export, now one row of buttons; Export reveals its folder field on press), Improve with your AI agent's paragraph, and the paragraph under Start on Tickets. **Left as disclosures:** run details, transcripts, evidence, the coverage gaps, What it may ask you to approve on a job page, the Details for whoever sets it up folds (the adapters' install detail for an engineer), and the setup guide's fold on a phone, which holds a whole chat.
+- **The stand-up's Dash has no `title`.** It showed the raw word "none" as a hover tooltip, the stray one between the expanders; the words beside every dash already say what it stands for, and a screen reader still hears it.
+- **`.control-row`** makes every button and menu in a row 32px to the eye with the 44px hit area, so a row never mixes 44px, 36px and 32px controls. A ticket rule's row aligns on its text's baseline instead, with Fix with AI agent at `btn--sm`.
+

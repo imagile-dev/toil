@@ -14,7 +14,7 @@ Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the r
 | Theme | Looks like | Wording and voice | Accessibility bar |
 |---|---|---|---|
 | Plain | Light and quiet: Fredoka on headings and figures, IBM Plex Sans to read | None: always the standard text | WCAG 2.2 AA, strict |
-| Crate | The toil site's look, in its blue: the near-black, or warm drafting paper in light, the drafting grid and the blue glow, the accent-to-highlight gradient, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
+| Crate | The toil site's look, in its blue, kept quiet: the near-black, or warm drafting paper in light, a faint drafting grid behind the page head, a soft blue glow, two surfaces (the page and a card), the accent-to-highlight gradient on the name and the main button only, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
 | Harvest | A 16-bit farm: a pixel face for headings only, wooden sign panels, a sky that runs from dawn to dusk across the sprint | A patient farmhand | Decorative |
 | Starship | A bridge console: HUD frames, scanlines, a slow starfield, holo panels | A ship's log | Decorative |
 | Realm | A grimdark house ledger kept as a tabletop campaign: soot and iron around aged vellum, leather-bound panels with wax-sealed headings, a dungeon map at the foot of every page, a d20 that rolls while a view loads, an item's fields as a character sheet, the dependency graph as an engraved war-table map | A dungeon master | Decorative |
@@ -47,6 +47,8 @@ A theme has up to three layers.
 - **Voice** is the register the agent answers in, from the `voice` in the theme's `theme.json`. Crate answers like a terse dockworker, Harvest like a patient farmhand, Starship like a ship's log, Realm like a dungeon master narrating a grim campaign to the party, dramatic but brief with every figure and citation as the data gives it, Frontier like a dry telegraph operator who also keeps the engine running, Sprawl like a netrunner on a job: work items are gigs, the sprint is the run, a pull request is a payload waiting on the fixer, a build is an ICE check, a deployment is jacking in to prod, and a blocker is black ICE, and Overworld like an old sage in a cave: brief, warm and a little cryptic, with the facts kept plain.
 
 - **Thinking phrases** are the lines the Ask bar rotates while an AI agent works on an answer, from the `thinking` list in the theme's `theme.json` (#561): three to eight plain-text lines of 60 characters or fewer, each ending in "…", with no digits and no claim of progress ("done", "almost there"). Harvest reads "Fertilizing digital soil…", "Planting code turnips…" and "Waiting for the data to ripen…". They show beside a small icon that turns while motion is welcome and stays a still arc under reduced motion, and they follow **Themed wording**: Plain, and any theme with wording off, reads "Reading your data…", "Working on it…" and "Still working on it…". A phrase changes every 6 seconds, in the order listed, never at random, and a screen reader is told only when it changes. The phrases are flavour: the time elapsed is always beside them, and once the agent names a tool it is reading or starts writing, the phrase gives way to that plain statement.
+
+- **The agent mark** is the small picture on every control that starts an AI agent run (Ask, Write it up, Fix with AI agent, Assign to agent, Get a briefing, a job's Run, Renew, Start, the AI agents button), so a person can tell at a glance which buttons hand work to an agent (#657). Each theme draws its own, listed in its `assets` as `agentMark` (`assets/agent.svg`): Plain's spark in a tile, Crate's robot crate, Harvest's scarecrow, Starship's droid, Realm's owl familiar, Sprawl's neural glyph, Frontier's scout under a wide hat, and Overworld's fairy companion. It is one shape on a 24 unit grid, legible at 16px, and Toil UI draws it as a mask filled with the control's own text colour, so it follows the button's ink on any fill, in light and dark, and only its outline matters. A theme that lists none gets Plain's. It is decoration (`aria-hidden`): the button's label carries its name, and what the agent does and reads is in the control's (i).
 
 Wording never touches these, in any theme:
 
@@ -160,14 +162,14 @@ The (i) in the chat's strip says which voice the answers are in, which agent is 
 
 ## Motion and particles
 
-The seven game themes move a little: dust drifting in the blue glow and the site's slow drafting grid in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers, a faint candle flicker and a d20 that tumbles while a view loads in Realm, rain on a slant, a blinking cursor and a brief glitch as a page opens in Sprawl, desert dust on the wind with steam rising from the foot of the page in Frontier, and fairies wandering as motes of light in Overworld, where a chest hops open as a card reaches Done and a key is lifted as one gets under way. Plain doesn't move. No theme plays sound.
+The seven game themes move a little: dust drifting in the blue glow in Crate, once Motion is set to Full (its grid holds still), leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers, a faint candle flicker and a d20 that tumbles while a view loads in Realm, rain on a slant, a blinking cursor and a brief glitch as a page opens in Sprawl, desert dust on the wind with steam rising from the foot of the page in Frontier, and fairies wandering as motes of light in Overworld, where a chest hops open as a card reaches Done and a key is lifted as one gets under way. Plain doesn't move. No theme plays sound.
 
 Two settings decide what moves, in this order:
 
 1. **Your operating system's reduced-motion setting.** When it asks for less, nothing moves, whatever Toil UI is set to.
 2. **Motion**, one select under Settings, Appearance: Full, Subtle or Off. Off is what reduced motion was: nothing moves, no animations and no particles. Subtle also turns the theme's particles off and keeps the rest quieter.
 
-Each theme says which particles it has in its `theme.json`, as `"ambient": { "particles": "dust" }`, so the setting knows what it controls. The Toil UI choice is kept in this browser only, never in toil's config.
+Each theme says which particles it has in its `theme.json`, as `"ambient": { "particles": "dust" }`, so the setting knows what it controls; `"default": "off"` beside it keeps them off until someone picks Full, as Crate does. The Toil UI choice is kept in this browser only, never in toil's config.
 
 A theme's splash, loading screens and moments follow the same **Motion** setting (Theme moments, below), which reads off whenever either of the two asks for less.
 

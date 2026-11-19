@@ -14,38 +14,47 @@
  *
  * Where the toil project names ticket rules (#657), a "Ticket rules" card says,
  * one line a standard, how many of the open items its rules apply to miss
- * them; each line is a link that filters the list to those items
+ * them; each line is a full-width button that filters the list to those items
  * (`?rule=<standard>/<rule>` for a one-rule standard, `?rule=<standard>` for
  * any rule of one with several), and the filtered rule's line leads each
  * item's "Why not ready", so the figure and the items behind it are one press
- * apart.
+ * apart. This is the Tickets tab (#657); the sprint board is a drill-in from
+ * here and from the Summary, "Open the board", a quiet button on the heading row. The ready items fold to one
+ * line, "16 ready" and its Start button, with the items one press in; the filter bar sits with the table it filters.
  */
 
 import { useMemo, useState } from 'react';
 import { Button } from 'react-aria-components';
 import { Choice } from '../components/choice.tsx';
-import { ItemLink } from '../components/items.tsx';
+import { ItemLink, ItemRow } from '../components/items.tsx';
+import { DisclosureBody, SummaryChevron } from '../components/disclosure.tsx';
 import { Card, CardGrid, Cluster, DataTable, Stack, type Column } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
 import { Help } from '../components/help.tsx';
 import { FilterBar } from '../components/filter-bar.tsx';
 import { VerdictChip, WhyNot } from '../components/readiness.tsx';
 import { useData } from '../data.ts';
+import { asMapped } from '../model/people.ts';
 import { toWhere } from '../filters.ts';
 import { useAddress, useWorkInsights } from '../insights-data.ts';
-import { dateTime, toilProjectHref, personText, sourceLabel, STATUS_CATEGORY_LABEL } from '../format.ts';
+import { boardHref, dateTime, toilProjectHref, personText, sourceLabel, STATUS_CATEGORY_LABEL } from '../format.ts';
+import { NavButton } from '../components/nav-button.tsx';
+import { useFocusArrival } from '../motion.ts';
 import { usePlain } from '../plain-words.ts';
-import { readinessAll, tally, VERDICT_LABEL, VERDICT_PLAIN, VERDICTS, withRules, type Readiness, type Row, type Verdict } from '../model/readiness.ts';
+import { BLOCKED_WHY, readinessAll, tally, VERDICT_LABEL, VERDICT_PLAIN, VERDICTS, withRules, type Readiness, type Row, type Verdict } from '../model/readiness.ts';
 import { lineWhat, matchesRef, missing, ruleLines, ruleName } from '../rules.ts';
 import { Unread } from '../components/unread.tsx';
 import { Empty, EmptyButton } from '../components/empty.tsx';
-import type { WorkItem } from '../toil.ts';
+import type { Person, WorkItem } from '../toil.ts';
+import { AgentMark } from '../components/agent-mark.tsx';
 
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 interface Line {
   item: WorkItem;
   readiness: Readiness;
+  /** The assignee as the toil project's people map them, so one person with two accounts is one name in the column and the filter. */
+  assignee: Person | null;
 }
 
 /** A short id for a plan, from what is in it: the items, in order, and the state each was read in. */
@@ -69,7 +78,7 @@ const columnsFor = (ruleRef: string | null): Array<Column<Line>> => [
   { header: 'Item', label: 'Item', rowHeader: true, cell: (l) => <ItemLink id={l.item.id} withTitle /> },
   { header: 'Verdict', label: 'Verdict', cell: (l) => <VerdictChip verdict={l.readiness.verdict} /> },
   { header: 'Why not ready', label: 'Why not ready', cell: (l) => <WhyNot readiness={l.readiness} {...(ruleRef ? { first: (r: Row) => Boolean(r.rule && matchesRef(ruleRef, r.rule)) } : {})} /> },
-  { header: 'Assignee', label: 'Assignee', cell: (l) => personText(l.item.assignee) },
+  { header: 'Assignee', label: 'Assignee', cell: (l) => personText(l.assignee) },
   { header: 'Status', label: 'Status', cell: (l) => `${l.item.status ?? 'None'} (${STATUS_CATEGORY_LABEL[l.item.statusCategory]})` },
 ];
 
@@ -90,7 +99,7 @@ export function CommandCenter() {
     const all = readinessAll(toilProject.items, settings);
     const where = toWhere(filters);
     const allowed = where.length === 0 ? null : new Set(ins.narrow(where).items.map((i) => i.id));
-    return toilProject.items.flatMap((item, i) => (allowed && !allowed.has(item.id) ? [] : [{ item, readiness: all[i]! }]));
+    return toilProject.items.flatMap((item, i) => (allowed && !allowed.has(item.id) ? [] : [{ item, readiness: all[i]!, assignee: asMapped(toilProject.people ?? [], item.source.area, item.assignee) }]));
   }, [toilProject, settings, ins, filters]);
   const [verdict, setVerdict] = useState<'all' | Verdict>('all');
   const [status, setStatus] = useState('open');
@@ -103,19 +112,21 @@ export function CommandCenter() {
   const slated = open.filter((l) => l.readiness.verdict === 'ready');
   const plan = { id: planId(slated.map((l) => l.item)), items: slated.map((l) => l.item.id) };
   const typeOf = (i: WorkItem) => i.typeName ?? i.type;
-  const who = (i: WorkItem) => (i.assignee ? personText(i.assignee) : '');
+  const who = (l: Line) => (l.assignee ? personText(l.assignee) : '');
   const types = [...new Set(lines.map((l) => typeOf(l.item)))].sort();
-  const people = [...new Set(lines.map((l) => who(l.item)).filter(Boolean))].sort();
+  const people = [...new Set(lines.map(who).filter(Boolean))].sort();
   const areas = [...new Set(lines.map((l) => l.item.source.area))].sort();
   const shown = lines.filter(
     (l) =>
       (status === 'all' || (status === 'done') === (l.item.statusCategory === 'DONE')) &&
       (verdict === 'all' || l.readiness.verdict === verdict) &&
       (type === 'all' || typeOf(l.item) === type) &&
-      (assignee === 'all' || (assignee === 'none' ? !l.item.assignee : who(l.item) === assignee)) &&
+      (assignee === 'all' || (assignee === 'none' ? !l.assignee : who(l) === assignee)) &&
       (source === 'all' || l.item.source.area === source) &&
       (!ruleRef || !missingRule || missingRule.has(l.item.id)),
   );
+  // Opened from a rule's line or the Summary's Ticket rules card, the filter it set is brought into view and ringed (src/motion.ts).
+  useFocusArrival(ruleRef ? `rule:${ruleRef}` : null);
   const withRule = (ref: string | null) => hrefWith((q) => (ref ? q.set('rule', ref) : q.delete('rule')));
   const showRules = settings.standards.length > 0 || (checked?.standards.length ?? 0) > 0;
   const linesOfRules = checked ? ruleLines(checked, open.map((l) => l.item)) : [];
@@ -129,9 +140,14 @@ export function CommandCenter() {
         <p className="eyebrow">
           <a href={toilProjectHref(toilProject.name)}>{toilProject.name}</a>
         </p>
-        <h1 tabIndex={-1} title={plain.title('Command Center')}>
-          {plain.pw('Command Center', 'Ready to start?')}
-        </h1>
+        <div className="view-head__row">
+          <h1 tabIndex={-1} title={plain.title('Command Center')}>
+            {plain.pw('Command Center', 'Ready to start?')}
+          </h1>
+          <NavButton href={boardHref(toilProject.name)} kind="quiet" size="sm" data-open-board="">
+            Open the board
+          </NavButton>
+        </div>
         <p className="lede">
           {plain.on ? `Every item in ${toilProject.name}, marked ready or not and, if not, why, from the records read ${dateTime(now)}.` : <>Every work item in {toilProject.name}, each with its readiness verdict and, where it isn't ready, why, from the records read {dateTime(now)}.</>} <Help topic="readiness" />
         </p>
@@ -142,8 +158,6 @@ export function CommandCenter() {
         ))}
       </div>
 
-      <FilterBar period={false} />
-
       <CardGrid as="ul" min="sm" className="team-strip readiness-tally" aria-label="Open items by verdict">
         {VERDICTS.map((v) => (
           <li key={v}>
@@ -152,7 +166,7 @@ export function CommandCenter() {
                 <VerdictChip verdict={v} />
               </h2>
               <p className="team-figure">{totals[v]}</p>
-              <p className="note">{v === 'ready' ? 'Every check passes.' : v === 'thin' ? plain.pw('Missing acceptance criteria, description or another check a person can waive.', 'Missing "done when" criteria, a description or another check a person can waive.') : 'Waiting on another item, done already, outside the Toil project, or failing a ticket rule.'}</p>
+              <p className="note">{v === 'ready' ? 'Every check passes.' : v === 'thin' ? plain.pw('Missing acceptance criteria, description or another check a person can waive.', 'Missing "done when" criteria, a description or another check a person can waive.') : BLOCKED_WHY}</p>
             </Stack>
           </li>
         ))}
@@ -176,16 +190,16 @@ export function CommandCenter() {
           ) : (
             <>
               {missed.length > 0 && (
-                <ul>
+                <ul className="plain readiness-rules__lines">
                   {missed.map((r) => (
                     <li key={r.ref}>
-                      <a href={withRule(r.ref)} data-rule-line={r.ref}>
+                      <NavButton href={withRule(r.ref)} kind="quiet" row aria-current={ruleRef === r.ref ? 'true' : undefined} data-rule-line={r.ref}>
                         <strong>
                           {r.miss} of {r.applies}
                         </strong>{' '}
                         {r.noun(r.applies)}: {lineWhat(r)}
-                      </a>
-                      {r.skipped > 0 && <span className="note">, {r.skipped} not checked</span>}
+                        {r.skipped > 0 && <span className="note">, {r.skipped} not checked</span>}
+                      </NavButton>
                     </li>
                   ))}
                 </ul>
@@ -197,24 +211,14 @@ export function CommandCenter() {
       )}
 
       <Card as="section" className="panel readiness-slate" aria-labelledby="slate">
-        <h2 id="slate">Start every ready item</h2>
-        <p>
-          {slated.length
-            ? <span title={`Plan ${plan.id}`}>{plain.text(`${count(slated.length, 'item is', 'items are')} ready and would be slated, in the Toil project's order.`)}</span>
-            : 'No open item is ready, so nothing would be slated. The list below says what each one is missing.'}
-        </p>
-        {slated.length > 0 && (
-          <ul className="plain cites" aria-label="Slated items">
-            {slated.map((l) => (
-              <li key={l.item.id}>
-                <ItemLink id={l.item.id} withTitle />
-              </li>
-            ))}
-          </ul>
-        )}
-        <Cluster className="readiness-start">
+        {/* One line, the count and its button (#657); the items it would start are one press in, so the card isn't a list. */}
+        <div className="readiness-slate__line">
+          <h2 id="slate" title={slated.length ? `Plan ${plan.id}` : undefined}>
+            {slated.length ? `${slated.length} ready` : 'Nothing ready'}
+          </h2>
+          <span className="control-row__group">
           <Button
-            className="btn"
+            className="btn btn--sm"
             isDisabled={!startReady || slated.length === 0 || starting}
             onPress={async () => {
               if (!startReady) return;
@@ -227,20 +231,47 @@ export function CommandCenter() {
                 setStarting(false);
               }
             }}
-            aria-describedby="slate-note"
+            aria-label={`Start ${count(slated.length, 'ready item')}`}
+            {...(startReady ? {} : { 'aria-describedby': 'slate-note' })}
           >
-            Start {count(slated.length, 'ready item')}
+            <AgentMark />
+            Start {slated.length}
           </Button>
+          {startReady && <Help topic="start-ready" />}
+          </span>
+        </div>
+        {slated.length > 0 ? (
+          <details className="readiness-slate__items">
+            <summary>
+              <SummaryChevron />
+              {plain.text(`Which ${slated.length === 1 ? 'one' : count(slated.length, 'item')}, in the Toil project's order`)}
+            </summary>
+            <DisclosureBody>
+              <ul className="plain item-rows" aria-label="Slated items">
+                {slated.map((l) => (
+                  <li key={l.item.id}>
+                    <ItemRow id={l.item.id} />
+                  </li>
+                ))}
+              </ul>
+            </DisclosureBody>
+          </details>
+        ) : (
+          <p className="note">No open item is ready, so nothing would be slated. The list below says what each one is missing.</p>
+        )}
+        {/* What Start does is in its (i) (principle 11, #657); only the state that it can't start stays on screen. */}
+        {!startReady && (
           <p id="slate-note" className="note">
-            {startReady ? plain.pw('Assigns each item above to an agent in implement mode, as listed: proposals wait for you, and nothing leaves this machine until you apply one.', 'Asks an AI agent to try a fix for each item above, as listed: its suggestions wait for you, and nothing leaves this computer until you apply one.') : plain.text('This view has no agent assignments, so it shows the plan it would start.')}
+            {plain.text('This view has no agent assignments, so it shows the plan it would start.')}
           </p>
-        </Cluster>
+        )}
         <p className={started && !started.ok ? 'failure' : 'note'} role="status">
           {started?.text ?? ''}
         </p>
       </Card>
 
       <Panel id="cc-items" title="Items" calls={calls}>
+        <FilterBar period={false} />
         <Cluster className="readiness-filters" role="group" aria-label="Filter the items">
           <Choice label="Verdict" value={verdict} onChange={(v) => setVerdict(v as 'all' | Verdict)} options={[{ id: 'all', label: 'All' }, ...VERDICTS.map((v) => ({ id: v, label: (plain.on ? VERDICT_PLAIN : VERDICT_LABEL)[v] }))]} />
           <Choice label="Status" value={status} onChange={setStatus} options={STATUS_FILTER} />
@@ -249,7 +280,7 @@ export function CommandCenter() {
           {areas.length > 1 && <Choice label="Source" value={source} onChange={setSource} options={[{ id: 'all', label: 'All' }, ...areas.map((a) => ({ id: a, label: `${sourceLabel(a)} (${a})` }))]} />}
         </Cluster>
         {ruleRef && (
-          <p className="readiness-rule-filter" data-rule-filter={ruleRef}>
+          <p className="readiness-rule-filter" data-rule-filter={ruleRef} data-focus-id={`rule:${ruleRef}`}>
             <span>
               Missing: <strong>{(checked && ruleName(checked, ruleRef)) ?? ruleRef}</strong>
               {checked && !missingRule && <span className="note"> (not one of this Toil project's rules)</span>}

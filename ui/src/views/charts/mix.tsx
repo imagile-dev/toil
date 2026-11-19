@@ -6,7 +6,7 @@
  * dimension (it then becomes a bar of category share for each value), change what
  * is counted (items, estimate, days in progress), and narrow it with the filter
  * bar, all in menus and all in the address. Beside the chart, never behind a
- * tooltip, it says how the categories were decided and how much is still Unsure,
+ * tooltip, it says how the categories were decided and how much is not sorted yet,
  * because a share that hides how much of it is a guess is a misleading share.
  * A split by person or team is in name order and never sorted by size: the team
  * is measured, never the person. Splits by anyone's name are alphabetical, a form of fairness.
@@ -33,7 +33,7 @@ import { useData } from '../../data.ts';
 import { classifyHref } from '../../format.ts';
 import { toWhere } from '../../filters.ts';
 import { lensOf, schemeInUse, useAddress, useWorkInsights } from '../../insights-data.ts';
-import { mixDecided, mixOverview, mixSentence, inNameOrder, isPeopleDimension, labelOfDimension, MIX_UNITS, periodWords, SPLIT_MENU, type MixUnit } from '../../model/work-insights.ts';
+import { mixDecided, mixOverview, mixSentence, inNameOrder, NOT_SORTED, isPeopleDimension, labelOfDimension, MIX_UNITS, periodWords, SPLIT_MENU, type MixUnit } from '../../model/work-insights.ts';
 import { useWords } from '../../theme-context.ts';
 import type { Dashboard, Headline } from './dashboard.ts';
 import { ChartPanel, DashboardHead, Door, useDrill, useFilterFromCell, useSourceLine } from './shared.tsx';
@@ -171,7 +171,7 @@ export function MixView() {
               ))}
               <li>
                 <a href={classifyHref(toilProject.name)} data-unsure-link="">
-                  Unsure
+                  {NOT_SORTED}
                 </a>{' '}
                 <b>{share(decided.unsure)}</b>
               </li>

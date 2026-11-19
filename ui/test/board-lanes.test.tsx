@@ -109,8 +109,6 @@ describe('the filter bar on the Board', () => {
     await go(`${TEAM}/command-center?release=2.4`);
     await waitFor(() => expect(Number(/of (\d+)\./.exec(document.querySelector('[aria-live]')!.textContent!)![1])).toBeLessThan(total));
     expect(Number(/of (\d+)\./.exec(document.querySelector('[aria-live]')!.textContent!)![1])).toBe(ins.narrow([{ dimension: 'release', op: '=', values: ['2.4'] }]).items.length);
-    // The filter follows a person from one board view to the other.
-    expect(within(screen.getByRole('navigation', { name: 'Board views' })).getByRole('link', { name: 'Board' }).getAttribute('href')).toBe(`${TEAM}/board?release=2.4`);
   });
 });
 

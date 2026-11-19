@@ -19,11 +19,20 @@ describe('the views on a dashboard (#252, #253)', () => {
     const keys = () => flagged().map((li) => within(li).getAllByRole('link')[0]!.textContent).sort();
     expect(keys()).toEqual(['PAY-101', 'PAY-102', 'PAY-103', 'PAY-104']);
     expect(flagged()[0]!.querySelector('.card-flag')!.textContent).toBe('Needs attention');
-    expect(within(tabs('card-payments')).getByRole('link', { name: 'Board, 4 items need attention' })).toBeTruthy();
     expect(cards().length).toBeGreaterThan(4);
     await userEvent.click(within(board).getByRole('checkbox', { name: 'Needs attention only (4)' }));
     expect(cards()).toHaveLength(4);
     expect(keys()).toEqual(['PAY-101', 'PAY-102', 'PAY-103', 'PAY-104']);
+  });
+
+  it("badges Tickets with the Tickets page's own Blocked figure, said in words, never a count the page doesn't show", async () => {
+    await open('#/project/card-payments/command-center');
+    const tab = await waitFor(() => within(tabs('card-payments')).getByRole('link', { name: /^Tickets, \d+ blocked$/ }));
+    const n = /(\d+) blocked/.exec(tab.textContent ?? '')![1];
+    expect(tab.querySelector('.tab-count')!.getAttribute('title')).toBe(`${n} blocked: waiting on another item, done already, outside the Toil project, or failing a ticket rule.`);
+    const tally = screen.getByRole('list', { name: 'Open items by verdict' });
+    const blocked = within(tally).getAllByRole('listitem').find((li) => li.textContent?.includes('Blocked'))!;
+    expect(blocked.querySelector('.team-figure')!.textContent).toBe(n);
   });
 
   it('puts each sprint item on the board under its status category, with its own status word and insights', async () => {
@@ -208,8 +217,19 @@ describe('the views on a dashboard (#252, #253)', () => {
   it('draws the dependency graph, and lists every link in words', async () => {
     await open('#/project/card-payments/dependencies');
     const graph = panel('Links between items');
+    // Both folded, each with its count: the drawing is built only once opened.
+    const drawing = await waitFor(() => {
+      const d = graph.querySelector<HTMLDetailsElement>('details[data-graph-drawing]');
+      expect(d).not.toBeNull();
+      return d!;
+    });
+    const links = graph.querySelector<HTMLDetailsElement>('details[data-graph-links]')!;
+    expect([drawing.open, links.open]).toEqual([false, false]);
+    expect(links.querySelector('summary')!.textContent).toBe('Every link (3)');
+    expect(graph.querySelector('.react-flow')).toBeNull();
+    await userEvent.click(within(drawing).getByText(/^Graph of the links \(\d+ items\)$/));
     await waitFor(() => expect(graph.querySelector('.react-flow')).not.toBeNull());
-    expect([...graph.querySelectorAll(':scope > ul.rows > li')].map((li) => li.textContent)).toEqual([
+    expect([...links.querySelectorAll('ul.rows > li')].map((li) => li.textContent)).toEqual([
       'Jira PAY-101 Tokenise card numbers at the edge blocks Jira PAY-102 Store tokens in the vault (blocks)',
       'Jira PAY-102 Store tokens in the vault blocks Jira PAY-103 Charge a stored token (blocks)',
       'Jira PAY-103 Charge a stored token relates to Jira PAY-107 Retry declined charges once (relates to)',
@@ -226,18 +246,45 @@ describe('the views on a dashboard (#252, #253)', () => {
     expect(svg.querySelectorAll('.gantt-seg--checks')).toHaveLength(1);
     expect(svg.querySelectorAll('.gantt-arrow--chain')).toHaveLength(2);
     expect(svg.querySelector('.gantt-today')).not.toBeNull();
-    expect(within(gantt).getByRole('list', { name: 'Key' }).textContent).toMatch(/In progress.*Blocked.*Checks failing.*Waits on.*Critical chain.*Today/);
+    // Each item's plan, to a flag on its due date; the tooltip names where the date came from.
+    expect(svg.querySelectorAll('.gantt-seg--planned')).toHaveLength(3);
+    expect(svg.querySelectorAll('.gantt-due')).toHaveLength(3);
+    expect(svg.querySelector('.gantt-row title')!.textContent).toContain('due 14 Oct 2026 (the due date in Jira); planned');
+    // The key is folded behind a Key line, so only the chart shows until asked (#657).
+    const key = gantt.querySelector<HTMLDetailsElement>('details[data-gantt-key]')!;
+    expect(key.open).toBe(false);
+    await userEvent.click(within(key).getByText('Key'));
+    expect(key.open).toBe(true);
+    expect(svg.querySelectorAll('.gantt-seg--strong')).toHaveLength(svg.querySelectorAll('.gantt-row--chain .gantt-seg--blocked').length);
+    expect(within(gantt).getByRole('list', { name: 'Key' }).textContent).toMatch(/In progress.*Blocked.*Checks failing.*Planned, to the due date.*Due.*Waits on.*Critical chain.*Today/);
+    // The table is folded under the timeline, its summary counting what it holds.
+    const every = gantt.querySelector<HTMLDetailsElement>('details[data-gantt-every]')!;
+    expect(every.open).toBe(false);
+    expect(every.querySelector('summary')!.textContent).toBe('Every bar and arrow (3 items, 2 arrows)');
     const table = within(gantt).getByRole('table', { name: 'Every bar and waits-on arrow in the blocker timeline' });
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows.map((r) => within(r).getByRole('rowheader').querySelector('.l-table__value')!.textContent)).toEqual(['Jira PAY-101 Tokenise card numbers at the edge', 'Jira PAY-102 Store tokens in the vault', 'Jira PAY-103 Charge a stored token']);
     expect(rows[1]!.textContent).toContain('(estimated)');
     expect(rows[2]!.textContent).toContain('PAY-102, critical chain');
+    expect(rows[2]!.textContent).toContain('16 Oct 2026 (the due date in Jira)Planned from 15 Oct 2026 (when Jira PAY-102 is due), estimated');
+    expect(within(gantt).queryByRole('button', { name: /^Show all/ })).toBeNull();
     expect(gantt.textContent).toContain('Blocked time is estimated');
     // That it is estimated stays beside the timeline; how each part is estimated is one press away, in the (i).
     expect(gantt.querySelector('[data-gantt-estimate]')!.textContent).toMatch(/^Sprint 42, .* to .*\. Blocked time is estimated\.$/);
     expect(gantt.textContent).not.toContain('links carry no date');
     await userEvent.click(within(gantt).getByRole('button', { name: 'About the blocker timeline' }));
     expect((await screen.findByRole('dialog', { name: 'About the blocker timeline' })).textContent).toContain('links carry no date in Jira, Azure DevOps or GitHub');
+  });
+
+  it('shows the critical chain and the longer chains first, and every row on a press', async () => {
+    await open('#/project/sample-team/dependencies');
+    const gantt = panel('Blocker timeline');
+    const rows = () => within(within(gantt).getByRole('table', { name: 'Every bar and waits-on arrow in the blocker timeline' })).getAllByRole('row').slice(1);
+    expect(rows()).toHaveLength(2);
+    expect(gantt.querySelector('svg.gantt')!.getAttribute('aria-label')).toMatch(/^Blocker timeline for .*: 2 of 6 items and 1 waits-on arrow\./);
+    await userEvent.click(within(gantt).getByRole('button', { name: 'Show all 6 items' }));
+    expect(rows()).toHaveLength(6);
+    expect(within(gantt).getByRole('button', { name: 'Show only the chains' })).toBeTruthy();
   });
 
   it('says so when a Toil project has no links to draw', async () => {

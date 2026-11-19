@@ -21,7 +21,8 @@ describe('the worklog (#308)', () => {
 
   it("opens on today's page, linked from the header, with the calendar of days that have one", async () => {
     await open('#/project/card-payments/worklog');
-    expect(within(tabs('card-payments')).getByRole('link', { name: 'What happened' }).getAttribute('aria-current')).toBe('page');
+    expect(within(tabs('card-payments')).getByRole('link', { name: 'Team' }).getAttribute('aria-current')).toBe('page');
+    expect(document.querySelector('[data-team-page="worklog"]')!.getAttribute('aria-current')).toBe('page');
     await screen.findByRole('heading', { name: 'Tuesday 13 October 2026' });
     const today = screen.getByRole('link', { name: /Tuesday 13 October 2026, today/ });
     expect(today.getAttribute('aria-current')).toBe('date');

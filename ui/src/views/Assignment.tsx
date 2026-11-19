@@ -28,7 +28,9 @@ import { AGENT_SETTINGS_HREF, dateTime, shortKey, sourceLabel, timeOnDay, toilPr
 import { EditLink, Help } from '../components/help.tsx';
 import { Unread } from '../components/unread.tsx';
 import { SummaryChevron } from '../components/disclosure.tsx';
+import { ExternalIcon } from '../components/icons.tsx';
 import { fieldName, readiness, withRules } from '../model/readiness.ts';
+import { AgentMark } from '../components/agent-mark.tsx';
 
 const when = (iso: string | null) => (iso ? dateTime(iso) : 'not yet');
 
@@ -178,6 +180,11 @@ export function AssignmentView({ id }: { id: string }) {
           <p className="note">
             Created {when(a.createdAt)}; started {when(a.startedAt)}; {a.endedAt ? `ended ${when(a.endedAt)}` : 'still going'}; ran {runText(a.ranMs ?? runMs(a, now))}; {usageText(a)}. {modeInfo(a.mode, plain.on).changes}
           </p>
+          {a.stale && (
+            <p className="note" data-stale-why="">
+              Out of date: {a.stale.text}.
+            </p>
+          )}
         </details>
       </div>
 
@@ -218,6 +225,7 @@ export function AssignmentView({ id }: { id: string }) {
             isDisabled={busy}
             data-renew=""
           >
+            <AgentMark />
             Renew
           </Button>
         )}
@@ -462,8 +470,8 @@ function AssignedCard({ p, tracker, quiet, busy, onApply, onDismiss, recheck }: 
           {item?.url && (
             <>
               {' '}
-              <a href={item.url} target="_blank" rel="noreferrer">
-                Open in {sourceLabel(item.source.area)}
+              <a className="btn btn--secondary btn--sm item-open" href={item.url} target="_blank" rel="noreferrer">
+                Open in {sourceLabel(item.source.area)} <ExternalIcon size={14} />
                 <span className="sr-only"> (opens a new tab)</span>
               </a>
             </>

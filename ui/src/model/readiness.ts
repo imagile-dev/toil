@@ -388,10 +388,26 @@ export function readiness({ item, settings, byId, live }: GateInput): Readiness 
   return { id: item.id, verdict, rows, why };
 }
 
+/**
+ * Whether the item would still be Blocked with every ticket rule passing: blocked by an open item, done already, or outside
+ * the Toil project. Fixing its ticket rules can't make such an item ready, so it is not the one to lead a fix with.
+ */
+export function blockedBesidesRules(item: WorkItem, settings: ReadinessSettings, byId: Map<string, WorkItem>): boolean {
+  return readiness({ item, settings: { ...settings, standards: [], rules: RULES_UNREAD }, byId }).verdict === 'blocked';
+}
+
 /** Every item's readiness, in the toil project's order. */
 export function readinessAll(items: WorkItem[], settings: ReadinessSettings): Readiness[] {
   const byId = new Map(items.map((i) => [i.id, i]));
   return items.map((item) => readiness({ item, settings, byId }));
+}
+
+/** What makes an item Blocked, as the Tickets page says it under its Blocked figure. */
+export const BLOCKED_WHY = 'Waiting on another item, done already, outside the Toil project, or failing a ticket rule.';
+
+/** The open items whose verdict is Blocked: the Tickets page's Blocked figure, which its tab's badge repeats. */
+export function blockedOpen(items: WorkItem[], settings: ReadinessSettings): number {
+  return readinessAll(items, settings).filter((r, i) => r.verdict === 'blocked' && items[i]!.statusCategory !== 'DONE').length;
 }
 
 /** How many items have each verdict. */

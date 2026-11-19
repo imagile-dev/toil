@@ -18,8 +18,9 @@ import { FixRuleButton, type RuleToFix } from '../assign/views.tsx';
 import { fixable } from '../rules.ts';
 import { CALL_OPTIONS, type WorkItem } from '../toil.ts';
 import { Help } from './help.tsx';
-import { SummaryChevron } from './disclosure.tsx';
+import { SummaryChevron, DisclosureBody } from './disclosure.tsx';
 import { Cited } from './items.tsx';
+import { SourceTip } from './bits.tsx';
 import { Card } from './layout.tsx';
 import { CheckIcon, CloseIcon, WarningIcon } from './icons.tsx';
 import '../views/readiness.css';
@@ -43,17 +44,16 @@ export function VerdictChip({ verdict }: { verdict: Verdict }) {
 }
 
 /** One row: its state in words as well as a mark, its reason, and where it came from. */
-function RowLine({ r }: { r: Row }) {
+function RowLine({ r, blockedAbove = false }: { r: Row; blockedAbove?: boolean }) {
+  // The item page names what blocks it under the title (#657), so its blockers row points there rather than naming it again.
+  const reason = blockedAbove && r.check === 'blockers' && r.state === 'fail' ? 'what blocks it, named at the top, isn\u2019t done.' : plainReason(r.reason);
   return (
     <li className={`readiness-row readiness-row--${r.state}`}>
       <span className="readiness-mark" aria-hidden="true">
         {MARK[r.state]}
       </span>
       <span>
-        <strong>{r.label}</strong> <span className="readiness-state">{STATE_WORD[r.state]}</span>: <Cited text={r.reason} />{' '}
-        <span className="field">
-          Source: <code>{r.source}</code>
-        </span>
+        <strong>{r.label}</strong> <span className="readiness-state">{STATE_WORD[r.state]}</span>: <Cited text={reason} /> <SourceTip source={r.source} />
       </span>
     </li>
   );
@@ -74,7 +74,7 @@ function RuleRowLine({ r, action }: { r: Row; action?: ReactNode }) {
         <summary>
           <SummaryChevron />
           <span>
-            <strong>{r.label}</strong> <span className="readiness-state">{RULE_WORD[r.state]}</span>: <Cited text={r.reason} />
+            <strong>{r.label}</strong> <span className="readiness-state">{RULE_WORD[r.state]}</span>: <Cited text={plainReason(r.reason)} />
           </span>
         </summary>
         <p className="field">
@@ -85,6 +85,9 @@ function RuleRowLine({ r, action }: { r: Row; action?: ReactNode }) {
     </li>
   );
 }
+
+/** A reason as a person reads it: a Jira custom field's id (`customfield_10500`) is the tracker's internal name, so it reads "a custom field" (#657). */
+const plainReason = (text: string) => text.replace(/\bcustomfield_\d+\b/g, 'a custom field');
 
 const isRuleRow = (r: Row) => r.check === 'rules' || r.check.startsWith('rule:');
 
@@ -108,17 +111,23 @@ function byStandard(rows: Row[]): Array<{ standard: string; rows: Row[] }> {
  * meets them all, rather than three buttons that would each rewrite the same
  * description.
  */
-export function ReadinessRows({ readiness, item, ruleText }: { readiness: Readiness; item?: Pick<WorkItem, 'id' | 'title' | 'source'>; ruleText?: (standard: string, rule: string) => string | null }) {
+export function ReadinessRows({ readiness, item, ruleText, blockedAbove = false }: { readiness: Readiness; item?: Pick<WorkItem, 'id' | 'title' | 'source'>; ruleText?: (standard: string, rule: string) => string | null; blockedAbove?: boolean }) {
   const fixed = readiness.rows.filter((r) => !isRuleRow(r));
   const rules = readiness.rows.filter(isRuleRow);
   const toFix = (r: Row): RuleToFix => ({ ...r.rule!, name: r.label, text: ruleText?.(r.rule!.standard, r.rule!.rule) ?? null, reason: r.reason });
   return (
     <>
-      <ul className="rows readiness-rows">
-        {fixed.map((r) => (
-          <RowLine key={r.check} r={r} />
-        ))}
-      </ul>
+      {/* What fails or is thin stays open; what passes folds to one line, "4 checks pass", opened on a press (#657). */}
+      {fixed.some((r) => r.state !== 'pass') && (
+        <ul className="rows readiness-rows">
+          {fixed
+            .filter((r) => r.state !== 'pass')
+            .map((r) => (
+              <RowLine key={r.check} r={r} blockedAbove={blockedAbove} />
+            ))}
+        </ul>
+      )}
+      <Passing rows={fixed.filter((r) => r.state === 'pass')} />
       {rules.length > 0 && (
         <section className="readiness-rules-group" aria-labelledby="readiness-rules-head">
           <h3 className="readiness-subhead" id="readiness-rules-head">
@@ -151,6 +160,26 @@ export function ReadinessRows({ readiness, item, ruleText }: { readiness: Readin
   );
 }
 
+/** The checks that pass, folded behind one line that counts them. */
+function Passing({ rows }: { rows: Row[] }) {
+  if (!rows.length) return null;
+  return (
+    <details className="readiness-passing" data-passing="">
+      <summary className="btn btn--quiet btn--sm">
+        <SummaryChevron />
+        {rows.length === 1 ? '1 check passes' : `${rows.length} checks pass`}
+      </summary>
+      <DisclosureBody>
+        <ul className="rows readiness-rows">
+          {rows.map((r) => (
+            <RowLine key={r.check} r={r} />
+          ))}
+        </ul>
+      </DisclosureBody>
+    </details>
+  );
+}
+
 /**
  * Why an item isn't ready, in one line: the rows that don't pass, worst first.
  * `first` brings the rows it picks to the top, so a list filtered to a ticket
@@ -163,7 +192,7 @@ export function WhyNot({ readiness, first }: { readiness: Readiness; first?: (r:
     <ul className="why-not">
       {rows.map((r) => (
         <li key={r.check}>
-          <strong>{r.label}:</strong> <Cited text={r.reason} />
+          <strong>{r.label}:</strong> <Cited text={plainReason(r.reason)} />
         </li>
       ))}
     </ul>
@@ -182,7 +211,7 @@ const MEANING: Record<Verdict, string> = {
  * read that can settle the done-state check, made only when a person presses
  * for it. Nothing here asks a model.
  */
-export function ReadinessPanel({ item }: { item: WorkItem }) {
+export function ReadinessPanel({ item, blockedAbove = false }: { item: WorkItem; blockedAbove?: boolean }) {
   const { toilProject, byId, execute, rules } = useData();
   const settings = withRules(toilProject.readiness, rules?.reading);
   const ruleText = (standard: string, rule: string) => rules?.view?.result?.standards.find((s) => s.name === standard)?.rules.find((x) => x.id === rule)?.text ?? null;
@@ -205,10 +234,10 @@ export function ReadinessPanel({ item }: { item: WorkItem }) {
       <p className="readiness-verdict">
         <VerdictChip verdict={r.verdict} /> {MEANING[r.verdict]}
       </p>
-      <ReadinessRows readiness={r} item={item} ruleText={ruleText} />
+      <ReadinessRows readiness={r} item={item} ruleText={ruleText} blockedAbove={blockedAbove} />
       {read && execute && (
         <p className="readiness-live">
-          <Button className="btn btn--small" onPress={check} isDisabled={reading}>
+          <Button className="btn btn--sm" onPress={check} isDisabled={reading}>
             {reading ? 'Reading the workflow…' : live ? 'Read the workflow again' : 'Check the workflow live'}
           </Button>{' '}
           {/* What the live read was is the result's source, so it stays in view once there is one (principle 4); before then the (i) explains the button. */}

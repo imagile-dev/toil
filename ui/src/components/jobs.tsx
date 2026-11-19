@@ -24,6 +24,7 @@ import { FACE, availability, jobOf, jobPrompt, jobLabel, type Availability, type
 import type { Change } from '../toil.ts';
 import { MoreIcon } from './icons.tsx';
 import './jobs.css';
+import { AgentMark } from './agent-mark.tsx';
 
 /** The address of a job: its own page, which says what it does and has the Run button. */
 export const jobHref = (toilProject: string, id: JobId, target?: string): string => `${toilProjectHref(toilProject)}/job/${FACE[id].segment}${target ? `?target=${encodeURIComponent(target)}` : ''}`;
@@ -112,7 +113,10 @@ export function PullRequestActions({ change, info, plain }: { change: Change; in
         >
           {jobs.map(({ id, face, ready }) => (
             <MenuItem key={id} id={id} className={`menu-item jobs-item${ready.ready ? '' : ' jobs-item--off'}`} textValue={face.label}>
-              <Text slot="label">{plain ? face.plain : face.label}</Text>
+              <Text slot="label">
+                <AgentMark />
+                {plain ? face.plain : face.label}
+              </Text>
               {!ready.ready && (
                 <Text slot="description" className="note jobs-item__why">
                   {ready.why}
@@ -218,6 +222,7 @@ export function JobPage({ id, target }: { id: JobId; target: string | null }) {
       {face.on === 'toil project' ? (
         <p>
           <Button className="btn btn--accent" isDisabled={!canRun} onPress={() => runJob(id, '')} data-job-run="">
+            <AgentMark />
             {face.label} in {toilProject.name}
           </Button>
         </p>
@@ -225,6 +230,7 @@ export function JobPage({ id, target }: { id: JobId; target: string | null }) {
         <>
           <p>
             <Button className="btn btn--accent" isDisabled={!canRun} onPress={() => runJob(id, subject)} data-job-run="">
+              <AgentMark />
               Draw {subject || toilProject.name}
             </Button>
           </p>
@@ -243,6 +249,7 @@ export function JobPage({ id, target }: { id: JobId; target: string | null }) {
       ) : subject ? (
         <p>
           <Button className="btn btn--accent" isDisabled={!canRun} onPress={() => runJob(id, subject)} data-job-run="">
+            <AgentMark />
             {face.label} {change ? change.title : subject}
           </Button>
         </p>

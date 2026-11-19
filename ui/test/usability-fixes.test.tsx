@@ -86,17 +86,17 @@ describe('the project header', () => {
     expect(screen.queryByRole('button', { name: /Switch Toil project/ })).toBeNull();
   });
 
-  it('has one quiet Edit link at the end of the about row, and no pencils', async () => {
+  it('has one More menu at the end of the about row, holding Edit, and no pencils (#657)', async () => {
     await header();
-    const edit = screen.getByRole('link', { name: /^Edit card-payments/ });
-    expect(edit.getAttribute('href')).toBe('#/settings/projects/card-payments/sources');
-    expect(edit.hasAttribute('data-edit-project')).toBe(true);
-    expect(edit.classList.contains('btn')).toBe(false);
+    const more = screen.getByRole('button', { name: 'More for card-payments' });
     const about = document.querySelector('.toil-project-bar__about')!;
-    expect(about.lastElementChild).toBe(edit);
-    expect(document.querySelector('.toil-project-bar__line')!.contains(edit)).toBe(false);
+    expect(about.lastElementChild).toBe(more);
     expect(document.querySelectorAll('[data-edit], .edit-pencil')).toHaveLength(0);
     expect(screen.queryByRole('button', { name: /Rename|description/ })).toBeNull();
+    await userEvent.click(more);
+    const edit = (await screen.findByRole('menu')).querySelector('[data-edit-project]')!;
+    expect(edit.getAttribute('href')).toBe('#/settings/projects/card-payments/sources');
+    expect(edit.textContent).toBe('Edit card-payments');
   });
 });
 
@@ -123,14 +123,14 @@ describe('the app header', () => {
 });
 
 describe('what blocks what', () => {
-  it('says nothing open is blocked and keeps closed links behind a toggle', async () => {
+  it('says nothing open is blocked and keeps closed links behind a closed disclosure', async () => {
     const { data } = await loaded('card-payments');
     // Every item finished: whatever the links say, nothing open is held up.
     const items = data.items.map((i) => ({ ...i, statusCategory: 'DONE' as const }));
     shell({ ...data, items }, <Graph />);
     expect(screen.getByText(/Nothing that is still open is blocked/)).toBeTruthy();
     expect(document.querySelector('.graph')).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Show finished links' }));
-    expect(document.querySelector('.graph')).toBeTruthy();
+    await userEvent.click(screen.getByText(/^Graph of the links \(\d+ items\)$/));
+    await waitFor(() => expect(document.querySelector('.graph')).toBeTruthy());
   });
 });

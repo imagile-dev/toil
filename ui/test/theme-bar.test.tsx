@@ -115,7 +115,8 @@ describe('controls and headings read the real word alone, in every theme (princi
     const scheme = Object.keys(themeNamed(theme).schemes)[0]!;
     await open('#/project/card-payments/dependencies', theme, scheme);
     const graph = screen.getByRole('region', { name: 'Links between items' });
-    // The graph loads on its own, after the rest of the tab.
+    // The graph loads on its own, after the rest of the tab, and is drawn once its section is opened.
+    await userEvent.click(await within(graph).findByText(/^Graph of the links/, undefined, { timeout: 3000 }));
     await waitFor(() => expect(within(graph).getAllByText('Blocked').length).toBeGreaterThan(0), { timeout: 3000 });
   });
 

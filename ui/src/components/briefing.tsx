@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { analyzeSettings } from '../../../src/core/brief/settings.ts';
 import { useData } from '../data.ts';
 import { ReclassifyChip } from './reclassify.tsx';
+import { ExternalIcon } from './icons.tsx';
 import { currentQuery } from '../address.ts';
 import { dateTime, toilProjectEditHref, itemHref, peekHref, personText, shortKey, sourceLabel, STATUS_CATEGORY_LABEL, estimateText, unpeekHref } from '../format.ts';
 import { usePlain } from '../plain-words.ts';
@@ -123,9 +124,10 @@ export function ItemDrawer({ id }: { id: string }) {
         {item.status ?? STATUS_CATEGORY_LABEL[item.statusCategory]} · <ReclassifyChip item={item} /> · {personText(item.assignee)} · {estimateText(item)}
         {item.url && (
           <>
-            {' · '}
-            <a href={item.url} target="_blank" rel="noreferrer" data-drawer-tracker="">
-              Open in {sourceLabel(item.source.area)}
+            {' '}
+            <a className="btn btn--secondary btn--sm item-open" href={item.url} target="_blank" rel="noreferrer" data-drawer-tracker="">
+              Open in {sourceLabel(item.source.area)} <ExternalIcon size={14} />
+              <span className="sr-only"> (opens a new tab)</span>
             </a>
           </>
         )}

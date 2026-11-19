@@ -103,14 +103,25 @@ describe('the People view', () => {
     const section = await screen.findByRole('region', { name: "AI agents' work" });
     await within(section).findByRole('heading', { name: 'Codex' });
     expect(within(section).getByRole('heading', { name: 'Claude' })).toBeTruthy();
+    // One folded line per kind of work, with its count, never a row per run up front.
+    const kinds = [...section.querySelectorAll<HTMLDetailsElement>('details[data-assign-kind]')];
+    expect(kinds.length).toBeGreaterThan(0);
+    expect(kinds.every((k) => !k.open && / · \d+/.test(k.querySelector('summary')!.textContent!))).toBe(true);
   }, 20_000);
+
+  it('groups runs by kind in first-seen order and counts them by state', async () => {
+    const { kindsOf, stateCounts } = await import('../src/assign/views.tsx');
+    const runs = [{ mode: 'refine', state: 'done' }, { mode: 'implement', state: 'working' }, { mode: 'refine', state: 'done' }, { mode: 'refine', state: 'failed' }] as const;
+    expect(kindsOf(runs as never).map(([m, r]) => [m, (r as unknown[]).length])).toEqual([['refine', 3], ['implement', 1]]);
+    expect(stateCounts(runs.filter((r) => r.mode === 'refine') as never)).toBe('2 done, 1 failed');
+  });
 });
 
 describe("the Command Center's start (#307)", () => {
   it('queues an implement assignment for each ready item, and says so', async () => {
     const api = fixtureAssignments({ delay: 1 });
     await open('#/project/card-payments/command-center', api);
-    const slate = screen.getByRole('region', { name: 'Start every ready item' });
+    const slate = screen.getByRole('region', { name: /^\d+ ready$/ });
     await userEvent.setup().click(within(slate).getByRole('button', { name: /^Start 1 ready item/ }));
     await within(slate).findByText(/^Queued one implement assignment on Codex\. They run 2 at a time/);
     const list = await api.list('card-payments');
@@ -139,7 +150,9 @@ describe('stale sessions (#305)', () => {
     const lane = await agents();
     const cards = [...lane.querySelectorAll<HTMLElement>('.agent-card')];
     expect(cards.map((c) => (c.querySelector('[data-stale]') ? c.querySelector('.assign-state')!.textContent : null)).filter(Boolean)).toEqual(['Needs you', 'Failed']);
-    expect(lane.textContent).toContain('started on toil 0.1.0-alpha.3 · now alpha.4 · skills changed: jira.');
+    // What changed is toil's internals: in the chip's tooltip, never on the card (#657).
+    expect(lane.textContent).not.toContain('0.1.0-alpha.3');
+    expect([...lane.querySelectorAll('.agent-card .stale-chip')].map((c) => c.getAttribute('title'))).toContain('Started before an update: started on toil 0.1.0-alpha.3 · now alpha.4 · skills changed: jira.');
     const user = userEvent.setup();
     await user.click(within(lane).getByRole('button', { name: 'Restart out-of-date…' }));
     const dialog = await screen.findByRole('dialog', { name: 'Restart out-of-date sessions' });

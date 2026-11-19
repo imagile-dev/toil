@@ -69,8 +69,8 @@
 .reason__jump:hover b { text-decoration: underline; }
 
 /* The full briefing's toggle: a chevron and its words, a real button, with the pointer and hover every disclosure has. */
-.briefing__toggle { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0 0.4rem; margin-inline-start: -0.4rem; background: none; border: 0; border-radius: var(--radius); color: var(--link); font: inherit; cursor: pointer; }
-.briefing__toggle:hover { background: var(--surface); }
+/* The full briefing's toggle is a secondary button (#657): a control looks like one. */
+.briefing__toggle { gap: 0.4rem; }
 .briefing__toggle[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
 .briefing__full-body { display: grid; gap: 1.25rem; margin-top: 0.5rem; }
 /* "Why" and Customize share one header row, so the layout control sits with what it lays out. */

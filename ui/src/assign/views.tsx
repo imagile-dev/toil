@@ -11,13 +11,14 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Button, Dialog, DialogTrigger, Heading, Input, Label, Modal, ModalOverlay, Radio, RadioGroup, TextField } from 'react-aria-components';
+import { NavButton } from '../components/nav-button.tsx';
 import { ItemLink } from '../components/items.tsx';
 import { Card, CardGrid, Cluster, Stack } from '../components/layout.tsx';
 import { useData } from '../data.ts';
-import { boardHref, sourceLabel, toilProjectHref } from '../format.ts';
+import { boardHref, shortKey, sourceLabel, toilProjectHref } from '../format.ts';
 import { Empty, EmptyLink } from '../components/empty.tsx';
 import { Help } from '../components/help.tsx';
-import { SummaryChevron } from '../components/disclosure.tsx';
+import { DisclosureBody, SummaryChevron } from '../components/disclosure.tsx';
 import { ADAPTER_LABEL, addUp, usageParts } from '../model-usage.ts';
 import type { PersonEntry } from '../model/people.ts';
 import type { WorkItem } from '../toil.ts';
@@ -27,6 +28,7 @@ import { StaleChip, StaleNote } from '../components/stale.tsx';
 import { usePlain } from '../plain-words.ts';
 import './assign.css';
 import { homeShort } from '../home-path.ts';
+import { AgentMark } from '../components/agent-mark.tsx';
 
 export const assignmentHref = (toilProject: string, id: string) => `${toilProjectHref(toilProject)}/assignment/${encodeURIComponent(id)}`;
 
@@ -80,7 +82,7 @@ export function usageText(a: Pick<Assignment, 'usage'>): string {
   return `${a.usage.sample ? 'sample figures: ' : ''}${parts.join(', ')}`;
 }
 
-/** One assignment on a card: state, mode, adapter, item, run time and usage. */
+/** One assignment on its item's page: state, mode, adapter and run time; the usage is on the assignment's Run details. */
 export function AssignmentCard({ a, now }: { a: Assignment; now: string }) {
   const plain = usePlain();
   const pending = a.proposals.filter((p) => p.status === 'pending').length;
@@ -91,11 +93,9 @@ export function AssignmentCard({ a, now }: { a: Assignment; now: string }) {
           <StateChip a={a} />
           <span className="assign-mode">{a.rules?.length ? 'Fix with AI agent' : modeInfo(a.mode, plain.on).label}</span>
         </Cluster>
-        <p className="assign-card__item">
-          <ItemLink id={a.item} /> <span className="assign-card__title">{a.itemTitle}</span>
-        </p>
+        {/* The card sits on its item's page, so it doesn't name the item again; what the run used is on its Run details (#657). */}
         <p className="note">
-          {a.adapter ? ADAPTER_NAME[a.adapter] : 'No adapter chosen yet'} · {runText(a.ranMs ?? runMs(a, now))} · {usageText(a)}
+          {a.adapter ? ADAPTER_NAME[a.adapter] : 'No adapter chosen yet'} · {runText(a.ranMs ?? runMs(a, now))}
         </p>
         {a.state === 'needs-you' && (
           <p className="assign-needs">
@@ -106,9 +106,9 @@ export function AssignmentCard({ a, now }: { a: Assignment; now: string }) {
         {a.stale && <StaleNote stale={a.stale} />}
         {a.renewedBy && <p className="note">Renewed as <a href={assignmentHref(a.toilProject, a.renewedBy)}>a fresh assignment</a>.</p>}
         <p>
-          <a href={assignmentHref(a.toilProject, a.id)}>
-            Open the assignment<span className="sr-only"> on {a.item}</span>
-          </a>
+          <NavButton href={assignmentHref(a.toilProject, a.id)} size="sm">
+            Open the assignment<span className="sr-only"> on {a.itemTitle}</span>
+          </NavButton>
         </p>
       </Stack>
     </Card>
@@ -210,6 +210,7 @@ export function AssignForm({ item, list, start, close, onDone }: { item: Pick<Wo
       )}
       <div className="assign-actions">
         <Button type="submit" className="btn btn--accent" isDisabled={!canSend}>
+          <AgentMark />
           {busy ? plain.pw('Assigning…', 'Asking…') : start ? 'Start' : plain.pw('Assign', 'Ask the AI agent')}
         </Button>
         <Button className="btn" onPress={close}>
@@ -275,6 +276,7 @@ export function AssignButton({ item }: { item: Pick<WorkItem, 'id' | 'title'> })
   return (
     <DialogTrigger>
       <Button className="btn" data-assign-open="">
+        <AgentMark />
         Assign to agent<span className="sr-only"> {item.id}</span>
       </Button>
       <AssignModal item={item} />
@@ -397,6 +399,7 @@ function FixRuleForm({ item, rules, list, close }: { item: FixItem; rules: reado
       <div className="assign-actions">
         {usable.length > 0 && (
           <Button type="submit" className="btn btn--accent" isDisabled={!canSend}>
+            <AgentMark />
             {busy ? 'Asking…' : 'Ask for a rewrite'}
           </Button>
         )}
@@ -446,13 +449,14 @@ function FixRuleBody({ item, rules, close }: { item: FixItem; rules: readonly Ru
  * item misses, which asks for one rewrite that meets them all. Absent where
  * nothing can be assigned.
  */
-export function FixRuleButton({ item, rules }: { item: FixItem; rules: readonly RuleToFix[] }) {
+export function FixRuleButton({ item, rules, primary = false }: { item: FixItem; rules: readonly RuleToFix[]; primary?: boolean }) {
   const { assignments: api } = useData();
   if (!api || rules.length === 0) return null;
   const one = rules.length === 1;
   return (
     <DialogTrigger>
-      <Button className="btn btn--small" data-fix-rule-open={one ? `${rules[0]!.standard}/${rules[0]!.rule}` : rules[0]!.standard}>
+      <Button className={primary ? 'btn btn--accent btn--sm' : 'btn btn--sm'} data-fix-rule-open={one ? `${rules[0]!.standard}/${rules[0]!.rule}` : rules[0]!.standard}>
+        <AgentMark />
         {one ? 'Fix with AI agent' : `Fix all ${rules.length} with AI agent`}
         <span className="sr-only">: {rules.map((r) => r.name).join(', ')}</span>
       </Button>
@@ -478,6 +482,7 @@ export function InboxRow({ a, onStarted }: { a: Assignment; onStarted: () => voi
           <ItemLink id={a.item} /> {a.itemTitle}: <strong>{modeInfo(a.mode, plain.on).label.toLowerCase()}</strong>
         </span>
         <Button className="btn btn--accent btn--small" onPress={() => setOpen(true)} data-inbox-start="">
+          <AgentMark />
           Start<span className="sr-only"> {a.item}</span>…
         </Button>
       </Cluster>
@@ -582,6 +587,7 @@ export function RenewAll({ list, onDone }: { list: AssignmentList; onDone: () =>
       {rows.length > 0 && (
       <Cluster>
         <Button className="btn" onPress={() => (setSaid(null), setShown(rows), setOpen(true))} data-renew-all="">
+          <AgentMark />
           {plain.pw('Renew all stale…', 'Restart out-of-date…')}
         </Button>
         <span className="note">
@@ -647,7 +653,7 @@ export function ItemAssignments({ item }: { item: WorkItem }) {
       </Cluster>
       {error && <p className="failure">{error}</p>}
       {mine.length > 0 && (
-        <CardGrid min="sm" className="assign-lane" aria-label={`Assignments on ${item.id}`}>
+        <CardGrid min="sm" className="assign-lane" aria-label={`Assignments on ${shortKey(item)}`}>
           {mine.map((a) => (
             <li key={a.id}>
               <AssignmentCard a={a} now={now} />
@@ -686,21 +692,34 @@ export function AgentAssignments({ people }: { people: readonly PersonEntry[] })
                 <Card className="assign-agent">
                   <Stack gap="xs">
                     <h3>{who ? `${who.name} (${ADAPTER_NAME[adapter]})` : ADAPTER_NAME[adapter]}</h3>
-                    <p className="note">
-                      {STATE_ORDER.map((s) => [s, mine.filter((a) => a.state === s).length] as const)
-                        .filter(([, n]) => n)
-                        .map(([s, n]) => `${n} ${STATE_LABEL[s].toLowerCase()}`)
-                        .join(', ')}
-                    </p>
+                    <p className="note">{stateCounts(mine)}</p>
                     {mine.some((a) => a.stale) && (
                       <p className="note" data-stale="">
                         <StaleChip /> {mine.filter((a) => a.stale).length} started on instructions that have changed since.
                       </p>
                     )}
-                    <ul className="rows">
-                      {mine.map((a) => (
-                        <li key={a.id}>
-                          <StateChip a={a} /> {a.stale && <StaleChip />} <a href={assignmentHref(a.toilProject, a.id)}>{modeInfo(a.mode, plain.on).label}</a> <ItemLink id={a.item} /> <span className="note">{runText(a.ranMs ?? runMs(a, now))}</span>
+                    {/* One line per kind of work ("Tidy up · 8"), each opening to its runs: eight near-identical rows were a wall. */}
+                    <ul className="assign-kinds">
+                      {kindsOf(mine).map(([mode, runs]) => (
+                        <li key={mode}>
+                          <details className="assign-kind" data-assign-kind={mode}>
+                            <summary>
+                              <SummaryChevron />
+                              <span>
+                                {modeInfo(mode, plain.on).label} · {runs.length}
+                              </span>
+                              <span className="note">{stateCounts(runs)}</span>
+                            </summary>
+                            <DisclosureBody>
+                              <ul className="rows">
+                                {runs.map((a) => (
+                                  <li key={a.id}>
+                                    <StateChip a={a} /> {a.stale && <StaleChip />} <a href={assignmentHref(a.toilProject, a.id)}>{modeInfo(a.mode, plain.on).label}</a> <ItemLink id={a.item} /> <span className="note">{runText(a.ranMs ?? runMs(a, now))}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </DisclosureBody>
+                          </details>
                         </li>
                       ))}
                     </ul>
@@ -718,3 +737,18 @@ export function AgentAssignments({ people }: { people: readonly PersonEntry[] })
 }
 
 const STATE_ORDER = ['working', 'needs-you', 'queued', 'done', 'failed'] as const;
+
+/** "1 working, 7 done": how many runs are in each state, in the order a person acts on them. */
+export function stateCounts(runs: ReadonlyArray<Pick<Assignment, 'state'>>): string {
+  return STATE_ORDER.map((s) => [s, runs.filter((a) => a.state === s).length] as const)
+    .filter(([, n]) => n)
+    .map(([s, n]) => `${n} ${STATE_LABEL[s].toLowerCase()}`)
+    .join(', ');
+}
+
+/** An agent's runs by kind of work, in the order each kind first appears, so the newest kind leads as the list did. */
+export function kindsOf<T extends Pick<Assignment, 'mode'>>(runs: readonly T[]): Array<[AssignMode, T[]]> {
+  const kinds = new Map<AssignMode, T[]>();
+  for (const a of runs) (kinds.get(a.mode) ?? kinds.set(a.mode, []).get(a.mode)!).push(a);
+  return [...kinds.entries()];
+}

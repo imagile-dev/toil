@@ -12,12 +12,12 @@ import { loaded } from './harness.ts';
 const sample = async () => buildInsights((await loaded('sample-team')).data, FIXTURE_NOW);
 
 describe('the insights data layer on sample-team', () => {
-  it('shares add to one, Unsure is present, and the sources add up to the items', async () => {
+  it('shares add to one, Not sorted yet is present, and the sources add up to the items', async () => {
     const ins = await sample();
     const { lines } = mixOverview(ins);
     expect(lines!.reduce((n, l) => n + l.share, 0)).toBeCloseTo(1, 9);
-    expect(lines!.map((l) => l.name)).toContain('Unsure');
-    expect(lines!.at(-1)!.name).toBe('Unsure');
+    expect(lines!.map((l) => l.name)).toContain('Not sorted yet');
+    expect(lines!.at(-1)!.name).toBe('Not sorted yet');
     const s = mixSources(ins.verdicts.values());
     expect(s.rules + s.labels + s.agent + s.people + s.unsure).toBe(ins.items.length);
     expect(s.total).toBe(146);

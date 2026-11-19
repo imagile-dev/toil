@@ -48,18 +48,19 @@
 .standup-fold { align-self: flex-start; font: inherit; font-size: 0.8125rem; color: var(--link, var(--accent)); background: none; border: 0; padding: 0.05rem 0.3rem; cursor: pointer; border-radius: 0.3rem; }
 .standup-fold:hover { text-decoration: underline; }
 
-.standup-more { border-top: 1px solid var(--line); padding-top: 0.5rem; }
-.standup-more > summary { cursor: pointer; font-size: 0.875rem; color: var(--muted); }
-.standup-more[open] > summary { margin-bottom: 0.5rem; }
+/* The write-up and the export (#657): one row of buttons, each with its (i), under a rule; the folder field opens under it. */
+.standup-writeup-body { border-top: 1px solid var(--line); padding-top: 0.75rem; }
 .standup-writeup-body, .standup-export { display: grid; gap: 0.5rem; min-width: 0; }
+.standup-export__form { display: flex; flex-wrap: wrap; align-items: end; gap: 0.5rem; max-width: 40rem; }
+.standup-export__form .field-text { flex: 1 1 16rem; min-width: 0; }
 .standup-writeup { border-left: 4px solid var(--accent); padding-left: 0.75rem; display: grid; gap: 0.5rem; min-width: 0; overflow-wrap: anywhere; }
 .standup-writeup h3 { margin: 0; font-size: 1rem; }
 .standup-writeup .btn--small { margin: 0 0.15rem; }
 
-/* The Summary's card: the same rows, a person's name in front of each. */
+/* The Summary's card: the same rows, a person's name in front of their buckets, one row per person. */
 .sum-standup__rows { display: grid; gap: 0.3rem; margin: 0; padding: 0; list-style: none; }
 .sum-standup__row { display: grid; grid-template-columns: minmax(8rem, 14rem) minmax(0, 1fr); gap: 0.4rem; align-items: start; }
-.sum-standup__row .standup-rows { display: contents; }
+.sum-standup__row .standup-rows { min-width: 0; }
 .sum-standup__row .standup-row { grid-template-columns: 5.2rem minmax(0, 1fr); }
 .sum-standup__line { font-size: 0.875rem; font-weight: 600; margin: 0; }
 

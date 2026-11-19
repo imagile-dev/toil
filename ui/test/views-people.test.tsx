@@ -31,7 +31,8 @@ describe('the people view (#292)', () => {
   it('has a card per person in name order, agents included and tagged, and a team strip, and is in the navigation', async () => {
     await open('#/project/checkout-web/people');
     expect(document.querySelector('[data-tab-panel] h1')).toBeNull();
-    expect(within(tabs('checkout-web')).getByRole('link', { name: 'People' }).getAttribute('aria-current')).toBe('page');
+    expect(within(tabs('checkout-web')).getByRole('link', { name: 'Team' }).getAttribute('aria-current')).toBe('page');
+    expect(document.querySelector('[data-team-page="people"]')!.getAttribute('aria-current')).toBe('page');
     expect(cards('People and agents').map((c) => within(c).getByRole('heading', { level: 3 }).textContent)).toEqual(['Ada D.', 'Bo W.', 'Claude']);
     const claude = screen.getByRole('article', { name: 'Claude' });
     expect(within(claude).getByRole('list', { name: 'About Claude' }).textContent).toBe('Agent');
@@ -52,6 +53,23 @@ describe('the people view (#292)', () => {
     expect(document.body.textContent).toContain('1 pull request was written with an agent the Toil project\'s people don\'t name (branch copilot/receipt-currency).');
     // Load, never a score.
     expect(document.querySelector('main')!.textContent).not.toMatch(/\b(score|rank(ed|ing)?|leaderboard|productivity)\b/i);
+  });
+
+  it('folds each card to one summary line, and the sprint\'s unassigned items to their count, so the page scans (principle 11)', async () => {
+    await open('#/project/checkout-web/people');
+    const ada = screen.getByRole('article', { name: 'Ada D.' });
+    const more = ada.querySelector<HTMLDetailsElement>('details[data-person-more]')!;
+    expect(more.open).toBe(false);
+    const summary = more.querySelector('summary')!;
+    expect(summary.getAttribute('aria-label')).toMatch(/^Ada D\.: in progress \d+ of 2, in review \d+\. Show the details$/);
+    expect(summary.textContent).toMatch(/^In progress \d+ of 2In review \d+$/);
+    // The rest is one press in: the board link and the sections live inside the fold.
+    expect(more.querySelector('[aria-label="Ada D.\'s items on the board"]')).toBeTruthy();
+    await userEvent.click(summary);
+    expect(more.open).toBe(true);
+    const unassigned = panel('Team').querySelector<HTMLDetailsElement>('details[data-unassigned-more]')!;
+    expect(unassigned.open).toBe(false);
+    expect(unassigned.querySelector('summary')!.textContent).toMatch(/^Show (the item|the \d+ items)$/);
   });
 
   it('collapses what a card has nothing in into one muted line, with a dash read aloud as none', async () => {
