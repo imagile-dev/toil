@@ -96,6 +96,25 @@ for the queue. Only `imagile-bot` is accepted as a bot actor, in the job's `if` 
 in `allowed_bots`, and its `claude-triage` counts only on an issue it filed from
 outside, so nothing can pull in an issue nobody chose.
 
+**The maintainer steers by commenting** (the maintainer's call, 2026-11-19, #671). A
+comment from `kolatts`, and from nobody else (the job's `if` and `MAINTAINER` in
+`scripts/triage/steps.mjs` name the login), on an open issue triage takes or on a
+`from-triage` PR, re-runs triage for that issue outside the cap, like a dispatch; a
+comment on a PR maps back to its issue only when its head is `claude/issue-<n>` in
+this repository. `prepare` hands the agent the conversation between the maintainer
+and triage on the issue and its open draft PR, redacted, as the `direction` output,
+which the prompt puts outside the untrusted fence: it settles a design choice and
+answers triage's question, but never overrides a principle or widens what triage may
+touch. Nobody else's comment starts a run or reaches the agent. A re-triage that
+fixes takes `needs-maintainer` off, and `open-pr` force-pushes the branch and updates
+the same draft PR.
+
+**Being unsure is a reason to fix, not to wait** (same call). An unconfirmed API
+detail or an open design choice is a `fix`: the agent builds on the best API knowledge
+it can confirm, picks the option that relies on nothing unconfirmed, opens the draft,
+says in it what's assumed and what live check would settle it, and asks the one
+question that would change direction. The maintainer answers on the issue or the PR.
+
 **The boundary is the job, not the prompt.** Code the agent writes must never run
 in this workflow at all, and the credential that writes must never sit where the
 agent works. So the work is split across jobs, each on its own fresh runner:
@@ -203,8 +222,8 @@ refuses.
     (`site/`, except the per-area data files the tests generate or check,
     `site/src/data/integrations|commands|settings/<area>.json`) and the Azure Function
     backend (`functions/`, and `infra/`, which provisions it): a person reviews those
-    first, and triage edits none of it. Also for a bug the agent cannot confirm (the comment
-    says what it needs), and for what it cannot do without running anything:
+    first, and triage edits none of it. Also for a bug the agent cannot confirm and has no
+    plausible fix for (the comment says what it needs), and for what it cannot do without running anything:
     `package.json`, a lockfile, a new dependency (no npm, so no resolve and no 14-day check).
   - **`deny`** (closed, `denied`): only what directly violates CLAUDE.md's principles
     (telemetry, a native binary, loosening the write gate or the secrets rules), with the
