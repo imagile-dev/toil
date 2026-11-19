@@ -121,10 +121,11 @@ describe('section: bug-repro', () => {
 
 describe('the text a pattern reads', () => {
   it('is capped at BODY_SCAN_LIMIT after several places are joined, so a pattern never runs over more', () => {
-    const team = own({ name: 'team', rules: [{ id: 'mark', name: 'Has the mark', text: 'Add the mark.', check: { kind: 'pattern', in: ['title', 'description'], match: ['needle'] } }] });
-    const long = md(`${'x'.repeat(BODY_SCAN_LIMIT - 10)}\n${'y'.repeat(100)} needle`);
-    const out = resultOf([item('A', { title: 'title', body: long })], [team]);
-    expect(out.items[0]!.results[0]!.state).not.toBe('pass');
+    // Each place fits under the cap on its own; only the join passes it, so the mark at the title's end is past the cap.
+    const team = own({ name: 'team', rules: [{ id: 'mark', name: 'Has the mark', text: 'Add the mark.', check: { kind: 'pattern', in: ['description', 'title'], match: ['needle'] } }] });
+    const at = (title: string) => resultOf([item('A', { title, body: md('x'.repeat(BODY_SCAN_LIMIT - 5)) })], [team]).items[0]!.results[0]!;
+    expect(at('needle').state).not.toBe('pass');
+    expect(resultOf([item('B', { title: 'needle', body: md('x'.repeat(100)) })], [team]).items[0]!.results[0]!.state).toBe('pass');
   });
 });
 
