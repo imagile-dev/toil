@@ -144,8 +144,9 @@ describe('blockerGantt', () => {
       item('P-3', { links: [blockedBy('P-2')] }),
     ]);
     const [p1, p2, p3] = g.bars;
-    expect(p1!.planned).toEqual({ kind: 'planned', start: NOW, end: '2026-10-15T00:00:00.000Z', estimated: true, by: null });
-    expect(p2!.planned).toEqual({ kind: 'planned', start: '2026-10-15T00:00:00.000Z', end: '2026-10-20T00:00:00.000Z', estimated: true, by: 'jira:P-1' });
+    // A due date is a whole day: the plan runs to the end of it, and what waits on it starts when that day ends.
+    expect(p1!.planned).toEqual({ kind: 'planned', start: NOW, end: '2026-10-16T00:00:00.000Z', estimated: true, by: null });
+    expect(p2!.planned).toEqual({ kind: 'planned', start: '2026-10-16T00:00:00.000Z', end: '2026-10-21T00:00:00.000Z', estimated: true, by: 'jira:P-1' });
     expect(p2!.evidence.join(' ')).toContain('the start estimated');
     expect(p3!).toMatchObject({ due: null, planned: null, overdue: false });
   });
@@ -159,6 +160,17 @@ describe('blockerGantt', () => {
     const bar = (id: string) => g.bars.find((b) => b.id === `jira:${id}`)!;
     expect(bar('O-2')).toMatchObject({ overdue: true, planned: null });
     expect(bar('O-3')).toMatchObject({ overdue: false, planned: null, due: '2026-10-05' });
+  });
+
+  it("doesn't call an item due today overdue: it has until the day ends, and a plan to then", () => {
+    const today = NOW.slice(0, 10);
+    const g = gantt([item('T-1', { statusCategory: 'IN_PROGRESS', dueDate: today, links: [blocks('T-2')] }), item('T-2', { links: [blockedBy('T-1')] })]);
+    const t1 = g.bars.find((b) => b.id === 'jira:T-1')!;
+    expect(t1).toMatchObject({ overdue: false, due: today });
+    expect(t1.planned).toEqual({ kind: 'planned', start: NOW, end: '2026-10-14T00:00:00.000Z', estimated: true, by: null });
+    // The day after, it is.
+    const later = blockerGantt({ prepared: prepare({ items: [item('T-1', { statusCategory: 'IN_PROGRESS', dueDate: today, links: [blocks('T-2')] }), item('T-2', { links: [blockedBy('T-1')] })], changes: [], deployments: [], health: null, now: '2026-10-14T00:00:00.001Z' }), health: null, readiness: SETTINGS, now: '2026-10-14T00:00:00.001Z' });
+    expect(later.bars.find((b) => b.id === 'jira:T-1')).toMatchObject({ overdue: true, planned: null });
   });
 
   it("groups each chain's rows together, the critical chain's first, and focuses on the chains still holding work up", () => {
@@ -194,9 +206,9 @@ describe('blockerGantt', () => {
     expect(g.chain).toMatchObject({ ids: ['corp-jira:PAY-101', 'corp-jira:PAY-102', 'corp-jira:PAY-103'], points: 16 });
     // The sample's due dates draw the chain as a plan, one day after another.
     expect(g.bars.map((b) => [b.planned?.start.slice(0, 10), b.planned?.end.slice(0, 10)])).toEqual([
-      ['2026-10-13', '2026-10-14'],
-      ['2026-10-14', '2026-10-15'],
+      ['2026-10-13', '2026-10-15'],
       ['2026-10-15', '2026-10-16'],
+      ['2026-10-16', '2026-10-17'],
     ]);
   });
 

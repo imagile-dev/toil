@@ -50,6 +50,7 @@ import { Aging, CycleTime, SprintDetail, Throughput } from './Flow.tsx';
 import { Splittable } from './split-modal.tsx';
 import { homeShort } from '../home-path.ts';
 import { AgentMark } from '../components/agent-mark.tsx';
+import { SummaryChevron } from '../components/disclosure.tsx';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -91,7 +92,7 @@ export function Overview() {
           {view.analysis && (
             <>
               {' '}
-              <NavButton href={analysisHref(toilProject.name, view.analysis.id)} kind="quiet" size="sm" data-rec-analysis="" title={plain.title('Open the analysis')}>
+              <NavButton href={analysisHref(toilProject.name, view.analysis.id)} kind="secondary" size="sm" data-rec-analysis="" title={plain.title('Open the analysis')}>
                 {plain.pw('Open the analysis', 'Open that briefing')}
               </NavButton>
             </>
@@ -120,12 +121,12 @@ export function Overview() {
             <span>
               <b>Load not checked.</b> {noLimit.note}
             </span>
-            <NavButton href={toilProjectEditHref(toilProject.name, 'wip')} kind="quiet" size="sm">
+            <NavButton href={toilProjectEditHref(toilProject.name, 'wip')} kind="secondary" size="sm">
               Set a work-in-progress limit
             </NavButton>
           </p>
         )}
-        <NavButton href={boardHref(toilProject.name)} kind="quiet" size="sm" data-open-board="">
+        <NavButton href={boardHref(toilProject.name)} kind="secondary" size="sm" data-open-board="">
           Open the board
         </NavButton>
       </div>
@@ -251,7 +252,7 @@ export function Overview() {
         )}
         </Links>
         <details className="briefing__numbers" open={prefs.numbersOpen}>
-          <summary>The numbers</summary>
+          <summary><SummaryChevron />The numbers</summary>
           <MetricStrip />
         </details>
         </div>
@@ -262,7 +263,7 @@ export function Overview() {
 
 /**
  * The Ticket rules card (#657): the rule the open items miss most, as one line, the card a button to Tickets filtered to
- * those items, and Fix with AI agent for the first of them, the one action this page leads with. Absent while nothing
+ * those items, and Fix with AI agent for the first of them, a small secondary button: the card is already a button, so it never carries a second primary (#657). Absent while nothing
  * misses a rule; a check that failed says so on the card (principle 4); a check not read yet shows nothing here, and
  * Tickets says "not read yet".
  */
@@ -298,7 +299,7 @@ function TicketRulesCard() {
       why={item ? `The first is ${shortKey(item)} ${item.title}.` : 'Tickets lists them.'}
       {...(more > 0 ? { more: `and ${more} more ${more === 1 ? 'rule' : 'rules'} missed` } : {})}
       href={`${commandCenterHref(toilProject.name)}?rule=${encodeURIComponent(top.ref)}`}
-      action={item && fix.length ? <FixRuleButton item={item} rules={fix} primary /> : undefined}
+      action={item && fix.length ? <FixRuleButton item={item} rules={fix} /> : undefined}
     />
   );
 }
@@ -365,7 +366,7 @@ function BriefingActions({ view, onWritten }: { view: ReturnType<typeof useBrief
         </Button>
       )}
       {earlier > 0 && (
-        <NavButton href={analysesHref(toilProject.name)} kind="quiet" size="sm" data-earlier-briefings="">
+        <NavButton href={analysesHref(toilProject.name)} kind="secondary" size="sm" data-earlier-briefings="">
           {plain.pw('Earlier analyses', 'Earlier briefings')} ({earlier})
         </NavButton>
       )}
@@ -574,7 +575,10 @@ function MetricStrip() {
             <p>No pull request is open, apart from drafts.</p>
           )}
           <p>
-            <a href={prsHref(toilProject.name)}>{pw('The Pull requests page', 'The Code reviews page')}</a> has the whole queue, its flags and its flow.
+            The whole queue, its flags and its flow are a press away.{' '}
+            <NavButton href={prsHref(toilProject.name)} size="sm">
+              {pw('Open pull requests', 'Open code reviews')}
+            </NavButton>
           </p>
         </Metric>
       </ul>

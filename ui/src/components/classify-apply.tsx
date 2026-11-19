@@ -25,6 +25,7 @@ import { useShell } from './proposal.tsx';
 import { sourceLabel } from '../format.ts';
 import { useWords } from '../skins.tsx';
 import type { WorkItem } from '../toil.ts';
+import { NavButton } from './nav-button.tsx';
 
 /** Why a connection's changes can't be applied yet, in words, with where to put it right. */
 export const WRITES_OFF = (connection: string) => `Changes to ${connection} are switched off, so nothing can be written there yet. Turn them on for ${connection} under Settings, Connections, then come back and apply.`;
@@ -213,7 +214,10 @@ export function ApplyCard({ connection, work, onClose }: { connection: string; w
       {plan && 'notes' in plan && plan.notes.map((n) => <p key={n} className="note">{n}</p>)}
       {writesOff && !disabled && (
         <p className="failure" role="note" data-writes-off="">
-          {WRITES_OFF(connection)} <a href="#/settings/connections">Open Settings</a>
+          {WRITES_OFF(connection)}{' '}
+          <NavButton href="#/settings/connections" size="sm">
+            Open Settings
+          </NavButton>
         </p>
       )}
       {disabled && (

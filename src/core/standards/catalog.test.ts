@@ -47,6 +47,17 @@ describe('the standards catalog', () => {
     expect(catalog.resolve('bug-repro').file).toBeUndefined();
   });
 
+  it("sets aside a repository's standard that takes a built-in's name, keeping the built-in and saying so", () => {
+    const { disk, catalog } = setup({ 'work/.toil/standards/gherkin.json': standard('gherkin', 'the repository') });
+    const got = catalog.resolve('gherkin');
+    expect(got.source).toBe('built-in');
+    expect(got.standard.rules[0]!.id).toBe('scenarios');
+    expect(got.warnings).toEqual([expect.objectContaining({ code: 'STANDARD_SHADOWS_BUILTIN', message: expect.stringContaining(forwardSlashes(join(disk.workspace, '.toil', 'standards', 'gherkin.json'))) })]);
+    const listed = catalog.list();
+    expect(listed.standards.find((x) => x.standard.name === 'gherkin')).toMatchObject({ source: 'built-in', warnings: [] });
+    expect(listed.warnings.map((w) => w.code)).toContain('STANDARD_SHADOWS_BUILTIN');
+  });
+
   it('reads a file the call names inside the workspace, and refuses one outside it or among toil\'s own files', () => {
     const { disk, catalog } = setup({ 'work/rules/team.json': standard('team'), 'outside/x.json': standard('x') });
     expect(catalog.resolve('rules/team.json')).toMatchObject({ source: 'file', standard: { name: 'team' } });

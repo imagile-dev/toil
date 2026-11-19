@@ -55,7 +55,9 @@ describe('the rule rows on an item (#657)', () => {
     await open(item('card-payments', 'corp-jira:PAY-103'), { rules: fixtureStandards(), assignments: fixtureAssignments({ delay: 0 }) });
     await userEvent.click(await screen.findByRole('button', { name: /Fix with AI agent/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Fix with AI agent' });
-    expect(dialog.textContent).toContain('State the acceptance criteria as scenarios');
+    // The rule's own words are its (i) beside its name (#657), not a sentence in the dialog.
+    expect(dialog.textContent).not.toContain('State the acceptance criteria as scenarios');
+    expect(within(dialog).getByRole('button', { name: 'About Acceptance criteria as Given/When/Then' }).hasAttribute('data-rule-text')).toBe(true);
     expect(dialog.textContent).toContain("What's missing");
     expect(dialog.textContent).toContain('Nothing changes in Jira until you apply it.');
     expect(dialog.textContent).not.toMatch(/approve/i);

@@ -54,6 +54,7 @@ export function People() {
     [toilProject, now],
   );
   const calls = [...toilProject.calls.toilProject, ...toilProject.calls.work, ...toilProject.calls.prs];
+  const unmappedWhy = `Each account the data names that the Toil project doesn't map to a person, with something on its plate.${view.bots.length > 0 ? ` ${count(view.bots.length, 'bot account')} (${view.bots.map((b) => b.id).join(', ')}) only wrote bots' pull requests and ${view.bots.length === 1 ? 'is' : 'are'} left out.` : ''}`;
   const ins = useWorkInsights();
   const { query, go } = useAddress();
   // One menu for every card: what kind of work each person's open work is sorted by. It lives in the address, so a link shows the same bars.
@@ -67,7 +68,9 @@ export function People() {
     <>
       <div className="view-head">
         <p className="eyebrow">
-          <a href={toilProjectHref(toilProject.name)}>{toilProject.name}</a>
+          <NavButton href={toilProjectHref(toilProject.name)} kind="quiet" size="sm" className="eyebrow-btn">
+            {toilProject.name}
+          </NavButton>
         </p>
         <p className="lede">
           {view.people.length
@@ -160,11 +163,13 @@ export function People() {
       )}
 
       <section className="people-section" aria-labelledby="unmapped-cards">
-        <h2 id="unmapped-cards">{view.people.length ? 'Not in the Toil project\'s people' : 'Accounts in this Toil project\'s data'}</h2>
-        <p className="note">
-          Each account the data names that the Toil project doesn't map to a person, with something on its plate.
-          {view.bots.length > 0 && ` ${count(view.bots.length, 'bot account')} (${view.bots.map((b) => b.id).join(', ')}) only wrote bots' pull requests and ${view.bots.length === 1 ? 'is' : 'are'} left out.`}
-        </p>
+        {/* What the section holds is its heading's (i) (#657); which bots were left out is part of that. */}
+        <h2>
+          <span id="unmapped-cards">{view.people.length ? "Not in the Toil project's people" : "Accounts in this Toil project's data"}</span>{' '}
+          <InfoTip label="accounts not in the people" tip={unmappedWhy}>
+            <p>{unmappedWhy}</p>
+          </InfoTip>
+        </h2>
         {view.unnamedAgents.length > 0 && (
           <p className="note">
             {count(view.unnamedAgents.length, 'pull request')} {view.unnamedAgents.length === 1 ? 'was' : 'were'} written with an agent the Toil project's people don't name ({[...new Set(view.unnamedAgents.map((c) => c.authorKindSignal ?? 'an agent account'))].join('; ')}). Press Map on its account below, and choose AI agent, to give it a card.
@@ -298,9 +303,6 @@ function PersonCardView({ card, limit, mixBy = 'category' }: { card: PersonCard;
         <div className="person-head">
           <Avatar person={{ id: seen?.id ?? who.name, name: who.name, email: who.email }} />
           <h3 id={id}>{who.name}</h3>
-          <InfoTip label={`${who.name}'s accounts`} tip={accounts} triggerProps={{ 'data-person-accounts': '' }}>
-            <p className="any-break">{accounts}</p>
-          </InfoTip>
           <ul className="person-tags" aria-label={`About ${who.name}`}>
             {who.kind === 'agent' && <li className="person-tag">Agent</li>}
             {!who.mapped && <li className="person-tag">Not mapped</li>}
@@ -314,12 +316,18 @@ function PersonCardView({ card, limit, mixBy = 'category' }: { card: PersonCard;
         </div>
         {!who.mapped && who.identities[0] && <MapIdentity account={who.identities[0]} />}
         <details className="person-more" data-person-more="">
-          <summary aria-label={`${who.name}: ${plateText(card, limit, read)}. Show the details`}>
+          {/* The summary is named by its own text, not an aria-label over it, so what a voice user sees and says agree (WCAG 2.5.3). */}
+          <summary>
             <SummaryChevron />
+            <span className="sr-only">{`${who.name}: ${plateText(card, limit, read)}. Show the details`}</span>
             <PlateLine card={card} limit={limit} read={read} />
           </summary>
           <DisclosureBody>
             <Stack gap="sm">
+              {/* A person's accounts are one press in with the rest of the card (#657), not an (i) repeated on every card. */}
+              <p className="note any-break" data-person-accounts="">
+                Accounts: {accounts}
+              </p>
               <p>
                 <NavButton href={boardHref(toilProject.name, who.key)} size="sm" aria-label={`${who.name}'s items on the board`}>
                   On the board

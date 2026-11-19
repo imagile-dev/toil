@@ -101,7 +101,7 @@ export function AnswerHero({ answer, badge }: { answer: Answer; badge?: { text: 
       </p>
       <div className="sum-howrow">
         <details className="sum-how">
-          <summary className="btn btn--quiet btn--sm">How was this worked out?</summary>
+          <summary className="btn btn--secondary btn--sm">How was this worked out?</summary>
           <DisclosureBody>
           <ul>
             {/* Why there is no pace yet is part of how the answer was reached, not a second headline (#657, round 5). */}

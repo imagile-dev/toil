@@ -104,7 +104,9 @@ export function jira({ toil, say, fail, sprint, ends, project, item, note }) {
 
   // The sprint plan: each chain's issues due one after another, read first and written only where the date differs.
   let dueWritten = 0;
-  for (const [key, n] of Object.entries(JIRA_DUE_DAYS)) {
+  for (const [seedKey, n] of Object.entries(JIRA_DUE_DAYS)) {
+    // The table names the seed's keys; --project moves them, as JIRA_BLOCKS's are moved above.
+    const key = seedKey.replace(/^SCRUM-/, `${project}-`);
     const due = sprintDay(ends, n);
     const read = toil(['jira', 'issue', 'get', key, '--select', '{labels: fields.labels, due: fields.duedate}'], { soft: true });
     if (!read.ok) {

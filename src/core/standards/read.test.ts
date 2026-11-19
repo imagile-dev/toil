@@ -105,6 +105,59 @@ describe('patternProblem', () => {
   it('lets through the shapes the presets and ordinary rules use', () => {
     for (const ok of ['^\\W*given\\b', '\\bas an? [^,\\n]{1,80},? i want\\b[^\\n]{1,300}\\bso that\\b', '(?:foo|bar)', '(ab)?', '(abc){1}', '[(+*]+', 'a{2,5}?', '(?<year>\\d{4})-\\d\\d']) expect(patternProblem(ok), ok).toBeUndefined();
   });
+
+  it('lets through repeats that cannot trade characters, and a fixed atom between two that can', () => {
+    for (const ok of ['\\w+\\s+\\w+', '\\d+-\\d+', '[a-z]+[0-9]+', '\\s*\\S+', '^\\s*given\\b', 'x\\s*y\\s*z', '[^,]{1,80},?\\s', '\\x41*b*', 'a{3}a{3}', '(?=\\s*)\\s*', '[^,]*,.*b', '[^@\\s]+@\\S+', '[^,\\n]{1,80},? i want\\b[^\\n]{1,300}']) {
+      expect(patternProblem(ok), ok).toBeUndefined();
+    }
+  });
+
+  // Each of these, run, takes from seconds to minutes on a few hundred characters (\s*\s*\s*x: 12.7 s on 500
+  // spaces); refused, it never runs, so the proof is that refusing takes no time at all.
+  it('refuses two repeats side by side that can match the same characters, before anything runs', () => {
+    const cases: [string, string][] = [
+      ['\\s*\\s*\\s*x', '"\\\\s*" after "\\\\s*"'],
+      ['\\d+\\d+', '"\\\\d+" after "\\\\d+"'],
+      ['.*.*', '".*" after ".*"'],
+      ['a*a*', '"a*" after "a*"'],
+      // \s* can match nothing, so the two \w+ can trade letters through it; written \w+\s+\w+ it reads.
+      ['\\w+\\s*\\w+', '"\\\\w+" after "\\\\w+"'],
+      ['a*A+', '"A+" after "a*"'],
+      ['\\s*(?:\\s+x)', 'after "\\\\s*"'],
+      ['[ \\t]*\\s+', 'after "[ \\\\t]*"'],
+      ['\\u00e9*\\S+', 'after "\\\\u00e9*"'],
+      ['(?:[]|)a*a*', '"a*" after "a*"'],
+      // A required character both can match doesn't keep two unbounded repeats apart: cubic on a text of a's.
+      ['.*a.*b', '".*" after ".*"'],
+      ['\\S+@\\S+', '"\\\\S+" after "\\\\S+"'],
+      // Without the i flag [^a] still matches A, so the guard must not fold the case before it complements.
+      ['[^a]*A*', 'after "[^a]*"'],
+    ];
+    for (const [bad, says] of cases) {
+      const t0 = performance.now();
+      const why = patternProblem(bad);
+      expect(performance.now() - t0, bad).toBeLessThan(50);
+      expect(why, bad).toContain(says);
+      expect(why, bad).toContain('can take minutes on a long text');
+      expect(refusal(standard({ rules: [rule({ check: { kind: 'pattern', in: ['title'], match: [bad] } })] })).message, bad).toContain('the two can trade the same characters');
+    }
+  });
+
+  it('reads [] and [^] the way JavaScript does, so a class cannot hide a repeated group', () => {
+    // In JavaScript `[]` closes at once; reading `[]|)(a+)+b` as one class would let the group past the guard.
+    expect(patternProblem('(?:[]|)(a+)+b')).toContain('exponential time');
+  });
+
+  it('keeps every pattern it accepts fast on 20,000 characters, the most a rule reads', () => {
+    const texts = [' '.repeat(20_000), 'a'.repeat(20_000), '1'.repeat(20_000), `${'a '.repeat(10_000)}`];
+    for (const ok of ['[^,]*,.*b', '\\w+\\s+\\w+x', '^\\W*given\\b', '\\bas an? [^,\\n]{1,80},? i want\\b[^\\n]{1,300}\\bso that\\b', '\\s*\\S+x']) {
+      expect(patternProblem(ok), ok).toBeUndefined();
+      const re = new RegExp(ok, 'im');
+      const t0 = performance.now();
+      for (const t of texts) re.test(t);
+      expect(performance.now() - t0, ok).toBeLessThan(2000);
+    }
+  });
 });
 
 describe('the built-in standards', () => {

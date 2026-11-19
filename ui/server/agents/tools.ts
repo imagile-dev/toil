@@ -549,7 +549,7 @@ const verdictBrief = (item: WorkItem, r: Readiness) => ({
 export function readinessTools(toilProject: string, data: AgentData, ledger: Ledger, readToilProject: ReadToilProject): ToolSpec[] {
   const note = () => ({ toilProject, syncedAt: data.syncedAt() });
   const RULE =
-    "Verdicts come from the cached records with no model call: ready means all five checks pass (acceptance criteria, description, done state, blockers, scope) and so does every ticket rule the Toil project names (its team's rules for writing an item, checked by toil); thin means something a person could waive is missing; blocked means it cannot be worked on as it is. A ticket rule that could not be checked is skipped, which is neither a pass nor a miss. Only ready items are slated for an agent. Cite every item by its id.";
+    "Verdicts come from the cached records with no model call: ready means all five checks pass (acceptance criteria, description, done state, blockers, scope) and toil checked every ticket rule the Toil project names that applies to the item (its team's rules for writing an item) and each passed; thin means something a person could waive is missing; blocked means it cannot be worked on as it is; unread (rules not read yet) means nothing fails or is thin, but toil hasn't read a ticket rule on the item (the check hasn't run, failed, has no result for it, or skipped a rule it couldn't read), so it isn't known to be ready. Only ready items are slated for an agent: never treat an unread item as ready. Cite every item by its id.";
   const settingsNow = async () => {
     const shown = await readToilProject();
     const settings = readReadiness(shown.toilProject);
@@ -560,7 +560,7 @@ export function readinessTools(toilProject: string, data: AgentData, ledger: Led
   return [
     {
       name: 'readiness_list',
-      description: `Every work item in the Toil project "${toilProject}" with its readiness verdict for agent work (ready, thin or blocked) and, for each that isn't ready, which of the five checks (${Object.values(CHECK_LABEL).join(', ')}) or ticket rules didn't pass and why, from Toil UI's cache. Done items are left out unless includeDone is true. Also the count of each verdict among open items, and the Toil project's readiness settings. ${RULE}`,
+      description: `Every work item in the Toil project "${toilProject}" with its readiness verdict for agent work (ready, thin, blocked, or unread when its ticket rules weren't read) and, for each that isn't ready, which of the five checks (${Object.values(CHECK_LABEL).join(', ')}) or ticket rules didn't pass and why, from Toil UI's cache. Done items are left out unless includeDone is true. Also the count of each verdict among open items, and the Toil project's readiness settings. ${RULE}`,
       inputSchema: {
         type: 'object',
         properties: {
@@ -590,6 +590,7 @@ export function readinessTools(toilProject: string, data: AgentData, ledger: Led
             areas: Object.fromEntries(Object.entries(settings.areas).map(([a, s]) => [a, { acceptanceCriteriaField: s.acceptanceField, acceptanceCriteriaFieldFrom: s.acceptanceFrom, minWords: s.minWords, templateLines: s.templateLines.length }])),
             ticketRules: settings.standards,
             ticketRulesRead: settings.standards.length === 0 ? null : (settings.rules?.state ?? 'unread'),
+            ...(settings.rules?.warnings.length ? { ticketRuleWarnings: settings.rules.warnings } : {}),
           },
           notes: settings.notes,
           total: matches.length,

@@ -20,10 +20,10 @@ describe("an item's possible duplicates (#657, round 4)", () => {
     }
     expect(fold.open).toBe(false);
     const summary = fold.querySelector('summary')!;
-    expect(summary.textContent).toMatch(/^\d+ possible duplicates? · Show$/);
+    // The chevron alone says it opens (#657): no "· Show" beside it.
+    expect(summary.textContent).toMatch(/^\d+ possible duplicates?$/);
     await userEvent.click(summary);
     await waitFor(() => expect(fold.open).toBe(true));
-    expect(summary.textContent).toMatch(/· Hide$/);
     expect(fold.querySelectorAll('li.duplicate').length).toBeGreaterThan(0);
   });
 });

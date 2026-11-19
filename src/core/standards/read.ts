@@ -4,9 +4,10 @@
  * request, and its regular expressions run over text a tracker sent, so nothing
  * in it is taken on trust: shapes, lengths and one-line text are checked, a
  * value shaped like a credential is refused, and every pattern must compile,
- * stay short, and leave out the two constructions (backreferences and a
- * quantified group that holds a quantifier or an alternation) that let a
- * regular expression take exponential time. The reader is pure (no files), so
+ * stay short, and leave out the three constructions that let a regular
+ * expression run far longer than its text: backreferences, a quantified group
+ * that holds a quantifier or an alternation, and two repeats side by side that
+ * can match the same characters. The reader is pure (no files), so
  * the catalog, the commands and a test all read a standard one way. A rule may
  * be as strict as the team likes; it may not be slow about it.
  */
@@ -66,84 +67,258 @@ function textProblem(value: unknown, min: number, max: number): string | undefin
 }
 
 /**
+ * The characters an atom may match, kept coarse on purpose: the 128 ASCII
+ * characters one by one, and everything beyond ASCII as two lumps, its spaces
+ * (so `\s*\S+` reads) and the rest. Two sets "may overlap" when they share an
+ * ASCII character or a lump, which errs on the side of refusing.
+ */
+interface CharSet {
+  ascii: Set<number>;
+  /** Some character beyond ASCII that isn't a space. */
+  other: boolean;
+  /** Some space beyond ASCII (a no-break space, an em space). */
+  otherSpace: boolean;
+}
+
+const ANY = (): CharSet => ({ ascii: new Set(range(0, 127)), other: true, otherSpace: true });
+const range = (lo: number, hi: number): number[] => Array.from({ length: Math.max(0, hi - lo + 1) }, (_, k) => lo + k);
+const DIGITS = range(48, 57);
+const WORD = [...DIGITS, ...range(65, 90), ...range(97, 122), 95];
+const SPACE = [9, 10, 11, 12, 13, 32];
+const NONE = (): CharSet => ({ ascii: new Set(), other: false, otherSpace: false });
+/** Every character not in `s`; beyond ASCII it keeps both lumps but the one `s` holds whole (\S has no wide space, \s no wide letter). */
+const complement = (codes: Iterable<number>, wide: { other?: boolean; otherSpace?: boolean } = {}): CharSet => {
+  const out = new Set(codes);
+  return { ascii: new Set(range(0, 127).filter((c) => !out.has(c))), other: !wide.other, otherSpace: !wide.otherSpace };
+};
+const union = (a: CharSet, b: CharSet): CharSet => ({ ascii: new Set([...a.ascii, ...b.ascii]), other: a.other || b.other, otherSpace: a.otherSpace || b.otherSpace });
+const overlaps = (a: CharSet, b: CharSet) => (a.other && b.other) || (a.otherSpace && b.otherSpace) || [...a.ascii].some((c) => b.ascii.has(c));
+/** A positive set with both cases of every letter, since the `i` flag may be on and the guard never sees the flags. */
+const folded = (s: CharSet): CharSet => {
+  const out = new Set(s.ascii);
+  for (const c of s.ascii) {
+    if (c >= 65 && c <= 90) out.add(c + 32);
+    if (c >= 97 && c <= 122) out.add(c - 32);
+  }
+  return { ...s, ascii: out };
+};
+/** One character; `fold` adds its other case, which a negated class must not have before it is complemented. */
+const ofCode = (code: number, fold = true): CharSet => {
+  if (code < 128) return fold ? folded({ ...NONE(), ascii: new Set([code]) }) : { ...NONE(), ascii: new Set([code]) };
+  return /\s/.test(String.fromCharCode(code)) ? { ...NONE(), otherSpace: true } : { ...NONE(), other: true };
+};
+/** The class escapes, shared by an atom and a character class. */
+const CLASS_ESCAPES: Record<string, () => CharSet> = {
+  d: () => ({ ...NONE(), ascii: new Set(DIGITS) }),
+  w: () => ({ ...NONE(), ascii: new Set(WORD) }),
+  s: () => ({ ...NONE(), ascii: new Set(SPACE), otherSpace: true }),
+  D: () => complement(DIGITS),
+  W: () => complement(WORD),
+  S: () => complement(SPACE, { otherSpace: true }),
+};
+const CONTROL_ESCAPES: Record<string, number> = { n: 10, r: 13, t: 9, f: 12, v: 11, '0': 0 };
+
+/**
+ * The escape at `i` (a backslash): how long it is, and the one character it
+ * stands for (`code`) or the class it names (`set`). Hex and Unicode escapes
+ * are read whole, so `\x41*` is one quantified atom and not `\x`, `4`, `1*`.
+ */
+function readEscape(source: string, i: number, inClass: boolean): { length: number; code?: number; set?: CharSet; zeroWidth?: boolean } {
+  const next = source[i + 1] ?? '';
+  if (CLASS_ESCAPES[next]) return { length: 2, set: CLASS_ESCAPES[next]() };
+  if (next === 'b') return inClass ? { length: 2, code: 8 } : { length: 2, zeroWidth: true };
+  if (next === 'B' && !inClass) return { length: 2, zeroWidth: true };
+  if (next in CONTROL_ESCAPES) return { length: 2, code: CONTROL_ESCAPES[next] };
+  const hex = (n: number) => {
+    const digits = source.slice(i + 2, i + 2 + n);
+    return new RegExp(`^[0-9A-Fa-f]{${n}}$`).test(digits) ? parseInt(digits, 16) : undefined;
+  };
+  if (next === 'x' && hex(2) !== undefined) return { length: 4, code: hex(2) };
+  if (next === 'u' && hex(4) !== undefined) return { length: 6, code: hex(4) };
+  if (next === 'c' && /[A-Za-z]/.test(source[i + 2] ?? '')) return { length: 3, code: source.charCodeAt(i + 2) % 32 };
+  return { length: 2, code: next.charCodeAt(0) };
+}
+
+/** The character class starting at `i` (a `[`): where it ends and what it may match. JavaScript closes `[]` and `[^]` at once. */
+function readClass(source: string, i: number): { end: number; set: CharSet } {
+  let j = i + 1;
+  const negated = source[j] === '^';
+  if (negated) j++;
+  let set = NONE();
+  const one = (k: number): { next: number; code?: number; set?: CharSet } => {
+    if (source[k] === '\\') {
+      const e = readEscape(source, k, true);
+      return { next: k + e.length, ...(e.code !== undefined ? { code: e.code } : {}), ...(e.set ? { set: e.set } : {}) };
+    }
+    return { next: k + 1, code: source.charCodeAt(k) };
+  };
+  while (j < source.length && source[j] !== ']') {
+    const a = one(j);
+    if (a.set) {
+      set = union(set, a.set);
+      j = a.next;
+      continue;
+    }
+    if (source[a.next] === '-' && a.next + 1 < source.length && source[a.next + 1] !== ']') {
+      const b = one(a.next + 1);
+      if (b.code !== undefined && a.code !== undefined) {
+        // Beyond ASCII a range may hold both lumps.
+        set = union(set, { ascii: new Set(range(a.code, Math.min(b.code, 127))), other: b.code > 127, otherSpace: b.code > 127 });
+        j = b.next;
+        continue;
+      }
+    }
+    set = union(set, ofCode(a.code!, false));
+    j = a.next;
+  }
+  // A negated class is the complement of the unfolded set: a superset of what it matches with `i` on, which is the safe side.
+  return { end: j + 1, set: negated ? complement(set.ascii) : folded(set) };
+}
+
+/** One open group (the pattern itself is the outermost) as the guard walks it. */
+interface Frame {
+  /** It holds a quantifier or an alternation, so repeating it is the exponential shape. */
+  risky: boolean;
+  /** Every character its atoms may match. */
+  set: CharSet;
+  /**
+   * The repeats a next repeat could trade characters with: the last one, any
+   * before it that only optional atoms separate, and any unbounded one that a
+   * required atom it can also match follows (`.*` in `.*a`).
+   */
+  chain: { set: CharSet; text: string; unbounded: boolean }[];
+  /** Some atom in it repeats without limit. */
+  unbounded: boolean;
+  /** The current alternative, and any earlier one, can match nothing. */
+  branchEmpty: boolean;
+  anyEmpty: boolean;
+  /** A lookahead or lookbehind: it matches no characters, so it sits beside nothing. */
+  zeroWidth: boolean;
+  start: number;
+}
+
+/**
  * Why a regular expression can't be a rule's pattern, or undefined when it can.
- * Refused: a backreference (`\1`, `\k<name>`), and a group that holds a
- * quantifier or an alternation and is itself repeated (`(a+)+`, `(a|ab)*`,
- * `(\w+\s?){2,}`), the shapes behind catastrophic backtracking. This errs on the
- * side of refusing: a pattern that needs such a group can almost always be
- * written without one.
+ * Refused, each because it lets matching take far longer than the text is long:
+ * - a backreference (`\1`, `\k<name>`);
+ * - a group that holds a quantifier or an alternation and is itself repeated
+ *   (`(a+)+`, `(a|ab)*`, `(\w+\s?){2,}`), which can take exponential time;
+ * - two repeats side by side whose characters may overlap (`\s*\s*`, `\d+\d+`,
+ *   `.*.*`, `a*a?`), where a repeat that may match nothing doesn't separate them
+ *   (`\w+\s*\w+`, where `\s*` can be empty), and nor does a required
+ *   character an unbounded repeat before it can also match (`.*a.*b`). Each such
+ *   pair multiplies the ways to split a text: `\s*\s*\s*x` takes over a minute
+ *   on 1,000 spaces, `.*a.*b` 11 seconds on 4,000 a's.
+ * Matching is synchronous, so neither a time limit nor Ctrl+C could stop a slow
+ * pattern once it starts; this refuses it while it is still text. It errs on the
+ * side of refusing: characters are compared coarsely (anything beyond ASCII is
+ * one lump, letters in both cases) and a group counts as every character it holds.
  */
 export function patternProblem(source: string): string | undefined {
-  // Each open group: whether it holds a quantifier or an alternation.
-  const stack: boolean[] = [false];
-  const mark = () => {
-    stack[stack.length - 1] = true;
-  };
-  /** The quantifier starting at `i`, if any: its length and whether it repeats (anything but `?`). */
-  const quantifierAt = (i: number): { length: number; repeats: boolean } | undefined => {
+  const frame = (start: number, zeroWidth = false): Frame => ({ risky: false, set: NONE(), chain: [], unbounded: false, branchEmpty: true, anyEmpty: false, zeroWidth, start });
+  const stack: Frame[] = [frame(0)];
+  const top = () => stack[stack.length - 1]!;
+  /** The quantifier starting at `i`, if any: its length and how many times it lets the atom match. */
+  const quantifierAt = (i: number): { length: number; min: number; max: number } | undefined => {
     const c = source[i];
-    if (c === '*' || c === '+') return { length: 1, repeats: true };
-    if (c === '?') return { length: 1, repeats: false };
-    if (c === '{') {
+    let q: { length: number; min: number; max: number } | undefined;
+    if (c === '*') q = { length: 1, min: 0, max: Infinity };
+    else if (c === '+') q = { length: 1, min: 1, max: Infinity };
+    else if (c === '?') q = { length: 1, min: 0, max: 1 };
+    else if (c === '{') {
       const m = /^\{(\d+)(,(\d*))?\}/.exec(source.slice(i));
-      if (!m) return undefined;
-      const repeats = m[2] !== undefined ? m[3] === '' || Number(m[3]) > 1 : Number(m[1]) > 1;
-      return { length: m[0].length, repeats };
+      if (m) q = { length: m[0].length, min: Number(m[1]), max: m[2] === undefined ? Number(m[1]) : m[3] === '' ? Infinity : Number(m[3]) };
     }
+    // A lazy suffix belongs to the quantifier.
+    if (q && source[i + q.length] === '?') q.length++;
+    return q;
+  };
+  /**
+   * An atom ends at `end` in the current frame: it may match `set`, it varies in
+   * length when `varies`, it may match nothing when `empty`, and it repeats
+   * without limit when `unbounded`. A varying atom that overlaps a repeat in the
+   * chain is refused. One that must match something ends the chain, except for
+   * an unbounded repeat that can match it too: `.*a.*b` lets the two `.*` trade
+   * every `a` between them, which is cubic on a text of a's.
+   */
+  const atom = (start: number, end: number, set: CharSet, varies: boolean, empty: boolean, unbounded: boolean): string | undefined => {
+    const f = top();
+    f.set = union(f.set, set);
+    f.unbounded ||= unbounded;
+    if (!empty) f.branchEmpty = false;
+    const text = source.slice(start, end);
+    if (varies) {
+      const before = f.chain.find((prev) => overlaps(prev.set, set));
+      if (before) {
+        return `repeats ${JSON.stringify(text)} after ${JSON.stringify(before.text)} with nothing between them that only one could match, so the two can trade the same characters (like \\s*\\s*, \\d+\\d+, \\w+\\s*\\w+ or .*a.*b), which can take minutes on a long text; join them into one repeat, make them match different characters, or put a character only one of them matches between them (\\w+\\s+\\w+, [^,]*,.*b).`;
+      }
+      if (empty) f.chain.push({ set, text, unbounded });
+      else f.chain = [{ set, text, unbounded }];
+    } else if (!empty) f.chain = f.chain.filter((prev) => prev.unbounded && overlaps(prev.set, set));
     return undefined;
   };
   let i = 0;
   while (i < source.length) {
     const c = source[i]!;
+    const start = i;
+    let set: CharSet;
     if (c === '\\') {
       const next = source[i + 1];
       if (next !== undefined && /[1-9]/.test(next)) return 'uses a backreference (\\1 to \\9), which can take exponential time; write the pattern without one.';
       if (next === 'k' && source[i + 2] === '<') return 'uses a named backreference (\\k<name>), which can take exponential time; write the pattern without one.';
-      i += 2;
-      continue;
-    }
-    if (c === '[') {
-      // A character class is one atom; skip to its end, minding escapes and a leading ].
-      let j = i + 1;
-      if (source[j] === '^') j++;
-      if (source[j] === ']') j++;
-      while (j < source.length && source[j] !== ']') j += source[j] === '\\' ? 2 : 1;
-      i = j + 1;
-      continue;
-    }
-    if (c === '(') {
-      stack.push(false);
+      const e = readEscape(source, i, false);
+      i += e.length;
+      if (e.zeroWidth) continue;
+      set = e.set ?? ofCode(e.code!);
+    } else if (c === '[') {
+      const k = readClass(source, i);
+      i = k.end;
+      set = k.set;
+    } else if (c === '(') {
       i++;
+      let zeroWidth = false;
       // A group's own prefix (?:, ?=, ?!, ?<=, ?<!, ?<name>) is not a quantifier.
       if (source[i] === '?') {
         const m = /^\?(?::|=|!|<=|<!|<[A-Za-z_][A-Za-z0-9_]*>)/.exec(source.slice(i));
+        zeroWidth = !!m && /^\?(?:=|!|<=|<!)$/.test(m[0]);
         i += m ? m[0].length : 1;
       }
+      stack.push(frame(start, zeroWidth));
       continue;
-    }
-    if (c === ')') {
-      const risky = stack.length > 1 ? stack.pop()! : false;
+    } else if (c === ')') {
+      const g = stack.length > 1 ? stack.pop()! : frame(i);
       i++;
       const q = quantifierAt(i);
-      if (q?.repeats && risky) return 'repeats a group that itself holds a quantifier or an alternation (like (a+)+ or (a|ab)*), which can take exponential time; repeat a single character or class instead.';
-      if (q || risky) mark();
+      if (q && q.max > 1 && g.risky) return 'repeats a group that itself holds a quantifier or an alternation (like (a+)+ or (a|ab)*), which can take exponential time; repeat a single character or class instead.';
+      if (q || g.risky) top().risky = true;
       if (q) i += q.length;
+      if (g.zeroWidth) continue;
+      const empty = g.anyEmpty || g.branchEmpty || (q !== undefined && q.min === 0);
+      const why = atom(g.start, i, g.set, g.risky || (q !== undefined && q.min !== q.max), empty, g.unbounded || q?.max === Infinity);
+      if (why) return why;
       continue;
-    }
-    if (c === '|') {
-      mark();
+    } else if (c === '|') {
+      const f = top();
+      f.risky = true;
+      f.anyEmpty ||= f.branchEmpty;
+      f.branchEmpty = true;
+      f.chain = [];
       i++;
       continue;
+    } else if (c === '^' || c === '$') {
+      i++;
+      continue;
+    } else {
+      i++;
+      set = c === '.' ? ANY() : ofCode(c.charCodeAt(0));
     }
     const q = quantifierAt(i);
     if (q) {
-      mark();
+      top().risky = true;
       i += q.length;
-      // A lazy or possessive suffix belongs to the quantifier.
-      if (source[i] === '?') i++;
-      continue;
     }
-    i++;
+    const why = atom(start, i, set, q !== undefined && q.min !== q.max, q !== undefined && q.min === 0, q?.max === Infinity);
+    if (why) return why;
   }
   return undefined;
 }

@@ -150,7 +150,7 @@ Ready. Jira's bugs are Tasks labelled `bug` and GitHub's issues have no issue ty
 so the bug rules land on ADO's Bugs alone. *Demo (video 4):* "is the backlog
 ready?" The Command Center's Ticket rules card shows three stories missing
 Given/When/Then; drilling in lists SCRUM-15, 17 and 32, and "Fix with AI agent" on
-SCRUM-15 drafts the scenarios from what the story already says, for Sam to apply.
+SCRUM-32 drafts the scenarios from what the story already says, for Sam to apply.
 The seeds put the gaps back on the next run.
 
 ## Friday: Black Friday readiness
@@ -170,5 +170,5 @@ The seeds put the gaps back on the next run.
 | 1 · Toil UI: Monday stand-up | The whole week in one report, the critical chain | Toil UI Summary, Stand-up, Blocked, Code reviews |
 | 2 · Toil UI: Ask | Lumen Games' payout; reconciliation at 2 a.m. | Ask over Jira, GitHub, ADO and `payments-db` |
 | 3 · The CLI | One shape across tools: the chain, the PRs, the replica | `toil jira`, `github`, `ado`, `db`, `--select` |
-| 4 · Agents | "Is the backlog ready?": the ticket rules find SCRUM-15, 17 and 32 without Given/When/Then and ADO #193 without repro steps, and an agent fixes SCRUM-15; then kick off agents on #38, SCRUM-55 and #194 and watch the PRs land in Code reviews | Toil UI Command Center (Ticket rules) and item page, `toil standards check`, `toil mcp`, Claude Code / Codex / Copilot |
+| 4 · Agents | "Is the backlog ready?": the ticket rules find SCRUM-15, 17 and 32 without Given/When/Then and ADO #193 without repro steps, and an agent fixes SCRUM-32; then kick off agents on #38, SCRUM-55 and #194 and watch the PRs land in Code reviews | Toil UI Command Center (Ticket rules) and item page, `toil standards check`, `toil mcp`, Claude Code / Codex / Copilot |
 | 5 · Friday readiness | Vulnerabilities, the release page, the write gate | `toil osv`, `toil confluence`, writes |

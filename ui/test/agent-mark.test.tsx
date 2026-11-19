@@ -80,7 +80,7 @@ describe('controls that start an AI agent run', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Write it up' })).toBeTruthy());
     expect(screen.getByRole('button', { name: 'Write it up' }).hasAttribute('disabled')).toBe(true);
     const line = document.querySelector('[data-standup-no-agent]')!;
-    expect(line.textContent).toBe('No AI agent is set up yet. Set one up in Settings, AI agent.');
+    expect(line.textContent).toBe('No AI agent is set up yet. Set one up in Settings, AI agent');
     expect(line.querySelector('a')!.getAttribute('href')).toBe('#/settings/agent');
   });
 });

@@ -21,12 +21,13 @@
 .classify__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0.75rem 0; }
 .classify__bar .note { flex: 1 1 18rem; margin: 0; }
 .classify__adapter { display: inline-block; }
-.classify__pending { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; margin: 0.75rem 0; padding: 0.5rem 0.75rem; border-inline-start: 4px solid var(--accent); border-radius: var(--radius); background: var(--surface); }
+.classify__pending { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.75rem; margin: 0.75rem 0; padding: 0.5rem 0.75rem; border: 1px solid var(--edge-accent); border-radius: var(--radius); background: var(--tint-accent); }
 .classify__pending h2 { margin: 0; font-size: 1rem; }
 .classify__pending > .note { flex: 1 1 14rem; margin: 0; }
 .classify__cards { display: grid; gap: 1rem; flex: 1 0 100%; min-width: 0; }
 .classify__rows h2 { font-size: 1.05rem; }
-.classify__rows-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.25rem 1rem; }
+.classify__rows-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; }
+.classify__rows-head > .sortrows__legend { margin-inline-start: auto; }
 .sortrows__legend { margin: 0; }
 /* One line a row: the title (cut short, whole on hover), then the segmented choices, then the (i). Stacked at phone width. */
 .sortrows { display: grid; margin: 0.5rem 0 0; padding: 0; list-style: none; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
@@ -132,3 +133,8 @@
 .cat-chip--button::after { content: ""; position: absolute; inset: -12px 0; }
 .cedit__problems { margin: 0; padding-inline-start: 1.25rem; }
 .cedit__count { margin: 0; }
+
+/* The K, F and U hints are for a keyboard (#657): on a narrow screen or a touch one they only crowd the choices. */
+@media (max-width: 37.5rem), (pointer: coarse) {
+  .sortrow__key, .sortrows__legend { display: none; }
+}

@@ -1,19 +1,20 @@
 // @vitest-environment jsdom
 // Each tab is opened in turn, as a tab would be in a review meeting: briefly, and to confirm it exists.
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { CANNED, fixtureExecute } from '../src/fixtures/execute.ts';
 import type { WorkItem } from '../src/toil.ts';
 import { columnSteps, dropVerdict } from '../src/views/Board.tsx';
 import { item, open, panel, tabs, metric, resetBrowserState } from './views-kit.tsx';
+import { fixtureStandards } from '../src/fixtures/standards.ts';
 
 beforeEach(resetBrowserState);
 
 describe('the views on a dashboard (#252, #253)', () => {
   it('flags each card that needs attention on the board, counts them on its tab, and filters to them (#394)', async () => {
     await open('#/project/card-payments/board');
-    const board = panel('Sprint 42 board');
+    const board = panel('Sprint board');
     const cards = () => within(board).getAllByRole('listitem').filter((li) => li.classList.contains('card'));
     const flagged = () => cards().filter((li) => li.classList.contains('card--attention'));
     const keys = () => flagged().map((li) => within(li).getAllByRole('link')[0]!.textContent).sort();
@@ -26,7 +27,13 @@ describe('the views on a dashboard (#252, #253)', () => {
   });
 
   it("badges Tickets with the Tickets page's own Blocked figure, said in words, never a count the page doesn't show", async () => {
+    // While the ticket rules aren't read the blocked figure isn't known, so the tab carries no count (principle 12).
     await open('#/project/card-payments/command-center');
+    const unreadTab = within(tabs('card-payments')).getByRole('link', { name: /^Tickets/ });
+    expect(unreadTab.querySelector('.tab-count')).toBeNull();
+    expect(unreadTab.getAttribute('title')).toMatch(/^Ticket rules not read yet/);
+    cleanup();
+    await open('#/project/card-payments/command-center', { rules: fixtureStandards() });
     const tab = await waitFor(() => within(tabs('card-payments')).getByRole('link', { name: /^Tickets, \d+ blocked$/ }));
     const n = /(\d+) blocked/.exec(tab.textContent ?? '')![1];
     expect(tab.querySelector('.tab-count')!.getAttribute('title')).toBe(`${n} blocked: waiting on another item, done already, outside the Toil project, or failing a ticket rule.`);
@@ -37,7 +44,7 @@ describe('the views on a dashboard (#252, #253)', () => {
 
   it('puts each sprint item on the board under its status category, with its own status word and insights', async () => {
     await open('#/project/settlement/board');
-    const board = panel('Sprint 42 board');
+    const board = panel('Sprint board');
     const col = (name: string) => within(board).getByRole('region', { name: new RegExp(`^${name}`) });
     const cards = (region: HTMLElement) => within(region).getAllByRole('listitem').filter((li) => li.classList.contains('card'));
     expect(cards(col('To do')).map((c) => within(c).getAllByRole('link')[0]!.textContent)).toEqual(['2303', '2306']);
@@ -55,7 +62,7 @@ describe('the views on a dashboard (#252, #253)', () => {
 
   it('carries no buttons on its cards: the whole card is the handle, named by its key and title', async () => {
     await open('#/project/card-payments/board');
-    const board = panel('Sprint 42 board');
+    const board = panel('Sprint board');
     const cards = within(board).getAllByRole('listitem').filter((li) => li.classList.contains('card'));
     expect(cards.length).toBeGreaterThan(0);
     for (const c of cards) expect(within(c).queryAllByRole('button')).toEqual([]);
@@ -68,7 +75,7 @@ describe('the views on a dashboard (#252, #253)', () => {
 
   it('opens the item on a click anywhere on the card', async () => {
     await open('#/project/card-payments/board');
-    const grip = within(panel('Sprint 42 board')).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
+    const grip = within(panel('Sprint board')).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
     await userEvent.click(within(grip).getByText('Store tokens in the vault'));
     await waitFor(() => expect(window.location.hash).toBe(item('card-payments', 'corp-jira:PAY-102')));
   });
@@ -77,7 +84,7 @@ describe('the views on a dashboard (#252, #253)', () => {
     const fixture = fixtureExecute();
     await open('#/project/card-payments/board', { execute: fixture.execute });
     const before = fixture.calls.length;
-    const board = panel('Sprint 42 board');
+    const board = panel('Sprint board');
     const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
     fireEvent.contextMenu(grip);
     const menu = await screen.findByRole('menu', { name: 'PAY-102 Store tokens in the vault' });
@@ -94,7 +101,7 @@ describe('the views on a dashboard (#252, #253)', () => {
 
   it('opens the same menu with M on the focused card, and only on the card itself', async () => {
     await open('#/project/card-payments/board');
-    const board = panel('Sprint 42 board');
+    const board = panel('Sprint board');
     const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
     within(grip).getByRole('link', { name: 'PAY-102' }).focus();
     await userEvent.keyboard('m');
@@ -130,7 +137,7 @@ describe('the views on a dashboard (#252, #253)', () => {
   // #393: the drop worked, but nothing on screen moved during a drag and the proposal landed out of view.
   it('shows a lifted card as a copy that says what a drop would do, leaving a placeholder in its column', async () => {
     await open('#/project/card-payments/board');
-    const board = panel('Sprint 42 board');
+    const board = panel('Sprint board');
     const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
     expect(document.querySelector('[data-drag-overlay]')).toBeNull();
     grip.focus();
@@ -156,7 +163,7 @@ describe('the views on a dashboard (#252, #253)', () => {
 
   it('puts a proposed move where it was made: a ghost in the target column, with Undo and the way to apply it', async () => {
     await open('#/project/card-payments/board');
-    const board = panel('Sprint 42 board');
+    const board = panel('Sprint board');
     const col = (name: string) => within(board).getByRole('region', { name: new RegExp(`^${name}`) });
     const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
     fireEvent.contextMenu(grip);
@@ -266,7 +273,8 @@ describe('the views on a dashboard (#252, #253)', () => {
     expect(rows.map((r) => within(r).getByRole('rowheader').querySelector('.l-table__value')!.textContent)).toEqual(['Jira PAY-101 Tokenise card numbers at the edge', 'Jira PAY-102 Store tokens in the vault', 'Jira PAY-103 Charge a stored token']);
     expect(rows[1]!.textContent).toContain('(estimated)');
     expect(rows[2]!.textContent).toContain('PAY-102, critical chain');
-    expect(rows[2]!.textContent).toContain('16 Oct 2026 (the due date in Jira)Planned from 15 Oct 2026 (when Jira PAY-102 is due), estimated');
+    // A due date lasts its day: PAY-103 waits on PAY-102, due 15 Oct, so its plan starts as that day ends.
+    expect(rows[2]!.textContent).toContain('16 Oct 2026 (the due date in Jira)Planned from 16 Oct 2026 (after Jira PAY-102 is due), estimated');
     expect(within(gantt).queryByRole('button', { name: /^Show all/ })).toBeNull();
     expect(gantt.textContent).toContain('Blocked time is estimated');
     // That it is estimated stays beside the timeline; how each part is estimated is one press away, in the (i).

@@ -17,7 +17,7 @@ import { liveWorkflow, readiness, VERDICT_LABEL, VERDICT_PLAIN, withRules, workf
 import { FixRuleButton, type RuleToFix } from '../assign/views.tsx';
 import { fixable } from '../rules.ts';
 import { CALL_OPTIONS, type WorkItem } from '../toil.ts';
-import { Help } from './help.tsx';
+import { Help, InfoTip } from './help.tsx';
 import { SummaryChevron, DisclosureBody } from './disclosure.tsx';
 import { Cited } from './items.tsx';
 import { SourceTip } from './bits.tsx';
@@ -31,7 +31,8 @@ const STATE_WORD: Record<Row['state'], string> = { pass: 'Passes', thin: 'Thin',
 // A ticket rule that misses says what it is: missing. Its state stays thin underneath, so the verdict counts it as before.
 const RULE_WORD: Record<Row['state'], string> = { ...STATE_WORD, thin: 'Missing' };
 
-const VERDICT_MARK: Record<Verdict, ReactNode> = { ready: <CheckIcon size={14} />, thin: <WarningIcon size={14} />, blocked: <CloseIcon size={14} /> };
+// Rules not read yet is unknown, not a pass or a miss, so its mark is the dash (principle 12).
+const VERDICT_MARK: Record<Verdict, ReactNode> = { ready: <CheckIcon size={14} />, thin: <WarningIcon size={14} />, blocked: <CloseIcon size={14} />, unread: '–' };
 
 /** The verdict as a chip: a mark and a word, so it reads the same in a theme whose colours don't tell the three apart. */
 export function VerdictChip({ verdict }: { verdict: Verdict }) {
@@ -204,6 +205,7 @@ const MEANING: Record<Verdict, string> = {
   ready: 'Every check passes: an agent can start on it.',
   thin: "Something is missing. A person can still decide to start it on its own, but it won't be started automatically.",
   blocked: "It can't be worked on as it is, so it is never started.",
+  unread: "Nothing fails, but your team's ticket rules haven't been read for it yet, so it isn't known to be ready and isn't started.",
 };
 
 /**
@@ -232,7 +234,11 @@ export function ReadinessPanel({ item, blockedAbove = false }: { item: WorkItem;
         <span id="readiness">Ready for an agent?</span> <Help topic="readiness-checks" note={`Worked out from the cached record${live ? ' and one live read' : ''}, with no model call.${read && execute ? ` Check the workflow live makes one read-only call, toil ${read.command}, to settle the done state.` : ''} The checks' settings (fields.acceptanceCriteria, readiness.minWords and readiness.templates in the ${item.source.area} section) are in Toil UI's README.`} />
       </h2>
       <p className="readiness-verdict">
-        <VerdictChip verdict={r.verdict} /> {MEANING[r.verdict]}
+        {/* What the verdict means for starting it is an explanation, so it sits in the chip's (i), not on the page (#657). */}
+        <VerdictChip verdict={r.verdict} />{' '}
+        <InfoTip label={VERDICT_PLAIN[r.verdict]} tip={MEANING[r.verdict]} triggerProps={{ 'data-verdict-help': r.verdict }}>
+          <p>{MEANING[r.verdict]}</p>
+        </InfoTip>
       </p>
       <ReadinessRows readiness={r} item={item} ruleText={ruleText} blockedAbove={blockedAbove} />
       {read && execute && (

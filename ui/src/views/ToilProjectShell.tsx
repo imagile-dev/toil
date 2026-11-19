@@ -41,8 +41,9 @@ import { useData, useDerived } from '../data.ts';
 import { useStoredDiagram } from '../diagram-saved.ts';
 import { ItemsDrawer } from '../components/items-drawer.tsx';
 import { ClassifyNoticeLine } from '../components/reclassify.tsx';
+import { useAppliedSince } from '../applied.ts';
 import { commandCenterHref, dateTime, diagramHref, toilProjectEditHref, toilProjectHref, peopleHref, standupHref, timeOnDay, worklogHref } from '../format.ts';
-import { blockedOpen, BLOCKED_WHY, withRules } from '../model/readiness.ts';
+import { blockedOpenReading, BLOCKED_WHY, withRules } from '../model/readiness.ts';
 import { inSentence } from '../rules.ts';
 import { useTerm, useTheme } from '../skins.tsx';
 import { usePlain } from '../plain-words.ts';
@@ -103,7 +104,10 @@ export function ToilProjectShell({ tab, heading, team, back, peek = null, items 
   useTabInk(tabList, tab ?? undefined);
   // The Tickets badge is the page's own Blocked figure, worked out the same way (the open items, ticket rules included), so
   // the number on the tab is one the page it opens shows.
-  const blocked = useMemo(() => blockedOpen(toilProject.items, withRules(toilProject.readiness, rules?.reading)), [toilProject, rules]);
+  // While any open item's ticket rules aren't read, the blocked figure is only a floor (principle 12): no badge, rather than a count that may grow.
+  const reading = useMemo(() => blockedOpenReading(toilProject.items, withRules(toilProject.readiness, rules?.reading)), [toilProject, rules]);
+  const blocked = reading.count;
+  const rulesUnread = !reading.exact;
   const name = (
     <Editable bare field="name" toilProject={toilProject.name} value={toilProject.name} config={config ?? null} onSaved={described ?? (() => undefined)}>
       {toilProject.name}
@@ -116,7 +120,8 @@ export function ToilProjectShell({ tab, heading, team, back, peek = null, items 
     href: t.href(toilProject.name),
     label: pw(t.label, t.plain),
     ...(plain.on && t.plain !== t.label ? { title: plain.title(t.label)! } : {}),
-    ...(t.id === 'tickets' ? { count: { n: blocked, label: 'blocked', why: inSentence(BLOCKED_WHY) } } : {}),
+    ...(t.id === 'tickets' && !rulesUnread ? { count: { n: blocked, label: 'blocked', why: inSentence(BLOCKED_WHY) } } : {}),
+    ...(t.id === 'tickets' && rulesUnread ? { title: "Ticket rules not read yet, so the blocked count isn't known yet." } : {}),
   }));
   return (
     <div className="toil-project-shell" data-wide-sidebar={wide || undefined} data-side={(wide && (sideOpen || Boolean(peek) || Boolean(items))) || undefined} data-items={(Boolean(items) && !peek) || undefined} ref={shell}>
@@ -236,7 +241,10 @@ function ReadBadge() {
   const { now, preview } = useData();
   const plain = usePlain();
   const at = timeOnDay(now, new Date().toISOString());
-  const full = `${preview ? 'Sample data' : 'Data'} read ${dateTime(now)} ${plain.pw('through toil, read-only', 'without changing anything')}`;
+  // A change applied since the read (#657) means the read no longer stands alone, so the badge drops "without changing anything"
+  // rather than contradict the "N changes applied since" line beside it.
+  const applied = useAppliedSince(now);
+  const full = `${preview ? 'Sample data' : 'Data'} read ${dateTime(now)}${applied > 0 ? '' : ` ${plain.pw('through toil, read-only', 'without changing anything')}`}`;
   if (preview) {
     return (
       <span className="read-badge" title={full} data-read-badge="">
@@ -248,7 +256,8 @@ function ReadBadge() {
   return (
     <Button
       className="btn btn--quiet btn--sm read-badge"
-      aria-label={`${full}. Show the Sync panel`}
+      // The name starts with what the badge shows, so a voice user can say what they see (WCAG 2.5.3); the whole sentence follows.
+      aria-label={`Read ${at}. ${full}. Show the Sync panel`}
       onPress={() => {
         const head = document.getElementById('sync-heading');
         head?.scrollIntoView?.({ block: 'center' });

@@ -43,9 +43,9 @@ export const RULE_REF = /^[a-z][a-z0-9-]{0,62}$/;
 
 /** The page's reading from what the read gave: read (with each item's results), not read yet, or failed with toil's message. */
 export function readingOf(view: RulesView | null, error?: string): RulesReading {
-  if (error !== undefined) return { state: 'failed', byItem: new Map(), message: error };
+  if (error !== undefined) return { state: 'failed', byItem: new Map(), message: error, warnings: [] };
   if (!view?.result) return RULES_UNREAD;
-  return { state: 'read', byItem: new Map(view.result.items.map((i) => [i.id, i.results])), message: null };
+  return { state: 'read', byItem: new Map(view.result.items.map((i) => [i.id, i.results])), message: null, warnings: view.warnings };
 }
 
 /** One rule's result on one item in a check, with the rule's text; null when the rule doesn't apply to it, or isn't one the check knows. */

@@ -31,6 +31,7 @@ import { SummaryChevron } from '../components/disclosure.tsx';
 import { ExternalIcon } from '../components/icons.tsx';
 import { fieldName, readiness, withRules } from '../model/readiness.ts';
 import { AgentMark } from '../components/agent-mark.tsx';
+import { NavButton } from '../components/nav-button.tsx';
 
 const when = (iso: string | null) => (iso ? dateTime(iso) : 'not yet');
 
@@ -147,7 +148,10 @@ export function AssignmentView({ id }: { id: string }) {
     <>
       <div className="view-head">
         <p className="eyebrow">
-          <a href={toilProjectHref(a.toilProject)}>{a.toilProject}</a> · Agent assignment
+          <NavButton href={toilProjectHref(a.toilProject)} kind="quiet" size="sm" className="eyebrow-btn">
+            {a.toilProject}
+          </NavButton>{' '}
+          · Agent assignment
         </p>
         <h1 tabIndex={-1}>
           {a.rules?.length ? 'Fix with AI agent' : modeInfo(a.mode, plain.on).label}: {a.itemTitle}
@@ -202,12 +206,18 @@ export function AssignmentView({ id }: { id: string }) {
       )}
       {a.renews && (
         <p className="note">
-          This renews <a href={assignmentHref(a.toilProject, a.renews)}>an earlier assignment</a> on the same item, which started on older instructions; what it left was in this run's prompt.
+          This renews an earlier assignment on the same item, which started on older instructions; what it left was in this run's prompt.{' '}
+          <NavButton href={assignmentHref(a.toilProject, a.renews)} kind="quiet" size="sm">
+            Open the earlier one
+          </NavButton>
         </p>
       )}
       {a.renewedBy && (
         <p className="note">
-          Renewed as <a href={assignmentHref(a.toilProject, a.renewedBy)}>a fresh assignment</a> on today's instructions.
+          Renewed as a fresh assignment on today's instructions.{' '}
+          <NavButton href={assignmentHref(a.toilProject, a.renewedBy)} kind="quiet" size="sm">
+            Open it
+          </NavButton>
         </p>
       )}
 
@@ -470,8 +480,8 @@ function AssignedCard({ p, tracker, quiet, busy, onApply, onDismiss, recheck }: 
           {item?.url && (
             <>
               {' '}
-              <a className="btn btn--secondary btn--sm item-open" href={item.url} target="_blank" rel="noreferrer">
-                Open in {sourceLabel(item.source.area)} <ExternalIcon size={14} />
+              <a className="btn btn--secondary btn--sm item-open" href={item.url} target="_blank" rel="noopener noreferrer">
+                Open in {sourceLabel(item.source.area)} <ExternalIcon size={14} className="icon--external-link" />
                 <span className="sr-only"> (opens a new tab)</span>
               </a>
             </>

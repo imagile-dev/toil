@@ -118,7 +118,7 @@ describe('a job page', () => {
   it('says which connection is missing, and disables Run, instead of failing at the run', async () => {
     await open('#/project/card-payments/job/review?target=github%3Aimagile%2Fpayments-web%2343', onlyJira);
     await waitFor(() => expect(document.querySelector('[data-job-missing]')).not.toBeNull());
-    expect(document.querySelector('[data-job-missing]')!.textContent).toMatch(/^Needs a .* connection\. Add one in Settings, Connections\.$/);
+    expect(document.querySelector('[data-job-missing]')!.textContent).toMatch(/^Needs a .* connection\. Add one in Settings, Connections$/);
     expect(document.querySelector<HTMLButtonElement>('[data-job-run]')!.disabled).toBe(true);
   });
 

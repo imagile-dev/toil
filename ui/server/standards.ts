@@ -4,8 +4,10 @@
  * project, so there is no request body to outgrow and no file to stage. The
  * page asks `GET api/standards?toilProject=<name>` and gets toil's result as
  * toil printed it, or null when the toil project hasn't synced (not read yet,
- * never an empty check). Each toil project's answer is kept until its next
- * sync, since nothing a rule reads can change between syncs. The rules
+ * never an empty check); a sync of no items is checked like any other, a real
+ * zero. Each toil project's answer is kept until its next sync or a change to
+ * the rules it names (`standards` in the toil project, which Settings or the
+ * CLI may change between syncs), since nothing else a rule reads can. The rules
  * themselves, a team's own files or the built-in ones, are found by toil from
  * the toil project's `standards.use`; this file never reads one.
  *
@@ -26,7 +28,7 @@ export interface StandardsOptions {
   execute: Execute;
   /** The toil project's synced items, or null when it has never synced. */
   items(toilProject: string): WorkItem[] | null;
-  /** When the toil project was last synced: an answer is kept until this changes. */
+  /** When the toil project was last synced: an answer is kept until this, or the toil project's `standards`, changes. */
   syncedAt(toilProject: string): string | null;
   /** The folder toil looks from, for a repository's checked-in rules; process.cwd() by default. */
   cwd?: string;
@@ -40,25 +42,40 @@ export class StandardsRefusal extends Error {
 }
 
 export class StandardsService implements RulesBackend {
-  private readonly kept = new Map<string, { at: string | null; view: Promise<RulesView> }>();
+  private readonly kept = new Map<string, { key: string; view: Promise<RulesView> }>();
 
   constructor(private readonly o: StandardsOptions) {}
 
-  /** toil's check over the toil project's synced items, kept until its next sync. */
-  check(toilProject: string): Promise<RulesView> {
-    const at = this.o.syncedAt(toilProject);
+  /** toil's check over the toil project's synced items, kept until its next sync or a change to the rules it names. */
+  async check(toilProject: string): Promise<RulesView> {
+    const key = `${this.o.syncedAt(toilProject)}\n${await this.standardsOf(toilProject)}`;
     const had = this.kept.get(toilProject);
-    if (had && had.at === at) return had.view;
+    if (had && had.key === key) return had.view;
     const view = this.run(toilProject);
-    this.kept.set(toilProject, { at, view });
+    this.kept.set(toilProject, { key, view });
     // A failure is said once and asked again next time, not kept until the next sync.
     view.catch(() => this.kept.delete(toilProject));
     return view;
   }
 
+  /**
+   * The toil project's `standards`, as text to key the kept answer on: naming another standard in Settings (`projects
+   * standards set`) or on the CLI changes the answer before the next sync does. Unreadable is a key of its own, so a
+   * toil project that becomes readable again is checked again.
+   */
+  private async standardsOf(toilProject: string): Promise<string> {
+    const e = await this.o.execute('projects show', { toilProject }, { readOnly: true, caller: CALLER });
+    if (!e.ok) return `unreadable: ${e.error.code}`;
+    return JSON.stringify((e.data as { toilProject?: { standards?: unknown } } | null)?.toilProject?.standards ?? null);
+  }
+
   private async run(toilProject: string): Promise<RulesView> {
     const items = this.o.items(toilProject);
-    if (!items || items.length === 0) return { result: null, warnings: [] };
+    // Never synced is not read yet; a sync that found no items is checked, and its zero is a real one (principle 12).
+    if (items === null) return { result: null, warnings: [] };
+    // toil's check refuses an empty input (a pipe that lost its items, on the CLI); here nothing was synced to check, so
+    // the answer is the check of nothing, said here rather than asked of toil. It lists no standards, since none ran.
+    if (items.length === 0) return { result: { toilProject, standards: [], items: [], summary: { items: 0, checked: 0, byRule: [] } }, warnings: [] };
     const e = await this.o.execute('standards check', { toilProject, text: JSON.stringify(items), cwd: this.o.cwd ?? process.cwd() }, { readOnly: true, caller: CALLER });
     if (!e.ok) throw new StandardsRefusal(`toil couldn't check the ticket rules: ${e.error.message}`, e.error.fix ?? 'Fix that, then sync again.');
     return { result: e.data as StandardsCheckResult, warnings: (e.meta.warnings ?? []).map((w) => w.message) };

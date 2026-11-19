@@ -8,8 +8,8 @@
  * open blockers holding the most points is the critical chain.
  *
  * A bar with a due date also carries its plan: a lighter stretch from when it
- * can start (when the last thing it waits on is due, else today) to its due
- * date, so the sprint reads as a plan as well as a history. An item with no due
+ * can start (when the last thing it waits on is due, else today) to the end of
+ * its due date, so the sprint reads as a plan as well as a history. An item with no due
  * date has no plan, never a plan of no length (principle 12). Rows come in
  * groups, one per set of items joined by blocks links, the critical chain's
  * first, so a chain's rows sit together in chain order; `focus` names the rows
@@ -66,7 +66,7 @@ export interface Bar {
   due: string | null;
   /** Open work with a due date still ahead of where it can start: from that start to the due date. The due date is read; the start is estimated. */
   planned: Segment | null;
-  /** Still open after its due date. */
+  /** Still open after its due date: past the end of that day, so an item due today isn't overdue yet. */
   overdue: boolean;
   /** Which group of linked items it is in: groups are numbered in the order the rows show them. */
   group: number;
@@ -232,6 +232,12 @@ function failing(item: WorkItem, changes: ChangeRef[], end: number): Segment[] {
   return out;
 }
 
+/** When a due date runs out: the end of its day (`YYYY-MM-DD`, read as UTC like every date here), or the instant a tracker gave; NaN for none. */
+export function dueEnd(due: string | null): number {
+  if (!due) return NaN;
+  return /^\d{4}-\d{2}-\d{2}$/.test(due) ? t(due) + DAY : t(due);
+}
+
 export function blockerGantt(input: GanttInput): Gantt {
   const { prepared: p, health: h } = input;
   const now = t(input.now);
@@ -292,8 +298,9 @@ export function blockerGantt(input: GanttInput): Gantt {
     };
   });
 
-  // The plan: open work with a due date starts when the last open thing it waits on is due, else today.
-  const due = new Map(bars.map((b) => [b.id, t(b.due)]));
+  // The plan: open work with a due date starts when the last open thing it waits on is due, else today. A due date is a
+  // whole day, so it ends when that day does: an item due today isn't late until tomorrow, and its plan runs to midnight.
+  const due = new Map(bars.map((b) => [b.id, dueEnd(b.due)]));
   for (const bar of bars) {
     const end = due.get(bar.id)!;
     if (bar.done || !ok(end)) continue;

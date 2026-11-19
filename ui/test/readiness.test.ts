@@ -44,7 +44,7 @@ describe('the verdict', () => {
 
   it('counts each verdict', () => {
     const all = readinessAll([item('A'), item('B', { body: null }), done], settings());
-    expect(tally(all)).toEqual({ ready: 1, thin: 1, blocked: 1 });
+    expect(tally(all)).toEqual({ ready: 1, thin: 1, blocked: 1, unread: 0 });
   });
 });
 
@@ -200,10 +200,11 @@ describe('the sample Toil projects', () => {
     return Object.fromEntries(readinessAll(data.items, data.readiness).filter((r) => data.items.find((i) => i.id === r.id)!.statusCategory !== 'DONE').map((r) => [r.id, r.verdict]));
   };
 
-  it('card-payments: PAY-101 is ready, its chain is blocked, and the rest are thin', async () => {
+  it('card-payments: PAY-101 waits only on its ticket rules being read, its chain is blocked, and the rest are thin', async () => {
+    // card-payments names ticket rules, and none were read here: PAY-101 passes every other check, which isn't ready (principle 12).
     expect(await verdicts('card-payments')).toEqual({
       'corp-jira:PAY-100': 'thin',
-      'corp-jira:PAY-101': 'ready',
+      'corp-jira:PAY-101': 'unread',
       'corp-jira:PAY-102': 'blocked',
       'corp-jira:PAY-103': 'blocked',
       'corp-jira:PAY-104': 'thin',

@@ -83,7 +83,7 @@ node scripts/layout-check.mjs --base http://127.0.0.1:4173/ --theme plain --them
 
 ## Rolled alignments
 
-Realm's one playful label on a person. With themed wording on, each card on the People tab carries a "Rolled alignment", such as "Neutral good", picked from the card's name alone, so the same name always rolls the same and nothing from anyone's work goes into it: it can't score or rank anyone. Only good and neutral alignments are on the list, and the (i) beside the cards says what they are. Switch themed wording off and they're gone. A theme lists its own in `theme.json`'s `alignments`, and the theme test refuses one that judges a person.
+Realm's one playful label on a person. With themed wording on, each card on Team's People page carries a "Rolled alignment", such as "Neutral good", picked from the card's name alone, so the same name always rolls the same and nothing from anyone's work goes into it: it can't score or rank anyone. Only good and neutral alignments are on the list, and the (i) beside the cards says what they are. Switch themed wording off and they're gone. A theme lists its own in `theme.json`'s `alignments`, and the theme test refuses one that judges a person.
 
 ## Rest days
 
@@ -167,7 +167,7 @@ The seven game themes move a little: dust drifting in the blue glow in Crate, on
 Two settings decide what moves, in this order:
 
 1. **Your operating system's reduced-motion setting.** When it asks for less, nothing moves, whatever Toil UI is set to.
-2. **Motion**, one select under Settings, Appearance: Full, Subtle or Off. Off is what reduced motion was: nothing moves, no animations and no particles. Subtle also turns the theme's particles off and keeps the rest quieter.
+2. **Motion**, one select under Settings, Appearance: Full, Subtle or Off, and, for a theme with particles, Full, no effects. Off is what reduced motion was: nothing moves, no animations and no particles. Subtle also turns the theme's particles off and keeps the rest quieter. Full, no effects plays every moment at full size with the particles off; a theme whose `ambient.default` is `"off"` (Crate) starts there, so the setting never says Full while the particles are off, and picking Full turns them on.
 
 Each theme says which particles it has in its `theme.json`, as `"ambient": { "particles": "dust" }`, so the setting knows what it controls; `"default": "off"` beside it keeps them off until someone picks Full, as Crate does. The Toil UI choice is kept in this browser only, never in toil's config.
 
@@ -226,6 +226,8 @@ A theme can also have **moments**: a launch splash, its own loading screens, an 
 The splash can't wait for the sprint it's opening, so the browser remembers the sprint each Toil project was in the last time its page loaded here. When Toil UI opens on that Toil project's page while the sprint is still running, the splash knows the sprint's day, how many of its items were done, and the Toil project's name, and a theme can show them: Realm's d20 lands on the sprint's day ("day 7 of 10" is a 7), capped at 20. Opened anywhere else, on sample data, after the sprint has ended, or in a browser that keeps nothing, the splash is as it always is, and the die shows its 20.
 
 A loading screen shows the theme's art, its progress motif, and the real progress in words: what toil is reading and how many of its calls have been answered, or a sync's Toil projects, requests and pages. In a game theme, a line of the theme's own flavour text changes every few seconds under it, while **Themed wording** is on. Waits shorter than 300 ms show nothing at all, so a quick read never flashes a loading screen.
+
+Crate's loading screen is the crate itself (`loaderCarry`, a 96px crate in its hard hat that bobs while the wait lasts), with one small crate (`loaderCarrySmall`, 40px) marching along the track under it as the progress motif. Under Subtle the big crate holds still and only the small one marches; under Off both are still, with the progress text.
 
 An event moment comes from the facts the worklog keeps (**Worklog** in [Toil UI](https://imagile-dev.github.io/toil/docs/ui/)): each sync records what it sees, and a moment plays only for a fact that sync recorded for the first time. A Toil project's first sync plays nothing, since everything in its history would be new, and neither does a fact from before the last good sync. The moment says the plain word ("Done", "Build failed") and, while **Themed wording** is on, the theme's word beside it, as in "Signed off (Done)".
 

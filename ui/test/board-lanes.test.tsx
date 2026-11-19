@@ -105,10 +105,10 @@ describe('the filter bar on the Board', () => {
     const ins = await sample();
     open(`${TEAM}/command-center`);
     await until('[data-filter-bar]');
-    const total = Number(/of (\d+)\./.exec(document.querySelector('[aria-live]')!.textContent!)![1]);
+    const total = Number(/of (\d+)/.exec(document.querySelector('[aria-live]')!.textContent!)![1]);
     await go(`${TEAM}/command-center?release=2.4`);
-    await waitFor(() => expect(Number(/of (\d+)\./.exec(document.querySelector('[aria-live]')!.textContent!)![1])).toBeLessThan(total));
-    expect(Number(/of (\d+)\./.exec(document.querySelector('[aria-live]')!.textContent!)![1])).toBe(ins.narrow([{ dimension: 'release', op: '=', values: ['2.4'] }]).items.length);
+    await waitFor(() => expect(Number(/of (\d+)/.exec(document.querySelector('[aria-live]')!.textContent!)![1])).toBeLessThan(total));
+    expect(Number(/of (\d+)/.exec(document.querySelector('[aria-live]')!.textContent!)![1])).toBe(ins.narrow([{ dimension: 'release', op: '=', values: ['2.4'] }]).items.length);
   });
 });
 

@@ -73,11 +73,16 @@ description."), so whoever reads it needn't read regular expressions. Without `l
 reason quotes the patterns it didn't find. Labels that share a last word ("a Given line", "a
 When line") are said together ("Given, When or Then line").
 
-A pattern may not use a backreference, or repeat a group that holds a quantifier or an
-alternation (`(a+)+`, `(a|ab)*`): those can take exponential time on text a tracker sent. At
-most the first 20,000 characters of a text are read. A standard holds no secret, host,
-connection or `writes`; text shaped like a credential is refused. Its rules' text reaches an
-AI agent's prompt, so a checked-in standard is trusted as far as its repository's review is.
+A pattern may not use a backreference, repeat a group that holds a quantifier or an
+alternation (`(a+)+`, `(a|ab)*`), or put two repeats that can match the same characters
+side by side (`\s*\s*`, `\d+\d+`, `.*.*`). A repeat that may match nothing doesn't keep two
+apart (`\w+\s*\w+` is refused; write `\w+\s+\w+`), and nor does a character an unbounded
+repeat before it also matches (`.*a.*b` is refused; write `[^,]*,.*b`). Each of these can
+take minutes on text a tracker sent, and matching can't be stopped once it starts. At most
+the first 20,000 characters of a text are read. A standard holds no secret, host, connection
+or `writes`; text shaped like a credential is refused. When an AI agent is asked to fix an
+item, the text of a rule from a repository's standard reaches it as data beside the item,
+never as an instruction.
 
 ### The built-in standards
 
@@ -91,7 +96,10 @@ AI agent's prompt, so a checked-in standard is trusted as far as its repository'
 
 Looked up by name in this order, the first found winning: your own folder
 (`~/.toil/standards/<name>.json`), the repository the folder is in (`.toil/standards/<name>.json`),
-then the built-ins. A file can be named instead: on a call, a path ending `.json` inside the
+then the built-ins. Your own folder may replace a built-in; a repository's file with a built-in's
+name (`.toil/standards/gherkin.json`) is set aside for the built-in, with a
+`STANDARD_SHADOWS_BUILTIN` warning, so name a team's version something else (`team-gherkin`).
+A file can be named instead: on a call, a path ending `.json` inside the
 workspace or a standards folder; in a toil project, a path relative to the toil project's file
 (`./rules/team.json`). toil only reads standards; write your own file by hand and check it in.
 

@@ -1061,12 +1061,13 @@ describe('the readiness tools (#307)', () => {
     const r = (await tool(tools('card-payments', ledger), 'readiness_list').run({})) as ReadinessList;
     expect(fixture.calls.at(-1)).toMatchObject({ command: 'projects show', input: { toilProject: 'card-payments' }, ok: true });
     expect(r.rule).toContain('with no model call');
-    expect(r.openByVerdict).toEqual({ ready: 1, thin: 3, blocked: 2 });
+    expect(r.openByVerdict).toEqual({ ready: 0, thin: 3, blocked: 2, unread: 1 });
     // card-payments names ticket rules (#657); with no check to read, they are said to be unread, never passed.
     expect(r.settings).toEqual({ sources: ['jira', 'bitbucket', 'jenkins'], repositories: ['payments-core'], areas: expect.objectContaining({ jira: expect.objectContaining({ acceptanceCriteriaField: 'customfield_10500', minWords: 20 }) }), ticketRules: ['gherkin', 'bug-repro'], ticketRulesRead: 'unread' });
     expect(r.items.map((i) => [i.id, i.verdict])).toEqual([
       ['corp-jira:PAY-100', 'thin'],
-      ['corp-jira:PAY-101', 'ready'],
+      // Every other check passes, but its ticket rules weren't read, so it isn't known to be ready (principle 12).
+      ['corp-jira:PAY-101', 'unread'],
       ['corp-jira:PAY-102', 'blocked'],
       ['corp-jira:PAY-103', 'blocked'],
       ['corp-jira:PAY-104', 'thin'],
@@ -1077,7 +1078,11 @@ describe('the readiness tools (#307)', () => {
     // A Done example a row cites is vouched for too.
     expect([...ledger.ids].some((id) => ['corp-jira:PAY-92', 'corp-jira:PAY-95', 'corp-jira:PAY-98', 'corp-jira:PAY-105'].includes(id))).toBe(true);
     const ready = (await tool(tools('card-payments', new Ledger()), 'readiness_list').run({ verdict: 'ready' })) as ReadinessList;
-    expect(ready.items.map((i) => i.id)).toEqual(['corp-jira:PAY-101']);
+    expect(ready.items.map((i) => i.id)).toEqual([]);
+    const unread = (await tool(tools('card-payments', new Ledger()), 'readiness_list').run({ verdict: 'unread' })) as ReadinessList;
+    expect(unread.items.map((i) => i.id)).toEqual(['corp-jira:PAY-101']);
+    expect(unread.items[0]!.notReadyBecause).toEqual([{ check: 'Ticket rules', state: 'skipped', reason: 'Not read yet.' }]);
+    expect(r.rule).toContain('never treat an unread item as ready');
     const withDone = (await tool(tools('card-payments', new Ledger()), 'readiness_list').run({ includeDone: true, limit: 2 })) as ReadinessList & { more?: string };
     expect(withDone.total).toBe(12);
     expect(withDone.more).toBe('10 more match; narrow with verdict or raise limit (max 200).');

@@ -20,6 +20,7 @@ import { toilProjectHref } from '../format.ts';
 import { history } from '../history.ts';
 import { Coalescer, HHMM, inQuiet, NOTABLE_LABEL, NOTABLES, parseNotify, settles, summaryOf, transitionOf, type NotifySettings, type Transition } from '../notify.ts';
 import { CheckIcon } from './icons.tsx';
+import { Help } from './help.tsx';
 
 const SETTINGS_KEY = 'toil-ui.notify';
 const MINE_KEY = 'toil-ui.notify.mine';
@@ -335,8 +336,9 @@ export function NotifySetting() {
   };
   return (
     <Card as="section" className="panel notify-setting" aria-labelledby="notify-title">
-      <h2 id="notify-title">Notifications</h2>
-      <p className="note">A notice when an agent's state changes, never for a tool call or its progress. Changes within a few seconds become one notice. Saved in this browser only.</p>
+      <h2>
+        <span id="notify-title">Notifications</span> <Help topic="notifications" note="Changes within a few seconds become one notice." />
+      </h2>
       <fieldset className="notify-states">
         <legend>Notify when an agent is</legend>
         {NOTABLES.map((k) => (

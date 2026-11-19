@@ -65,7 +65,7 @@ describe('the Overview notes on what was not checked', () => {
     noCommand(unchecked.textContent!);
     const set = within(unchecked as HTMLElement).getByRole('link', { name: 'Set a work-in-progress limit' });
     expect(set.getAttribute('href')).toBe('#/settings/projects/card-payments/wip');
-    expect(set.className).toMatch(/btn--quiet/);
+    expect(set.className).toMatch(/btn--secondary/);
     expect(region.querySelector('[data-unchecked]')?.textContent ?? '').not.toContain('work-in-progress limit');
     // With no limit the load check did not run, so nothing is said to be partly checked for assignees.
     expect(region.querySelector('[data-partly-checked]')?.textContent ?? '').not.toMatch(/nobody assigned/);

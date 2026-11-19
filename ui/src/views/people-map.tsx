@@ -1,6 +1,6 @@
 /**
  * Mapping an account to a person (#561): the "Map" action on an account the
- * Toil project doesn't map, and "Save to this repository" for the people
+ * Toil project doesn't map, and "Save for the team" for the people
  * once they are right. Both run toil's own commands through the config path
  * (`projects person`, `projects people save`), each behind the same rules as
  * typed by hand; this file decides nothing a command doesn't. It offers a
@@ -186,7 +186,7 @@ export function SaveToRepo() {
       <div className="control-row">
         <span className="control-row__group">
         <button type="button" className="btn" onClick={run} disabled={off !== null || busy} aria-describedby={off ? offId : undefined}>
-          {busy ? 'Saving…' : 'Save to this repository'}
+          {busy ? 'Saving…' : 'Save for the team'}
         </button>
         <InfoTip label="saving the people" tip={SAVE_EXPLAINED} placement="bottom start" triggerProps={{ 'data-save-to-repo-info': '' }}>
           <p>{SAVE_EXPLAINED}</p>

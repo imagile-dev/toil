@@ -79,20 +79,21 @@ describe('the page', () => {
     expect(person(page, 'A. Chen').querySelector('svg.person-glyph')!.getAttribute('data-glyph')).toBe('person');
   });
 
-  it('shows a dash for an empty row, saying none to a screen reader, and one line for a person with nothing', async () => {
+  it('leaves an empty row out, since a dash means not read yet, and one line for a person with nothing (#657)', async () => {
     const page = await open();
     const empty = page.querySelectorAll('.standup-person--empty');
     expect(page.textContent).not.toMatch(/Nothing (done|in progress|blocked)\./);
-    for (const dash of page.querySelectorAll('[data-dash="none"]')) {
-      expect(dash.textContent).toBe('–none');
-      expect(dash.querySelector('[aria-hidden="true"]')!.textContent).toBe('–');
-      // No hover with the raw word: a title of "none" floated a stray tooltip between the write-up and the export (#657).
-      expect(dash.hasAttribute('title')).toBe(false);
-    }
+    // With a sync behind it, nothing is a dash saying "none": an empty row is left out.
+    expect(page.querySelectorAll('[data-dash="none"]')).toHaveLength(0);
     for (const li of empty) expect(li.children).toHaveLength(2);
-    // A person with something still has all five rows, in a fixed order.
-    const busy = [...page.querySelectorAll<HTMLElement>('.standup-person:not(.standup-person--empty)')][0]!;
-    expect([...busy.querySelectorAll('dt')].map((d) => d.textContent)).toEqual(['Done', 'In progress', 'Blocked', 'Next', 'Comments']);
+    // A person with something shows only their rows with something in them, in the fixed order.
+    const order = ['Done', 'In progress', 'Blocked', 'Next', 'Comments'];
+    for (const busy of page.querySelectorAll<HTMLElement>('.standup-person:not(.standup-person--empty)')) {
+      const titles = [...busy.querySelectorAll('dt')].map((d) => d.textContent!);
+      expect(titles.length).toBeGreaterThan(0);
+      expect(titles).toEqual(order.filter((t) => titles.includes(t)));
+      for (const dd of busy.querySelectorAll('dd')) expect(dd.querySelector('.standup-chip, [data-dash="not-read"]')).not.toBeNull();
+    }
   });
 
   it('leads the Comments row with the questions nobody has answered, marked and with how long they have waited', async () => {
@@ -113,8 +114,10 @@ describe('the page', () => {
     expect(patel.dataset.outstanding).toBeUndefined();
     expect(patel.querySelector('[role="img"]')).toBeNull();
     // The excerpt links to the comment, the key to the item here.
-    expect(first.querySelector('a.standup-excerpt')!.getAttribute('href')).toMatch(/\/browse\/SHOP-\d+\?focusedCommentId=\d+$/);
-    expect(first.querySelector('a.standup-key')!.getAttribute('href')).toMatch(/^#\/project\/sample-team\/item\//);
+    // The row is one button to the item, and the comment itself is a link out with the external mark (#657).
+    expect(first.querySelector('a.standup-ext')!.getAttribute('href')).toMatch(/\/browse\/SHOP-\d+\?focusedCommentId=\d+$/);
+    expect(first.querySelector('a.standup-ext')!.getAttribute('target')).toBe('_blank');
+    expect(first.querySelector('a.standup-row-btn')!.getAttribute('href')).toMatch(/^#\/project\/sample-team\/item\//);
     // Comment text is text: nothing in it became an element.
     expect(okafor.querySelector('.standup-excerpt *')).toBeNull();
   });
@@ -251,7 +254,7 @@ describe('write it up and export, one row of buttons below (#657)', () => {
     await waitFor(() => expect(document.querySelector('[data-standup-source]')).toBeTruthy());
     // The folder field waits behind one button, Export as Markdown, which is not an agent run and has no mark.
     expect(document.querySelector('[data-standup-export-section]')).toBeNull();
-    const open = screen.getByRole('button', { name: 'Export as Markdown' });
+    const open = screen.getByRole('button', { name: 'Export as a Markdown file' });
     expect(open.querySelector('.agent-mark')).toBeNull();
     await userEvent.click(open);
     expect(open.getAttribute('aria-expanded')).toBe('true');

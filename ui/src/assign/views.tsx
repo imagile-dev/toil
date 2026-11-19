@@ -17,7 +17,7 @@ import { Card, CardGrid, Cluster, Stack } from '../components/layout.tsx';
 import { useData } from '../data.ts';
 import { boardHref, shortKey, sourceLabel, toilProjectHref } from '../format.ts';
 import { Empty, EmptyLink } from '../components/empty.tsx';
-import { Help } from '../components/help.tsx';
+import { Help, InfoTip } from '../components/help.tsx';
 import { DisclosureBody, SummaryChevron } from '../components/disclosure.tsx';
 import { ADAPTER_LABEL, addUp, usageParts } from '../model-usage.ts';
 import type { PersonEntry } from '../model/people.ts';
@@ -104,7 +104,14 @@ export function AssignmentCard({ a, now }: { a: Assignment; now: string }) {
         )}
         {a.stop && a.state === 'failed' && <p className="assign-stop">{a.stop.message}</p>}
         {a.stale && <StaleNote stale={a.stale} />}
-        {a.renewedBy && <p className="note">Renewed as <a href={assignmentHref(a.toilProject, a.renewedBy)}>a fresh assignment</a>.</p>}
+        {a.renewedBy && (
+          <p className="note">
+            Renewed as a fresh assignment.{' '}
+            <NavButton href={assignmentHref(a.toilProject, a.renewedBy)} kind="quiet" size="sm">
+              Open it
+            </NavButton>
+          </p>
+        )}
         <p>
           <NavButton href={assignmentHref(a.toilProject, a.id)} size="sm">
             Open the assignment<span className="sr-only"> on {a.itemTitle}</span>
@@ -158,7 +165,7 @@ export function AssignForm({ item, list, start, close, onDone }: { item: Pick<Wo
         <ItemLink id={item.id} /> {item.title}
       </p>
       <RadioGroup className="agent-adapters" value={adapter ?? ''} onChange={(v) => setAdapter(v as AssignAdapter)}>
-        <Label>{plain.pw('Adapter', 'Which AI')}</Label>
+        <Label>{plain.pw('Adapter', 'Which AI agent')}</Label>
         {list.adapters.map((a) => (
           <Radio key={a.name} value={a.name} className="agent-choice" isDisabled={a.problem !== null}>
             <strong>{a.label}</strong>
@@ -341,8 +348,16 @@ function FixRuleForm({ item, rules, list, close }: { item: FixItem; rules: reado
         <dd>
           {rules.map((r) => (
             <p key={r.rule}>
+              {/* The rule's own words are its explanation, so they sit in its (i), and the dialog leads with the name and the miss (#657). */}
               <strong>{r.name}</strong>
-              {r.text && <span className="note"> {r.text}</span>}
+              {r.text && (
+                <>
+                  {' '}
+                  <InfoTip label={r.name} tip={r.text} triggerProps={{ 'data-rule-text': r.rule }}>
+                    <p>{r.text}</p>
+                  </InfoTip>
+                </>
+              )}
             </p>
           ))}
         </dd>
@@ -359,7 +374,10 @@ function FixRuleForm({ item, rules, list, close }: { item: FixItem; rules: reado
       {usable.length === 0 ? (
         <div className="agent-notice" data-no-agent="">
           <p>
-            No AI agent is set up on this computer yet. <a href="#/settings/agent">Set up an AI agent</a>
+            No AI agent is set up on this computer yet.{' '}
+            <NavButton href="#/settings/agent" size="sm">
+              Set up an AI agent
+            </NavButton>
           </p>
           {list.adapters.some((a) => a.problem) && (
             <details>
@@ -379,7 +397,7 @@ function FixRuleForm({ item, rules, list, close }: { item: FixItem; rules: reado
         </div>
       ) : usable.length > 1 ? (
         <RadioGroup className="agent-adapters" value={adapter ?? ''} onChange={(v) => setAdapter(v as AssignAdapter)}>
-          <Label>Which AI</Label>
+          <Label>Which AI agent</Label>
           {usable.map((a) => (
             <Radio key={a.name} value={a.name} className="agent-choice">
               <strong>{a.label}</strong>
@@ -645,11 +663,13 @@ export function ItemAssignments({ item }: { item: WorkItem }) {
   if (!api) return null;
   const mine = list?.assignments.filter((a) => a.item === item.id) ?? [];
   return (
-    <Card as="section" className="panel" aria-labelledby="item-agents">
-      <h2 id="item-agents">Agents</h2>
+    <Card as="section" className="panel item-agents" aria-labelledby="item-agents">
+      {/* What an assignment does is an explanation, so it is the heading's (i), not a paragraph beside the button (#657). */}
+      <h2>
+        <span id="item-agents">AI agents</span> <Help topic="assignments" note="Refine, investigate or implement it with Claude, Copilot or Codex. Its proposals wait for you." />
+      </h2>
       <Cluster>
         <AssignButton item={item} />
-        <span className="note">Refine, investigate or implement it with Claude, Copilot or Codex. Its proposals wait for you.</span>
       </Cluster>
       {error && <p className="failure">{error}</p>}
       {mine.length > 0 && (
@@ -680,8 +700,13 @@ export function AgentAssignments({ people }: { people: readonly PersonEntry[] })
   const adapters = [...new Set(list.assignments.flatMap((a) => (a.adapter ? [a.adapter] : [])))].sort();
   return (
     <section className="people-section" aria-labelledby="agent-assignments">
-      <h2 id="agent-assignments">{plain.pw("Agents' assignments", "AI agents' work")}</h2>
-      <p className="note">{plain.pw("What each agent was assigned from Toil UI, as a teammate's plate: its own runs, not the pull requests above.", "What each AI agent was asked to do from Toil UI, as a teammate's plate: its own runs, not the code reviews above.")}</p>
+      {/* What the section is lives in its heading's (i) (#657), not two lines under it. */}
+      <h2>
+        <span id="agent-assignments">{plain.pw("Agents' assignments", "AI agents' work")}</span>{' '}
+        <InfoTip label="AI agents' work" tip={plain.pw("What each agent was assigned from Toil UI, as a teammate's plate: its own runs, not the pull requests above.", "What each AI agent was asked to do from Toil UI, as a teammate's plate: its own runs, not the code reviews above.")}>
+          <p>{plain.pw("What each agent was assigned from Toil UI, as a teammate's plate: its own runs, not the pull requests above.", "What each AI agent was asked to do from Toil UI, as a teammate's plate: its own runs, not the code reviews above.")}</p>
+        </InfoTip>
+      </h2>
       {adapters.length ? (
         <CardGrid min="md" className="people-cards">
           {adapters.map((adapter) => {
@@ -714,7 +739,11 @@ export function AgentAssignments({ people }: { people: readonly PersonEntry[] })
                               <ul className="rows">
                                 {runs.map((a) => (
                                   <li key={a.id}>
-                                    <StateChip a={a} /> {a.stale && <StaleChip />} <a href={assignmentHref(a.toilProject, a.id)}>{modeInfo(a.mode, plain.on).label}</a> <ItemLink id={a.item} /> <span className="note">{runText(a.ranMs ?? runMs(a, now))}</span>
+                                    <StateChip a={a} /> {a.stale && <StaleChip />}{' '}
+                                    <NavButton href={assignmentHref(a.toilProject, a.id)} kind="quiet" size="sm">
+                                      {modeInfo(a.mode, plain.on).label}
+                                    </NavButton>{' '}
+                                    <ItemLink id={a.item} /> <span className="note">{runText(a.ranMs ?? runMs(a, now))}</span>
                                   </li>
                                 ))}
                               </ul>

@@ -128,7 +128,7 @@ describe('controls and headings read the real word alone, in every theme (princi
     ['realm', 'light'],
   ])('names the board and the sprint in %s (%s) with the real words alone', async (theme, scheme) => {
     await open('#/project/card-payments/board', theme, scheme);
-    expect(screen.getByRole('region', { name: /^Sprint 42 board$/ })).toBeTruthy();
+    expect(screen.getByRole('region', { name: /^Sprint board$/ })).toBeTruthy();
     expect(document.querySelector('.sprint-chip')!.textContent).toMatch(/^Sprint 42: day \d+ of \d+$/);
   });
 
@@ -295,7 +295,7 @@ describe('the skins', { timeout: SLOW }, () => {
     expect(notches.length).toBeGreaterThanOrEqual(5);
     for (const n of notches) expect(n.getAttribute('aria-hidden')).toBe('true');
     expect(document.querySelector('.top .sprawl-notch')).toBeTruthy();
-    expect(screen.getByRole('region', { name: /^Sprint 42 board$/ })).toBeTruthy();
+    expect(screen.getByRole('region', { name: /^Sprint board$/ })).toBeTruthy();
   });
 
   it('put HUD corners on Starship panels and the header, out of the accessibility tree', async () => {

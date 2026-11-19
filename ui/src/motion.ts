@@ -191,6 +191,33 @@ export function useThemeMotion(): ThemeMotion {
   return level;
 }
 
+/**
+ * The one Motion setting under Settings (#271, #348, #419), read off the stored switches above so what was chosen
+ * before still reads. Full: animations on, the theme's moments at full size, its particles on. "Full, no effects": the
+ * same with the theme's particles off, which is where a theme that starts with them off (Crate) sits until someone
+ * turns them on, so the setting never says "Full" while its effects are off. Subtle: moments shorter and smaller,
+ * particles off. Off: nothing moves. `particles` is the theme's particle switch, null for a theme with none.
+ */
+export type MotionLevel = 'full' | 'full-no-effects' | 'subtle' | 'off';
+export function motionLevel(reduced: boolean, themeMotion: ThemeMotion, particles: boolean | null): MotionLevel {
+  if (reduced) return 'off';
+  if (themeMotion !== 'full') return 'subtle';
+  return particles === false ? 'full-no-effects' : 'full';
+}
+
+/** The levels the setting offers for a theme: "Full, no effects" only where the theme has effects to leave off. */
+export function motionLevels(hasParticles: boolean): Array<{ id: MotionLevel; label: string }> {
+  return [{ id: 'full', label: 'Full' }, ...(hasParticles ? [{ id: 'full-no-effects' as const, label: 'Full, no effects' }] : []), { id: 'subtle', label: 'Subtle' }, { id: 'off', label: 'Off' }];
+}
+
+/** Sets the stored switches for a level, for `theme` (and its particles, when it has them). */
+export function setMotionLevel(next: MotionLevel, theme: { name: string; hasParticles: boolean }): void {
+  if (next === 'off') return setMotionChoice('reduced');
+  setMotionChoice('full');
+  setThemeMotion(next === 'subtle' ? 'subtle' : 'full');
+  if (theme.hasParticles) setParticlesOn(theme.name, next === 'full');
+}
+
 // Motion that brings what was clicked into focus (principle 11) -------------------------------------------------------
 //
 // The durations are src/motion.css's tokens, in milliseconds for script that has to wait them out. Views move things
@@ -219,20 +246,25 @@ function setName(el: Element | null | undefined, name: string) {
   if (el instanceof HTMLElement || el instanceof SVGElement) el.style.setProperty('view-transition-name', name);
 }
 
-/** Resolves once the address's change has been heard and the page has drawn the new route, or after a short wait if it never is. */
-function routeDrawn(changes: boolean): Promise<void> {
+/**
+ * Resolves once the address's change has been heard and the page has drawn the new route, or after a short wait if it
+ * never is. Inside a view transition's update callback (`inTransition`) Chrome holds requestAnimationFrame back until the
+ * callback settles, so waiting on a frame there waits out the transition's own timeout (about 4 s of a frozen page): it
+ * waits one task instead, which is after React has drawn the route the hashchange asked for. Outside a transition it
+ * waits two frames, so the entrance class lands on the drawn page.
+ */
+function routeDrawn(changes: boolean, inTransition: boolean): Promise<void> {
   return new Promise((resolve) => {
     let done = false;
     const finish = () => {
       if (done) return;
       done = true;
-      window.removeEventListener('hashchange', heard);
-      // Two frames: React draws the route on the task after hashchange, and the frame after that is the one to capture.
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      window.removeEventListener('hashchange', finish);
+      if (inTransition) setTimeout(resolve, 0);
+      else requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     };
-    const heard = () => finish();
     if (!changes) return finish();
-    window.addEventListener('hashchange', heard);
+    window.addEventListener('hashchange', finish);
     setTimeout(finish, MOTION_MS.drill);
   });
 }
@@ -259,7 +291,7 @@ export function navigateWithTransition(href: string, source?: Element | null): v
     const root = document.documentElement;
     clearTimeout(enterTimer);
     delete root.dataset.drill;
-    void routeDrawn(changes).then(() => {
+    void routeDrawn(changes, false).then(() => {
       root.dataset.drill = 'enter';
       enterTimer = setTimeout(() => delete root.dataset.drill, MOTION_MS.drill);
     });
@@ -272,7 +304,7 @@ export function navigateWithTransition(href: string, source?: Element | null): v
   const transition = doc.startViewTransition(async () => {
     setName(source, '');
     go(href);
-    await routeDrawn(changes);
+    await routeDrawn(changes, true);
     target = source ? document.querySelector('[data-drill-target]') : null;
     setName(target, DRILL);
   });

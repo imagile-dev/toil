@@ -88,7 +88,7 @@ export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not
       {line ? (
         <>
           <p className="note">
-            Apply it yourself through toil's write gate: <Help topic="proposal" />
+            Apply it yourself in a terminal: <Help topic="proposal" />
           </p>
           <pre className="command">
             <code>{line}</code>
@@ -225,7 +225,7 @@ export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not
       {line ? (
         <>
           <p className="note">
-            Apply it yourself through toil's write gate: <Help topic="proposal" />
+            Apply it yourself in a terminal: <Help topic="proposal" />
           </p>
           <pre className="command">
             <code>{line}</code>

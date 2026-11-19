@@ -6,8 +6,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureAssignments } from '../src/fixtures/assignments.ts';
+import { fixtureStandards } from '../src/fixtures/standards.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import type { AssignmentsApi } from '../src/assign/model.ts';
+import type { RulesApi } from '../src/rules.ts';
 
 /**
  * Assignments in the views (#293), on the sample's queue: the Agents sidebar
@@ -15,9 +17,9 @@ import type { AssignmentsApi } from '../src/assign/model.ts';
  * and Apply, and each agent's assignments on the People view.
  */
 
-async function open(hash: string, assignments: AssignmentsApi = fixtureAssignments({ delay: 1 })) {
+async function open(hash: string, assignments: AssignmentsApi = fixtureAssignments({ delay: 1 }), rules?: RulesApi) {
   window.location.hash = hash;
-  const view = render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview assignments={assignments} />);
+  const view = render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview assignments={assignments} {...(rules ? { rules } : {})} />);
   await waitFor(() => expect(document.querySelector('h1, [data-tab-panel]')).toBeTruthy(), { timeout: 3000 });
   return view;
 }
@@ -64,7 +66,7 @@ describe('the Agents sidebar', () => {
     fireEvent.contextMenu(screen.getByRole('group', { name: 'PAY-103 Charge a stored token' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Give to an AI agent…' }));
     const dialog = await screen.findByRole('dialog', { name: 'Ask an AI agent' });
-    await within(dialog).findByRole('radiogroup', { name: 'Which AI' });
+    await within(dialog).findByRole('radiogroup', { name: 'Which AI agent' });
     await user.click(within(dialog).getByRole('radio', { name: /Look into/ }));
     await user.click(within(dialog).getByRole('button', { name: 'Ask the AI agent' }));
     await waitFor(() => expect(window.location.hash).toMatch(/^#\/project\/card-payments\/assignment\/sample-new-/));
@@ -120,7 +122,7 @@ describe('the People view', () => {
 describe("the Command Center's start (#307)", () => {
   it('queues an implement assignment for each ready item, and says so', async () => {
     const api = fixtureAssignments({ delay: 1 });
-    await open('#/project/card-payments/command-center', api);
+    await open('#/project/card-payments/command-center', api, fixtureStandards());
     const slate = screen.getByRole('region', { name: /^\d+ ready$/ });
     await userEvent.setup().click(within(slate).getByRole('button', { name: /^Start 1 ready item/ }));
     await within(slate).findByText(/^Queued one implement assignment on Codex\. They run 2 at a time/);

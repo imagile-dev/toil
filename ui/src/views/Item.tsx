@@ -4,9 +4,8 @@
  * listed, not hidden (principle 4). Full disclosure, without the twelve-page form.
  */
 
-import { useState } from 'react';
 import { Avatar, Outcome, PLAIN_INSIGHT_LABEL, SourceTip, StatusChip } from '../components/bits.tsx';
-import { ExternalIcon } from '../components/icons.tsx';
+import { ExternalLink } from '../components/external-link.tsx';
 import { Cited, ItemLink, typeText } from '../components/items.tsx';
 import { ReclassifyChip } from '../components/reclassify.tsx';
 import { ReadinessPanel } from '../components/readiness.tsx';
@@ -49,7 +48,6 @@ export function ItemView({ id }: { id: string }) {
   const term = useTerm();
   const plain = usePlain();
   const { insights: prepared } = useDerived();
-  const [dupsOpen, setDupsOpen] = useState(false);
   const item = byId.get(id);
   if (!item) {
     return (
@@ -106,10 +104,9 @@ export function ItemView({ id }: { id: string }) {
             <>
               {' '}
               {/* A control that leaves the app: a button to the eye, a link underneath, with the external mark (#657). */}
-              <a className="btn btn--secondary btn--sm item-open" href={item.url} target="_blank" rel="noreferrer" data-open-tracker="">
-                Open in {source} <ExternalIcon size={14} />
-                <span className="sr-only"> (opens in a new tab)</span>
-              </a>
+              <ExternalLink className="btn btn--secondary btn--sm item-open" href={item.url} data-open-tracker="">
+                Open in {source}
+              </ExternalLink>
             </>
           )}
         </p>
@@ -146,23 +143,20 @@ export function ItemView({ id }: { id: string }) {
       <Card as="section" className="panel duplicates-panel" aria-labelledby="duplicates">
         {duplicates.length ? (
           // One line until it's asked for: the item is the page's focus, and a list of maybes is a step in (principle 11).
-          <details className="duplicates" data-duplicates="" onToggle={(e) => setDupsOpen(e.currentTarget.open)}>
+          // The chevron alone says it opens (#657): a "· Show" beside it was a second control for the same press.
+          <details className="duplicates" data-duplicates="">
             <summary>
               <SummaryChevron />
               <h2 id="duplicates" className="duplicates__head">
                 {duplicates.length === 1 ? '1 possible duplicate' : `${duplicates.length} possible duplicates`}
               </h2>
-              <span className="duplicates__toggle" aria-hidden="true">
-                {' '}
-                · {dupsOpen ? 'Hide' : 'Show'}
-              </span>
             </summary>
             <ul className="rows">
               {duplicates.map((d) => (
                 <li key={d.id} className="duplicate">
                   <ItemLink id={d.id} withTitle /> <span className="score">· {Math.round(d.score * 100)}% alike</span>
                   <details className="duplicate-why">
-                    <summary>
+                    <summary><SummaryChevron />
                       Why?<span className="sr-only"> {d.title}</span>
                     </summary>
                     <p className="note">{duplicateWhy(d.why, nameOf)}</p>
@@ -190,13 +184,15 @@ export function ItemView({ id }: { id: string }) {
           <dl className="fields">
             <dt>Source</dt>
             <dd>
-              {source}, connection {item.source.connection} <EditLink href={connectionEditHref(item.source.connection)} label={`Edit the ${item.source.connection} connection`} />
+              {/* Plain words (principle 11): the tool, then the name it is set up under in Settings; toil's "connection" stays out of it. */}
+              {source} ({item.source.connection}) <EditLink href={connectionEditHref(item.source.connection)} label={`Edit ${item.source.connection} in Settings`} />
             </dd>
             <dt>Type</dt>
             <dd>{typeText(item, theme)}</dd>
             <dt>Status</dt>
             <dd>
-              {item.status ?? 'None'} ({STATUS_CATEGORY_LABEL[item.statusCategory]})
+              {/* The status once (#657): the tracker's word, with the category it counts as one hover away. */}
+              {item.status ? <span title={`Counted as ${STATUS_CATEGORY_LABEL[item.statusCategory].toLowerCase()}`}>{item.status}</span> : STATUS_CATEGORY_LABEL[item.statusCategory]}
               {item.resolution && `, resolution ${item.resolution}`}
             </dd>
             <dt>Estimate</dt>
@@ -271,7 +267,7 @@ export function ItemView({ id }: { id: string }) {
             <ul className="rows">
               {mine.map((c) => (
                 <li key={c.id}>
-                  {c.url ? <a href={c.url}>{c.title}</a> : c.title} <Outcome of={c} />
+                  {c.url ? <ExternalLink href={c.url}>{c.title}</ExternalLink> : c.title} <Outcome of={c} />
                 </li>
               ))}
             </ul>

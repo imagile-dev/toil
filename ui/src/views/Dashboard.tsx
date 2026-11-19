@@ -36,6 +36,8 @@ import { BlockerGantt } from './Gantt.tsx';
 import { Overview } from './Overview.tsx';
 import { Loader } from '../moments/Moments.tsx';
 import { CheckIcon } from '../components/icons.tsx';
+import { ExternalLink } from '../components/external-link.tsx';
+import { DisclosureBody, SummaryChevron } from '../components/disclosure.tsx';
 
 // The graph library is the biggest piece of the page, so it loads on its own, after the rest.
 const Graph = lazy(() => import('./Graph.tsx').then((m) => ({ default: m.Graph })));
@@ -45,7 +47,7 @@ const short = (id: string) => id.slice(id.lastIndexOf('#'));
 
 function ChangeLink({ change }: { change: ChangeRef }) {
   const text = change.kind === 'pull-request' ? `${short(change.id)} ${change.title}` : change.title;
-  return change.url ? <a href={change.url}>{text}</a> : <span>{text}</span>;
+  return change.url ? <ExternalLink href={change.url}>{text}</ExternalLink> : <span>{text}</span>;
 }
 
 function Items({ ids }: { ids: string[] }) {
@@ -193,7 +195,7 @@ function BoardTab({ person }: { person?: string }) {
 
   return (
     <div className="tab-panels">
-      <Panel id="board" title={term('board', h ? `${h.sprint.name} board` : 'All the work')} calls={toilProject.calls.work} alerts={false}>
+      <Panel id="board" title={term('board', h ? 'Sprint board' : 'All the work')} calls={toilProject.calls.work} alerts={false}>
         {(toilProject.readTargets ?? []).filter((t) => !t.work).map((t) => (
           <p key={t.label} className="note">
             {t.label}: work items not read
@@ -223,6 +225,13 @@ function BoardTab({ person }: { person?: string }) {
         <Board items={cards} group={group} />
       </Panel>
 
+      {/* The board is the page's one focus (#657): delivery per item, and the builds and deployments, are each a press further in. */}
+      <details className="board-more" data-trace-more="">
+        <summary className="btn btn--secondary">
+          <SummaryChevron />
+          {plain.pw('Show pull requests and builds per item', 'Show code reviews and builds per item')}
+        </summary>
+        <DisclosureBody>
       <Panel id="trace" title={plain.text('Stories, pull requests, builds and deployments')} calls={everyCall} alerts={false}>
         <p className="note">{words('trace.note')}</p>
         <Checkbox className="check" isSelected={gapsOnly} onChange={setGapsOnly}>
@@ -233,7 +242,15 @@ function BoardTab({ person }: { person?: string }) {
         </Checkbox>
         <DataTable className="trace" label="Work items and their delivery" wide rows={shown} rowKey={(r) => r.item.id} columns={traceColumns(builds, plain.on)} />
       </Panel>
+        </DisclosureBody>
+      </details>
 
+      <details className="board-more" data-builds-more="">
+        <summary className="btn btn--secondary">
+          <SummaryChevron />
+          Show the builds and deployments
+        </summary>
+        <DisclosureBody>
       <div className="panel-grid">
         <Panel id="builds" title={term('builds', 'Builds')} calls={toilProject.calls.builds}>
           {builds.length ? (
@@ -264,6 +281,8 @@ function BoardTab({ person }: { person?: string }) {
           )}
         </Panel>
       </div>
+        </DisclosureBody>
+      </details>
     </div>
   );
 }
@@ -274,6 +293,7 @@ function DependenciesTab() {
   const words = useWords();
   return (
     <div className="tab-panels">
+      <h2 className="drill-title">What blocks what</h2>
       <Panel id="gantt" title="Blocker timeline" calls={[...toilProject.calls.work, ...toilProject.calls.prs, ...toilProject.calls.builds]} alerts={false} info={<Help topic="blocker-timeline" />}>
         <BlockerGantt />
       </Panel>
@@ -334,7 +354,7 @@ function useSprintProgress(h: Health | null) {
 }
 
 function DeploymentRow({ d }: { d: Deployment }) {
-  const name = d.url ? <a href={d.url}>{d.name}</a> : <span>{d.name}</span>;
+  const name = d.url ? <ExternalLink href={d.url}>{d.name}</ExternalLink> : <span>{d.name}</span>;
   return (
     <li>
       <h3 className="env">{d.environment}</h3>

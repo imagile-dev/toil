@@ -84,6 +84,7 @@ export function passedText(again: readonly RuleAgain[], key: string, after: Pick
   if (!after) return first;
   if (after.verdict === 'ready') return `${first} ${key} is ready to start.`;
   const missing = after.why.map((r) => r.label);
+  if (after.verdict === 'unread') return `${first} ${key} passes the other checks, but its ticket rules haven't been read yet, so it isn't known to be ready to start.`;
   if (after.verdict === 'blocked') return `${first} ${key} is blocked, so it isn't ready to start${missing.length ? `: ${missing.join(', ')}` : ''}.`;
   return `${first} ${key} still needs more detail before it is ready to start${missing.length ? `: ${missing.join(', ')}` : ''}.`;
 }

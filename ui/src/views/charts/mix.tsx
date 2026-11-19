@@ -38,6 +38,7 @@ import { useWords } from '../../theme-context.ts';
 import type { Dashboard, Headline } from './dashboard.ts';
 import { ChartPanel, DashboardHead, Door, useDrill, useFilterFromCell, useSourceLine } from './shared.tsx';
 import { plainDates } from './format.ts';
+import { NavButton } from '../../components/nav-button.tsx';
 
 const TIME = 'time';
 
@@ -121,7 +122,7 @@ export function MixView() {
       </p>
       {lens && (
         <p className="note" data-mix-lens={lens}>
-          Viewing as {schemeLabel(ins.scheme)}. Your team's saved categories haven't changed. <a href={hrefWith((q) => q.delete('lens'))}>Back to saved</a>
+          Viewing as {schemeLabel(ins.scheme)}. Your team's saved categories haven't changed. <NavButton href={hrefWith((q) => q.delete('lens'))} size="sm">Back to saved</NavButton>
         </p>
       )}
       <FilterBar />
@@ -170,9 +171,9 @@ export function MixView() {
                 </li>
               ))}
               <li>
-                <a href={classifyHref(toilProject.name)} data-unsure-link="">
+                <NavButton href={classifyHref(toilProject.name)} kind="quiet" size="sm" data-unsure-link="">
                   {NOT_SORTED}
-                </a>{' '}
+                </NavButton>{' '}
                 <b>{share(decided.unsure)}</b>
               </li>
             </ul>

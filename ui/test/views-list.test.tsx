@@ -187,7 +187,8 @@ describe('a place the sync could not read (#542)', () => {
     await open('#/project/card-payments/prs', { execute: without('card-payments', 'bitbucket pr list') });
     const note = screen.getByText(/^bitbucket:/);
     expect(note.className).toBe('note');
-    expect(within(note).getByRole('link', { name: 'pull requests not read' }).getAttribute('href')).toBe('#queue');
+    expect(note.textContent).toMatch(/code reviews not read$/);
+    expect(note.querySelector('a')).toBeNull();
     cleanup();
     await open('#/project/card-payments/board', { execute: without('card-payments', 'bitbucket pr list') });
     expect(document.body.textContent).not.toContain('bitbucket: pull requests not read');

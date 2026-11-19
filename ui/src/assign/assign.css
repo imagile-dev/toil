@@ -20,14 +20,14 @@
 .assign-card__title { color: var(--ink); }
 .assign-needs { color: var(--ink); font-weight: 600; }
 .assign-stop { color: var(--danger); overflow-wrap: anywhere; }
-.assign-inbox { display: grid; gap: 0.5rem; padding: 0.75rem 1rem; border: 1px solid var(--warn); border-left-width: 4px; border-radius: var(--radius); background: var(--bg); }
+.assign-inbox { display: grid; gap: 0.5rem; padding: 0.75rem 1rem; border: 1px solid var(--edge-warn); border-radius: var(--radius); background: var(--tint-warn); }
 .assign-inbox h3 { margin: 0; }
 .assign-inbox__row span { overflow-wrap: anywhere; }
 .assign-limits summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
 .assign-limits__form { display: grid; gap: 0.75rem; max-width: 24rem; }
 .assign-agent h3 { margin: 0; }
 
-.assign-warn { border-left: 4px solid var(--warn); padding-left: 0.75rem; overflow-wrap: anywhere; }
+.assign-warn { padding: 0.5rem 0.75rem; border: 1px solid var(--edge-warn); border-radius: var(--radius); background: var(--tint-warn); overflow-wrap: anywhere; }
 .assign-diff, .assign-detail { margin: 0; padding: 0.5rem 0.6rem; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); font-family: var(--font-mono); font-size: 0.8125rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .assign-detail { max-height: 16rem; overflow: auto; }
 .assign-before { text-decoration: line-through; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -38,7 +38,7 @@
 .diff-line { display: block; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 1.4em; }
 .diff-line--del { text-decoration: line-through; color: var(--muted); }
 .diff-line--was { color: var(--muted); }
-.diff-line--add { font-weight: 600; box-shadow: inset 3px 0 0 var(--ok); padding-left: 0.4rem; }
+.diff-line--add { font-weight: 600; background: var(--tint-ok); padding-left: 0.4rem; }
 /* Sync and check again, under an applied fix: the press, then each rule on the new reading. */
 .check-again { display: grid; gap: 0.4rem; border-top: 1px solid var(--line); padding-top: 0.5rem; }
 .check-again__rules { margin: 0; }
@@ -71,7 +71,7 @@
 .fix-rule dd p { margin: 0; }
 .fix-rule dd p + p { margin-top: 0.3rem; }
 @media (max-width: 30rem) { .fix-rule { grid-template-columns: 1fr; } .fix-rule dd { margin-bottom: 0.35rem; } }
-.assign-form .agent-notice { display: grid; gap: 0.4rem; padding: 0.6rem 0.75rem; border: 1px solid var(--warn); border-left-width: 4px; border-radius: var(--radius); background: var(--bg); }
+.assign-form .agent-notice { display: grid; gap: 0.4rem; padding: 0.6rem 0.75rem; border: 1px solid var(--edge-warn); border-radius: var(--radius); background: var(--tint-warn); }
 .assign-form .agent-notice p { margin: 0; }
 .assign-form .agent-notice summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
 

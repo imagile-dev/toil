@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { focusQuietly } from '../src/App.tsx';
 import { cardWhy } from '../src/components/summary.tsx';
 import { open, panel, resetBrowserState } from './views-kit.tsx';
+import { fixtureStandards } from '../src/fixtures/standards.ts';
 
 beforeEach(resetBrowserState);
 
@@ -33,14 +34,25 @@ describe("a Summary card's line on why (#657)", () => {
 });
 
 describe('Tickets (#657)', () => {
-  it('puts Open the board on the heading row as a quiet button, and the filter bar with the table it filters', async () => {
-    await open('#/project/card-payments/command-center');
+  it('puts Open the board on the heading row as a secondary button, and the filter bar with the table it filters', async () => {
+    await open('#/project/card-payments/command-center', { rules: fixtureStandards() });
     const board = document.querySelector<HTMLAnchorElement>('[data-open-board]')!;
     expect(board.closest('.view-head__row')).not.toBeNull();
-    expect(board.className).toMatch(/btn--quiet/);
+    // A step in is a framed secondary button in every theme, never bare text (#657).
+    expect(board.className).toMatch(/btn--secondary/);
     const items = panel('Items');
     expect(within(items).getByRole('table')).toBeTruthy();
     expect(items.querySelector('.filter-bar, [data-filter-bar]') ?? within(items).queryByRole('button', { name: /Add filter/ })).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Start 1 ready item' }).textContent).toBe('Start 1');
+    expect((await screen.findByRole('button', { name: 'Start 1 ready item' })).textContent).toBe('Start 1');
+  });
+});
+
+describe('the read badge (#657)', () => {
+  it('is named by what it shows first, then the whole sentence, so the visible words are in its name (WCAG 2.5.3)', async () => {
+    await open('#/project/card-payments', { preview: false });
+    const badge = document.querySelector<HTMLElement>('[data-read-badge]')!;
+    expect(badge.tagName).toBe('BUTTON');
+    expect(badge.getAttribute('aria-label')!.startsWith(badge.textContent!.trim())).toBe(true);
+    expect(badge.getAttribute('aria-label')).toMatch(/Show the Sync panel$/);
   });
 });

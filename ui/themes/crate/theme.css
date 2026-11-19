@@ -193,7 +193,8 @@
 
 /* Amber marks a status chip only, never the edge of a card. */
 [data-theme="crate"] .attention-item--w2 {
-  border-left-color: var(--line);
+  border-color: var(--line);
+  background: var(--raised);
 }
 
 /* Spacing: 40px between sections, 16px between cards in a grid. */
@@ -244,7 +245,6 @@
 }
 
 /* What is chosen is the solid accent: the gradient belongs to the main button. */
-[data-theme="crate"] .top nav a[aria-current="page"],
 [data-theme="crate"] button[aria-pressed="true"],
 [data-theme="crate"] .check[data-selected] .box {
   background: var(--accent);

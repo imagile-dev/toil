@@ -8,8 +8,7 @@
  * queue, finally reviewed.
  */
 
-import { useMemo, useState } from 'react';
-import { Button } from 'react-aria-components';
+import { useMemo } from 'react';
 import { PeekLinks } from '../components/briefing.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
 import { ThroughputSpark } from '../components/charts.tsx';
@@ -22,12 +21,14 @@ import { dateTime, toilProjectEditHref, toilProjectHref, personText } from '../f
 import { Empty, EmptyLink, SyncOr } from '../components/empty.tsx';
 import { Unread } from '../components/unread.tsx';
 import {
-  allFlags, daysText, diffSquares, FAILING_HOURS, KIND_LABEL, KINDS, openQueue, parseCodeowners, PICKUP_DAYS, PR_FLAG_LABEL, PR_FLAG_SHORT, prMetrics, reviewProposal, SIZE_LINES, SIZES, suggestReviewers, WAITING_LABEL,
+  allFlags, daysText, diffSquares, KIND_LABEL, KINDS, openQueue, parseCodeowners, PR_FLAG_LABEL, PR_FLAG_SHORT, prMetrics, reviewProposal, SIZE_LINES, SIZES, suggestReviewers, WAITING_LABEL,
   type KindOrAll, type OpenRow, type PrMetrics, type Sample,
 } from '../model/prs.ts';
 import type { Change } from '../toil.ts';
 import { asMapped, withMappedNames, type PersonEntry } from '../model/people.ts';
 import { usePlain } from '../plain-words.ts';
+import { NavButton } from '../components/nav-button.tsx';
+import { DisclosureBody, SummaryChevron } from '../components/disclosure.tsx';
 import { PullRequestActions, useConnectionInfo, type ConnectionInfo } from '../components/jobs.tsx';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -151,16 +152,16 @@ const queueColumns = (info: ConnectionInfo | null, plain: boolean): Array<Column
   },
 ];
 
+/** A flow cell is the median alone (#657); what it rests on and its 85th percentile are one press in. */
 const fig = (s: Sample, unit: (n: number) => string) => (
-  <>
-    {s.median === null ? 'No data' : unit(s.median)}
-    <span className="field">
-      {' '}
-      (n={s.n}
+  <details className="cell-more cell-more--flow">
+    <summary>{s.median === null ? 'No data' : unit(s.median)}</summary>
+    <p className="field">
+      n={s.n}
       {s.unknown ? `, ${s.unknown} unknown` : ''}
-      {s.p85 !== null && s.n > 1 ? `; 85% within ${unit(s.p85)}` : ''})
-    </span>
-  </>
+      {s.p85 !== null && s.n > 1 ? `; 85% within ${unit(s.p85)}` : ''}
+    </p>
+  </details>
 );
 
 type MetricRow = { name: string; note: string; sample: Record<KindOrAll, Sample>; unit: (n: number) => string };
@@ -187,54 +188,12 @@ const emptySample = (s: Sample) => s.n === 0 && s.unknown === 0;
 /** A list of words joined for a sentence: "a", "a and b", "a, b and c". */
 const listText = (words: string[]) => (words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`);
 
-/** How many flags show before "Show N more": a long list of the same few kinds is a wall, so they are grouped by kind and cut. */
-const FLAGS_SHOWN = 3;
-
-/** The flags, grouped by what they are, the first few shown and the rest one press away. */
-function FlagList({ flags }: { flags: ReturnType<typeof allFlags> }) {
-  const [all, setAll] = useState(false);
-  const kinds = [...new Set(flags.map((f) => f.hit.flag))];
-  const ordered = kinds.flatMap((k) => flags.filter((f) => f.hit.flag === k));
-  const shown = all ? ordered : ordered.slice(0, FLAGS_SHOWN);
-  const hidden = ordered.length - shown.length;
-  return (
-    <>
-      {kinds.map((k) => {
-        const rows = shown.filter((f) => f.hit.flag === k);
-        if (!rows.length) return null;
-        return (
-          <section key={k} className="flag-group" data-flag-group={k}>
-            <h3>
-              {PR_FLAG_LABEL[k]} <span className="count">{ordered.filter((f) => f.hit.flag === k).length}</span>
-            </h3>
-            <ul className="rows">
-              {rows.map(({ change, hit }) => (
-                <li key={`${change.id}:${hit.flag}:${hit.text}`}>
-                  <PrLink change={change} withTitle />
-                  <p className="evidence">
-                    <Cited text={hit.text} />
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
-      {hidden > 0 && (
-        <Button className="btn btn--small" onPress={() => setAll(true)} data-show-more="flags">
-          Show {hidden} more
-        </Button>
-      )}
-    </>
-  );
-}
-
 /**
  * The Flow panel: what qualifies every figure, then the medians, merges per week and sizes. Each part with nothing in it
  * is one line saying so and why (principle 12): nothing read is not the same as a real zero, and an author kind or a
  * step with no pull request behind it is named once rather than drawn as a grid of "No data".
  */
-export function Flow({ m, read }: { m: PrMetrics; read: boolean }) {
+export function Flow({ m, read, plain = true }: { m: PrMetrics; read: boolean; plain?: boolean }) {
   const weeks = m.throughput.ALL.length;
   if (!m.counts.ALL) {
     return (
@@ -285,8 +244,14 @@ export function Flow({ m, read }: { m: PrMetrics; read: boolean }) {
         {merged > 0 ? `${kinds.filter((k) => k !== 'ALL').map((k) => `${KIND_LABEL[k]}: ${m.throughput[k].reduce((n, w) => n + w.items.length, 0)}`).join(', ')}.` : `None merged in ${weeks} weeks.`}
         {m.unplacedMerges > 0 && ` ${m.unplacedMerges} merged ${m.unplacedMerges === 1 ? 'pull request has' : 'pull requests have'} no merge time on record (Bitbucket Cloud keeps none) and ${m.unplacedMerges === 1 ? "isn't" : "aren't"} counted in a week.`}
       </p>
-      <h3>Size of pull requests opened</h3>
+      {/* The sizes fold under Flow (#657): the waiting list already shows each open one's size. */}
       {opened ? (
+        <details className="board-more" data-pr-sizes="">
+          <summary className="btn btn--secondary btn--sm">
+            <SummaryChevron />
+            {plain ? 'Show the sizes of code reviews opened' : 'Show the sizes of pull requests opened'}
+          </summary>
+          <DisclosureBody>
         <DataTable
           className="pr-sizes"
           label="Pull request sizes by author kind"
@@ -297,6 +262,8 @@ export function Flow({ m, read }: { m: PrMetrics; read: boolean }) {
             ...kinds.map((k): Column<(typeof SIZES)[number] | 'unknown'> => ({ header: `${KIND_LABEL[k]} (n=${m.counts[k]})`, label: KIND_LABEL[k], cell: (s) => m.sizes[k][s] })),
           ]}
         />
+          </DisclosureBody>
+        </details>
       ) : (
         <p className="note">None opened in {weeks} weeks.</p>
       )}
@@ -356,24 +323,31 @@ export function PullRequests() {
   const people = toilProject.people ?? [];
   const prs = useMemo(() => (toilProject.pullRequests ?? []).map((c) => withMappedNames(c, people)), [toilProject]);
   const queue = openQueue(prs, byId, now);
-  const flags = allFlags(prs, byId, now);
   const m = prMetrics(prs, now);
   const rules = Object.fromEntries(Object.entries(toilProject.codeowners ?? {}).map(([repo, file]) => [repo, parseCodeowners(file.text)]));
   const unasked = queue.filter((r) => !r.change.reviewers.length);
+  // The open ones' flags are the queue's Flags column (#657); only the merged or closed ones' are listed apart, one press in.
+  const openIds = new Set(queue.map((r) => r.change.id));
+  const closedFlags = allFlags(prs, byId, now).filter((f) => !openIds.has(f.change.id));
   const calls = toilProject.calls.prs;
 
   return (
     <PeekLinks>
       <div className="view-head">
         <p className="eyebrow">
-          <a href={toilProjectHref(toilProject.name)}>{toilProject.name}</a>
+          <NavButton href={toilProjectHref(toilProject.name)} kind="quiet" size="sm" className="eyebrow-btn">
+            {toilProject.name}
+          </NavButton>
         </p>
+        <h2 className="drill-title" title={plain.title('Pull requests')}>
+          {plain.pw('Pull requests', 'Code reviews')}
+        </h2>
         <p className="lede">
           {queue.length} open across {new Set(prs.map((c) => c.repo)).size} {new Set(prs.map((c) => c.repo)).size === 1 ? 'repository' : 'repositories'}, {prs.length - queue.length} merged or closed. Read {dateTime(now)}.
         </p>
         {(toilProject.readTargets ?? []).filter((t) => !t.pullRequests).map((t) => (
           <p key={t.label} className="note">
-            {t.label}: <a href="#queue">pull requests not read</a>
+            {t.label}: {plain.pw('pull requests', 'code reviews')} not read
           </p>
         ))}
         {(toilProject.prNotes ?? []).map((n, i) => (
@@ -385,25 +359,35 @@ export function PullRequests() {
 
       <Panel id="queue" title="Waiting now" calls={calls} info={<Help topic="prs-queue" />}>
         {queue.length ? <DataTable className="pr-queue" label="Open pull requests" wide rows={queue} rowKey={(r) => r.change.id} columns={queueColumns(connections, plain.on)} /> : <Empty message="No open pull requests for this Toil project." action={<SyncOr sync={sync}><EmptyLink edit href={toilProjectEditHref(toilProject.name, 'repos')}>Add a repository</EmptyLink></SyncOr>} />}
-      </Panel>
-
-      <Panel id="flags" title="Flags" calls={calls} alerts={false} info={<Help topic="prs-flags" note={`Too long is over ${PICKUP_DAYS} working days for a first review and over ${FAILING_HOURS} hours for failing checks.`} />}>
-        {flags.length ? <FlagList flags={flags} /> : <p>Nothing to flag.</p>}
+        {closedFlags.length > 0 && (
+          <details className="board-more" data-closed-flags="">
+            <summary className="btn btn--secondary btn--sm">
+              <SummaryChevron />
+              Show {closedFlags.length} {closedFlags.length === 1 ? 'flag' : 'flags'} on merged or closed {plain.pw('pull requests', 'code reviews')}
+            </summary>
+            <DisclosureBody>
+              <ul className="rows">
+                {closedFlags.map(({ change, hit }) => (
+                  <li key={`${change.id}:${hit.flag}`}>
+                    <PrLink change={change} withTitle /> <strong>{PR_FLAG_LABEL[hit.flag]}</strong>
+                    <p className="evidence">
+                      <Cited text={hit.text} />
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </DisclosureBody>
+          </details>
+        )}
       </Panel>
 
       <Panel id="flow" title="Flow" calls={calls} alerts={false} info={<Help topic="prs-flow" />}>
-        <Flow m={m} read={prs.length > 0 || calls.length > 0} />
+        <Flow m={m} read={prs.length > 0 || calls.length > 0} plain={plain.on} />
       </Panel>
 
       <Panel id="reviewers" title="Suggested reviewers" calls={toilProject.calls.owners ?? []} alerts={false} info={<Help topic="prs-reviewers" />}>
-        {(toilProject.calls.owners ?? []).length > 0 && !Object.keys(toilProject.codeowners ?? {}).length && (
-          <p className="evidence">No CODEOWNERS file was found where GitHub looks for one (.github/, the repository root, docs/).</p>
-        )}
-        {Object.entries(toilProject.codeowners ?? {}).map(([repo, file]) => (
-          <p key={repo} className="evidence">
-            {repo}: CODEOWNERS read from <code>{file.path}</code>.
-          </p>
-        ))}
+        {/* Plain words, no file paths (#657): whether the code owners were read is the source; where the file sits is the host's business. */}
+        {(toilProject.calls.owners ?? []).length > 0 && !Object.keys(toilProject.codeowners ?? {}).length && <p className="evidence">No code owners file was found in the repository.</p>}
         {unasked.length ? <Unasked rows={unasked} prs={prs} rules={rules} toilProject={toilProject.name} people={people} /> : <p>Every open pull request has a reviewer asked.</p>}
       </Panel>
     </PeekLinks>

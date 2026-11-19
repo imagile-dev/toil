@@ -55,7 +55,7 @@ describe('failures', () => {
     await open('#/project/card-payments/prs', { execute: fixtureExecute(CANNED.filter(without)).execute });
     expect(screen.getAllByRole('alert').map((a) => a.textContent).join(' ')).toMatch(/Reading Bitbucket failed: The preview has no sample answer .* Add the call to CANNED/);
     window.location.hash = '#/project/card-payments/board';
-    expect((await screen.findByRole('region', { name: 'Sprint 42 board' })).textContent).toContain('PAY-102');
+    expect((await screen.findByRole('region', { name: 'Sprint board' })).textContent).toContain('PAY-102');
   });
 
   it('says the data did not load when projects show fails', async () => {
@@ -83,7 +83,7 @@ describe('an item', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Schedule the export job');
     expect(screen.getByText('Microsoft.VSTS.Scheduling.OriginalEstimate')).toBeTruthy();
     expect(document.body.textContent).not.toContain('toil ado work-item get-many');
-    expect(screen.getByRole('link', { name: 'Schedule the settlement export job' }).getAttribute('href')).toBe('https://ado.imagile.dev/DefaultCollection/Payments/_git/settlement/pullrequest/84');
+    expect(screen.getByRole('link', { name: /^Schedule the settlement export job/ }).getAttribute('href')).toBe('https://ado.imagile.dev/DefaultCollection/Payments/_git/settlement/pullrequest/84');
     expect(screen.getByText(/settlement-deploy 20261008.1/).textContent).toContain('test');
   });
 

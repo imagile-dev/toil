@@ -22,6 +22,7 @@ import { Help } from './help.tsx';
 import { ChevronDownIcon } from './icons.tsx';
 import { AgentMark } from './agent-mark.tsx';
 import { AGENT_SETTINGS_HREF } from '../format.ts';
+import { NavButton } from './nav-button.tsx';
 
 const KEPT: Record<SaveResult['kept'], string> = { 'built-in': 'kept as a built-in scheme', yours: 'kept as your own copy', shared: 'saved in the repository, ready for a pull request', beside: 'saved beside this Toil project' };
 
@@ -132,7 +133,10 @@ export function HowItsDoing({ agents, adapter }: { agents: AgentChoice[]; adapte
             </span>
             {!ready && (
               <p className="note">
-                No AI agent is set up yet. <a href={AGENT_SETTINGS_HREF}>Set one up in Settings, AI agent</a>.
+                No AI agent is set up yet.{' '}
+                <NavButton href={AGENT_SETTINGS_HREF} size="sm">
+                  Set one up in Settings, AI agent
+                </NavButton>
               </p>
             )}
           </div>

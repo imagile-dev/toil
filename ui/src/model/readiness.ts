@@ -26,15 +26,17 @@
  *
  * Then one row for each ticket rule (#657) that applies to the item, from the
  * toil project's `standards.use`, as toil's own `standards check` worked it
- * out (src/core/standards/check.ts). Until that check has been read, the rules
- * are one row, "Ticket rules", that says they weren't read yet; a rule whose
- * text wasn't in the record read is `skipped`, a note that never passes.
+ * out (src/core/standards/check.ts). Until that check has been read, or when
+ * it failed or returned nothing for the item, the rules are one row, "Ticket
+ * rules", saying so; a rule whose text wasn't in the record read is `skipped`.
  *
  * A row is `pass`, `thin` (missing something a person can decide to live
  * with), `fail` (it can't be worked on as it is) or `skipped` (a ticket rule
- * nobody could check, which counts for nothing either way). The verdict is
- * `blocked` when any row fails, `thin` when any is thin, and `ready` only when
- * all the others pass.
+ * nobody could check). The verdict is `blocked` when any row fails, `thin`
+ * when any is thin, `unread` ("Rules not read yet") when nothing fails or is
+ * thin but a ticket rule wasn't checked, and `ready` only when every row
+ * passes. A rule nobody read is unknown, not a pass (principle 12), so an item
+ * is never slated for an agent on rules toil hasn't read.
  * Five boxes, ticked by a function, which is the only kind of committee that
  * has ever finished on time.
  */
@@ -47,7 +49,8 @@ import type { StatusCategory, WorkItem } from '../toil.ts';
 // The body reader is toil's (src/core/standards/text.ts), so a ticket rule and these rows read a description one way.
 export { ADO_ACCEPTANCE_FIELD, acceptanceInBody, realText, textOf, wordCount };
 
-export type Verdict = 'ready' | 'thin' | 'blocked';
+/** `unread`: nothing fails or is thin, but a ticket rule the toil project names wasn't checked on the item, so it isn't known to be ready. */
+export type Verdict = 'ready' | 'thin' | 'blocked' | 'unread';
 export type RowState = 'pass' | 'thin' | 'fail' | 'skipped';
 /** The five fixed checks. */
 export type FixedCheckId = 'acceptance' | 'description' | 'done' | 'blockers' | 'scope';
@@ -62,10 +65,10 @@ export const CHECK_LABEL: Record<FixedCheckId, string> = {
   blockers: 'Blockers',
   scope: 'Scope',
 };
-export const VERDICT_LABEL: Record<Verdict, string> = { ready: 'Ready', thin: 'Thin', blocked: 'Blocked' };
-/** The same three, in plain words (src/plain-words.ts). */
-export const VERDICT_PLAIN: Record<Verdict, string> = { ready: 'Ready', thin: 'Needs more detail', blocked: 'Blocked' };
-export const VERDICTS: readonly Verdict[] = ['ready', 'thin', 'blocked'];
+export const VERDICT_LABEL: Record<Verdict, string> = { ready: 'Ready', thin: 'Thin', blocked: 'Blocked', unread: 'Rules not read yet' };
+/** The same four, in plain words (src/plain-words.ts). */
+export const VERDICT_PLAIN: Record<Verdict, string> = { ready: 'Ready', thin: 'Needs more detail', blocked: 'Blocked', unread: 'Rules not read yet' };
+export const VERDICTS: readonly Verdict[] = ['ready', 'thin', 'blocked', 'unread'];
 
 /** One check's row: its state, and why, with any item it names written as `[[id]]`. */
 export interface Row {
@@ -83,7 +86,7 @@ export interface Readiness {
   id: string;
   verdict: Verdict;
   rows: Row[];
-  /** The rows that aren't `pass`, worst first: why it isn't ready, in one place. */
+  /** The rows that aren't `pass`, worst first (a skipped rule last): why it isn't ready, in one place. */
   why: Row[];
 }
 
@@ -153,9 +156,15 @@ export interface RulesReading {
   byItem: ReadonlyMap<string, readonly RuleResult[]>;
   /** Why the read failed, in toil's words; null otherwise. */
   message: string | null;
+  /**
+   * What toil said about reading the rules that isn't a failure, each in toil's own words (its `meta.warnings`): a
+   * standard set aside or skipped (STANDARDS_SKIPPED, STANDARD_SHADOWS_BUILTIN), a file that couldn't be used
+   * (STANDARD_PATH_INVALID), a key it ignored (STANDARD_UNKNOWN_KEY, STANDARD_DUPLICATE_KEY). Empty when unread or failed.
+   */
+  warnings: readonly string[];
 }
 
-export const RULES_UNREAD: RulesReading = { state: 'unread', byItem: new Map(), message: null };
+export const RULES_UNREAD: RulesReading = { state: 'unread', byItem: new Map(), message: null, warnings: [] };
 
 /** The gate's settings with the ticket rules as last read. */
 export const withRules = (settings: ReadinessSettings, rules: RulesReading | undefined): ReadinessSettings => (rules ? { ...settings, rules } : settings);
@@ -361,18 +370,24 @@ export const RULES_LABEL = 'Ticket rules';
 
 /**
  * The item's ticket-rule rows: one per rule that applies, once read; until
- * then one row saying they weren't read yet, or why the read failed. None
- * when the toil project names no rules and nothing was read.
+ * then one row saying they weren't read yet, or why the read failed. A read
+ * that holds no result for the item (it synced after the check, say) is one
+ * such row too, never "no rule applies". None when the toil project names no
+ * rules and nothing was read.
  */
 function ruleRows(item: WorkItem, settings: ReadinessSettings): Row[] {
   const rules = settings.rules ?? (settings.standards.length > 0 ? RULES_UNREAD : undefined);
   if (!rules) return [];
+  const source = `ticket rules: ${settings.standards.join(', ')}`;
   if (rules.state === 'read') {
-    return (rules.byItem.get(item.id) ?? []).map((r) => ({ check: `rule:${r.standard}/${r.rule}` as const, label: r.name, state: r.state, reason: r.reason, source: `${r.source} (ticket rules: ${r.standard})`, rule: { standard: r.standard, rule: r.rule } }));
+    const results = rules.byItem.get(item.id);
+    if (results) return results.map((r) => ({ check: `rule:${r.standard}/${r.rule}` as const, label: r.name, state: r.state, reason: r.reason, source: `${r.source} (ticket rules: ${r.standard})`, rule: { standard: r.standard, rule: r.rule } }));
+    if (settings.standards.length === 0) return [];
+    return [{ check: 'rules', label: RULES_LABEL, state: 'skipped', reason: "Not read yet: toil's last check of the ticket rules has no result for this item. Sync again to check it.", source }];
   }
   if (settings.standards.length === 0) return [];
   const reason = rules.state === 'failed' ? `Couldn't be checked: ${rules.message ?? 'toil gave no reason.'}` : 'Not read yet.';
-  return [{ check: 'rules', label: RULES_LABEL, state: 'skipped', reason, source: `ticket rules: ${settings.standards.join(', ')}` }];
+  return [{ check: 'rules', label: RULES_LABEL, state: 'skipped', reason, source }];
 }
 
 const ORDER: Record<RowState, number> = { fail: 0, thin: 1, pass: 2, skipped: 3 };
@@ -382,9 +397,9 @@ export function readiness({ item, settings, byId, live }: GateInput): Readiness 
   const area = settings.areas[item.source.area];
   const body = item.body ? textOf(item.body.content, item.body.format) : '';
   const rows = [acceptance(item, area, body), description(item, area, body), doneState(item, byId, live), blockers(item, byId), scope(item, settings), ...ruleRows(item, settings)];
-  const verdict: Verdict = rows.some((r) => r.state === 'fail') ? 'blocked' : rows.some((r) => r.state === 'thin') ? 'thin' : 'ready';
-  // A skipped rule is neither a reason to wait nor a pass: it stays on its row and out of why.
-  const why = rows.filter((r) => r.state === 'thin' || r.state === 'fail').sort((a, b) => ORDER[a.state] - ORDER[b.state]);
+  const verdict: Verdict = rows.some((r) => r.state === 'fail') ? 'blocked' : rows.some((r) => r.state === 'thin') ? 'thin' : rows.some((r) => r.state === 'skipped') ? 'unread' : 'ready';
+  // A skipped rule isn't a miss, but nor is it a pass: it is in why, after the misses, since it is what keeps an item from ready.
+  const why = rows.filter((r) => r.state !== 'pass').sort((a, b) => ORDER[a.state] - ORDER[b.state]);
   return { id: item.id, verdict, rows, why };
 }
 
@@ -410,9 +425,20 @@ export function blockedOpen(items: WorkItem[], settings: ReadinessSettings): num
   return readinessAll(items, settings).filter((r, i) => r.verdict === 'blocked' && items[i]!.statusCategory !== 'DONE').length;
 }
 
+/**
+ * The Blocked figure with whether it is exact (#657, principle 12): a ticket rule can fail an item, which makes it
+ * Blocked, so while any open item's rules are unread (not read yet, failed to read, or no result for it) the count is
+ * only a floor and may grow once they are read. The Tickets tab's badge and the page's figure show it as a floor (or a
+ * dash) while `exact` is false, never as the exact count.
+ */
+export function blockedOpenReading(items: WorkItem[], settings: ReadinessSettings): { count: number; exact: boolean } {
+  const open = readinessAll(items, settings).filter((_, i) => items[i]!.statusCategory !== 'DONE');
+  return { count: open.filter((r) => r.verdict === 'blocked').length, exact: !open.some((r) => r.rows.some((row) => row.check === 'rules')) };
+}
+
 /** How many items have each verdict. */
 export function tally(list: Readiness[]): Record<Verdict, number> {
-  const out: Record<Verdict, number> = { ready: 0, thin: 0, blocked: 0 };
+  const out: Record<Verdict, number> = { ready: 0, thin: 0, blocked: 0, unread: 0 };
   for (const r of list) out[r.verdict]++;
   return out;
 }

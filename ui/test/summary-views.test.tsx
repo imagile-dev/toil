@@ -167,7 +167,7 @@ describe('the stand-up on the Summary', () => {
     const region = await withLog(fixtureWorklog());
     const card = await waitFor(() => {
       const c = region.querySelector('[data-standup-card]') as HTMLElement;
-      expect(c.querySelectorAll('.standup-row').length).toBeGreaterThan(0);
+      expect(c.querySelectorAll('[data-standup-counts]').length).toBeGreaterThan(0);
       return c;
     });
     expect(within(card).getByRole('heading', { name: 'Stand-up' })).toBeTruthy();
@@ -175,6 +175,9 @@ describe('the stand-up on the Summary', () => {
     // A team line, then at most five person rows, each one bucket: no F1 to F5 list, no Show more.
     expect(card.querySelector('[data-standup-team]')!.textContent).toMatch(/^Sprint 42: day \d+ of \d+, \d+ of \d+ done$/);
     expect(card.querySelectorAll('.sum-standup__row').length).toBeLessThanOrEqual(5);
+    // Each person is one line of counts; the items themselves are on the full stand-up (#657).
+    for (const c of card.querySelectorAll('[data-standup-counts]')) expect(c.textContent).toMatch(/^\d+ (done|in progress|blocked|questions? waiting)( · \d+ (done|in progress|blocked|questions? waiting))*$/);
+    expect(card.querySelector('.standup-chip')).toBeNull();
     // A name stays on one line; an account after it is a muted suffix with the whole text on hover, never part of the name.
     for (const n of card.querySelectorAll('.sum-person__name')) expect(n.textContent).not.toContain('(');
     for (const a of card.querySelectorAll('.sum-person__account')) expect(a.closest('.sum-person')!.getAttribute('title')).toContain(a.textContent!);

@@ -25,29 +25,29 @@
 
 import { useMemo, useState } from 'react';
 import { Button } from 'react-aria-components';
-import { Choice } from '../components/choice.tsx';
 import { ItemLink, ItemRow } from '../components/items.tsx';
 import { DisclosureBody, SummaryChevron } from '../components/disclosure.tsx';
-import { Card, CardGrid, Cluster, DataTable, Stack, type Column } from '../components/layout.tsx';
+import { Card, CardGrid, DataTable, Stack, type Column } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
-import { Help } from '../components/help.tsx';
+import { Help, InfoTip } from '../components/help.tsx';
 import { FilterBar } from '../components/filter-bar.tsx';
 import { VerdictChip, WhyNot } from '../components/readiness.tsx';
 import { useData } from '../data.ts';
 import { asMapped } from '../model/people.ts';
-import { toWhere } from '../filters.ts';
+import { NO_FILTERS, toWhere, writeFilters } from '../filters.ts';
 import { useAddress, useWorkInsights } from '../insights-data.ts';
-import { boardHref, dateTime, toilProjectHref, personText, sourceLabel, STATUS_CATEGORY_LABEL } from '../format.ts';
+import { boardHref, dateTime, toilProjectHref, personText, STATUS_CATEGORY_LABEL } from '../format.ts';
 import { NavButton } from '../components/nav-button.tsx';
 import { useFocusArrival } from '../motion.ts';
 import { usePlain } from '../plain-words.ts';
-import { BLOCKED_WHY, readinessAll, tally, VERDICT_LABEL, VERDICT_PLAIN, VERDICTS, withRules, type Readiness, type Row, type Verdict } from '../model/readiness.ts';
+import { BLOCKED_WHY, readinessAll, tally, VERDICT_PLAIN, VERDICTS, withRules, type Readiness, type Row, type Verdict } from '../model/readiness.ts';
 import { lineWhat, matchesRef, missing, ruleLines, ruleName } from '../rules.ts';
 import { Unread } from '../components/unread.tsx';
-import { Empty, EmptyButton } from '../components/empty.tsx';
+import { Empty, EmptyLink } from '../components/empty.tsx';
 import type { Person, WorkItem } from '../toil.ts';
 import { AgentMark } from '../components/agent-mark.tsx';
 
+const NOTHING_READY = 'No open item is ready, so nothing would be slated. The list below says what each one is missing.';
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 interface Line {
@@ -67,20 +67,46 @@ export function planId(items: WorkItem[]): string {
   return h.toString(16).padStart(8, '0');
 }
 
-const STATUS_FILTER = [
-  { id: 'open', label: 'Not done' },
-  { id: 'done', label: 'Done' },
-  { id: 'all', label: 'All' },
-];
+/** An item's status once (#657): the tracker's own word, with the category it falls in one hover away. */
+export function StatusText({ item }: { item: WorkItem }) {
+  const category = STATUS_CATEGORY_LABEL[item.statusCategory];
+  if (!item.status) return <>{category}</>;
+  return item.status.toLowerCase() === category.toLowerCase() ? <>{item.status}</> : <span title={`Counted as ${category.toLowerCase()}`}>{item.status}</span>;
+}
+
+/**
+ * "Why not ready" as one figure a cell (ui/README.md, Tables and rows): how many checks it misses, and how many weren't
+ * read, with the sentences one press in. Nothing is dropped, only folded; the filtered ticket rule's line still leads.
+ */
+function WhyCell({ readiness, ruleRef }: { readiness: Readiness; ruleRef: string | null }) {
+  if (!readiness.why.length) return <span className="note">None</span>;
+  const missed = readiness.why.filter((r) => r.state !== 'skipped').length;
+  const unread = readiness.why.length - missed;
+  const figure = [missed ? count(missed, 'check') + ' missed' : '', unread ? `${count(unread, 'rule')} not read yet` : ''].filter(Boolean).join(', ');
+  return (
+    <details className="cell-more cell-more--block" data-why-cell="">
+      <summary>{figure}</summary>
+      <WhyNot readiness={readiness} {...(ruleRef ? { first: (r: Row) => Boolean(r.rule && matchesRef(ruleRef, r.rule)) } : {})} />
+    </details>
+  );
+}
 
 /** The list's columns; with a ticket rule filtered on, its line leads each item's "Why not ready". */
 const columnsFor = (ruleRef: string | null): Array<Column<Line>> => [
   { header: 'Item', label: 'Item', rowHeader: true, cell: (l) => <ItemLink id={l.item.id} withTitle /> },
   { header: 'Verdict', label: 'Verdict', cell: (l) => <VerdictChip verdict={l.readiness.verdict} /> },
-  { header: 'Why not ready', label: 'Why not ready', cell: (l) => <WhyNot readiness={l.readiness} {...(ruleRef ? { first: (r: Row) => Boolean(r.rule && matchesRef(ruleRef, r.rule)) } : {})} /> },
+  { header: 'Why not ready', label: 'Why not ready', cell: (l) => <WhyCell readiness={l.readiness} ruleRef={ruleRef} /> },
   { header: 'Assignee', label: 'Assignee', cell: (l) => personText(l.assignee) },
-  { header: 'Status', label: 'Status', cell: (l) => `${l.item.status ?? 'None'} (${STATUS_CATEGORY_LABEL[l.item.statusCategory]})` },
+  { header: 'Status', label: 'Status', cell: (l) => <StatusText item={l.item} /> },
 ];
+
+/** What a tile says under its figure. Ready claims every check only for the items that pass every one: one whose rules weren't read is its own tile (principle 12). */
+const TILE_NOTE: Record<Verdict, string> = {
+  ready: 'Every check passes.',
+  thin: 'Missing "done when" criteria, a description or another check a person can waive.',
+  blocked: BLOCKED_WHY,
+  unread: "Nothing fails, but the ticket rules weren't read for these yet.",
+};
 
 export function CommandCenter() {
   const { toilProject, now, startReady, rules } = useData();
@@ -101,30 +127,30 @@ export function CommandCenter() {
     const allowed = where.length === 0 ? null : new Set(ins.narrow(where).items.map((i) => i.id));
     return toilProject.items.flatMap((item, i) => (allowed && !allowed.has(item.id) ? [] : [{ item, readiness: all[i]!, assignee: asMapped(toilProject.people ?? [], item.source.area, item.assignee) }]));
   }, [toilProject, settings, ins, filters]);
-  const [verdict, setVerdict] = useState<'all' | Verdict>('all');
-  const [status, setStatus] = useState('open');
-  const [type, setType] = useState('all');
-  const [assignee, setAssignee] = useState('all');
-  const [source, setSource] = useState('all');
+  // One way to filter (#657): the shared filter bar for every dimension, and the verdict tiles above, each a button that
+  // keeps only its verdict. Both live in the address, so Back undoes either and a copied link opens the same list.
+  const verdictKey = query.get('verdict');
+  const verdict: Verdict | null = verdictKey && (VERDICTS as readonly string[]).includes(verdictKey) ? (verdictKey as Verdict) : null;
+  // Done items stay out unless a status category filter asks for them.
+  const byStatus = filters.where.some((w) => w.dimension === 'statusCategory');
 
   const open = lines.filter((l) => l.item.statusCategory !== 'DONE');
   const totals = tally(open.map((l) => l.readiness));
+  const exact = !open.some((l) => l.readiness.rows.some((row) => row.check === 'rules'));
   const slated = open.filter((l) => l.readiness.verdict === 'ready');
   const plan = { id: planId(slated.map((l) => l.item)), items: slated.map((l) => l.item.id) };
-  const typeOf = (i: WorkItem) => i.typeName ?? i.type;
-  const who = (l: Line) => (l.assignee ? personText(l.assignee) : '');
-  const types = [...new Set(lines.map((l) => typeOf(l.item)))].sort();
-  const people = [...new Set(lines.map(who).filter(Boolean))].sort();
-  const areas = [...new Set(lines.map((l) => l.item.source.area))].sort();
   const shown = lines.filter(
     (l) =>
-      (status === 'all' || (status === 'done') === (l.item.statusCategory === 'DONE')) &&
-      (verdict === 'all' || l.readiness.verdict === verdict) &&
-      (type === 'all' || typeOf(l.item) === type) &&
-      (assignee === 'all' || (assignee === 'none' ? !l.assignee : who(l) === assignee)) &&
-      (source === 'all' || l.item.source.area === source) &&
+      (byStatus || l.item.statusCategory !== 'DONE') &&
+      (!verdict || l.readiness.verdict === verdict) &&
       (!ruleRef || !missingRule || missingRule.has(l.item.id)),
   );
+  const verdictHref = (v: Verdict | null) => hrefWith((q) => (v ? q.set('verdict', v) : q.delete('verdict')));
+  const everything = hrefWith((q) => {
+    q.delete('verdict');
+    q.delete('rule');
+    writeFilters(q, NO_FILTERS);
+  });
   // Opened from a rule's line or the Summary's Ticket rules card, the filter it set is brought into view and ringed (src/motion.ts).
   useFocusArrival(ruleRef ? `rule:${ruleRef}` : null);
   const withRule = (ref: string | null) => hrefWith((q) => (ref ? q.set('rule', ref) : q.delete('rule')));
@@ -138,18 +164,21 @@ export function CommandCenter() {
     <>
       <div className="view-head">
         <p className="eyebrow">
-          <a href={toilProjectHref(toilProject.name)}>{toilProject.name}</a>
+          <NavButton href={toilProjectHref(toilProject.name)} kind="quiet" size="sm" className="eyebrow-btn">
+            {toilProject.name}
+          </NavButton>
         </p>
         <div className="view-head__row">
           <h1 tabIndex={-1} title={plain.title('Command Center')}>
             {plain.pw('Command Center', 'Ready to start?')}
           </h1>
-          <NavButton href={boardHref(toilProject.name)} kind="quiet" size="sm" data-open-board="">
+          <NavButton href={boardHref(toilProject.name)} kind="secondary" size="sm" data-open-board="">
             Open the board
           </NavButton>
         </div>
-        <p className="lede">
-          {plain.on ? `Every item in ${toilProject.name}, marked ready or not and, if not, why, from the records read ${dateTime(now)}.` : <>Every work item in {toilProject.name}, each with its readiness verdict and, where it isn't ready, why, from the records read {dateTime(now)}.</>} <Help topic="readiness" />
+        {/* The lede was an explanation, so it is the heading's (i) (#657); when the records were read stays as the source. */}
+        <p className="note">
+          From the records read {dateTime(now)}. <Help topic="readiness" note={`Every item in ${toilProject.name}, marked ready or not and, if not, why.`} />
         </p>
         {settings.notes.map((n, i) => (
           <p key={i} role="note" className="failure">
@@ -159,15 +188,21 @@ export function CommandCenter() {
       </div>
 
       <CardGrid as="ul" min="sm" className="team-strip readiness-tally" aria-label="Open items by verdict">
-        {VERDICTS.map((v) => (
+        {VERDICTS.filter((v) => v !== 'unread' || totals.unread > 0).map((v) => (
           <li key={v}>
-            <Stack gap="xs" className="team-tile">
-              <h2 className="readiness-tally__head">
-                <VerdictChip verdict={v} />
-              </h2>
-              <p className="team-figure">{totals[v]}</p>
-              <p className="note">{v === 'ready' ? 'Every check passes.' : v === 'thin' ? plain.pw('Missing acceptance criteria, description or another check a person can waive.', 'Missing "done when" criteria, a description or another check a person can waive.') : BLOCKED_WHY}</p>
-            </Stack>
+            {/* Each tile is the verdict filter (#657): pressing it keeps only its items, pressing it again shows them all. */}
+            <a className="team-tile readiness-tile" href={verdictHref(verdict === v ? null : v)} aria-current={verdict === v ? 'true' : undefined} data-press="" data-verdict-tile={v}>
+              <Stack gap="xs">
+                <h2 className="readiness-tally__head">
+                  <VerdictChip verdict={v} />
+                </h2>
+                {/* While some rules aren't read, Blocked is a floor: a rule may yet fail an item (principle 12). */}
+                <p className="team-figure" {...(v === 'blocked' && !exact ? { title: "Ticket rules not read yet for some items, so more may be blocked." } : {})}>
+                  {v === 'blocked' && !exact ? `${totals[v]}+` : totals[v]}
+                </p>
+                <p className="note">{TILE_NOTE[v]}</p>
+              </Stack>
+            </a>
           </li>
         ))}
       </CardGrid>
@@ -177,6 +212,16 @@ export function CommandCenter() {
           <h2 id="ticket-rules">
             Ticket rules <Help topic="ticket-rules" />
           </h2>
+          {/* What toil skipped or ignored reading the rules is said in its own words and always shown (principle 4). */}
+          {(rules?.reading.warnings.length ?? 0) > 0 && (
+            <ul className="plain readiness-rules__warnings" data-rules-warnings="">
+              {rules!.reading.warnings.map((w) => (
+                <li key={w} role="note" className="warning-line">
+                  {w}
+                </li>
+              ))}
+            </ul>
+          )}
           {rules?.reading.state === 'failed' ? (
             <p role="alert" className="failure">
               Couldn't check the ticket rules: {rules.reading.message}
@@ -213,9 +258,17 @@ export function CommandCenter() {
       <Card as="section" className="panel readiness-slate" aria-labelledby="slate">
         {/* One line, the count and its button (#657); the items it would start are one press in, so the card isn't a list. */}
         <div className="readiness-slate__line">
-          <h2 id="slate" title={slated.length ? `Plan ${plan.id}` : undefined}>
-            {slated.length ? `${slated.length} ready` : 'Nothing ready'}
-          </h2>
+          <span className="control-row__group">
+            <h2 id="slate" title={slated.length ? `Plan ${plan.id}` : undefined}>
+              {slated.length ? `${slated.length} ready` : 'Nothing ready'}
+            </h2>
+            {/* Why nothing is slated is an explanation, so it is the heading's (i) (#657); the card keeps the heading and Start. */}
+            {slated.length === 0 && (
+              <InfoTip label="nothing ready" tip={NOTHING_READY} triggerProps={{ 'data-nothing-ready': '' }}>
+                <p>{NOTHING_READY}</p>
+              </InfoTip>
+            )}
+          </span>
           <span className="control-row__group">
           <Button
             className="btn btn--sm"
@@ -256,9 +309,7 @@ export function CommandCenter() {
               </ul>
             </DisclosureBody>
           </details>
-        ) : (
-          <p className="note">No open item is ready, so nothing would be slated. The list below says what each one is missing.</p>
-        )}
+        ) : null}
         {/* What Start does is in its (i) (principle 11, #657); only the state that it can't start stays on screen. */}
         {!startReady && (
           <p id="slate-note" className="note">
@@ -272,46 +323,34 @@ export function CommandCenter() {
 
       <Panel id="cc-items" title="Items" calls={calls}>
         <FilterBar period={false} />
-        <Cluster className="readiness-filters" role="group" aria-label="Filter the items">
-          <Choice label="Verdict" value={verdict} onChange={(v) => setVerdict(v as 'all' | Verdict)} options={[{ id: 'all', label: 'All' }, ...VERDICTS.map((v) => ({ id: v, label: (plain.on ? VERDICT_PLAIN : VERDICT_LABEL)[v] }))]} />
-          <Choice label="Status" value={status} onChange={setStatus} options={STATUS_FILTER} />
-          <Choice label="Type" value={type} onChange={setType} options={[{ id: 'all', label: 'All' }, ...types.map((t) => ({ id: t, label: t }))]} />
-          <Choice label="Assignee" value={assignee} onChange={setAssignee} options={[{ id: 'all', label: 'Anyone' }, { id: 'none', label: 'Unassigned' }, ...people.map((p) => ({ id: p, label: p }))]} />
-          {areas.length > 1 && <Choice label="Source" value={source} onChange={setSource} options={[{ id: 'all', label: 'All' }, ...areas.map((a) => ({ id: a, label: `${sourceLabel(a)} (${a})` }))]} />}
-        </Cluster>
+        {verdict && (
+          <p className="readiness-rule-filter" data-verdict-filter={verdict}>
+            <span>
+              Verdict: <strong>{VERDICT_PLAIN[verdict]}</strong>
+            </span>
+            <NavButton href={verdictHref(null)} size="sm">
+              Clear<span className="sr-only"> the verdict filter</span>
+            </NavButton>
+          </p>
+        )}
         {ruleRef && (
           <p className="readiness-rule-filter" data-rule-filter={ruleRef} data-focus-id={`rule:${ruleRef}`}>
             <span>
               Missing: <strong>{(checked && ruleName(checked, ruleRef)) ?? ruleRef}</strong>
               {checked && !missingRule && <span className="note"> (not one of this Toil project's rules)</span>}
             </span>
-            <a className="btn btn--small" href={withRule(null)}>
+            <NavButton href={withRule(null)} size="sm">
               Clear<span className="sr-only"> the ticket rule filter</span>
-            </a>
+            </NavButton>
           </p>
         )}
         <p className="note" aria-live="polite">
-          Showing {count(shown.length, 'item')} of {lines.length}.
+          Showing {count(shown.length, 'item')} of {lines.length}{byStatus ? '' : ', not done'}.
         </p>
         {shown.length ? (
           <DataTable label="Items and their readiness" caption={`${toilProject.name}'s items and their readiness`} columns={columnsFor(ruleRef)} rows={shown} rowKey={(l) => l.item.id} wide />
         ) : (
-          <Empty
-            message="No item matches these filters."
-            action={
-              <EmptyButton
-                onPress={() => {
-                  setVerdict('all');
-                  setStatus('all');
-                  setType('all');
-                  setAssignee('all');
-                  setSource('all');
-                }}
-              >
-                Show every item
-              </EmptyButton>
-            }
-          />
+          <Empty message="No item matches these filters." action={<EmptyLink href={everything}>Show every item</EmptyLink>} />
         )}
       </Panel>
     </>

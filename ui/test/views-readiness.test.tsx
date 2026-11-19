@@ -8,6 +8,7 @@ import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import type { Execute } from '../src/toil.ts';
 import { item, open, panel, tabs, resetBrowserState } from './views-kit.tsx';
+import { fixtureStandards } from '../src/fixtures/standards.ts';
 
 beforeEach(resetBrowserState);
 
@@ -79,13 +80,16 @@ describe('the readiness gate (#307)', () => {
 
   it('lists every open item with its verdict and why, slates only the ready ones, and keeps the start for #293', async () => {
     const fixture = fixtureExecute();
-    await open('#/project/card-payments/command-center', { execute: fixture.execute });
+    await open('#/project/card-payments/command-center', { execute: fixture.execute, rules: fixtureStandards() });
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Ready to start?');
     // The Command Center is the Tickets tab (#657), and the board a drill-in from it.
     expect(within(tabs('card-payments')).getByRole('link', { name: /^Tickets/ }).getAttribute('aria-current')).toBe('page');
     expect(document.querySelector('[data-open-board]')!.getAttribute('href')).toBe('#/project/card-payments/board');
     const tally = screen.getByRole('list', { name: 'Open items by verdict' });
-    expect([...tally.querySelectorAll('.team-figure')].map((f) => f.textContent)).toEqual(['1', '3', '2']);
+    // Until the ticket rules are read an item that passes the rest is "rules not read yet", never ready (principle 12).
+    await waitFor(() => expect([...tally.querySelectorAll('.team-figure')].map((f) => f.textContent)).toEqual(['1', '3', '2']));
+    // A tile is the verdict filter, and the ready one claims every check only for the items that pass every one.
+    expect(tally.querySelector('[data-verdict-tile="ready"]')!.getAttribute('href')).toContain('verdict=ready');
     // One line, the count and its Start button (#657); the items are one press in.
     const slate = panel('1 ready');
     expect(within(slate).getByRole('list', { name: 'Slated items', hidden: true }).textContent).toContain('PAY-101');
@@ -98,29 +102,45 @@ describe('the readiness gate (#307)', () => {
     const table = screen.getByRole('table');
     expect(within(table).getAllByRole('row')).toHaveLength(7);
     expect(table.textContent).toContain('Blocked by Jira PAY-102 (To Do).');
-    expect(screen.getByText('Showing 6 items of 12.')).toBeTruthy();
+    expect(screen.getByText('Showing 6 items of 12, not done.')).toBeTruthy();
+    // Why not ready is a figure a cell, with the sentences one press in (#657).
+    expect(table.querySelector('[data-why-cell] > summary')!.textContent).toMatch(/^\d+ checks? missed/);
+    // The status once: the tracker's word, its category one hover away, never "In Review (In progress)".
+    expect(table.textContent).not.toMatch(/\((To do|In progress|Done)\)/);
     // No live read, and nothing beyond what the dashboard already loaded.
     expect(fixture.calls.filter((c) => c.command === 'jira issue transitions')).toEqual([]);
   });
 
-  it('filters by verdict, status and assignee', async () => {
-    await open('#/project/card-payments/command-center');
-    const pick = async (label: RegExp, option: string) => {
-      await userEvent.click(screen.getByRole('button', { name: label }));
-      await userEvent.click(screen.getByRole('option', { name: option }));
+  it('filters by verdict from its tile and by status from the filter bar, all in the address (#657)', async () => {
+    await open('#/project/card-payments/command-center', { rules: fixtureStandards() });
+    // One way to filter: no row of selects beside the filter bar.
+    expect(screen.queryByRole('button', { name: /^Verdict/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Assignee/ })).toBeNull();
+    const tile = (v: string) => document.querySelector<HTMLAnchorElement>(`[data-verdict-tile="${v}"]`)!;
+    const go = async (href: string) => {
+      await act(async () => {
+        window.location.hash = href;
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
     };
-    await pick(/Verdict/, 'Blocked');
-    expect(screen.getByText('Showing 2 items of 12.')).toBeTruthy();
-    await pick(/Status/, 'All');
-    expect(screen.getByText('Showing 8 items of 12.')).toBeTruthy();
-    await pick(/Verdict/, 'Ready');
-    await pick(/Assignee/, 'Unassigned');
-    expect(screen.getByText('No item matches these filters.')).toBeTruthy();
+    await go(tile('blocked').getAttribute('href')!);
+    await waitFor(() => expect(screen.getByText('Showing 2 items of 12, not done.')).toBeTruthy());
+    expect(tile('blocked').getAttribute('aria-current')).toBe('true');
+    // Pressed again, the tile takes its filter off.
+    expect(tile('blocked').getAttribute('href')).not.toContain('verdict=');
+    // A status category filter brings done items in.
+    await go(`${tile('blocked').getAttribute('href')!.split('?')[0]}?verdict=ready&statusCategory=DONE,IN_PROGRESS,TODO`);
+    await waitFor(() => expect(screen.getByText(/^Showing \d+ items? of 12\.$/)).toBeTruthy());
+    await go('#/project/card-payments/command-center?verdict=ready&assignee=Unassigned');
+    await waitFor(() => expect(screen.getByText('No item matches these filters.')).toBeTruthy());
+    expect(screen.getByRole('link', { name: 'Show every item' }).getAttribute('href')).toBe('#/project/card-payments/command-center');
   });
 
   it('says plainly when nothing is ready, and starts the plan it showed once #293 provides a start', async () => {
     await open('#/project/settlement/command-center');
-    expect(panel('Nothing ready').textContent).toContain('No open item is ready, so nothing would be slated.');
+    // Why nothing is slated is the heading's (i), not a paragraph (#657).
+    expect(panel('Nothing ready').textContent).not.toContain('No open item is ready');
+    expect(panel('Nothing ready').querySelector('[data-nothing-ready]')).not.toBeNull();
     cleanup();
     const started: Array<{ id: string; items: string[] }> = [];
     window.location.hash = '#/project/checkout-web/command-center';

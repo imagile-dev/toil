@@ -101,11 +101,11 @@ span.read-badge { display: inline-flex; align-items: center; min-height: 32px; }
 .agent-card__top { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
 .btn.agent-card__title { margin-inline: -0.6rem; width: calc(100% + 1.2rem); font-weight: 600; font-size: 0.875rem; }
 .agent-card .stale-note { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
-.agents-group--needs-you .agent-card { border-left: 4px solid var(--warn); }
+.agents-group--needs-you .agent-card { border-color: var(--edge-warn); background: var(--tint-warn); }
 .agents-sidebar .assign-inbox { padding: 0.5rem 0.6rem; }
 .agents-side__analyses { display: grid; gap: 0.35rem; padding-top: 0.6rem; border-top: 1px solid var(--line); }
 .analysis-line { font-size: 0.875rem; overflow-wrap: anywhere; }
-.analysis-line .btn--row { margin-inline: -0.6rem; width: calc(100% + 1.2rem); display: grid; grid-template-columns: minmax(0, 1fr) auto; font-size: 0.875rem; }
+.analysis-line .btn--row { width: 100%; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; font-size: 0.875rem; }
 .analysis-line .btn__text { display: grid; gap: 0.1rem; }
 
 /* The drawer, from the right edge, over a dimmed page. */
@@ -115,7 +115,7 @@ span.read-badge { display: inline-flex; align-items: center; min-height: 32px; }
 .agents-drawer__head { display: flex; justify-content: flex-end; }
 
 /* A card on the board that needs attention (#394): a flag beside its status, and its edge in the warning colour. */
-.card--attention { border-left: 4px solid var(--warn); }
+.card--attention { border-color: var(--edge-warn); background: var(--tint-warn); }
 .card-flag { display: inline-flex; align-items: center; margin-left: auto; color: var(--warn); }
 .card-flag svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
 .card-flag svg path { fill: color-mix(in srgb, currentColor 35%, transparent); }

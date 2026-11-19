@@ -15,6 +15,28 @@ import { BUILTIN_STANDARD_NAMES, builtinStandard } from './builtin.js';
 import { readStandard, standardContent } from './read.js';
 import { STANDARD_NAME, type FoundStandard, type Standard } from './types.js';
 
+/**
+ * A repository's standard that takes a built-in's name (`gherkin`) is set aside
+ * for the built-in, with a warning naming the file: anyone who can open a pull
+ * request could otherwise rewrite what "gherkin" means for everyone who checks
+ * out the repository, under a name they already trust. Your own folder may
+ * replace a built-in, as your config may replace a default; a file named by path
+ * is named on purpose and keeps its own name.
+ */
+function builtinKept(found: ResolvedStandard): ResolvedStandard {
+  if (found.source !== 'repo' || !BUILTIN_STANDARD_NAMES.includes(found.standard.name)) return found;
+  return {
+    standard: builtinStandard(found.standard.name)!,
+    source: 'built-in',
+    warnings: [
+      {
+        code: 'STANDARD_SHADOWS_BUILTIN',
+        message: `${found.file ?? 'A repository standard'} was set aside: "${found.standard.name}" is a built-in standard's name, and a repository's standard can't replace a built-in one, so the built-in ${found.standard.name} is used. Rename the file and its "name" (say, team-${found.standard.name}) and name that in the toil project's standards.`,
+      },
+    ],
+  };
+}
+
 /** The largest standard file toil reads: a standard is a few rules, and every check reads each one it uses. */
 export const MAX_STANDARD_BYTES = 256 * 1024;
 
@@ -61,13 +83,19 @@ export function createStandardCatalog(o: FileCatalogOptions): StandardCatalog {
     },
     o,
   );
-  const asStandard = (f: Found<Standard>): ResolvedStandard => ({ standard: f.value, source: f.source, ...(f.file !== undefined ? { file: f.file } : {}), warnings: f.warnings });
+  const asStandard = (f: Found<Standard>): ResolvedStandard => {
+    const found: ResolvedStandard = { standard: f.value, source: f.source, ...(f.file !== undefined ? { file: f.file } : {}), warnings: f.warnings };
+    return builtinKept(found);
+  };
   return {
     resolve: (ref, cwd) => asStandard(files.byRef(ref, cwd)),
     resolveFromToilProject: (ref, file, cwd) => asStandard(files.fromToilProject(ref, file, cwd)),
     list: (cwd) => {
       const { found, warnings } = files.list(cwd);
-      return { standards: found.map(asStandard), warnings };
+      const standards = found.map(asStandard);
+      // A refused repository file's warning belongs to the listing, as a broken file's does.
+      for (const s of standards) if (s.source === 'built-in' && s.warnings.length > 0) warnings.push(...s.warnings.splice(0));
+      return { standards, warnings };
     },
     places: files.places,
   };

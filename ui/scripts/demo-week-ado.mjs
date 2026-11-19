@@ -6,10 +6,9 @@
 // waiting on review, linked to its bug, and one item ready for an agent. It
 // takes off the seed's dependency links that copy a Jira chain item for item
 // (ADO_DUPLICATE_BLOCKS), so the blocker timeline draws each chain once, and
-// tries a Target Date on the two items whose link stays (ADO_DUE_DAYS); both
-// ends of each removed link get a tag put on and taken off, so Toil UI's sync
-// re-reads them (#664). It
-// also gives each seeded story and bug the text the ticket rules expect of it
+// tries a Target Date on the two items whose link stays (ADO_DUE_DAYS). Toil
+// UI's sync re-reads both ends of a removed link on its own (#664). It also
+// gives each seeded story and bug the text the ticket rules expect of it
 // (demo-week-data.mjs): the story in System.Description, Given/When/Then in
 // Microsoft.VSTS.Common.AcceptanceCriteria, and a bug's steps, expected and
 // actual in Microsoft.VSTS.TCM.ReproSteps, with one bug (RULE_GAPS) left bare.
@@ -32,8 +31,6 @@ const CRITERIA = 'Microsoft.VSTS.Common.AcceptanceCriteria';
 const REPRO = 'Microsoft.VSTS.TCM.ReproSteps';
 const TARGET = 'Microsoft.VSTS.Scheduling.TargetDate';
 const FORWARD = 'System.LinkTypes.Dependency-Forward';
-/** A tag put on and taken straight off again, so an item's change date moves with its fields as they were (#664). */
-const RESYNC_TAG = 'toil-resync';
 
 export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, note }) {
   const work = mkdtempSync(join(tmpdir(), 'demo-week-ado-'));
@@ -136,33 +133,17 @@ export function ado({ toil, say, fail, sprint, ends, project, item, skeleton, no
     // remove the wrong relation.
     const bySeed = (key) => items.find((w) => seeded(w) && tagsOf(w).includes(`seed:${key}`));
     let unlinked = 0;
-    const unlinkedEnds = new Map();
     for (const [from, to] of ADO_DUPLICATE_BLOCKS) {
       const [a, b] = [bySeed(from), bySeed(to)];
       if (!a || !b) continue;
       const read = api('GET', `/${enc}/_apis/wit/workitems/${a.id}?$expand=relations&api-version=7.1`).data;
       const at = (read.relations ?? []).findIndex((r) => r.rel === FORWARD && new RegExp(`/workItems/${b.id}$`, 'i').test(r.url));
-      unlinkedEnds.set(a.id, a).set(b.id, b);
       if (at < 0) continue;
       api('PATCH', `/${enc}/_apis/wit/workitems/${a.id}?api-version=7.1`, [{ op: 'test', path: '/rev', value: read.rev }, { op: 'remove', path: `/relations/${at}` }], { contentType: 'application/json-patch+json' });
       unlinked++;
       say(`  #${a.id} no longer blocks #${b.id}: Jira holds the same chain`);
     }
     if (!unlinked) say('  dependency links: no copy of a Jira chain left');
-    // Until #664 is fixed, Toil UI's incremental sync misses a removed link, because
-    // taking a link off changes no field it reads, so both ends of every link that is
-    // gone get a field change it does: the tag RESYNC_TAG added, then taken off
-    // again, leaving the tags as they were (the seed's compare still matches). It runs
-    // whether the link went this run or an earlier one, since a sync in between
-    // would already have missed it. Only on items carrying the toil-seed mark (bySeed).
-    // Remove this block once #664 is fixed.
-    for (const w of unlinkedEnds.values()) {
-      const tags = tagsOf(w).filter(Boolean);
-      const write = (list) => api('PATCH', `/${enc}/_apis/wit/workitems/${w.id}?api-version=7.1`, [{ op: 'replace', path: '/fields/System.Tags', value: list.join('; ') }], { contentType: 'application/json-patch+json' });
-      write([...tags, RESYNC_TAG]);
-      write(tags);
-    }
-    if (unlinkedEnds.size) say(`  ${unlinkedEnds.size} item(s) either side of a removed link touched, so Toil UI's next sync re-reads them (#664)`);
 
     // The sprint plan: a Target Date on the items whose link stays. Scrum's stories may not have the field, so a refusal is said and the run goes on.
     for (const [key, n] of Object.entries(ADO_DUE_DAYS)) {

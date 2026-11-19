@@ -33,10 +33,10 @@ describe('a line-level diff of Now and Proposed', () => {
 
 describe('Sync and check again, in words', () => {
   const rules = [{ standard: 'gherkin', rule: 'scenarios', name: 'Acceptance criteria as Given/When/Then' }];
-  const reading = (state: 'pass' | 'thin' | 'fail' | 'skipped', reason = 'No Given line.') => ({ state: 'read' as const, message: null, byItem: new Map([['jira:SCRUM-17', [{ standard: 'gherkin', rule: 'scenarios', name: 'Acceptance criteria as Given/When/Then', state, reason, source: 'description' }]]]) });
+  const reading = (state: 'pass' | 'thin' | 'fail' | 'skipped', reason = 'No Given line.') => ({ state: 'read' as const, message: null, warnings: [], byItem: new Map([['jira:SCRUM-17', [{ standard: 'gherkin', rule: 'scenarios', name: 'Acceptance criteria as Given/When/Then', state, reason, source: 'description' }]]]) });
   it('says passes only from a reading that says so, and nothing before a reading', () => {
     expect(rulesAgain(rules, undefined, 'jira:SCRUM-17')).toBeNull();
-    expect(rulesAgain(rules, { state: 'unread', byItem: new Map(), message: null }, 'jira:SCRUM-17')).toBeNull();
+    expect(rulesAgain(rules, { state: 'unread', byItem: new Map(), message: null, warnings: [] }, 'jira:SCRUM-17')).toBeNull();
     expect(againText(rulesAgain(rules, reading('pass'), 'jira:SCRUM-17')![0]!)).toBe('Acceptance criteria as Given/When/Then: now passes');
     expect(againText(rulesAgain(rules, reading('thin'), 'jira:SCRUM-17')![0]!)).toBe('Acceptance criteria as Given/When/Then: still missing: No Given line');
     expect(againText(rulesAgain(rules, reading('skipped', 'Needs an AI agent.'), 'jira:SCRUM-17')![0]!)).toBe('Acceptance criteria as Given/When/Then: not checked: Needs an AI agent');

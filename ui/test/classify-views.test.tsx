@@ -88,7 +88,9 @@ describe('the Classify view', () => {
     expect(choiceButtons(first).map((b) => b.textContent)).toEqual(['Keep the lights on K', 'Feature F', 'Unsure U']);
     expect(document.body.textContent).not.toMatch(/Nothing has settled this one/);
     expect(within(first).queryByRole('button', { name: 'Confirm' })).toBeNull();
-    expect((await whyOf(first)).text).toMatch(/Nothing has settled this one: no label, rule or parent says what it is\./);
+    // Why an unsure row is here is said once, in the header's (i) (#657); the row itself has none.
+    expect(first.querySelector('[data-why]')).toBeNull();
+    expect(document.querySelector('[data-needs-why]')!.getAttribute('aria-label')).toBe('About why these items need an answer');
     // The page names no code and no path.
     expect(document.body.textContent).not.toMatch(/signal:|~\/\.toil|classify correct|TOIL_/);
   });
@@ -204,7 +206,7 @@ describe('the Classify view', () => {
     expect(correct).not.toHaveBeenCalled();
   });
 
-  it('keeps the page quiet: one short lede, a compact legend of the keys, and a row that is an item, one segmented control and one (i)', async () => {
+  it('keeps the page quiet: one short lede, a compact legend of the keys, and a row that is an item and one segmented control, with one (i) in the header', async () => {
     open(`${TEAM}/board/classify`);
     await waitFor(() => expect(rows().length).toBeGreaterThan(5));
     expect(document.querySelector('.lede')!.textContent!.length).toBeLessThan(80);
@@ -212,7 +214,8 @@ describe('the Classify view', () => {
     expect(document.body.textContent).not.toMatch(/Pick a category for each row, then Confirm/);
     const row = rows()[0]!;
     expect(row.querySelectorAll('[data-choice]').length).toBe(3);
-    expect(row.querySelectorAll('[data-why]').length).toBe(1);
+    expect(row.querySelectorAll('[data-why]').length).toBe(0);
+    expect(document.querySelectorAll('[data-needs-why]').length).toBe(1);
     expect(row.querySelectorAll('p').length).toBe(1);
   });
 
@@ -222,8 +225,9 @@ describe('the Classify view', () => {
     const tags = [...document.querySelectorAll<HTMLElement>('[data-tag]')].map((t) => t.textContent!);
     expect(tags.length).toBeGreaterThan(0);
     for (const t of tags) expect(t).toMatch(/^(\d+ follow|(label|field) and rules disagree)( · \d+ follow)?$/);
-    const epic = rows().find((r) => r.querySelector('[data-tag]'))!;
-    expect((await whyOf(epic)).text).toMatch(/under it in this list follows? its answer\./);
+    // A disagreement keeps its own (i), since its reason is that row's alone.
+    const disagree = rows().find((r) => r.dataset.kind === 'disagree');
+    if (disagree) expect((await whyOf(disagree)).text).toMatch(/but .+ says/);
   });
 
   it('shows an empty state that says everything is sorted, with the way on', async () => {
@@ -824,14 +828,13 @@ describe('the Classification editor, quieted', () => {
 });
 
 describe('Settings, General, Board', () => {
-  it('keeps "Saved in this browser only." as the note and leaves the explanation to the (i)', async () => {
+  it('says "Saved in this browser only." once for the page and leaves the explanation to the (i) (#657)', async () => {
     window.location.hash = '#/settings/general';
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview />);
     const box = await screen.findByRole('checkbox', { name: 'Apply board moves when I drop a card' });
-    const note = document.querySelector('.board-moves-setting .note')!;
-    expect(note.textContent).toBe('Saved in this browser only. ');
+    expect(document.querySelector('.board-moves-setting .note')).toBeNull();
     await userEvent.click(box);
-    expect(note.textContent).toBe('Saved in this browser only. ');
+    expect(document.body.textContent!.match(/Saved in this browser only\./g)).toHaveLength(1);
     expect(document.querySelector('.board-moves-setting')!.textContent).not.toMatch(/stays a proposal|command to run yourself/);
     expect(document.querySelector('[data-help="board-moves"]')).toBeTruthy();
   });

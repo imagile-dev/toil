@@ -42,7 +42,7 @@ export function useDrill() {
 export function Door({ drill, children, label }: { drill: Drill; children: ReactNode; label?: string }) {
   const { href } = useDrill();
   return (
-    <a className="door" href={href(drill)} {...(label ? { 'aria-label': label } : {})} data-door="">
+    <a className="door" href={href(drill)} {...(label ? { 'aria-label': label } : {})} data-door="" data-press="">
       {children}
     </a>
   );

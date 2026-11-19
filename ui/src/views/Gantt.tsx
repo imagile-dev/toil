@@ -26,7 +26,7 @@ import { ItemLink } from '../components/items.tsx';
 import { DataTable, Scroller, type Column } from '../components/layout.tsx';
 import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, day, shortKey, sourceLabel } from '../format.ts';
-import { blockedMarks, blockerGantt, type Bar, type Gantt, type Segment } from '../model/gantt.ts';
+import { blockedMarks, blockerGantt, dueEnd, type Bar, type Gantt, type Segment } from '../model/gantt.ts';
 import { VERDICT_LABEL } from '../model/readiness.ts';
 import './gantt.css';
 import { unreadItems } from '../../../src/core/brief/points.ts';
@@ -145,6 +145,13 @@ function Drawing({ g, bars }: { g: Gantt; bars: Bar[] }) {
 
   const lanes = new Map([...new Set(shownArrows.map((a) => a.from))].map((id, i) => [id, i % LANES]));
 
+  // Where the drawing is wider than its box (a phone), it opens with Today in view, not the sprint's first day (#657).
+  useEffect(() => {
+    const box = ref.current?.parentElement;
+    if (!box || box.scrollWidth <= box.clientWidth) return;
+    box.scrollLeft = Math.max(0, nowX - box.clientWidth * 0.7);
+  }, [nowX, ref]);
+
   return (
     <div ref={ref} className="gantt-measure">
       <svg className="gantt" width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={summary} data-gantt="full">
@@ -199,8 +206,9 @@ function Drawing({ g, bars }: { g: Gantt; bars: Bar[] }) {
                 const x1 = x(t(bar.planned.start));
                 return <rect className="gantt-seg gantt-seg--planned" x={x1 + 1} y={top + 1} width={Math.max(3, x(t(bar.planned.end)) - x1 - 2)} height={L.bar - 2} rx={3} />;
               })()}
+              {/* The flag sits at the end of the due day, where a plan after it starts. */}
               {bar.due && !bar.done && t(bar.due) >= start && t(bar.due) <= end && (
-                <path className={`gantt-due${bar.overdue ? ' gantt-due--over' : ''}`} d={`M${x(t(bar.due))},${top + L.bar + 3} V${top - 4} l7,3 l-7,3`} />
+                <path className={`gantt-due${bar.overdue ? ' gantt-due--over' : ''}`} d={`M${x(dueEnd(bar.due))},${top + L.bar + 3} V${top - 4} l7,3 l-7,3`} />
               )}
               {bar.checks.map((s, j) => {
                 const x1 = x(t(s.start));
@@ -330,7 +338,7 @@ function GanttTable({ g, bars }: { g: Gantt; bars: Bar[] }) {
             {day(b.due)}
             {b.overdue && ', passed'}
             <span className="field"> ({dueFrom(byId, b.id)})</span>
-            {b.planned && <div className="field">Planned from {day(b.planned.start)}{b.planned.by ? <> (when <ItemLink id={b.planned.by} /> is due)</> : ' (today)'}, estimated</div>}
+            {b.planned && <div className="field">Planned from {day(b.planned.start)}{b.planned.by ? <> (after <ItemLink id={b.planned.by} /> is due)</> : ' (today)'}, estimated</div>}
           </>
         ) : (
           <span className="note">No due date</span>

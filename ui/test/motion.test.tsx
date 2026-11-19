@@ -266,7 +266,10 @@ describe('Motion, in Settings', () => {
     expect(localStorage.getItem('toil-ui.motion')).toBe('reduced');
     expect(document.documentElement.dataset.motion).toBe('reduced');
     expect(container.ownerDocument.querySelector('.ambient canvas')).toBeNull();
-    expect(screen.getByText(/Nothing moves/)).toBeTruthy();
+    // What the level does is the Motion row's (i) now (#657), not a sentence on the card.
+    expect(screen.getByRole('button', { name: /Motion/ }).textContent).toContain('Off');
+    expect(document.querySelector('.motion-setting')!.textContent).not.toMatch(/Nothing moves/);
+    expect(document.querySelector('.motion-setting [data-help="motion"]')).not.toBeNull();
   });
 
   it('starts from what this browser remembered', () => {

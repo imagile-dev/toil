@@ -24,6 +24,7 @@ import { HELP, helpHref } from '../help.ts';
 import { NOT_SORTED, type WorkInsights } from '../model/work-insights.ts';
 import './items-drawer.css';
 import './help.css';
+import { ExternalMark } from './external-link.tsx';
 
 /** How a verdict was reached, in the words a person would use. */
 export function decidedBy(source: Verdict['source']): string {
@@ -59,7 +60,8 @@ function Tip({ ins, id, verdict }: { ins: WorkInsights; id: string | null; verdi
       <span className="cat-tip__line">{t.definition}</span>
       {t.decided && <span className="cat-tip__line">{t.decided}</span>}
       <a className="cat-tip__more" href={helpHref(HELP['work-mix'])} target="_blank" rel="noopener noreferrer" data-read-more="">
-        Read more<span className="sr-only"> about how the category is worked out (opens in a new tab)</span>
+        Read more<span className="sr-only"> about how the category is worked out</span>
+        <ExternalMark />
       </a>
     </Tooltip>
   );

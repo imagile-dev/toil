@@ -138,8 +138,8 @@ describe('the Summary', () => {
     await open(TEAM);
     const board = await until<HTMLAnchorElement>('[data-open-board]');
     expect(board.getAttribute('href')).toBe(`${TEAM}/board`);
-    // A quiet button in the row under the cards (#657): a step in, not the page's focus.
-    expect(board.className).toMatch(/btn--quiet/);
+    // A secondary button in the row under the cards (#657): a step in, framed in every theme, not the page's focus.
+    expect(board.className).toMatch(/btn--secondary/);
     expect(document.querySelector('.briefing__links')).toBeNull();
     expect(document.querySelector('[data-summary-chart="mix"] [data-open-classify]')!.getAttribute('href')).toBe(`${TEAM}/board/classify`);
   });

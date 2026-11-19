@@ -54,6 +54,7 @@ import { DiagramCard, FoldedCode } from './diagram-card.tsx';
 import { GROUPS, QUESTIONS, type GuidedQuestion } from '../guided-questions.ts';
 import { homeText } from '../home-path.ts';
 import { AgentMark } from './agent-mark.tsx';
+import { NavButton } from './nav-button.tsx';
 
 /** A new chat's id: one per toil project's conversation, so the server can add up the chat (#295). */
 const newChatId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
@@ -646,10 +647,10 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                             {e.answer.analysis && (
                               <>
                                 {' '}
-                                <a href={analysisHref(toilProject.name, e.answer.analysis)} data-analysis-kept="">
-                                  Kept in Analyses
-                                </a>
-                                .
+                                Kept.{' '}
+                                <NavButton href={analysisHref(toilProject.name, e.answer.analysis)} kind="quiet" size="sm" data-analysis-kept="">
+                                  Open in Analyses
+                                </NavButton>
                               </>
                             )}
                           </p>
@@ -799,9 +800,9 @@ function AgentSwitch({ label, list, current, onPick, compact = false }: { label:
                             {o.action && (
                               <>
                                 {' '}
-                                <a href="#/settings/agent" onClick={close}>
+                                <NavButton href="#/settings/agent" size="sm" onClick={close}>
                                   {o.action === 'install' ? `Install ${o.label}` : `Fix ${o.label}`}
-                                </a>
+                                </NavButton>
                               </>
                             )}
                           </p>

@@ -109,7 +109,7 @@ project board, and the OpenShift namespace of each environment. A Toil project's
 repositories are the `github` section's `owner` and `repo` (one value, or one per repo
 name), plus its `repos` remotes on github.com or on the host of a repository the section names, and each is read on its own
 with `owner` and `repo` passed explicitly (`src/github-repos.ts`); a repository that
-couldn't be read gets one muted line where its gap shows: "pull requests not read" on the Pull requests view (linking to the failed call), "work items not read" on the Board tab. The same goes for the other
+couldn't be read gets one muted line where its gap shows: "pull requests not read" on the Code reviews page (linking to the failed call), "work items not read" on the board. The same goes for the other
 areas' per-repo values: a Jira `project`, a Bitbucket `project`, `workspace` or `repo`,
 and an Azure DevOps `collection`, `project` or `repo` given as an object of repo name to
 value are each read once per target (one Jira search per project, work items per Azure
@@ -211,11 +211,11 @@ sync reads the Toil project afresh under its new name.
 
 ## Switching Toil projects
 
-The app's header carries a project picker right after the brand, before the views, on every page and in every theme. Its button names the Toil project you are in (**All Toil projects** on a page that belongs to none); its menu lists **All Toil projects** and each Toil project, with the current one checked. Picking one keeps the tab you are on (Code reviews stays Code reviews), and a page that is not a tab lands on the project's Summary. It is the header's way to the Toil projects page (the header has no "Toil projects" link of its own, only Settings), so it is drawn whenever there is at least one Toil project; with none, the brand goes home. On a phone the same list is the first thing in the header's Menu.
+The app's header carries a project picker right after the brand, before the views, on every page and in every theme. Its button names the Toil project you are in (**All Toil projects** on a page that belongs to none); its menu lists **All Toil projects** and each Toil project, with the current one checked. Picking one keeps the tab you are on: Summary, or any page a step in from it (the board, What blocks what, Code reviews), opens the other project's Summary; Tickets, or an item, its Tickets; and Team its People page. A page that belongs to no tab (an assignment, a job) lands on its Summary. It is the header's way to the Toil projects page (the header has no "Toil projects" link of its own, only Settings), so it is drawn whenever there is at least one Toil project; with none, the brand goes home. On a phone the same list is the first thing in the header's Menu.
 
 ## The Toil project page
 
-A Toil project opens on its **Overview**, the briefing, in a frame all of its pages share:
+A Toil project opens on its **Summary**, the briefing, in a frame all of its pages share:
 
 - **The top row:** its name; a small **Read 07:30 UTC** badge beside it, the whole "Data read … without changing anything" in its tooltip, which brings the Sync panel into view when pressed (the header's line stays for every other page, and for a change applied since the read); the sprint and its day; its description, cut to one
   line with the whole of it in its tooltip, then **6 sources** (a button that opens each tool and its connection) and one **More** menu (on a phone, a **Details** button beside the name opens them). **More** holds **See its architecture** (`#/project/<name>/summary/diagram`, or **Draw its architecture**, the job at `#/project/<name>/job/diagram`, until a diagram is kept; the job's steps that need a folder on disk, `util size`, `git log`, `deps scan`, are reported unchecked) and **Edit <name>**. Then the Ask bar, which shows what a chat is about and how many questions it holds only while it has focus or an answer is being written, with the
@@ -274,8 +274,8 @@ further in, and each step one you choose (#494). The tab's top is the answer (#5
   its drawer (or its page, as Customize says), stories that can't start open **What blocks what**, the waiting code review opens **Code reviews**, and stories not ready open **Tickets**. After them a **Ticket rules** card, when the team's rules are missed, names the rule missed most and opens Tickets filtered to it, with **Fix with AI agent** for the first item. Who worked the answer out is a **Rules, no AI** badge on the headline, or a line naming the AI agent and when. Under the cards is one row of quiet buttons: **Set a work-in-progress limit** beside "Load not checked. No work-in-progress limit is set." when the Toil project has none (said as not set, never as nobody over it), and **Open the board**; there is no Go to row. **Needs attention** and **Where the work goes** are sentence-case headings.
 - **Outside the fold, too:** one compact line for each red reason no card already tells (it opens the reason in the fold), and two lines for what could not be read: "Couldn't check" for a check that did not run (but a missing work-in-progress limit, which is its own row above), and "Partly checked" for one that ran but could not test some items.
 - **Show the full briefing**, a secondary button, closed until you open it, and remembered in this
-  browser: everything below, with Customize. The source and sprint line, any problem
-  with the briefing, and **Go to** stay in view outside it.
+  browser: everything below, with Customize. The source and sprint line and any problem
+  with the briefing stay in view outside it.
 
 1. **The recommendation:** the one thing to do first, as a sentence. The sprint and
    its day, and who wrote the briefing, stay under the answer, outside the fold: the latest Analyze, when it is
@@ -296,7 +296,6 @@ further in, and each step one you choose (#494). The tab's top is the answer (#5
    they were read (#652): a sprint figure with none read is a dash, one with some
    read says how many items it leaves out, and a burn-up with none read is an empty
    panel whose action is **Name the points field**.
-5. **Go to:** every other view, as well as its tab.
 
 A row, or any item link on the briefing, opens the item's **drawer** at the page's
 own address plus `?item=<id>`: beside the view at 1200px and wider, over it below
@@ -331,10 +330,12 @@ or on its own page, and **Run Analyze after each sync**, off unless you turn it 
 since each run uses your agent's usage. It runs once for each sync that finishes
 while the page is open, never for the one already there when it opened.
 
-### The Dependencies tab
+### What blocks what
 
-The Dependencies tab opens on the **blocker timeline**, a Gantt chart of every item that
-blocks another or is blocked, on the current sprint's dates, then the dependency graph. Under the drawing one short line
+**What blocks what** (`#/project/<name>/dependencies`) is a page a step in, not a tab: the Summary's
+stories-that-can't-start card opens it, and so do the command palette and its own address. It opens on the
+**blocker timeline**, a Gantt chart of every item that blocks another or is blocked, on the current sprint's dates,
+then the dependency graph. Under the drawing one short line
 gives the sprint's dates and says that blocked time is estimated (it stays on the page, because it qualifies every bar);
 how each part is estimated, and which way the graph's arrows run, are in an (i) beside each panel's heading.
 
@@ -348,6 +349,23 @@ how each part is estimated, and which way the graph's arrows run, are in an (i) 
   sentence above the chart, draws each one; until it is opened only the chart shows.
   Blocked time is a calm grey hatch, in a light red only on the critical chain;
   lateness is the due-date flag's, filled once the date passes, the one strong mark.
+- **The plan, from due dates.** Open work with a due date also carries a lighter, outlined
+  stretch: its plan, from when it can start to the end of its due date. It can start when
+  the last open item it waits on is due (the end of that item's due date), else today; the
+  start is estimated and says so, the due date is read from the tracker. An item with no
+  due date has no plan, never a plan of no length. A due date lasts its whole day, so an
+  item due today isn't late; one still open after its due date has passed is **overdue**:
+  its flag is filled, it has no plan left to draw, and its table row says the date passed.
+- **Rows come in groups**, one per set of items the blocks links join, the critical
+  chain's group first, then the groups still holding work up, then the larger; within a
+  group blockers sit above what they block, then the sooner due. The chart opens on the
+  chains still holding work up (the critical chain's group and any live chain of three or
+  more), and one button under it, **Show all N items** or **Show only the chains**,
+  switches between that and every row; when it would hide only one or two rows, every row
+  shows and there is no button.
+- **The window** spans the sprint when there is one; without one it runs from the first
+  thing drawn to a little past today, stretching for the plans up to a fortnight past
+  today and no further.
 - **Arrows join each blocker to what waits on it**, pointing at the item that waits.
   A dashed arrow is a wait that is over: the blocker is done. A dotted line marks today.
 - **The critical chain** is the chain of open blockers holding the most points (the
@@ -372,10 +390,11 @@ how each part is estimated, and which way the graph's arrows run, are in an (i) 
 
 ### The board
 
-The Board tab flags each card that needs attention, with a flag beside its status and
-an edge in the warning colour: anything that needs action now or a look (Insights,
-below), but not what is only worth knowing. **Needs attention only** narrows the board
-to those cards, and the tab carries how many there are. Drag a card to another column,
+The sprint board (`#/project/<name>/board`) is a page a step in, not a tab: **Open the board** on the Summary
+and on Tickets opens it, as do the command palette and its address, since the tracker shows its board already.
+It flags each card that needs attention, with a flag beside its status: anything that needs action now or a look
+(Insights, below), but not what is only worth knowing. **Needs attention only (N)** narrows the board to those
+cards and says how many there are. Drag a card to another column,
 or press M on it for its menu, to move it (a card that can't be moved can't be dragged, and shows the reason: an area with no status command). What a drop does is under **Board moves**, below. Under the board are its
 stories with their pull requests, builds and deployments, then the builds and
 deployments themselves.
@@ -465,7 +484,7 @@ side by side. Unsplit, each chart is what it always was. Each segment opens the 
 same split to Explore. A split by team is in name order, never sorted by speed.
 ### The architecture diagram
 
-`#/project/<name>/summary/diagram`, and `/<view>` for one of its views, draws the Toil project's architecture as a C4 diagram. It is a page one step in from the Summary, not a tab: the breadcrumb at its top (Summary › Architecture) leads back, and the Summary's **Go to** row, the Architecture link in the top row and the command palette's **Architecture diagram of <Toil project>** lead in. It reads the diagram live from toil (`toil projects diagram show`, the file `~/.toil/diagrams/<name>.json`; the cache never holds one) and draws it with toil's own layout as SVG, with no drawing library. The views are one switch, each with its own address.
+`#/project/<name>/summary/diagram`, and `/<view>` for one of its views, draws the Toil project's architecture as a C4 diagram. It is a page one step in from the Summary, not a tab: the breadcrumb at its top (Summary › Architecture) leads back, and the top row's **More**, **See its architecture**, and the command palette's **Architecture diagram of <Toil project>** lead in. It reads the diagram live from toil (`toil projects diagram show`, the file `~/.toil/diagrams/<name>.json`; the cache never holds one) and draws it with toil's own layout as SVG, with no drawing library. The views are one switch, each with its own address.
 
 How sure the diagram is stays on the screen: an inferred box has a dashed outline and an inferred arrow is dotted, a legend counts what is observed and inferred (and not said, when anything is), with its explanation in an (i), and a line under the picture says when it was saved and its revision; where it is kept (the file, with Copy) and what was left out on purpose are one step in. The picture does not repeat the page's heading, fits the width it has (up to one and a half times its size, centred, and scrolling inside its own region on a narrow screen), and when toil's own layout check finds an arrow behind a box or a label over one, a line says so. What a box or an arrow was read from (or why it is believed) is one press in: boxes and arrows take the keyboard (Enter or Space), and the detail opens beside the picture, or below it on a narrow screen, as plain text, since a diagram holds no address. **List** says the same in text for a screen reader. A view past 100 boxes or 250 arrows (toil's own drawing limits) is not drawn, and the page says so. With no diagram the page offers **Draw its architecture**; a toil too old to have the command is told to update.
 
@@ -505,6 +524,12 @@ drawn as a button. Three kinds, in `src/views.css` after `.btn`:
 - **Secondary** (`.btn--secondary`): the raised fill with a 1px line border, for a step in such as **Show all 32**, **Show the full briefing**, or **Open in Jira**, a link that leaves the app drawn as a button with the external mark.
 - **Quiet** (`.btn--quiet`): no frame or fill until hovered, in ink, for a row (`row`, full width with a chevron), a disclosure, **Back to Summary** or **Open the board**.
 
+**Links are only direct links** (principle 11, 2026-11-19): a link goes straight to one thing, a work item in its tracker,
+a pull request, a doc page, never to a step within the app, which is a button. A link that leaves the app opens in a new
+tab and carries the external-link icon, so where it goes is plain before it is pressed. And colour fills a whole surface or
+isn't there: a card, row or callout never carries a single-side stroke of colour (a left edge in the warning colour, say);
+its state is a chip, a flag or a filled surface.
+
 A control that starts an AI agent run leads with the theme's **agent mark** (`AgentMark`, `src/components/agent-mark.tsx`; `ui/docs/themes.md`, Visuals, wording and voice), the same mark on every such control: Ask, Write it up, Fix with AI agent, Assign to agent, Get a briefing, a job's Run, Renew, Start and the AI agents button. What it does and what it reads go in its (i), never in an expander or a paragraph beside it, and while no agent is set up the control stays on screen, disabled, with one line to Settings, AI agent.
 
 Buttons are 44px tall; `.btn--sm` is 32px to the eye inside a card or a row and keeps a 44px hit area. A row that mixes buttons, a menu with its label and an (i) is `.control-row` (`src/views.css`): one vertical centre, one left edge, and every button and menu in it 32px to the eye; `.control-row__group` keeps a control and its (i) together when the row wraps. A row of text with a button in it (a ticket rule and its Fix with AI agent) aligns on the text's baseline. A Summary card is one
@@ -539,8 +564,8 @@ A label with its control is one row, and rows stacked in a card line up (the Set
 
 ## Pull requests
 
-Each Toil project has a **Pull requests** tab (`#/project/<name>/prs`), built from OWI 0.2
-changes:
+Each Toil project has a **Code reviews** page (`#/project/<name>/prs`), a step in from the Summary's waiting-review card
+and the command palette, built from OWI 0.2 changes:
 
 - **Waiting now:** the open pull requests, longest wait first, each with what it
   waits on (review, changes, checks, merge, or a draft its author holds), since when
@@ -572,7 +597,7 @@ repository's `owner/repo#41`). A code host's section may set author kinds by han
 
 ## People
 
-Each Toil project has a **People** tab (`#/project/<name>/people`), built
+Each Toil project has a **People** page (`#/project/<name>/people`), the first of the Team tab's pages, built
 from the same OWI work items and changes as the dashboard and the pull requests view,
 and from the Toil project's `people` section, which says who each person is in every
 system (`toil projects person`, or **Settings, Toil projects**):
@@ -587,7 +612,7 @@ system (`toil projects person`, or **Settings, Toil projects**):
   are one muted line at the foot of the card naming them after a dash (`– Blocked · Reviews waiting`),
   read aloud as "none", or "not read yet" for a part no sync read (a failed read, or no pull
   requests read at all), shown apart from the others. The accounts behind a name are in the (i)
-  beside it. **On the board** opens their items on the Board tab, filtered to them.
+  beside it. **On the board** opens their items on the board, filtered to them.
   The page's first line is the counts and the read time; what work in progress counts is in the tab's (i).
 - **A team strip:** work in progress against the Toil project's `wipLimit` and who is over
   it, the review queue, and the current sprint's unassigned items: the count, with the items behind **Show the N items**
@@ -682,7 +707,7 @@ Pick a measure, a split, an across and filters; the chart's form follows the dat
 
 ## Sort work into categories
 
-The Board's third view, beside **Board** and **Ready to start?** (`#/project/<name>/board/classify`). It lists the items that need
+A page a step in from the Summary's Work mix (`#/project/<name>/board/classify`), and in the command palette, with **Back to Summary** at its top. It lists the items that need
 a person: the **unsure** ones, and the ones where a rule or a signal and a label or field already on the item disagree. Each item is one line: its source, key and
 title (cut short, whole on hover), the choices as one segmented control ("Keep the lights on", "Feature", "Unsure"), and a quiet (i) with
 the reason it is here ("Its parent SHOP-12 is Feature"). The reason is never printed on every row; a short tag shows only where it says
@@ -764,15 +789,16 @@ that names none uses `Microsoft.VSTS.Common.AcceptanceCriteria`.
   how alike it is ("Azure DevOps 153 Charge a stored token · 100% alike"). **Why?** opens the
   shared words, how alike the titles are, the shared labels, parent and link, in plain words;
   the sandboxes' seed marks (`toil-seed`, `seed:…`) are never given as a reason.
-- **The Command Center** (`#/project/<name>/command-center`, the Board tab's Readiness view) lists every
+- **The Command Center** (`#/project/<name>/command-center`, the Tickets tab) lists every
   work item with its verdict and, for each one that isn't ready, the rows that say why.
   It filters by verdict, status, type, assignee and source, and makes no live read.
   It is strict: only ready items are slated, in the Toil project's order, under a plan id
   that changes when anything in the plan does (on hover over the "16 ready" line, not in it). The slate is one line,
   "16 ready" and **Start 16**, with the items one press in; **Open the board** is a quiet button on the heading row, and
   the filter bar sits in the Items panel with the table it filters, whose items are rows.
-- **Starting the plan comes with assign-to-agent (#293).** Until then the start button
-  is disabled and says so; the plan it would start is shown above it.
+- **Start N** (with the agent mark, since it starts AI agents; what it does is in its (i)) assigns each
+  slated item to an agent (Assigning work to an agent, below). It is disabled where there are no
+  assignments to make: nothing is ready, or this Toil UI can't assign (the site preview).
 - **The agent** gets `readiness_list` and `readiness_get` and a starter, "Which items
   are ready for an agent?" (The agent, below).
 
@@ -848,15 +874,27 @@ they are called ticket rules.
   reproduce, expected result or actual result", counting open items: each rule's own `missing`
   phrase, joined with "or" and a repeated "no" folded, or "missing" and the rule's name where
   the rule gives none. Each is a
-  link that filters the list to the items that miss it, or any rule of the standard
+  button that filters the list to the items that miss it, or any rule of the standard
   (`?rule=gherkin/scenarios`, `?rule=bug-repro`), with that rule's line first in each item's
-  "Why not ready" and **Clear** to take the filter off.
+  "Why not ready" and **Clear** to take the filter off. What toil said about reading the rules
+  without failing (a standard skipped, a repository file set aside for a built-in of the same name,
+  a file it couldn't use, a key it ignored or found twice) is on the card in toil's own words.
+- **Rules not read yet** is a verdict of its own (principle 12): an item that passes every other
+  check while the Toil project names ticket rules toil hasn't read on it (the check hasn't come
+  back, failed, has no result for the item, or skipped a rule it couldn't read) is neither Ready
+  nor slated for an agent, and the Ticket rules row says why. While any open item's rules are
+  unread, the Blocked figure and the Tickets tab's badge are only a floor, since a rule could
+  still block an item, and are never shown as the exact count.
 - **The server** runs the check in-process over each Toil project's synced items
-  (`api/standards?toilProject=`), keeps the answer until the next sync, and gives the
-  agent's readiness tools the same rows.
+  (`api/standards?toilProject=`), keeps the answer until the next sync or a change to the
+  rules the Toil project names, and gives the agent's readiness tools the same rows. A sync
+  that found no items is checked as a real zero; only a Toil project that never synced is
+  not read yet. When an AI agent is asked to fix an item, each rule it is held to reaches it
+  fenced as data, beside the item, never among its instructions, since a rule may come from a
+  file checked into a repository.
 ## Worklog
 
-Each Toil project has a **Worklog** tab (`#/project/<name>/worklog`):
+Each Toil project has a **What happened** page (`#/project/<name>/worklog`), the Team tab's third page:
 one page a day, folded by code from what the cache holds, facts only. No model writes
 a line of it. A calendar shows the days that have a page, with how many lines each
 has; a day opens as `#/project/<name>/worklog/<yyyy-mm-dd>`. Days and times are UTC,
@@ -926,7 +964,7 @@ Toil UI posts nothing. With sample data, notes and export are off, and the page 
 **Stand-up since the last working day** leads the Summary too: a compact **Stand-up** card right under the
 headline answer and what needs attention shows the same report for the default range ("Yesterday" or "Since
 Friday"), a team line, the few rows that matter most (unanswered questions, then blocked, done, in progress, one row per person however many of those are theirs, so nobody is listed twice) and **Open the full stand-up**. With no sync behind it the card
-shows `–` and "Not read yet" with **Sync now**, never "nothing happened". The Summary's **Go to** row and the
+shows `–` and "Not read yet" with **Sync now**, never "nothing happened". The Stand-up card's **Open the full stand-up**, Team's segmented control and the
 command palette (**Open the stand-up**) open it as well. The page (`#/project/<name>/standup`) reshapes the worklog for a meeting: since the last
 working day through today (Friday through Monday on a Monday), or any range of up to 31
 days you pick (`#/project/<name>/standup/<from>/<to>`, or `/<day>` for one), and each day's page has a
@@ -1035,8 +1073,8 @@ views follow.
 
 Every empty panel offers the one action that fills it, under one short line, with any
 explanation in its (i): **Link a pipeline** and **Add an environment** (pencils to
-Toil project setup at the Toil project's sources) on the Board tab's builds and deployments, **Add
-a repository** for pull requests, **Add a person** on the People tab, **Analyze now**
+Toil project setup at the Toil project's sources) on the board's builds and deployments, **Add
+a repository** for code reviews, **Add a person** on the People page, **Analyze now**
 for an empty list of earlier briefings, **Show every item** for a Command Center filter that hides
 everything, and **Sync now** in the local app wherever only a newer read of the tracker
 fills the panel (the sprint, the burn-up, links between items). The site preview can't
@@ -1061,8 +1099,8 @@ screen it's **Search and commands** in the header's Menu. Type to narrow it down
 use the arrow keys to move, **Enter** to open and **Escape** to close. It's hidden
 until you call it up.
 
-- **Jump** to a Toil project, any of a Toil project's tabs (Overview, Board, Dependencies,
-  Pull requests, People, Stand-up, Worklog), a chart or the earlier briefings (typed by name), a saved analysis, a settings page, or a
+- **Jump** to a Toil project, its tabs (Summary, Tickets, Team) and the pages a step in (the board, What blocks
+  what, Code reviews, People, Stand-up, What happened), a chart or the earlier briefings (typed by name), a saved analysis, a settings page, or a
   theme.
 - **Run** Sync now (where Toil UI keeps a cache), and on a Toil project's page Ask (it
   focuses the Ask bar), Analyze, **Review a pull request**, **Ship: answer a review** and **Diagram <Toil project>** (each opens its job's page) and **Architecture diagram of <Toil project>** (the saved picture), **Open the Agents panel** (**Open the AI agents panel** in plain words), the agent that answers this chat, and Assign the
@@ -1448,7 +1486,7 @@ you apply it.
 - **States**: `queued` (waiting for a free slot, or for a person to press Start),
   `working`, `needs you` (proposals or questions to review, or an item the agent
   thought was trying to instruct it), `done` and `failed`. The **Agents** sidebar beside
-  every Toil project tab shows each assignment's state, mode, adapter, run time and what it
+  every Toil project page shows each assignment's state, mode, adapter, run time and what it
   used, and the People view shows each agent's assignments as one folded line per kind of work ("Tidy up · 8"), each opening to its runs.
 - **From the Command Center**, **Start N** on the "N ready" line assigns each slated item in
   implement mode, in order, on Codex (or the adapter chosen in Settings, when it can
@@ -1577,7 +1615,7 @@ it goes, wording on and the agent voice off by default (#552, #561):
 Every theme has a light and a dark scheme. **Light or dark**, in Settings, Appearance or the
 command palette, picks one; System, the default, follows your operating system.
 
-**Motion**, one select under Settings, Appearance, is Full, Subtle or Off: Off is what reduced motion was, and Subtle also turns the theme's particles off. The operating system's reduced-motion setting stops everything.
+**Motion**, one select under Settings, Appearance, is Full, Subtle or Off, plus Full, no effects for a theme with particles: Off is what reduced motion was, Subtle also turns the theme's particles off, and Full, no effects keeps the moments at full size without them (where Crate, whose particles start off, begins). The operating system's reduced-motion setting stops everything.
 
 Crate, Harvest, Starship, Realm, Sprawl, Frontier and Overworld also have **theme moments**: a launch splash while the first read
 runs, their own loading screens with the real progress and a rotating line of their own,
@@ -1766,7 +1804,7 @@ npm run verify:ui -- --no-build --starter standup
 - **Real data:** the home `dev-real.mjs` sets up, made fresh at
   `.scratch/verify/home`, on `imagile-dev/toil-sandbox` with the token from `gh auth
   token` in Toil UI's environment only. It syncs the `sandbox` Toil project and runs the
-  same check over the home page, the Toil project and its Board and Dependencies tabs, its worklog and stand-up, one of its items and the settings pages,
+  same check over the home page, the Toil project and its board and What blocks what, its worklog and stand-up, one of its items and the settings pages,
   except that its header may fold into the Menu at 1440px, since a real Toil project's name
   and links can genuinely fill the row, and its Usage page's failed-command lines are
   opened on the sample only, since real data may have none.
@@ -1779,7 +1817,7 @@ npm run verify:ui -- --no-build --starter standup
   (#395): that Analyze was kept with its briefing (a recommendation, and its first
   three reasons as the history's issues); then it changes the Toil project's WIP limit in the scratch home (`toil projects
   wip-limit --replace`), asks Analyze again, checks the history lists both, newest
-  first, the second compared with the first, and puts the Overview, the earlier briefings
+  first, the second compared with the first, and puts the Summary, the earlier briefings
   and the second analysis opened through the layout check, shot. It needs the Codex CLI signed in and the
   SDK installed in the clone (above). `--adapter copilot` or `--adapter claude` asks that
   adapter instead, held to the same checks (Codex is the reference; its MCP check is

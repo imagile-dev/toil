@@ -13,6 +13,7 @@ import { history as store, isUnread, unread, type HistoryStore } from '../histor
 import { dateTime } from '../format.ts';
 import { Help } from './help.tsx';
 import './news.css';
+import { NavButton } from './nav-button.tsx';
 
 /** Settings, General, where which notices are kept is chosen. */
 export const NOTIFY_SETTINGS_HREF = '#/settings/general';
@@ -64,9 +65,9 @@ export function Bell({ history = store }: { history?: HistoryStore }) {
           ) : (
             <p className="bell-empty">
               Nothing yet.{' '}
-              <a href={NOTIFY_SETTINGS_HREF} onClick={() => setOpen(false)} data-empty-action="">
+              <NavButton href={NOTIFY_SETTINGS_HREF} size="sm" onClick={() => setOpen(false)} data-empty-action="">
                 Choose what notifies
-              </a>
+              </NavButton>
             </p>
           )}
         </Dialog>

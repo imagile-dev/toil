@@ -17,6 +17,7 @@ import './analysis.css';
 import type { ThemeManifest } from '../themes.ts';
 import type { Change, WorkItem } from '../toil.ts';
 import { cellCite, type ViewContext } from '../view-context.ts';
+import { ExternalLink } from './external-link.tsx';
 
 /**
  * Where an item link goes: its own page, unless a view says otherwise. The
@@ -102,9 +103,9 @@ export function PrLink({ change, withTitle = false }: { change: Change; withTitl
     </>
   );
   return change.url ? (
-    <a href={change.url} className="item-link">
+    <ExternalLink href={change.url} className="item-link">
       {label}
-    </a>
+    </ExternalLink>
   ) : (
     <span className="item-link">{label}</span>
   );

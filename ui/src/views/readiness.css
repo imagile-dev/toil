@@ -7,8 +7,9 @@
 .verdict--ready { color: var(--ok); }
 .verdict--thin { color: var(--warn); }
 .verdict--blocked { color: var(--danger); }
+.verdict--unread { color: var(--muted); }
 
-.readiness-verdict { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem 0.6rem; margin: 0.25rem 0 0.75rem; }
+.readiness-verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; margin: 0.25rem 0 0.75rem; }
 .readiness-rows { display: grid; gap: 0.4rem; }
 .readiness-row { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr); gap: 0.4rem; align-items: baseline; overflow-wrap: anywhere; }
 .readiness-mark { font-weight: 700; text-align: center; }
@@ -29,7 +30,7 @@
 /* Ticket rules (#657): a group of their own under the five rows, set in behind a rule line so they never read as more of
    the five; one block a standard; a dash for a rule nobody could check; each row's source one press in; and Fix with AI
    agent at the row's end (under the text on a phone), or one Fix all on a standard with several misses. */
-.readiness-rules-group { margin: 1.25rem 0 0.25rem; padding-left: 0.9rem; border-left: 3px solid var(--line); }
+.readiness-rules-group { margin: 1.25rem 0 0.25rem; padding-top: 0.75rem; border-top: 1px solid var(--line); }
 .readiness-subhead { display: flex; align-items: center; gap: 0.35rem; margin: 0 0 0.5rem; font-size: 1rem; }
 .readiness-standard + .readiness-standard { margin-top: 0.9rem; }
 .readiness-standard__fix { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 0.75rem; margin: 0 0 0.4rem; }
@@ -50,7 +51,7 @@
 .readiness-rules { margin: 0 0 1.5rem; }
 .readiness-rules ul { list-style: none; padding: 0; margin: 0.4rem 0 0; display: grid; gap: 0.3rem; overflow-wrap: anywhere; }
 .readiness-rule-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; margin: 0 0 0.5rem; }
-.readiness-rules__lines .btn--row { margin-inline: -0.6rem; width: calc(100% + 1.2rem); font-weight: 400; }
+.readiness-rules__lines .btn--row { width: 100%; min-width: 0; font-weight: 400; overflow-wrap: anywhere; }
 .readiness-rules__lines .btn--row[aria-current="true"] { background: var(--raised); }
 .readiness-board { margin: 0 0 0.75rem; }
 /* A quiet button, so .btn would centre it: it starts on the rows' own left edge instead (#657). */
@@ -62,3 +63,17 @@
 .readiness-slate__items { margin-top: 0.5rem; }
 .readiness-slate__items > summary { min-height: 44px; margin-inline-start: -0.6rem; padding-inline: 0.6rem; border-radius: var(--radius); }
 .readiness-slate .note { margin: 0.5rem 0 0; max-width: 60ch; }
+
+/* The verdict tiles (#657): one height in a row, whatever their notes run to, and each a press that filters the list to its verdict. */
+.team-strip.readiness-tally { align-items: stretch; }
+.readiness-tally > li { display: grid; }
+.readiness-tile { display: block; height: 100%; color: inherit; text-decoration: none; cursor: pointer; }
+.readiness-tile:hover { border-color: var(--ink); }
+.readiness-tile[aria-current="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--tint-accent); }
+.readiness-tile:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* "Why not ready" as a figure with its sentences one press in: the reasons open under the figure, at the cell's width. */
+.cell-more.cell-more--block { display: block; margin: 0; }
+.cell-more--block > .why-not { margin-top: 0.35rem; }
+/* Toil's warnings from reading the rules: a quiet warn tint over the whole line, never a stroke down one side. */
+.readiness-rules__warnings { display: grid; gap: 0.35rem; margin: 0 0 0.5rem; }
+.readiness-rules__warnings > li { padding: 0.35rem 0.6rem; border: 1px solid var(--edge-warn); border-radius: var(--radius); background: var(--tint-warn); overflow-wrap: anywhere; }

@@ -9,6 +9,24 @@
    word looks the same whatever the theme; only its colour follows the theme. */
 :root { --font-brand: 'Fredoka', ui-rounded, 'Arial Rounded MT Bold', system-ui, sans-serif; }
 
+/* Colour fills a whole surface or isn't there (principle 11, the maintainer's call,
+   2026-11-19, #657): a callout that carries a tone is a quiet tint of it over the
+   raised fill with a full border a step stronger than the line, never a stroke down
+   one side. Every theme gets these from its own tokens, so none has to restate them.
+   The tint stays light enough that ink on it keeps the contrast ink has on raised. */
+:root {
+  --tint-warn: color-mix(in srgb, var(--warn) 9%, var(--raised));
+  --tint-danger: color-mix(in srgb, var(--danger) 8%, var(--raised));
+  --tint-ok: color-mix(in srgb, var(--ok) 8%, var(--raised));
+  --tint-accent: color-mix(in srgb, var(--accent) 8%, var(--raised));
+  --tint-info: color-mix(in srgb, var(--link) 7%, var(--raised));
+  --edge-warn: color-mix(in srgb, var(--warn) 45%, var(--line));
+  --edge-danger: color-mix(in srgb, var(--danger) 45%, var(--line));
+  --edge-ok: color-mix(in srgb, var(--ok) 40%, var(--line));
+  --edge-accent: color-mix(in srgb, var(--accent) 45%, var(--line));
+  --edge-info: color-mix(in srgb, var(--link) 35%, var(--line));
+}
+
 *, *::before, *::after { box-sizing: border-box; }
 * { margin: 0; }
 
@@ -68,7 +86,7 @@ h1:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
 /* Notices of agent state changes (#306), under the header and in its flow: nothing fixed over the page. */
 .notices { display: grid; gap: 0.5rem; padding: 0 16px; }
 .notices:not(:empty) { padding-block: 0.5rem; }
-.notice { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 1rem; padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-inline-start: 4px solid var(--warn); border-radius: 6px; background: var(--raised); color: var(--ink); overflow-wrap: anywhere; }
+.notice { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 1rem; padding: 0.5rem 0.75rem; border: 1px solid var(--edge-warn); border-radius: 6px; background: var(--tint-warn); color: var(--ink); overflow-wrap: anywhere; }
 .notice__title { margin: 0; }
 .notice__lines { flex: 1 1 16rem; min-width: 0; margin: 0; padding-inline-start: 1.1rem; }
 .notify-states { display: grid; gap: 0.25rem; margin: 0 0 0.5rem; padding: 0; border: 0; }
@@ -163,9 +181,12 @@ h1:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
   text-decoration: none;
 }
 .top nav a:hover, .nav-menu nav a:hover { background: var(--surface); }
+/* The page you are on is marked, never a filled primary (#657): a header link is navigation, and the accent fill is
+   kept for the one action a screen leads with. */
 .top nav a[aria-current="page"], .nav-menu nav a[aria-current="page"] {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--surface);
+  box-shadow: inset 0 -3px 0 var(--accent);
+  color: var(--ink);
   font-weight: 600;
 }
 .settings { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-left: auto; }

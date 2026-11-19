@@ -82,6 +82,7 @@ import type { Proposal } from '../proposal.ts';
 import { ariaKeys, matches } from '../shortcuts.ts';
 import { useSkins, useWords } from '../skins.tsx';
 import type { StatusCategory, WorkItem } from '../toil.ts';
+import { ExternalLink } from '../components/external-link.tsx';
 
 const label = (c: StatusCategory) => STATUS_CATEGORY_LABEL[c];
 
@@ -837,9 +838,9 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
                             Add to the board and move
                           </Button>
                           {m.board?.url && (
-                            <a className="btn btn--quiet" href={m.board.url} target="_blank" rel="noreferrer">
-                              Open the project board<span className="sr-only"> on GitHub (opens in a new tab)</span>
-                            </a>
+                            <ExternalLink className="btn btn--secondary" href={m.board.url}>
+                              Open the project board<span className="sr-only"> on GitHub</span>
+                            </ExternalLink>
                           )}
                         </>
                       ),
@@ -855,9 +856,9 @@ export function Board({ items, group = null }: { items: WorkItem[]; group?: stri
                     : m.board?.url
                       ? {
                           actions: (
-                            <a className="btn" href={m.board.url} target="_blank" rel="noreferrer">
-                              Open the project board<span className="sr-only"> on GitHub (opens in a new tab)</span>
-                            </a>
+                            <ExternalLink className="btn btn--secondary" href={m.board.url}>
+                              Open the project board<span className="sr-only"> on GitHub</span>
+                            </ExternalLink>
                           ),
                         }
                       : {})}
