@@ -119,6 +119,15 @@ describe('section: bug-repro', () => {
   });
 });
 
+describe('the text a pattern reads', () => {
+  it('is capped at BODY_SCAN_LIMIT after several places are joined, so a pattern never runs over more', () => {
+    const team = own({ name: 'team', rules: [{ id: 'mark', name: 'Has the mark', text: 'Add the mark.', check: { kind: 'pattern', in: ['title', 'description'], match: ['needle'] } }] });
+    const long = md(`${'x'.repeat(BODY_SCAN_LIMIT - 10)}\n${'y'.repeat(100)} needle`);
+    const out = resultOf([item('A', { title: 'title', body: long })], [team]);
+    expect(out.items[0]!.results[0]!.state).not.toBe('pass');
+  });
+});
+
 describe('field, words and judge', () => {
   const team = own({
     name: 'team',

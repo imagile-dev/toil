@@ -148,16 +148,28 @@ describe('patternProblem', () => {
     expect(patternProblem('(?:[]|)(a+)+b')).toContain('exponential time');
   });
 
-  it('keeps every pattern it accepts fast on 20,000 characters, the most a rule reads', () => {
-    const texts = [' '.repeat(20_000), 'a'.repeat(20_000), '1'.repeat(20_000), `${'a '.repeat(10_000)}`];
+  it('keeps every pattern it accepts at most quadratic, timed at 5,000 and 10,000 characters', () => {
+    // A wall-clock bound fails on a busy runner; growth doesn't. Doubling the text roughly doubles a linear pattern's time,
+    // quadruples a quadratic one's and multiplies a cubic one's by eight, so the ratio of the fastest of three runs tells them apart.
+    const texts = (n: number) => [' '.repeat(n), 'a'.repeat(n), '1'.repeat(n), 'a '.repeat(n / 2)];
+    const time = (re: RegExp, n: number) => {
+      let best = Infinity;
+      for (let run = 0; run < 3; run++) {
+        const t0 = performance.now();
+        for (const t of texts(n)) re.test(t);
+        best = Math.min(best, performance.now() - t0);
+      }
+      return best;
+    };
     for (const ok of ['[^,]*,.*b', '\\w+\\s+\\w+x', '^\\W*given\\b', '\\bas an? [^,\\n]{1,80},? i want\\b[^\\n]{1,300}\\bso that\\b', '\\s*\\S+x']) {
       expect(patternProblem(ok), ok).toBeUndefined();
       const re = new RegExp(ok, 'im');
-      const t0 = performance.now();
-      for (const t of texts) re.test(t);
-      expect(performance.now() - t0, ok).toBeLessThan(2000);
+      const small = time(re, 5_000);
+      const large = time(re, 10_000);
+      // 6 sits between quadratic (4) and cubic (8); the 20 ms floor keeps a pattern too fast to time from failing on noise.
+      expect(large, ok).toBeLessThan(small * 6 + 20);
     }
-  });
+  }, 30_000);
 });
 
 describe('the built-in standards', () => {

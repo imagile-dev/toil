@@ -12,7 +12,7 @@
 import type { Warning } from '../envelope.js';
 import { matchWhen } from '../classify/when.js';
 import type { WorkItem } from '../owi/types.js';
-import { CRITERIA_HEADINGS, realText, sectionUnder, textOf, wordCount } from './text.js';
+import { BODY_SCAN_LIMIT, CRITERIA_HEADINGS, realText, sectionUnder, textOf, wordCount } from './text.js';
 import type { FoundStandard, ItemStandards, ItemVerdict, Place, RuleCheck, RuleResult, RuleState, RuleTally, StandardRule, StandardsCheckResult, StandardSummary } from './types.js';
 
 /** Azure DevOps' own acceptance criteria field, on every process that has one. */
@@ -258,7 +258,9 @@ export function checkStandards(input: CheckInput): { result: StandardsCheckResul
           result = { ...base, state: 'skipped', reason: `Not read: ${where(unread, list)} ${unread.length === 1 ? "isn't" : "aren't"} in the record read, so this wasn't checked.`, source: `not read: ${labelsOf(unread)}` };
         } else {
           // A place that wasn't read stays in `source`; the sentence speaks only of what was, which is the reading behind its claim.
-          const verdict = judge(rule.check, got.map((r) => r.text).join('\n'), gotNames, compiled.get(rule)!);
+          // The joined places are capped like one place: a pattern accepted as quadratic stays near its 20,000-character cost, and
+          // matching is synchronous, so neither the time limit nor Toil UI's event loop could interrupt a longer run.
+          const verdict = judge(rule.check, got.map((r) => r.text).join('\n').slice(0, BODY_SCAN_LIMIT), gotNames, compiled.get(rule)!);
           result = {
             ...base,
             state: verdict.ok ? 'pass' : rule.fail,
