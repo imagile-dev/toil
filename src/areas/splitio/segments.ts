@@ -94,13 +94,13 @@ export const segmentKeysCommand = splitioArea.command({
     const body = await split<{ keys?: Array<{ key?: unknown }>; count?: unknown }>(ctx, `/segments/${seg(input.environment)}/${seg(input.segment)}/keys`, {
       query: { offset: parseIntText(input.offset, '0'), limit: parseIntText(input.limit, '100') },
     });
-    if (!Array.isArray(body.keys)) {
-      throw new ToilError('HTTP', `Split answered the keys of segment ${input.segment} without a keys list.`, {
+    if (!Array.isArray(body.keys) || body.keys.some((k) => typeof k?.key !== 'string')) {
+      throw new ToilError('HTTP', `Split answered the keys of segment ${input.segment} without a list of string keys.`, {
         fix: 'Check the segment name and that it is enabled in this environment (toil splitio segment list --environment <id>), then run with --verbose.',
       });
     }
     // Plain strings, so a page pipes straight into segment add-keys or remove-keys.
-    const keys = body.keys.map((k) => String(k.key));
+    const keys = body.keys.map((k) => k.key as string);
     // Split's count is the segment's total, not this page's length (its example: count 200 beside five keys).
     return { count: keys.length, totalCount: typeof body.count === 'number' ? body.count : null, keys };
   },
@@ -110,32 +110,41 @@ const keysInput = {
   ...segmentField,
   ...environmentField,
   key: z.array(z.string()).optional().describe('A key (repeatable)'),
-  inputFile: z.string().optional().describe('File of keys: a JSON array of strings, or one key per line; "-" = stdin on the CLI'),
+  inputFile: z.string().optional().describe('File of keys: one per line, a JSON array of strings, or segment keys output; "-" = stdin on the CLI'),
   ...segmentCrFields,
   ...allowWriteField,
 };
 const keysOptions = [
   environmentOption,
   { flags: '--key <key>', field: 'key', description: 'A key (repeatable)' },
-  { flags: '--input-file <path>', field: 'inputFile', description: 'File of keys: a JSON array of strings, or one key per line; "-" = stdin on the CLI' },
+  { flags: '--input-file <path>', field: 'inputFile', description: 'File of keys: one per line, a JSON array of strings, or segment keys output; "-" = stdin on the CLI' },
   ...segmentCrOptions,
 ];
+
+const KEYS_FILE_FIX = 'Hold a JSON array of strings such as ["user-1","user-2"], the output of toil splitio segment keys, or one key per line.';
+
+/**
+ * The keys in a file: one per line, or JSON. JSON may be an array of strings,
+ * `{ keys: [...] }` as `segment keys` returns, or a whole toil envelope around
+ * either (stdout from `segment keys`, with or without `--select keys`), so the
+ * two commands pipe. Any other JSON is refused, never read line by line, which
+ * would file the braces as keys.
+ */
+function keysInFile(text: string): string[] {
+  if (!/^[[{]/.test(text.trimStart())) return text.split(/\r?\n/);
+  let value = parseJson(text, '--input-file', KEYS_FILE_FIX);
+  if (typeof value === 'object' && value !== null && !Array.isArray(value) && 'ok' in value && 'data' in value) value = (value as { data: unknown }).data;
+  if (typeof value === 'object' && value !== null && !Array.isArray(value)) value = (value as { keys?: unknown }).keys;
+  if (!Array.isArray(value) || value.some((k) => typeof k !== 'string')) {
+    throw new ToilError('INVALID_INPUT', '--input-file holds JSON that is not a list of keys.', { fix: KEYS_FILE_FIX });
+  }
+  return value as string[];
+}
 
 /** The keys from --key and --input-file together, each once, checked against Split's limit before anything is sent. */
 async function keysOf(ctx: SplitioContext, input: { key?: string[] | undefined; inputFile?: string | undefined }, verb: string): Promise<string[]> {
   const keys = [...(input.key ?? [])];
-  if (input.inputFile) {
-    const text = await ctx.files.readText(input.inputFile);
-    if (text.trimStart().startsWith('[')) {
-      const parsed = parseJson(text, '--input-file', 'Hold a JSON array of strings, such as ["user-1","user-2"], or one key per line.');
-      if (!Array.isArray(parsed) || parsed.some((k) => typeof k !== 'string')) {
-        throw new ToilError('INVALID_INPUT', '--input-file holds JSON that is not an array of strings.', { fix: 'Hold a JSON array of strings, such as ["user-1","user-2"], or one key per line.' });
-      }
-      keys.push(...(parsed as string[]));
-    } else {
-      keys.push(...text.split(/\r?\n/));
-    }
-  }
+  if (input.inputFile) keys.push(...keysInFile(await ctx.files.readText(input.inputFile)));
   const unique = [...new Set(keys.map((k) => k.trim()).filter(Boolean))];
   if (unique.length === 0) {
     throw new ToilError('INVALID_INPUT', `No keys to ${verb}; no change request was filed.`, { fix: 'Pass --key <key> (repeatable), or --input-file <path> with one key per line.' });
@@ -252,6 +261,9 @@ export const ruleBasedSegmentGetCommand = splitioArea.command({
   run: async (input, ctx) => split<unknown>(ctx, `/rule-based-segments/ws/${seg(workspaceOf(ctx))}/${seg(input.name)}`),
 });
 
+/** The fields of a rule-based segment definition a change request carries. */
+const RBS_WRITABLE = ['rules', 'excludedKeys', 'excludedSegments'] as const;
+
 export const ruleBasedSegmentUpdateCommand = splitioArea.command({
   path: ['splitio', 'rule-based-segment', 'update'],
   description: "Submit a Change Request to replace a rule-based segment's rules in an environment",
@@ -279,8 +291,13 @@ export const ruleBasedSegmentUpdateCommand = splitioArea.command({
     if (typeof definition !== 'object' || definition === null || Array.isArray(definition)) {
       throw new ToilError('INVALID_INPUT', '--input-file must hold a JSON object: the rule-based segment definition.', { fix: 'Start from the output of toil splitio rule-based-segment get <name>.' });
     }
-    // operationType UPDATE under ruleBasedSegment, the whole definition. https://docs.split.io/reference/createrbschangerequest
-    return submitCr(ctx, input.environment, segmentCrBody(input, 'ruleBasedSegment', 'UPDATE', { ...(definition as Record<string, unknown>), name: input.name }));
+    // operationType UPDATE under ruleBasedSegment with the definition Split documents, and nothing else from the file:
+    // get's output also carries title and comment, which belong to the segment, not to the request.
+    // https://docs.split.io/reference/createrbschangerequest
+    const record = definition as Record<string, unknown>;
+    const body: Record<string, unknown> = { name: input.name };
+    for (const key of RBS_WRITABLE) if (record[key] !== undefined) body[key] = record[key];
+    return submitCr(ctx, input.environment, segmentCrBody(input, 'ruleBasedSegment', 'UPDATE', body));
   },
 });
 

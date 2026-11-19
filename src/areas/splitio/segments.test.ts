@@ -97,6 +97,13 @@ describe('segment keys', () => {
     expect(envelope.data).toEqual({ count: 2, totalCount: 200, keys: ['user-1', 'user-2'] });
   });
 
+  it('refuses an answer with no keys list, or a key that is not a string, rather than invent keys', async () => {
+    for (const body of [{ count: 0 }, { keys: [{ key: 'user-1' }, {}], count: 2 }, { keys: [null], count: 1 }]) {
+      const { envelope } = await run(segmentKeysCommand, { segment: 'beta_users', environment: ENV }, [get(`${API}/segments/${ENV}/beta_users/keys`, body)]);
+      expect(envelope.error?.code).toBe('HTTP');
+    }
+  });
+
   it('encodes the segment name as one path segment', async () => {
     const { calls } = await run(segmentKeysCommand, { segment: 'a/b', environment: ENV }, [get(`${API}/segments/${ENV}/a%2Fb/keys`, segmentKeys)]);
     expect(calls[0]!.url).toContain('/a%2Fb/keys');
@@ -148,6 +155,21 @@ describe('segment add-keys and remove-keys', () => {
     expect(calls).toHaveLength(0);
   });
 
+  it('takes the stdout of segment keys, with or without --select keys, as the file', async () => {
+    const whole = { ok: true, data: { count: 2, totalCount: 2, keys: ['user-1', 'user-2'] }, error: null, meta: {} };
+    const selected = { ...whole, data: ['user-1', 'user-2'] };
+    for (const envelope of [whole, selected]) {
+      const { calls } = await run(segmentRemoveKeysCommand, { ...CR, segment: 'beta_users', environment: ENV, inputFile: 'keys.json' }, [postCr], { 'keys.json': JSON.stringify(envelope, null, 2) });
+      expect(sent(calls[0]!).segment).toEqual({ name: 'beta_users', keys: ['user-1', 'user-2'] });
+    }
+  });
+
+  it('refuses JSON in the file that is not a list of keys, rather than read its lines as keys', async () => {
+    const { envelope, calls } = await run(segmentAddKeysCommand, { ...CR, segment: 'beta_users', environment: ENV, inputFile: 'keys.json' }, [postCr], { 'keys.json': '{\n  "name": "x"\n}' });
+    expect(envelope.error?.code).toBe('INVALID_INPUT');
+    expect(calls).toHaveLength(0);
+  });
+
   it('refuses JSON in the file that is not an array of strings', async () => {
     const { envelope, calls } = await run(segmentAddKeysCommand, { ...CR, segment: 'beta_users', environment: ENV, inputFile: 'keys.json' }, [postCr], { 'keys.json': '[1,2]' });
     expect(envelope.error?.code).toBe('INVALID_INPUT');
@@ -192,6 +214,11 @@ describe('rule-based segments', () => {
       comment: COMMENT,
       approvers: [],
     });
+  });
+
+  it('sends only rules and exclusions from get output, not its title or comment', async () => {
+    const { calls } = await run(ruleBasedSegmentUpdateCommand, { ...CR, name: 'beta_testers', environment: ENV, inputFile: 'rbs.json' }, [postCr], { 'rbs.json': JSON.stringify(ruleBasedSegment) });
+    expect(sent(calls[0]!).ruleBasedSegment).toEqual({ name: 'beta_testers', rules: ruleBasedSegment.rules, excludedKeys: [], excludedSegments: [] });
   });
 
   it('refuses a missing file, or one that is not a JSON object, before anything is sent', async () => {
@@ -271,6 +298,11 @@ describe('flag list --tag and --name', () => {
       get(`${API}/splits/ws/${WS}`, { objects: [] }, { offset: '1', limit: '50' }),
     ]);
     expect(envelope.data).toMatchObject({ count: 1, totalCount: null, searched: 1, complete: null });
+  });
+
+  it('refuses an answer that is not a list, rather than report no matching flags', async () => {
+    const { envelope } = await run(flagsListCommand, { workspace: WS, name: 'x' }, [get(`${API}/splits/ws/${WS}`, { message: 'unexpected' })]);
+    expect(envelope.error?.code).toBe('HTTP');
   });
 
   it('passes --tag on to every page of a --name search', async () => {

@@ -14,7 +14,7 @@ a segment directly.
 Verification level: `unit`.
 
 **Supported versions:** The oldest Split.IO Admin API version toil supports hasn't been established. toil calls the
-Admin API under `/internal/api/v2` with an Admin API key sent as a Bearer header. It
+Admin API under `/internal/api/v2` (flag sets under `/internal/api/v3`) with an Admin API key sent as a Bearer header. It
 has not been run against a live Split account yet.
 
 ## Credential
@@ -144,15 +144,17 @@ Segment writes are change requests too, with the same gate and the same
 
 - `segment add-keys <segment> --environment <id>`: Add keys to a standard segment
   (Split's `CREATE` change request). Keys come from `--key` (repeatable) and
-  `--input-file` (a JSON array of strings, or one key per line; `-` reads stdin on the
+  `--input-file` (one key per line, a JSON array of strings, or the output of `segment
+  keys`, so the two pipe; `-` reads stdin on the
   CLI), together and each once. More than 10,000, Split's limit for one change, is
   refused with `INVALID_INPUT` before anything is filed.
 - `segment remove-keys <segment> --environment <id>`: Remove keys from a standard
   segment (Split's `ARCHIVE` change request, which here means remove), taking keys as
   `add-keys` does.
 - `rule-based-segment update <name> --environment <id>`: Replace a rule-based segment's
-  definition in the environment with the JSON object in `--input-file`: `rules`,
-  `excludedKeys` and `excludedSegments`.
+  definition in the environment with the JSON object in `--input-file`. Only its `rules`,
+  `excludedKeys` and `excludedSegments` are sent, so `rule-based-segment get` output
+  can be edited and passed back.
 
 ```bash
 toil splitio workspace list

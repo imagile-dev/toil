@@ -9,6 +9,7 @@ import {
   crOptions,
   getDefinition,
   intText,
+  itemsOf,
   parseIntText,
   parseJson,
   seg,
@@ -112,7 +113,7 @@ async function searchByName(
       limitParam: 'limit',
       pageSize: FLAG_PAGE,
       items: (body) => {
-        const page = Array.isArray((body as { objects?: unknown }).objects) ? ((body as { objects: Array<{ name?: unknown }> }).objects) : [];
+        const page = itemsOf(body, 'feature flags') as Array<{ name?: unknown }>;
         searched += page.length;
         return page;
       },
