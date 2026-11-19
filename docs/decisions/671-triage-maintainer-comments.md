@@ -17,15 +17,18 @@
   repository's own agents already write.
 - **A comment on triage's draft PR re-triages its issue**, so direction can be changed
   on the PR, as the maintainer asked. Only a PR whose head is `claude/issue-<n>` in
-  this repository, that carries `from-triage`, and that is still an open draft without
-  `no-auto-fix` or `needs-human` counts. The re-run starts from `main` and force-pushes
+  this repository and that carries `from-triage` counts. While that PR is marked ready
+  or labelled `no-auto-fix` or `needs-human`, a comment on the PR or on the issue
+  starts nothing. The re-run starts from `main` and force-pushes
   the branch, as `open-pr` always has, so the earlier fix is replaced rather than
   amended; once a person marks it ready or labels it, a comment leaves it alone.
   Inline review comments on the PR aren't read; conversation comments are. There is no
   round limit on these re-runs, because each one is the maintainer's own comment.
-- **The maintainer's comments share one concurrency group** (`triage-maintainer`). The
-  expression can't map a PR comment to its issue, and two re-runs of one issue would
-  push the same branch; comments on different issues queue behind each other instead.
+- **The maintainer's comments share one concurrency group** (`triage-maintainer`), but
+  only those that pass the job's label test. The expression can't map a PR comment to
+  its issue, and two re-runs of one issue would push the same branch; comments on
+  different issues queue behind each other instead. Every other comment gets a group
+  of its own, so it can't cancel a re-run that is waiting.
 - **Only the maintainer's comments are trusted direction.** The project bot's comments
   (triage's earlier runs, the review agent on the PR) are given too, so the agent sees
   the question being answered, but inside the untrusted fence: they are agent output

@@ -102,27 +102,32 @@ export async function select({ env, fetcher = fetch, log = console.log }) {
       return { issues: '[]' };
     }
     const number = issueOf(env.ISSUE, 'ISSUE');
-    if (env.IS_PR !== 'true') {
-      log(`${MAINTAINER} commented on #${number}: a re-triage, not counted against the cap.`);
-      return { issues: JSON.stringify([number]) };
+    let issue = number;
+    if (env.IS_PR === 'true') {
+      // A comment on a PR re-triages the issue the PR was opened for, and only a
+      // PR triage itself pushed from this repository.
+      const pr = await gh('GET', `/repos/${repo}/pulls/${number}`, undefined, options(env, fetcher));
+      const mapped = pr.head?.repo?.full_name === repo ? BRANCH.exec(pr.head?.ref ?? '')?.[1] : undefined;
+      if (!mapped || pr.state !== 'open') {
+        log(`#${number} is not an open pull request triage opened; nothing to triage.`);
+        return { issues: '[]' };
+      }
+      issue = Number(mapped);
     }
-    // A comment on a PR re-triages the issue the PR was opened for, and only a
-    // PR triage itself pushed from this repository. The re-run force-pushes the
-    // branch from main, so once a person has taken the PR over (marked it ready,
-    // or labelled it hands-off) a comment there leaves it alone.
-    const pr = await gh('GET', `/repos/${repo}/pulls/${number}`, undefined, options(env, fetcher));
-    const issue = pr.head?.repo?.full_name === repo ? BRANCH.exec(pr.head?.ref ?? '')?.[1] : undefined;
-    if (!issue) {
-      log(`#${number} is not a pull request triage opened; nothing to triage.`);
-      return { issues: '[]' };
+    // The re-run force-pushes claude/issue-<n> from main, so once a person has
+    // taken its PR over (marked it ready, or labelled it hands-off) a comment on
+    // the PR or on the issue leaves it alone.
+    const owner = repo.split('/')[0];
+    const pulls = (await gh('GET', `/repos/${repo}/pulls?state=open&head=${encodeURIComponent(`${owner}:claude/issue-${issue}`)}`, undefined, options(env, fetcher))) ?? [];
+    for (const pr of pulls) {
+      const handsOff = (pr.labels ?? []).map((l) => l.name).filter((name) => HANDS_OFF.includes(name));
+      if (pr.draft !== true || handsOff.length) {
+        log(`Triage's PR #${pr.number} is ${pr.draft !== true ? 'no longer a draft' : `labelled ${handsOff.join(', ')}`}, so a person has it; triage won't push over it.`);
+        return { issues: '[]' };
+      }
     }
-    const handsOff = (pr.labels ?? []).map((l) => l.name).filter((name) => HANDS_OFF.includes(name));
-    if (pr.state !== 'open' || pr.draft !== true || handsOff.length) {
-      log(`#${number} is ${pr.state !== 'open' ? 'closed' : pr.draft !== true ? 'no longer a draft' : `labelled ${handsOff.join(', ')}`}, so a person has it; triage won't push over it.`);
-      return { issues: '[]' };
-    }
-    log(`${MAINTAINER} commented on triage's PR #${number}: a re-triage of #${issue}, not counted against the cap.`);
-    return { issues: JSON.stringify([Number(issue)]) };
+    log(`${MAINTAINER} commented on ${issue === number ? `#${issue}` : `triage's PR #${number}`}: a re-triage of #${issue}, not counted against the cap.`);
+    return { issues: JSON.stringify([issue]) };
   }
   if (env.EVENT === 'schedule') {
     const issues = await drain(repo, cap, options(env, fetcher));

@@ -103,10 +103,12 @@ them equal), on an open issue triage takes or on a `from-triage` PR, re-runs tri
 for that issue outside the cap, like a dispatch. A comment carrying an agent's mark
 (`ship`'s round marker or reply footer, a Claude Code PR footer) is an agent posting
 under that login, and starts nothing. A comment on a PR maps back to its issue only
-when its head is `claude/issue-<n>` in this repository and it is still an open draft
-without `no-auto-fix` or `needs-human`, because the re-run force-pushes the branch
-from `main`. The maintainer's comments share one concurrency group, since a PR comment
-can't name its issue in the expression. `prepare` splits the conversation on the issue
+when its head is `claude/issue-<n>` in this repository. The re-run force-pushes that
+branch from `main`, so once its PR is marked ready or labelled `no-auto-fix` or
+`needs-human`, a comment on the PR or on the issue starts nothing. The maintainer's
+comments that pass the job's label test share one concurrency group, since a PR
+comment can't name its issue in the expression; every other comment gets a group of
+its own, so it can't displace a re-run that is waiting. `prepare` splits the conversation on the issue
 and its open PR: the maintainer's own comments, redacted, are the `direction` output,
 which the prompt puts outside the untrusted fence, where they settle a design choice
 and answer triage's question but never override a principle or widen what triage may

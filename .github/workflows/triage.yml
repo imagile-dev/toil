@@ -58,8 +58,10 @@ on:
 permissions: {}
 
 # Real runs are keyed on the issue and never cancelled. The maintainer's comments
-# share one group: a comment on a PR can't name its issue here, and two re-runs of
-# one issue would push the same branch. Every other label event
+# that could start a run (the job's label test) share one group: a comment on a PR
+# can't name its issue here, and two re-runs of one issue would push the same
+# branch. Any other comment gets a group of its own, so it can't displace one
+# that's waiting. Every other label event
 # (including the labels triage adds itself) gets a group of its own, so it can't
 # cancel or queue behind the run that added it.
 concurrency:
@@ -69,7 +71,12 @@ concurrency:
             && format('triage-issue-{0}', github.event.issue.number)
             || format('triage-skip-{0}', github.run_id))
         || github.event_name == 'issue_comment'
-        && (github.event.comment.user.login == 'kolatts'
+        && (github.event.comment.user.login == 'kolatts' && (
+              (github.event.issue.pull_request && contains(github.event.issue.labels.*.name, 'from-triage')) ||
+              (!github.event.issue.pull_request && (
+                contains(github.event.issue.labels.*.name, 'from-website') ||
+                contains(github.event.issue.labels.*.name, 'from-terminal') ||
+                contains(github.event.issue.labels.*.name, 'claude-triage'))))
             && 'triage-maintainer'
             || format('triage-skip-{0}', github.run_id))
         || (github.event_name == 'workflow_dispatch' && format('triage-issue-{0}', inputs.issue) || 'triage-queue') }}
