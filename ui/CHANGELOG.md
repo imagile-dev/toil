@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.1.0-beta.7](https://github.com/imagile-dev/toil/compare/toil-ui-v0.1.0-beta.6...toil-ui-v0.1.0-beta.7) (2026-11-20)
+
+
+### Features
+
+* ado work-item link-feed, and Toil UI re-reads Azure DevOps items whose links changed ([#664](https://github.com/imagile-dev/toil/issues/664)) ([#665](https://github.com/imagile-dev/toil/issues/665)) ([3e93259](https://github.com/imagile-dev/toil/commit/3e93259f82f0b53a3cabd8e175e73c5c47cc2371))
+* **splitio:** segments, flag sets, traffic types, attributes and rollout statuses ([#675](https://github.com/imagile-dev/toil/issues/675)) ([f767a57](https://github.com/imagile-dev/toil/commit/f767a5788bfa5cbab8537058caa6975cad5d16cc))
+* ticket rules, the flow scheme, and a quieter Toil UI ([#669](https://github.com/imagile-dev/toil/issues/669)) ([d14c03f](https://github.com/imagile-dev/toil/commit/d14c03fa5893a555bf8e96b5325599481e8cfbf3))
+
+
+### Bug Fixes
+
+* **ui:** show local paths from ~ so the account name stays off screen ([#653](https://github.com/imagile-dev/toil/issues/653)) ([#658](https://github.com/imagile-dev/toil/issues/658)) ([3f9e226](https://github.com/imagile-dev/toil/commit/3f9e2268d1aeed614cd944549d604dadda9caad4))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @imagile-dev/toil bumped from 0.1.0-beta.6 to 0.1.0-beta.7
+
 ## [0.1.0-beta.6](https://github.com/imagile-dev/toil/compare/toil-ui-v0.1.0-beta.5...toil-ui-v0.1.0-beta.6) (2026-11-17)
 
 
