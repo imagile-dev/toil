@@ -72,7 +72,7 @@ Reads:
   maximum) and `--offset` (default 0); `data.totalCount` is Split's total.
   `--flag-set` is sent as `flagSetName`, which Split's reference doesn't document,
   so the result carries a warning to compare `totalCount` with an unfiltered list.
-  `--tag <tag>` (repeatable) is Split's own server-side filter. `--name <text>` keeps
+  `--tag <tag>` (repeatable) is Split's own server-side filter. `--search <text>` keeps
   the flags whose name contains the text, in any letter case: Split has no name
   filter, so toil reads every page, 50 at a time, and adds `searched` (how many flags
   it read) and `complete` (`true` when that reached Split's `totalCount`, `null` when
@@ -93,13 +93,13 @@ Reads:
   workspace (`--environment` lists those enabled there, with their rules), or one by
   name.
 - `flag-set list`: Flag sets in a workspace. `--limit` (default 200, Split's maximum);
-  Split pages by marker, so pass `data.nextMarker` (also `meta.page.nextCursor`) as
-  `--after`. `totalCount` is `null`, since Split reports none.
+  Split pages by marker, so pass `meta.page.nextCursor` as `--cursor` for the next
+  page. `totalCount` is `null`, since Split reports none.
 - `flag-set get <id>`: Get a flag set by ID.
 - `traffic-type list`: Traffic types in a workspace; `attribute list` takes their IDs.
 - `attribute list --traffic-type <id>`: The attributes of a traffic type. `--prefix`
   keeps the ones whose ID starts with the text, in any letter case, searched by Split.
-  `--limit` (default 50, up to 200) and `--after`, paged by marker as `flag-set list` is.
+  `--limit` (default 50, up to 200) and `--cursor`, paged by marker as `flag-set list` is.
 - `rollout-status list`: The rollout statuses in a workspace: the IDs that
   `--rollout-status` takes.
 - `change-request list`: List Change Requests for a workspace (`--environment`,
@@ -144,7 +144,7 @@ Segment writes are change requests too, with the same gate and the same
 
 - `segment add-keys <segment> --environment <id>`: Add keys to a standard segment
   (Split's `CREATE` change request). Keys come from `--key` (repeatable) and
-  `--input-file` (one key per line, a JSON array of strings, or the output of `segment
+  `--keys-file` (one key per line, a JSON array of strings, or the output of `segment
   keys`, so the two pipe; `-` reads stdin on the
   CLI), together and each once. More than 10,000, Split's limit for one change, is
   refused with `INVALID_INPUT` before anything is filed.
@@ -158,7 +158,7 @@ Segment writes are change requests too, with the same gate and the same
 
 ```bash
 toil splitio workspace list
-toil splitio flag list --ws <workspace id> --name checkout
+toil splitio flag list --ws <workspace id> --search checkout
 toil splitio segment keys beta_users --environment <environment id>
 toil splitio segment add-keys beta_users --ws <workspace id> --environment <environment id> \
   --key user-1 --key user-2 --mnemonic beta-cohort --description "Add the pilot users" --change-number CHG0001234 --allow-write

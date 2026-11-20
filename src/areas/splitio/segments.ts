@@ -101,7 +101,7 @@ export const segmentKeysCommand = splitioArea.command({
     }
     // Plain strings, so a page pipes straight into segment add-keys or remove-keys.
     const keys = body.keys.map((k) => k.key as string);
-    // Split's count is the segment's total, not this page's length (its example: count 200 beside five keys).
+    // Suspected bug (#79 item 15), kept: Split's count is read as the segment's total, not this page's length (its example: count 200 beside five keys).
     return { count: keys.length, totalCount: typeof body.count === 'number' ? body.count : null, keys };
   },
 });
@@ -110,14 +110,14 @@ const keysInput = {
   ...segmentField,
   ...environmentField,
   key: z.array(z.string()).optional().describe('A key (repeatable)'),
-  inputFile: z.string().optional().describe('File of keys: one per line, a JSON array of strings, or segment keys output; "-" = stdin on the CLI'),
+  keysFile: z.string().optional().describe('File of keys: one per line, a JSON array of strings, or segment keys output; "-" = stdin on the CLI'),
   ...segmentCrFields,
   ...allowWriteField,
 };
 const keysOptions = [
   environmentOption,
   { flags: '--key <key>', field: 'key', description: 'A key (repeatable)' },
-  { flags: '--input-file <path>', field: 'inputFile', description: 'File of keys: one per line, a JSON array of strings, or segment keys output; "-" = stdin on the CLI' },
+  { flags: '--keys-file <path>', field: 'keysFile', description: 'File of keys: one per line, a JSON array of strings, or segment keys output; "-" = stdin on the CLI' },
   ...segmentCrOptions,
 ];
 
@@ -132,22 +132,22 @@ const KEYS_FILE_FIX = 'Hold a JSON array of strings such as ["user-1","user-2"],
  */
 function keysInFile(text: string): string[] {
   if (!/^[[{]/.test(text.trimStart())) return text.split(/\r?\n/);
-  let value = parseJson(text, '--input-file', KEYS_FILE_FIX);
+  let value = parseJson(text, '--keys-file', KEYS_FILE_FIX);
   if (typeof value === 'object' && value !== null && !Array.isArray(value) && 'ok' in value && 'data' in value) value = (value as { data: unknown }).data;
   if (typeof value === 'object' && value !== null && !Array.isArray(value)) value = (value as { keys?: unknown }).keys;
   if (!Array.isArray(value) || value.some((k) => typeof k !== 'string')) {
-    throw new ToilError('INVALID_INPUT', '--input-file holds JSON that is not a list of keys.', { fix: KEYS_FILE_FIX });
+    throw new ToilError('INVALID_INPUT', '--keys-file holds JSON that is not a list of keys.', { fix: KEYS_FILE_FIX });
   }
   return value as string[];
 }
 
-/** The keys from --key and --input-file together, each once, checked against Split's limit before anything is sent. */
-async function keysOf(ctx: SplitioContext, input: { key?: string[] | undefined; inputFile?: string | undefined }, verb: string): Promise<string[]> {
+/** The keys from --key and --keys-file together, each once, checked against Split's limit before anything is sent. */
+async function keysOf(ctx: SplitioContext, input: { key?: string[] | undefined; keysFile?: string | undefined }, verb: string): Promise<string[]> {
   const keys = [...(input.key ?? [])];
-  if (input.inputFile) keys.push(...keysInFile(await ctx.files.readText(input.inputFile)));
+  if (input.keysFile) keys.push(...keysInFile(await ctx.files.readText(input.keysFile)));
   const unique = [...new Set(keys.map((k) => k.trim()).filter(Boolean))];
   if (unique.length === 0) {
-    throw new ToilError('INVALID_INPUT', `No keys to ${verb}; no change request was filed.`, { fix: 'Pass --key <key> (repeatable), or --input-file <path> with one key per line.' });
+    throw new ToilError('INVALID_INPUT', `No keys to ${verb}; no change request was filed.`, { fix: 'Pass --key <key> (repeatable), or --keys-file <path> with one key per line.' });
   }
   if (unique.length > MAX_KEYS) {
     throw new ToilError('INVALID_INPUT', `${unique.length} keys is more than the ${MAX_KEYS} Split takes in one change; no change request was filed.`, {
@@ -167,7 +167,7 @@ export const segmentAddKeysCommand = splitioArea.command({
   options: keysOptions,
   examples: [
     { ...CR, segment: 'beta_users', environment: 'env-abc12345', key: ['user-1', 'user-2'] },
-    { ...CR, segment: 'beta_users', environment: 'env-abc12345', inputFile: 'keys.txt' },
+    { ...CR, segment: 'beta_users', environment: 'env-abc12345', keysFile: 'keys.txt' },
   ],
   run: async (input, ctx) => {
     const keys = await keysOf(ctx, input, 'add');
@@ -186,7 +186,7 @@ export const segmentRemoveKeysCommand = splitioArea.command({
   options: keysOptions,
   examples: [
     { ...CR, segment: 'beta_users', environment: 'env-abc12345', key: ['user-1'] },
-    { ...CR, segment: 'beta_users', environment: 'env-abc12345', inputFile: 'keys.txt' },
+    { ...CR, segment: 'beta_users', environment: 'env-abc12345', keysFile: 'keys.txt' },
   ],
   run: async (input, ctx) => {
     const keys = await keysOf(ctx, input, 'remove');
@@ -206,7 +206,7 @@ export const largeSegmentListCommand = splitioArea.command({
   options: [optionalEnvironmentOption],
   examples: [{ workspace: 'ws-abc12345' }, { workspace: 'ws-abc12345', environment: 'env-abc12345' }],
   run: async (input, ctx) => {
-    // GET /large-segments/ws/{ws}, or .../environments/{env}. https://docs.split.io/reference/listlargesegments, https://docs.split.io/reference/listlargesegmentsinenvironment
+    // GET /large-segments/ws/{ws}, or .../environments/{env}, unpaged as the reference documents it (#79 item 17). https://docs.split.io/reference/listlargesegments, https://docs.split.io/reference/listlargesegmentsinenvironment
     const base = `/large-segments/ws/${seg(workspaceOf(ctx))}`;
     const body = await split<unknown>(ctx, input.environment ? `${base}/environments/${seg(input.environment)}` : base);
     const largeSegments = itemsOf(body, 'large segments');
@@ -240,7 +240,7 @@ export const ruleBasedSegmentListCommand = splitioArea.command({
   options: [optionalEnvironmentOption],
   examples: [{ workspace: 'ws-abc12345' }, { workspace: 'ws-abc12345', environment: 'env-abc12345' }],
   run: async (input, ctx) => {
-    // GET /rule-based-segments/ws/{ws}, or .../environments/{env}, answered with { objects }.
+    // GET /rule-based-segments/ws/{ws}, or .../environments/{env}, answered with { objects }, unpaged (#79 item 17).
     // https://docs.split.io/reference/get_internal-api-v2-rule-based-segments-ws-workspace-id
     const base = `/rule-based-segments/ws/${seg(workspaceOf(ctx))}`;
     const body = await split<unknown>(ctx, input.environment ? `${base}/environments/${seg(input.environment)}` : base);

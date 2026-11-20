@@ -39,7 +39,7 @@ const CR = { workspace: 'ws-abc12345', mnemonic: 'flag-change', description: 'Ro
 
 const WEIGHTS_FIX = 'Pass --weights as a JSON array such as [{"treatment":"on","size":50},{"treatment":"off","size":50}], or use --treatment.';
 
-/** Split's maximum page of flags, and the size a --name search reads in. https://docs.split.io/reference/list-feature-flags */
+/** Split's maximum page of flags, and the size a --search reads in. https://docs.split.io/reference/list-feature-flags */
 const FLAG_PAGE = 50;
 
 export const flagsListCommand = splitioArea.command({
@@ -50,7 +50,7 @@ export const flagsListCommand = splitioArea.command({
     offset: intText.optional().describe('Pagination offset (default: "0")'),
     flagSet: z.string().optional().describe('Filter by flag set name'),
     tag: z.array(z.string()).optional().describe('Only flags with this tag (repeatable; Split filters on the server)'),
-    name: z.string().optional().describe('Only flags whose name contains this, in any letter case; reads every page, so not with --limit or --offset'),
+    search: z.string().optional().describe('Only flags whose name contains this, in any letter case; reads every page, so not with --limit or --offset'),
   }),
   writes: false,
   context: { workspace: 'required' },
@@ -59,12 +59,12 @@ export const flagsListCommand = splitioArea.command({
     { flags: '--offset <n>', field: 'offset', description: 'Pagination offset (default: "0")' },
     { flags: '--flag-set <name>', field: 'flagSet', description: 'Filter by flag set name' },
     { flags: '--tag <tag>', field: 'tag', description: 'Only flags with this tag (repeatable; Split filters on the server)' },
-    { flags: '--name <text>', field: 'name', description: 'Only flags whose name contains this, in any letter case; reads every page, so not with --limit or --offset' },
+    { flags: '--search <text>', field: 'search', description: 'Only flags whose name contains this, in any letter case; reads every page, so not with --limit or --offset' },
   ],
   examples: [
     { workspace: 'ws-abc12345' },
     { workspace: 'ws-abc12345', limit: '10', offset: '20', flagSet: 'checkout', tag: ['payments', 'web'] },
-    { workspace: 'ws-abc12345', name: 'checkout' },
+    { workspace: 'ws-abc12345', search: 'checkout' },
   ],
   run: async (input, ctx) => {
     if (input.flagSet) {
@@ -76,7 +76,7 @@ export const flagsListCommand = splitioArea.command({
     }
     const path = `/splits/ws/${seg(workspaceOf(ctx))}`;
     const filters = { ...(input.flagSet ? { flagSetName: input.flagSet } : {}), ...(input.tag?.length ? { tag: input.tag } : {}) };
-    if (input.name !== undefined) return searchByName(ctx, path, filters, input);
+    if (input.search !== undefined) return searchByName(ctx, path, filters, input);
     // GET /splits/ws/{workspace}?offset&limit&tag, answered with { objects, offset, limit, totalCount }. https://docs.split.io/reference/list-feature-flags
     const body = await split<{ objects?: unknown[]; totalCount?: number }>(ctx, path, {
       query: { limit: parseIntText(input.limit, String(FLAG_PAGE)), offset: parseIntText(input.offset, '0'), ...filters },
@@ -87,7 +87,7 @@ export const flagsListCommand = splitioArea.command({
 });
 
 /**
- * `flag list --name`: Split's list has no name filter (#671), so toil reads
+ * `flag list --search`: Split's list has no name filter (#671), so toil reads
  * every page and keeps the flags whose name contains the text. The result says
  * how many flags it read and whether that was all of them: `complete` is true
  * only when the count read reached Split's own totalCount, and null when Split
@@ -98,13 +98,13 @@ async function searchByName(
   ctx: SplitioContext,
   path: string,
   filters: Record<string, string | string[]>,
-  input: { name?: string | undefined; limit?: unknown; offset?: unknown },
+  input: { search?: string | undefined; limit?: unknown; offset?: unknown },
 ) {
   if (input.limit !== undefined || input.offset !== undefined) {
-    throw new ToilError('INVALID_INPUT', '--name reads every page of flags, so it takes no --limit or --offset.', { fix: 'Leave out --limit and --offset, or leave out --name and page with --offset.' });
+    throw new ToilError('INVALID_INPUT', '--search reads every page of flags, so it takes no --limit or --offset.', { fix: 'Leave out --limit and --offset, or leave out --search and page with --offset.' });
   }
-  const needle = (input.name ?? '').toLowerCase();
-  if (!needle) throw new ToilError('INVALID_INPUT', '--name needs some text to search for.', { fix: 'Pass part of the flag name, such as --name checkout.' });
+  const needle = (input.search ?? '').toLowerCase();
+  if (!needle) throw new ToilError('INVALID_INPUT', '--search needs some text to search for.', { fix: 'Pass part of the flag name, such as --search checkout.' });
   let searched = 0;
   const { items, total } = await paginate<{ name?: unknown }>(
     {

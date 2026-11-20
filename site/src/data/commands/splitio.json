@@ -28,7 +28,7 @@
       "--offset <n>",
       "--flag-set <name>",
       "--tag <tag>",
-      "--name <text>",
+      "--search <text>",
       "--ws <id>"
     ]
   },
@@ -230,7 +230,7 @@
       "<segment>",
       "--environment <id>",
       "--key <key>",
-      "--input-file <path>",
+      "--keys-file <path>",
       "--mnemonic <text>",
       "--description <text>",
       "--change-number <CHG>",
@@ -249,7 +249,7 @@
       "<segment>",
       "--environment <id>",
       "--key <key>",
-      "--input-file <path>",
+      "--keys-file <path>",
       "--mnemonic <text>",
       "--description <text>",
       "--change-number <CHG>",
@@ -328,7 +328,7 @@
     "connection": true,
     "flags": [
       "--limit <n>",
-      "--after <marker>",
+      "--cursor <cursor>",
       "--ws <id>"
     ]
   },
@@ -362,7 +362,7 @@
       "--traffic-type <id>",
       "--prefix <text>",
       "--limit <n>",
-      "--after <marker>",
+      "--cursor <cursor>",
       "--ws <id>"
     ]
   },

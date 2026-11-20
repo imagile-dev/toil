@@ -24,21 +24,21 @@ export const flagSetListCommand = splitioArea.command({
   description: 'List flag sets in a workspace',
   input: z.object({
     limit: intText.optional().describe('Maximum number of flag sets to return, up to 200 (default: "200")'),
-    after: z.string().optional().describe('The nextMarker from a previous page, to read the page after it'),
+    cursor: z.string().optional().describe('meta.page.nextCursor from the previous page'),
   }),
   writes: false,
   context: { workspace: 'required' },
   options: [
     { flags: '--limit <n>', field: 'limit', description: 'Maximum number of flag sets to return, up to 200 (default: "200")' },
-    { flags: '--after <marker>', field: 'after', description: 'The nextMarker from a previous page, to read the page after it' },
+    { flags: '--cursor <cursor>', field: 'cursor', description: 'meta.page.nextCursor from the previous page' },
   ],
-  examples: [{ workspace: 'ws-abc12345' }, { workspace: 'ws-abc12345', limit: '20', after: 'marker-abc12345' }],
+  examples: [{ workspace: 'ws-abc12345' }, { workspace: 'ws-abc12345', limit: '20', cursor: 'marker-abc12345' }],
   run: async (input, ctx) => {
     const limit = parseIntText(input.limit, '200');
     // GET /internal/api/v3/flag-sets?workspace_id&limit&after, answered with { data, nextMarker, previousMarker, limit, count }.
     // https://docs.split.io/reference/list-flag-sets
     const body = await splitV3<MarkerPage>(ctx, '/flag-sets', {
-      query: { workspace_id: workspaceOf(ctx), limit, ...(input.after ? { after: input.after } : {}) },
+      query: { workspace_id: workspaceOf(ctx), limit, ...(input.cursor ? { after: input.cursor } : {}) },
     });
     const flagSets = itemsOf(body, 'flag sets');
     const nextMarker = marker(body.nextMarker);
@@ -80,7 +80,7 @@ export const attributeListCommand = splitioArea.command({
     trafficType: z.string().describe('Traffic type ID'),
     prefix: z.string().optional().describe('Only attributes whose ID starts with this, in any letter case (Split searches on the server)'),
     limit: intText.optional().describe('Maximum number of attributes to return, up to 200 (default: "50")'),
-    after: z.string().optional().describe('The nextMarker from a previous page, to read the page after it'),
+    cursor: z.string().optional().describe('meta.page.nextCursor from the previous page'),
   }),
   writes: false,
   context: { workspace: 'required' },
@@ -88,18 +88,18 @@ export const attributeListCommand = splitioArea.command({
     { flags: '--traffic-type <id>', field: 'trafficType', description: 'Traffic type ID' },
     { flags: '--prefix <text>', field: 'prefix', description: 'Only attributes whose ID starts with this, in any letter case (Split searches on the server)' },
     { flags: '--limit <n>', field: 'limit', description: 'Maximum number of attributes to return, up to 200 (default: "50")' },
-    { flags: '--after <marker>', field: 'after', description: 'The nextMarker from a previous page, to read the page after it' },
+    { flags: '--cursor <cursor>', field: 'cursor', description: 'meta.page.nextCursor from the previous page' },
   ],
   examples: [
     { workspace: 'ws-abc12345', trafficType: 'tt-abc12345' },
-    { workspace: 'ws-abc12345', trafficType: 'tt-abc12345', prefix: 'plan', limit: '20', after: 'marker-abc12345' },
+    { workspace: 'ws-abc12345', trafficType: 'tt-abc12345', prefix: 'plan', limit: '20', cursor: 'marker-abc12345' },
   ],
   run: async (input, ctx) => {
     const limit = parseIntText(input.limit, '50');
     // GET /schema/ws/{ws}/trafficTypes/{tt}?Paginate=true&markerLimit&afterMarker&searchPrefix, answered with { data, nextMarker, previousMarker, limit, count }.
-    // The unpaged form is deprecated, so toil always asks for pages. https://docs.split.io/reference/get-attributes
+    // The unpaged form is deprecated, so toil always asks for pages; Paginate's capital P is #79 item 16, kept. https://docs.split.io/reference/get-attributes
     const body = await split<MarkerPage>(ctx, `/schema/ws/${seg(workspaceOf(ctx))}/trafficTypes/${seg(input.trafficType)}`, {
-      query: { Paginate: 'true', markerLimit: limit, ...(input.after ? { afterMarker: input.after } : {}), ...(input.prefix ? { searchPrefix: input.prefix } : {}) },
+      query: { Paginate: 'true', markerLimit: limit, ...(input.cursor ? { afterMarker: input.cursor } : {}), ...(input.prefix ? { searchPrefix: input.prefix } : {}) },
     });
     const attributes = itemsOf(body, 'attributes');
     const nextMarker = marker(body.nextMarker);

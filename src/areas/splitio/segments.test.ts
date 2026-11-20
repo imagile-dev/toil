@@ -39,7 +39,7 @@ import {
 
 /**
  * The segment, flag-set, traffic-type, attribute and rollout-status commands
- * (#674), and flag list's --tag and --name (#671), against the requests
+ * (#674), and flag list's --tag and --search (#671), against the requests
  * Split's Admin API reference documents. Each test checks the request sent
  * and the data made of the answer, which is the whole of the job, filed in
  * duplicate.
@@ -88,7 +88,7 @@ describe('segment list', () => {
 });
 
 describe('segment keys', () => {
-  it('reads keys from the environment path, with no workspace, as plain strings', async () => {
+  it('reads keys from the environment path, with no workspace, as plain strings, count as the total (#79 item 15, kept)', async () => {
     const { envelope, calls } = await run(segmentKeysCommand, { segment: 'beta_users', environment: ENV }, [
       get(`${API}/segments/${ENV}/beta_users/keys`, { ...segmentKeys, count: 200 }, { offset: '0', limit: '100' }),
     ]);
@@ -111,10 +111,10 @@ describe('segment keys', () => {
 });
 
 describe('segment add-keys and remove-keys', () => {
-  it('files a CREATE change request under segment with the keys from --key and the file, each once', async () => {
+  it('files a CREATE change request under segment with the keys from --key and --keys-file, each once', async () => {
     const { envelope, calls } = await run(
       segmentAddKeysCommand,
-      { ...CR, segment: 'beta_users', environment: ENV, key: ['user-1', 'user-3'], inputFile: 'keys.txt', approvers: 'you@example.com' },
+      { ...CR, segment: 'beta_users', environment: ENV, key: ['user-1', 'user-3'], keysFile: 'keys.txt', approvers: 'you@example.com' },
       [postCr],
       { 'keys.txt': 'user-3\r\nuser-4\n\n' },
     );
@@ -131,7 +131,7 @@ describe('segment add-keys and remove-keys', () => {
   });
 
   it('reads a JSON array of keys from the file', async () => {
-    const { calls } = await run(segmentAddKeysCommand, { ...CR, segment: 'beta_users', environment: ENV, inputFile: 'keys.json' }, [postCr], { 'keys.json': '["user-5","user-6"]' });
+    const { calls } = await run(segmentAddKeysCommand, { ...CR, segment: 'beta_users', environment: ENV, keysFile: 'keys.json' }, [postCr], { 'keys.json': '["user-5","user-6"]' });
     expect(sent(calls[0]!).segment).toEqual({ name: 'beta_users', keys: ['user-5', 'user-6'] });
   });
 
@@ -149,7 +149,7 @@ describe('segment add-keys and remove-keys', () => {
 
   it(`refuses more than ${MAX_KEYS} keys before anything is sent`, async () => {
     const many = Array.from({ length: MAX_KEYS + 1 }, (_, i) => `user-${i}`).join('\n');
-    const { envelope, calls } = await run(segmentAddKeysCommand, { ...CR, segment: 'beta_users', environment: ENV, inputFile: 'keys.txt' }, [postCr], { 'keys.txt': many });
+    const { envelope, calls } = await run(segmentAddKeysCommand, { ...CR, segment: 'beta_users', environment: ENV, keysFile: 'keys.txt' }, [postCr], { 'keys.txt': many });
     expect(envelope.error?.code).toBe('INVALID_INPUT');
     expect(envelope.error?.message).toContain(String(MAX_KEYS));
     expect(calls).toHaveLength(0);
@@ -159,19 +159,19 @@ describe('segment add-keys and remove-keys', () => {
     const whole = { ok: true, data: { count: 2, totalCount: 2, keys: ['user-1', 'user-2'] }, error: null, meta: {} };
     const selected = { ...whole, data: ['user-1', 'user-2'] };
     for (const envelope of [whole, selected]) {
-      const { calls } = await run(segmentRemoveKeysCommand, { ...CR, segment: 'beta_users', environment: ENV, inputFile: 'keys.json' }, [postCr], { 'keys.json': JSON.stringify(envelope, null, 2) });
+      const { calls } = await run(segmentRemoveKeysCommand, { ...CR, segment: 'beta_users', environment: ENV, keysFile: 'keys.json' }, [postCr], { 'keys.json': JSON.stringify(envelope, null, 2) });
       expect(sent(calls[0]!).segment).toEqual({ name: 'beta_users', keys: ['user-1', 'user-2'] });
     }
   });
 
   it('refuses JSON in the file that is not a list of keys, rather than read its lines as keys', async () => {
-    const { envelope, calls } = await run(segmentAddKeysCommand, { ...CR, segment: 'beta_users', environment: ENV, inputFile: 'keys.json' }, [postCr], { 'keys.json': '{\n  "name": "x"\n}' });
+    const { envelope, calls } = await run(segmentAddKeysCommand, { ...CR, segment: 'beta_users', environment: ENV, keysFile: 'keys.json' }, [postCr], { 'keys.json': '{\n  "name": "x"\n}' });
     expect(envelope.error?.code).toBe('INVALID_INPUT');
     expect(calls).toHaveLength(0);
   });
 
   it('refuses JSON in the file that is not an array of strings', async () => {
-    const { envelope, calls } = await run(segmentAddKeysCommand, { ...CR, segment: 'beta_users', environment: ENV, inputFile: 'keys.json' }, [postCr], { 'keys.json': '[1,2]' });
+    const { envelope, calls } = await run(segmentAddKeysCommand, { ...CR, segment: 'beta_users', environment: ENV, keysFile: 'keys.json' }, [postCr], { 'keys.json': '[1,2]' });
     expect(envelope.error?.code).toBe('INVALID_INPUT');
     expect(calls).toHaveLength(0);
   });
@@ -184,7 +184,7 @@ describe('segment add-keys and remove-keys', () => {
 });
 
 describe('large segments', () => {
-  it('lists the workspace, or an environment, and gets one by name', async () => {
+  it('lists the workspace, or an environment, with no paging parameters, and gets one by name (#79 item 17, kept)', async () => {
     const list = await run(largeSegmentListCommand, { workspace: WS }, [get(`${API}/large-segments/ws/${WS}`, [largeSegment])]);
     expect(list.envelope.data).toEqual({ count: 1, largeSegments: [largeSegment] });
     const inEnv = await run(largeSegmentListCommand, { workspace: WS, environment: ENV }, [get(`${API}/large-segments/ws/${WS}/environments/${ENV}`, { objects: [largeSegment] })]);
@@ -195,7 +195,7 @@ describe('large segments', () => {
 });
 
 describe('rule-based segments', () => {
-  it('lists the workspace, or an environment, and gets one by name', async () => {
+  it('lists the workspace, or an environment, with no paging parameters, and gets one by name (#79 item 17, kept)', async () => {
     const list = await run(ruleBasedSegmentListCommand, { workspace: WS }, [get(`${API}/rule-based-segments/ws/${WS}`, { objects: [ruleBasedSegment] })]);
     expect(list.envelope.data).toEqual({ count: 1, ruleBasedSegments: [ruleBasedSegment] });
     const inEnv = await run(ruleBasedSegmentListCommand, { workspace: WS, environment: ENV }, [get(`${API}/rule-based-segments/ws/${WS}/environments/${ENV}`, { objects: [] })]);
@@ -238,8 +238,8 @@ describe('flag-set list and get', () => {
     expect(envelope.meta.page).toEqual({ nextCursor: null, limit: 200 });
   });
 
-  it('passes --after on, and hands back the next marker', async () => {
-    const { envelope } = await run(flagSetListCommand, { workspace: WS, limit: '20', after: 'marker-abc12345' }, [
+  it('passes --cursor on as after, and hands back the next marker', async () => {
+    const { envelope } = await run(flagSetListCommand, { workspace: WS, limit: '20', cursor: 'marker-abc12345' }, [
       get(`${API_V3}/flag-sets`, { ...flagSetPage, nextMarker: 'marker-abc12346' }, { workspace_id: WS, limit: '20', after: 'marker-abc12345' }),
     ]);
     expect(envelope.data).toMatchObject({ nextMarker: 'marker-abc12346' });
@@ -259,8 +259,8 @@ describe('traffic types, attributes and rollout statuses', () => {
     expect(envelope.data).toEqual({ count: 1, trafficTypes });
   });
 
-  it('always asks for paged attributes, with the prefix searched by Split', async () => {
-    const { envelope, calls } = await run(attributeListCommand, { workspace: WS, trafficType: 'tt-abc12345', prefix: 'plan', after: 'marker-abc12345' }, [
+  it('always asks for paged attributes as Paginate=true, with the prefix searched by Split (#79 item 16, kept)', async () => {
+    const { envelope, calls } = await run(attributeListCommand, { workspace: WS, trafficType: 'tt-abc12345', prefix: 'plan', cursor: 'marker-abc12345' }, [
       get(`${API}/schema/ws/${WS}/trafficTypes/tt-abc12345`, attributesPage, { Paginate: 'true', markerLimit: '50', afterMarker: 'marker-abc12345', searchPrefix: 'plan' }),
     ]);
     expect(calls).toHaveLength(1);
@@ -274,7 +274,7 @@ describe('traffic types, attributes and rollout statuses', () => {
   });
 });
 
-describe('flag list --tag and --name', () => {
+describe('flag list --tag and --search', () => {
   it('sends each --tag as its own tag parameter', async () => {
     const { calls } = await run(flagsListCommand, { workspace: WS, tag: ['payments', 'web'] }, [
       get(`${API}/splits/ws/${WS}`, { objects: [], totalCount: 0 }, { limit: '50', offset: '0', tag: ['payments', 'web'] }),
@@ -284,7 +284,7 @@ describe('flag list --tag and --name', () => {
 
   it('reads every page and keeps names containing the text in any case, saying how many it searched (#671)', async () => {
     const first = Array.from({ length: 50 }, (_, i) => flag(i === 7 ? 'New_Checkout' : `other_${i}`));
-    const { envelope, calls } = await run(flagsListCommand, { workspace: WS, name: 'checkout' }, [
+    const { envelope, calls } = await run(flagsListCommand, { workspace: WS, search: 'checkout' }, [
       get(`${API}/splits/ws/${WS}`, { objects: first, offset: 0, limit: 50, totalCount: 52 }, { offset: '0', limit: '50' }),
       get(`${API}/splits/ws/${WS}`, { objects: [flag('checkout_v2'), flag('banner')], offset: 50, limit: 50, totalCount: 52 }, { offset: '50', limit: '50' }),
     ]);
@@ -293,7 +293,7 @@ describe('flag list --tag and --name', () => {
   });
 
   it('says complete is unknown when Split gives no total', async () => {
-    const { envelope } = await run(flagsListCommand, { workspace: WS, name: 'banner' }, [
+    const { envelope } = await run(flagsListCommand, { workspace: WS, search: 'banner' }, [
       get(`${API}/splits/ws/${WS}`, { objects: [flag('banner')] }, { offset: '0', limit: '50' }),
       get(`${API}/splits/ws/${WS}`, { objects: [] }, { offset: '1', limit: '50' }),
     ]);
@@ -301,20 +301,20 @@ describe('flag list --tag and --name', () => {
   });
 
   it('refuses an answer that is not a list, rather than report no matching flags', async () => {
-    const { envelope } = await run(flagsListCommand, { workspace: WS, name: 'x' }, [get(`${API}/splits/ws/${WS}`, { message: 'unexpected' })]);
+    const { envelope } = await run(flagsListCommand, { workspace: WS, search: 'x' }, [get(`${API}/splits/ws/${WS}`, { message: 'unexpected' })]);
     expect(envelope.error?.code).toBe('HTTP');
   });
 
-  it('passes --tag on to every page of a --name search', async () => {
-    const { calls } = await run(flagsListCommand, { workspace: WS, name: 'x', tag: ['web'] }, [
+  it('passes --tag on to every page of a --search', async () => {
+    const { calls } = await run(flagsListCommand, { workspace: WS, search: 'x', tag: ['web'] }, [
       get(`${API}/splits/ws/${WS}`, { objects: [], totalCount: 0 }, { offset: '0', limit: '50', tag: 'web' }),
     ]);
     expect(calls).toHaveLength(1);
   });
 
-  it('refuses --name with --limit or --offset, and an empty --name', async () => {
-    for (const extra of [{ limit: '10' }, { offset: '50' }, { name: '' }]) {
-      const { envelope, calls } = await run(flagsListCommand, { workspace: WS, name: 'checkout', ...extra }, []);
+  it('refuses --search with --limit or --offset, and an empty --search', async () => {
+    for (const extra of [{ limit: '10' }, { offset: '50' }, { search: '' }]) {
+      const { envelope, calls } = await run(flagsListCommand, { workspace: WS, search: 'checkout', ...extra }, []);
       expect(envelope.error?.code).toBe('INVALID_INPUT');
       expect(calls).toHaveLength(0);
     }
