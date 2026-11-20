@@ -221,6 +221,20 @@ describe('rule-based segments', () => {
     expect(sent(calls[0]!).ruleBasedSegment).toEqual({ name: 'beta_testers', rules: ruleBasedSegment.rules, excludedKeys: [], excludedSegments: [] });
   });
 
+  it('unwraps a whole envelope saved from get', async () => {
+    const saved = { ok: true, data: ruleBasedSegment, error: null, meta: {} };
+    const { calls } = await run(ruleBasedSegmentUpdateCommand, { ...CR, name: 'beta_testers', environment: ENV, inputFile: 'rbs.json' }, [postCr], { 'rbs.json': JSON.stringify(saved) });
+    expect(sent(calls[0]!).ruleBasedSegment).toEqual({ name: 'beta_testers', rules: ruleBasedSegment.rules, excludedKeys: [], excludedSegments: [] });
+  });
+
+  it('refuses a file with none of the definition fields, rather than file a request that would clear the rules', async () => {
+    for (const file of ['{}', '{"rule": []}', JSON.stringify({ ok: true, data: { title: 'x' }, error: null, meta: {} })]) {
+      const { envelope, calls } = await run(ruleBasedSegmentUpdateCommand, { ...CR, name: 'beta_testers', environment: ENV, inputFile: 'rbs.json' }, [postCr], { 'rbs.json': file });
+      expect(envelope.error?.code).toBe('INVALID_INPUT');
+      expect(calls).toHaveLength(0);
+    }
+  });
+
   it('refuses a missing file, or one that is not a JSON object, before anything is sent', async () => {
     const none = await run(ruleBasedSegmentUpdateCommand, { ...CR, name: 'beta_testers', environment: ENV }, [postCr]);
     expect(none.envelope.error?.code).toBe('INVALID_INPUT');

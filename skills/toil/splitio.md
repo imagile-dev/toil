@@ -154,7 +154,9 @@ Segment writes are change requests too, with the same gate and the same
 - `rule-based-segment update <name> --environment <id>`: Replace a rule-based segment's
   definition in the environment with the JSON object in `--input-file`. Only its `rules`,
   `excludedKeys` and `excludedSegments` are sent, so `rule-based-segment get` output
-  can be edited and passed back.
+  (its `data`, or the whole envelope) can be edited and passed back. A file with none
+  of the three is refused with `INVALID_INPUT` before anything is filed, since a
+  request with no rules would clear them.
 
 ```bash
 toil splitio workspace list

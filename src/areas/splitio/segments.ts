@@ -294,9 +294,17 @@ export const ruleBasedSegmentUpdateCommand = splitioArea.command({
     // operationType UPDATE under ruleBasedSegment with the definition Split documents, and nothing else from the file:
     // get's output also carries title and comment, which belong to the segment, not to the request.
     // https://docs.split.io/reference/createrbschangerequest
-    const record = definition as Record<string, unknown>;
+    // A whole envelope saved from `get` on the CLI is unwrapped, as segment keys output is for add-keys.
+    let record = definition as Record<string, unknown>;
+    if ('ok' in record && typeof record.data === 'object' && record.data !== null && !Array.isArray(record.data)) record = record.data as Record<string, unknown>;
     const body: Record<string, unknown> = { name: input.name };
     for (const key of RBS_WRITABLE) if (record[key] !== undefined) body[key] = record[key];
+    // A request carrying only the name would most likely clear the rules on approval, so it is never sent.
+    if (Object.keys(body).length === 1) {
+      throw new ToilError('INVALID_INPUT', '--input-file holds none of rules, excludedKeys or excludedSegments; no change request was filed.', {
+        fix: 'Start from the output of toil splitio rule-based-segment get <name>, and keep its rules, excludedKeys and excludedSegments.',
+      });
+    }
     return submitCr(ctx, input.environment, segmentCrBody(input, 'ruleBasedSegment', 'UPDATE', body));
   },
 });
