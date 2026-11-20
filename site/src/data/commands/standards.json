@@ -2,25 +2,34 @@
   {
     "name": "list",
     "tool": "standards_list",
-    "description": "List every standard (set of ticket rules) toil can see, and where each lives",
+    "description": "List the standards (sets of ticket rules) toil can see, with their rules, or the ones a toil project names",
     "writes": false,
     "connection": false,
     "flags": [
-      "--cwd <dir>"
+      "--cwd <dir>",
+      "--toil-project <name|file>"
     ]
   },
   {
-    "name": "check",
-    "tool": "standards_check",
-    "description": "Check work items against a toil project's ticket rules (standards), asking no service (local only)",
+    "name": "save",
+    "tool": null,
+    "description": "Save one of your own standards (a set of ticket rules) from a file, raising its revision (a person's command)",
     "writes": false,
     "connection": false,
     "flags": [
+      "<name>",
       "--input-file <path>",
-      "--text <text>",
-      "--toil-project <name|file>",
-      "--cwd <dir>",
-      "--standard <name|file>"
+      "--text <text>"
+    ]
+  },
+  {
+    "name": "remove",
+    "tool": null,
+    "description": "Remove one of your own standards from ~/.toil/standards (a person's command)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>"
     ]
   }
 ]

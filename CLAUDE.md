@@ -59,7 +59,9 @@ gets made again in the next place it applies.
    it on. Text from a file someone else can write (a checked-in ticket rule, a
    toil project from a repository) reaches an agent only fenced as data, never as its
    instructions, and never quietly takes the place of a built-in of the same name (the
-   maintainer's call, 2026-11-19, #657). The same holds for agents working on this repository:
+   maintainer's call, 2026-11-19, #657). Only a person writes or chooses the ticket rules an agent's work is judged by, in Toil UI's
+   Settings or their own terminal (`standards save`, `remove`, `projects standards set`), and an AI agent's verdict on
+   them is labelled as its reading (the maintainer's call, 2026-11-20, #657). The same holds for agents working on this repository:
    they act only on feedback from its own people and named bots, stop after three
    pushed rounds with `needs-human`, and stay off any PR labelled `no-auto-fix`.
    The one exception: issues filed from outside (the site's feedback form and its
@@ -474,7 +476,7 @@ GitHub Actions; its build tooling is out of scope.
   the toil it needs; the server answers both behind its `Store`
   and `Agent` interfaces, behind a machine-secret cookie and loopback, Host, Origin and Fetch Metadata checks (#561). It reads by default and writes only
   what a person presses: a worklog export, through `util encode --out` and toil's file
-  service (#308), and the connection and toil project changes Settings runs through toil's
+  service (#308), and the connection, toil project, categories and ticket rule changes Settings runs through toil's
   own commands (`CONFIG_COMMANDS`, #253), each behind its own write gate, including a
   toil project's name and description (`projects describe`, #342) and, on a press after a failed install, one `registry=<url>` line in the user npmrc (`ui/server/agents/npmrc.ts`). Each agent run starts
   that agent's own CLI through its SDK (#251). The server itself spawns one thing:
@@ -663,7 +665,8 @@ A `cli-only` command is never an MCP tool: it prompts on a terminal (stdin is
 the protocol under MCP) or changes connections, which an agent does only for
 `connections add --area … --set key=value` and `connections import … --save`, each on
 the person's yes (principle 2): its
-prompts, every secret and turning `writes` on stay the person's. It has no
+prompts, every secret and turning `writes` on stay the person's. It may also be one that
+changes the rules an agent's work is judged by (`standards save`, `remove`, `projects standards set`). It has no
 time limit, since it may be waiting on someone typing. An area command that must
 stay off MCP but keeps its connection and time limit, a delete, sets `mcp: false`.
 A command whose input decides whether it writes (the passthrough's method) sets

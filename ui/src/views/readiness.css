@@ -77,3 +77,19 @@
 /* Toil's warnings from reading the rules: a quiet warn tint over the whole line, never a stroke down one side. */
 .readiness-rules__warnings { display: grid; gap: 0.35rem; margin: 0 0 0.5rem; }
 .readiness-rules__warnings > li { padding: 0.35rem 0.6rem; border: 1px solid var(--edge-warn); border-radius: var(--radius); background: var(--tint-warn); overflow-wrap: anywhere; }
+
+/* Ticket rules judged by an AI agent (#657): unsure and doesn't apply read as quiet as a rule not judged yet; the quote and any note sit one press in, under the row. */
+.readiness-row--unsure .readiness-mark, .readiness-row--unsure .readiness-state,
+.readiness-row--na .readiness-mark, .readiness-row--na .readiness-state { color: var(--muted); }
+.readiness-row__by { white-space: normal; }
+.readiness-row__quote { margin: var(--space-2, 0.5rem) 0 0; padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem); background: var(--raised); border-radius: var(--radius); font-style: italic; overflow-wrap: anywhere; }
+.readiness-row__note { grid-column: 2 / -1; margin: 0; }
+.readiness-rules__check { margin: 0 0 var(--space-2, 0.5rem); }
+.check-rules { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2, 0.5rem); }
+.check-rules__note { flex-basis: 100%; }
+
+/* A small badge for what an AI agent read, not code (#657): the Tickets card's "AI agent's reading", a row's rule status
+   in "Why not ready", and the item page's short tag when Toil UI kept a verdict as unsure. Filled, never a side stroke. */
+.rule-badge { display: inline-flex; align-items: center; padding: 0.05rem 0.5rem; border: 1px solid var(--line); border-radius: 999px; background: var(--raised); color: var(--muted); font-size: 0.75rem; font-weight: 600; white-space: nowrap; vertical-align: middle; }
+.readiness-rule-badge--missed { background: var(--tint-warn); border-color: var(--edge-warn); color: var(--ink); }
+h2 .rule-badge { font-size: 0.75rem; }

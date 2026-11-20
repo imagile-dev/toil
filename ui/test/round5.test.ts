@@ -16,18 +16,18 @@ describe("a proposal's note that only asks a QUESTION: line again", () => {
   });
 });
 
-describe('the line beside Sync and check again when the rule passes', () => {
-  const pass: RuleAgain = { name: 'Acceptance criteria as Given/When/Then', state: 'pass', reason: '' };
+describe('the line beside Sync and judge again when the rule is met', () => {
+  const pass: RuleAgain = { name: 'Acceptance criteria as Given/When/Then', state: 'pass', reason: '', by: 'Codex' };
   const row = (label: string): Row => ({ check: 'description', label, state: 'thin', reason: '', source: 'description' });
   it('says ready to start only when the verdict on the same reading is Ready', () => {
-    expect(passedText([pass], 'SCRUM-32', { verdict: 'ready', why: [] })).toBe('✓ Acceptance criteria as Given/When/Then now passes. SCRUM-32 is ready to start.');
-    expect(passedText([pass], 'SCRUM-32', { verdict: 'thin', why: [row('Description')] })).toBe('✓ Acceptance criteria as Given/When/Then now passes. SCRUM-32 still needs more detail before it is ready to start: Description.');
-    expect(passedText([pass], 'SCRUM-32', { verdict: 'blocked', why: [row('Blockers')] })).toBe("✓ Acceptance criteria as Given/When/Then now passes. SCRUM-32 is blocked, so it isn't ready to start: Blockers.");
-    expect(passedText([pass], 'SCRUM-32', null)).toBe('✓ Acceptance criteria as Given/When/Then now passes.');
+    expect(passedText([pass], 'SCRUM-32', { verdict: 'ready', why: [] })).toBe('✓ Codex judges Acceptance criteria as Given/When/Then now met. SCRUM-32 is ready to start.');
+    expect(passedText([pass], 'SCRUM-32', { verdict: 'thin', why: [row('Description')] })).toBe('✓ Codex judges Acceptance criteria as Given/When/Then now met. SCRUM-32 still needs more detail before it is ready to start: Description.');
+    expect(passedText([pass], 'SCRUM-32', { verdict: 'blocked', why: [row('Blockers')] })).toBe("✓ Codex judges Acceptance criteria as Given/When/Then now met. SCRUM-32 is blocked, so it isn't ready to start: Blockers.");
+    expect(passedText([pass], 'SCRUM-32', null)).toBe('✓ Codex judges Acceptance criteria as Given/When/Then now met.');
   });
   it('leaves a rule still missing or not checked to its own line', () => {
     expect(passedText([pass, { ...pass, name: 'Other', state: 'missing' }], 'SCRUM-32', { verdict: 'ready', why: [] })).toBeNull();
-    expect(passedText([{ ...pass, state: 'unchecked' }], 'SCRUM-32', { verdict: 'ready', why: [] })).toBeNull();
-    expect(passedText([pass, { ...pass, name: 'Written as a user story' }], 'SCRUM-32', { verdict: 'ready', why: [] })).toBe('✓ Acceptance criteria as Given/When/Then and Written as a user story now pass. SCRUM-32 is ready to start.');
+    expect(passedText([{ ...pass, state: 'unjudged' }], 'SCRUM-32', { verdict: 'ready', why: [] })).toBeNull();
+    expect(passedText([pass, { ...pass, name: 'Written as a user story' }], 'SCRUM-32', { verdict: 'ready', why: [] })).toBe('✓ Codex judges Acceptance criteria as Given/When/Then and Written as a user story now met. SCRUM-32 is ready to start.');
   });
 });

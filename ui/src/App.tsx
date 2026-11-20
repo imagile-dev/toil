@@ -31,7 +31,7 @@ import { CommandCenter } from './views/CommandCenter.tsx';
 import { Classify } from './views/Classify.tsx';
 import { ClassifyProvider } from './classify-state.tsx';
 import type { ClassifyApi, LedgerView } from './classify-api.ts';
-import { readingOf, type RulesApi, type RulesState } from './rules.ts';
+import { readingOf, type JudgeResult, type RulesApi, type RulesState, type RulesView } from './rules.ts';
 import { Dashboard } from './views/Dashboard.tsx';
 import { ToilProjectShell, type TeamPage, type ToilProjectTab } from './views/ToilProjectShell.tsx';
 import { ToilProjects, type SyncedAt } from './views/ToilProjects.tsx';
@@ -93,7 +93,7 @@ const ChartkitGallery = lazy(() => import('./components/chartkit/gallery.tsx'));
 const PowershellMan = lazy(() => import('./game/PowershellMan.tsx').then((module) => ({ default: module.PowershellMan })));
 const POWERSHELL_MAN_HASH = '#/powershell-man';
 
-export type SettingsPage = 'general' | 'connections' | 'projects' | 'appearance' | 'usage' | 'agent';
+export type SettingsPage = 'general' | 'connections' | 'projects' | 'rules' | 'appearance' | 'usage' | 'agent';
 type RouteOf =
   | { view: 'toilProjects' }
   /** The setup wizard (#561): `#/setup`. */
@@ -195,7 +195,7 @@ function parsePath(hash: string): RouteOf {
   if (parts[0] === 'new-project') return { view: 'newProject' };
   if (parts[0] === 'settings') {
     // General opens first: `#/settings`, `#/settings/general` and the old `#/settings/toil` all land there. Agent token usage moved to Usage.
-    let page: SettingsPage = parts[1] === 'agent-usage' ? 'usage' : parts[1] === 'connections' || parts[1] === 'projects' || parts[1] === 'appearance' || parts[1] === 'usage' || parts[1] === 'agent' ? parts[1] : 'general';
+    let page: SettingsPage = parts[1] === 'agent-usage' ? 'usage' : parts[1] === 'connections' || parts[1] === 'projects' || parts[1] === 'rules' || parts[1] === 'appearance' || parts[1] === 'usage' || parts[1] === 'agent' ? parts[1] : 'general';
     // A malformed escape is kept as typed, so the page says it found nothing by that name rather than failing to render.
     const at = parts.slice(2).filter(Boolean).map((p) => {
       try {
@@ -376,7 +376,7 @@ export interface AppProps {
   analyses?: AnalysesApi;
   /** Sorting work into categories (#566): the person's ledger and the steps around it; the server's, or the sample's script. Without one, categories show and nothing can be changed. */
   classify?: ClassifyApi;
-  /** Ticket rules (#657): toil's check of the toil project on screen; the server's, or the sample's. Without one, a toil project that names rules shows them as not read yet. */
+  /** Ticket rules (#657): the rules the toil project on screen names and the AI agent's verdicts, and the press that asks for more; the server's, or the sample's. Without one, a toil project that names rules shows them as not read yet. */
   rules?: RulesApi;
   /** Each toil project's last sync, from the sync panel (#342), for its card; absent where nothing syncs (the preview). */
   synced?: Record<string, SyncedAt>;
@@ -493,19 +493,44 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   useEffect(() => {
     if (wanted) void readLedger(wanted);
   }, [wanted, readLedger]);
-  // The ticket rules for the toil project on screen (#657): read when it opens and after each sync. Until the answer comes they are not read yet, and a failure is kept as one.
-  const [rulesRead, setRulesRead] = useState<{ toilProject: string; at: string; state: RulesState } | null>(null);
+  // The ticket rules for the toil project on screen (#657): read when it opens and after each sync, never judged on load. Until the answer comes they are not read yet, and a failure is kept as one.
+  const [rulesRead, setRulesRead] = useState<{ toilProject: string; at: string; view: RulesView | null; error: string | null } | null>(null);
+  const [judging, setJudging] = useState<{ toilProject: string; items: string[] } | null>(null);
   useEffect(() => {
     if (!wanted || !rulesApi) return;
     let live = true;
-    rulesApi.check(wanted).then(
-      (view) => live && setRulesRead({ toilProject: wanted, at: now, state: { reading: readingOf(view), view } }),
-      (e: unknown) => live && setRulesRead({ toilProject: wanted, at: now, state: { reading: readingOf(null, e instanceof Error ? e.message : String(e)), view: null } }),
+    rulesApi.read(wanted).then(
+      (view) => live && setRulesRead({ toilProject: wanted, at: now, view, error: null }),
+      (e: unknown) => live && setRulesRead({ toilProject: wanted, at: now, view: null, error: e instanceof Error ? e.message : String(e) }),
     );
     return () => {
       live = false;
     };
   }, [wanted, rulesApi, now]);
+  // A person's press: the agent judges these items, and the reading becomes the view after it.
+  const judgeRules = useCallback(
+    async (toilProject: string, items: string[]): Promise<JudgeResult> => {
+      if (!rulesApi) throw new Error('This app has no AI agent to judge ticket rules with.');
+      setJudging({ toilProject, items });
+      try {
+        const result = await rulesApi.judge(toilProject, { items });
+        setRulesRead((cur) => ({ toilProject, at: cur?.toilProject === toilProject ? cur.at : now, view: result.view, error: null }));
+        return result;
+      } finally {
+        setJudging((cur) => (cur?.toilProject === toilProject ? null : cur));
+      }
+    },
+    [rulesApi, now],
+  );
+  const rulesState = (toilProject: string): RulesState | undefined => {
+    if (rulesRead?.toilProject !== toilProject || rulesRead.at !== now) return undefined;
+    return {
+      reading: rulesRead.error !== null ? readingOf(null, rulesRead.error) : readingOf(rulesRead.view),
+      view: rulesRead.view,
+      ...(rulesApi ? { judge: (items: string[]) => judgeRules(toilProject, items) } : {}),
+      judging: judging?.toilProject === toilProject ? { items: judging.items } : null,
+    };
+  };
   // The command palette and the shortcuts sheet (#416), hidden until called up; `focused` is the item the focus was on when the palette opened.
   const [palette, setPalette] = useState<{ open: boolean; focused: string | null }>({ open: false, focused: null });
   const [sheet, setSheet] = useState(false);
@@ -772,7 +797,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
     body = failure(current.message);
   } else {
     inShell = true;
-    const data: Data = { ...(preview ? { preview: true } : {}), ...(onSync ? { sync: onSync } : {}), ...(worklog ? { worklog } : {}), toilProject: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, ...(preview ? { viewedAt: new Date(Date.parse(now) + 2 * 3_600_000).toISOString() } : {}), execute, analyses, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.toilProject) } : {}), refresh: () => setToilProjects(({ [route.toilProject]: _, ...rest }) => rest), described, ...(rulesRead?.toilProject === route.toilProject && rulesRead.at === now ? { rules: rulesRead.state } : {}), ...(classifyApi ? { classification: { api: classifyApi, view: ledger?.toilProject === route.toilProject ? ledger.view : null, error: ledger?.toilProject === route.toilProject ? ledger.error : null, loading: ledger?.toilProject !== route.toilProject, version: ledger?.toilProject === route.toilProject ? ledger.version : 0, reload: () => readLedger(route.toilProject) } } : {}) };
+    const data: Data = { ...(preview ? { preview: true } : {}), ...(onSync ? { sync: onSync } : {}), ...(worklog ? { worklog } : {}), toilProject: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, ...(preview ? { viewedAt: new Date(Date.parse(now) + 2 * 3_600_000).toISOString() } : {}), execute, analyses, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.toilProject) } : {}), refresh: () => setToilProjects(({ [route.toilProject]: _, ...rest }) => rest), described, ...(rulesState(route.toilProject) ? { rules: rulesState(route.toilProject)! } : {}), ...(classifyApi ? { classification: { api: classifyApi, view: ledger?.toilProject === route.toilProject ? ledger.view : null, error: ledger?.toilProject === route.toilProject ? ledger.error : null, loading: ledger?.toilProject !== route.toilProject, version: ledger?.toilProject === route.toilProject ? ledger.version : 0, reload: () => readLedger(route.toilProject) } } : {}) };
     body = (
       <DataContext value={data}>
         {/* The Ask bar (#343), on every toil project page; its chat is keyed by toil project, so a conversation lasts across that toil project's views. */}

@@ -1,96 +1,65 @@
 ---
-description: Ticket rules, called standards, for how a team writes work items, such as acceptance criteria as Given/When/Then, the user-story form, and a bug's steps to reproduce. What a standard is, where standards live, the three built in, checking work items against them, and naming the ones a toil project uses
+description: Ticket rules, called standards, for how a team writes work items, such as acceptance criteria as Given/When/Then, the user-story form, and a bug's steps to reproduce. What a standard is, where standards live, the three built-in starters, saving and removing your own, and naming the ones a toil project uses
 ---
 
 # Ticket rules (standards)
 
-A **standard** is one JSON file holding one set of rules for writing a work item: "a story's
-acceptance criteria are Given/When/Then scenarios", "a bug says how to reproduce it". Toil UI
-calls them **ticket rules**. `toil standards check` reads work items you pass as Open Work
-Item records and says, for each rule that applies to each item, whether it holds. It asks no
-service and changes nothing.
+A **standard** is one JSON file holding one named set of rules for writing a work item. Each
+rule is plain-text instructions a person writes and edits freely: "a story's acceptance
+criteria are Given/When/Then scenarios", "a bug says how to reproduce it". Toil UI calls them
+**ticket rules**.
 
-No standard applies until a toil project or the call names it: which rules a team's tickets
-are held to is the team's call.
+toil keeps and lists the rules; it never judges one. Whether an item meets a rule, and whether
+a rule applies to it at all, is an AI agent's reading: Toil UI hands the rules and the item's
+text to your own agent when you press **Check with AI agent**. To judge rules yourself from a
+terminal or an agent, read them with `toil standards list` and the items with the tracker's
+own commands.
+
+No standard applies until a toil project names it: which rules a team's tickets are held to
+is the team's call.
 
 ## A standard
 
 ```json
 {
-  "name": "gherkin",
+  "name": "team-stories",
   "revision": 1,
-  "description": "A story's acceptance criteria are written as Given/When/Then scenarios.",
+  "description": "How the payments team writes a story.",
   "rules": [
     {
       "id": "scenarios",
       "name": "Acceptance criteria as Given/When/Then",
-      "text": "State the acceptance criteria as scenarios: a Given line (context), a When line (action), a Then line (outcome).",
-      "when": { "type": ["STORY"] },
-      "fail": "thin",
-      "check": { "kind": "pattern", "in": ["criteria"], "match": ["^\\W*given\\b", "^\\W*when\\b", "^\\W*then\\b"], "flags": "im", "labels": ["a Given line", "a When line", "a Then line"] }
+      "text": "This rule is for stories. For any other kind of item, it does not apply.\nThe acceptance criteria are written as one or more scenarios, each with a Given, a When and a Then line."
     }
   ]
 }
 ```
 
 - **`name`** is lowercase letters, digits and single hyphens, and in a standards folder it is
-  the file's name (`gherkin.json`). `revision` is a whole number (default 1);
+  the file's name (`team-stories.json`). `revision` is a whole number (default 1);
   `description` one line of at most 300 characters.
 - **`rules`**: 1 to 50. Each has an `id` (unique in the standard), a `name` (a few words a
-  screen shows, at most 120 characters) and `text` (one line saying what the rule asks for,
-  at most 500 characters, which an AI agent is told when asked to fix an item).
-  An optional `missing` (at most 120 characters) names what an item that misses the rule
-  lacks, as a short phrase a count leads into (`no Given/When/Then criteria`), for screens
-  that summarise misses.
-- **`when`** says which items the rule applies to, as a classification scheme's rules do
-  (`classify.md`): `type` (the OWI type, `STORY`, or the tracker's own, `Spike`), `label`,
-  `parent` (at any depth) and `title` (contains). Every key given must match; a key matches
-  when any of its values does. Leave `when` out for a rule that applies to every item; an
-  empty `{}` is an error.
-- **`fail`** is what a miss makes of the item: `thin` (needs work, the default) or `fail`
-  (not ready).
-- **`check`** says what to look for, and **`in`** where: 1 to 5 places, their text joined.
+  screen shows, one line, at most 120 characters) and `text`: the instructions, at most 2,000
+  characters, with line breaks and tabs allowed. Say in the text which items the rule is for
+  ("This rule is for bugs."): the agent decides whether a rule applies to an item from what
+  the text says.
+- A standard holds no secret, host, connection or `writes`; text shaped like a credential is
+  refused, and so is any control character but a line break or a tab. A rule's text reaches an
+  AI agent only as data inside a fence beside the item, never as its instructions.
+- A file in the shape ticket rules had before they became plain text (a rule with `check`,
+  `when`, `fail` or `missing`) is refused with `CONFIG_INVALID` and a fix: keep `id`, `name`
+  and `text`, and write what the check said into the text in plain words.
 
-| Place | What it reads |
-|-------|---------------|
-| `title` | The title |
-| `description` | The body, as plain lines (ADF, HTML and wiki markup are read the same way) |
-| `criteria` | The acceptance criteria: the toil project's `<area>.fields.acceptanceCriteria` field, then Azure DevOps' `Microsoft.VSTS.Common.AcceptanceCriteria`, then the description's "Acceptance criteria" section, then the whole description; the first that holds any words |
-| `field:<alias or id>` | One field from the item's source record, by the toil project's alias for it or its own id |
-
-| Kind | Passes when | Takes |
-|------|-------------|-------|
-| `pattern` | Every regular expression in `match` is found | `match` (1 to 10, each at most 200 characters), `flags` (only `i`, `m` and `s`), `labels` (optional) |
-| `section` | One of the `heading`s is there with at least `minWords` real words under it | `heading` (1 to 10), `minWords` (default 1) |
-| `field` | The text isn't empty (placeholder text such as TBD or N/A counts as empty) | |
-| `words` | The text has at least `min` real words | `min` |
-| `judge` | Never: it is reserved for an AI agent's reading, and is always `skipped` | `in` (default `description`) |
-
-A pattern's **`labels`** name each of `match` in plain words, in the same order and as many:
-one line each, at most 100 characters, with no credential shape. A reason is built from them
-("Missing a Then line in the acceptance criteria.", "No Given, When or Then line in the
-description."), so whoever reads it needn't read regular expressions. Without `labels`, a
-reason quotes the patterns it didn't find. Labels that share a last word ("a Given line", "a
-When line") are said together ("Given, When or Then line").
-
-A pattern may not use a backreference, repeat a group that holds a quantifier or an
-alternation (`(a+)+`, `(a|ab)*`), or put two repeats that can match the same characters
-side by side (`\s*\s*`, `\d+\d+`, `.*.*`). A repeat that may match nothing doesn't keep two
-apart (`\w+\s*\w+` is refused; write `\w+\s+\w+`), and nor does a character an unbounded
-repeat before it also matches (`.*a.*b` is refused; write `[^,]*,.*b`). Each of these can
-take minutes on text a tracker sent, and matching can't be stopped once it starts. At most
-the first 20,000 characters of a text are read. A standard holds no secret, host, connection
-or `writes`; text shaped like a credential is refused. When an AI agent is asked to fix an
-item, the text of a rule from a repository's standard reaches it as data beside the item,
-never as an instruction.
-
-### The built-in standards
+### The built-in starters
 
 | Name | Rules |
 |------|-------|
-| `gherkin` | `scenarios`: a story's `criteria` hold Given, When and Then lines |
-| `user-story` | `story-form`: a story's description holds "As a …, I want …, so that …" |
-| `bug-repro` | `steps`, `expected`, `actual`: a bug's repro steps field (`Microsoft.VSTS.TCM.ReproSteps`) or description has a "Steps to reproduce", "Expected" and "Actual" section |
+| `gherkin` | `scenarios`: a story's acceptance criteria are Given/When/Then scenarios |
+| `user-story` | `story-form`: a story's description opens "As a …, I want …, so that …" |
+| `bug-repro` | `steps`, `expected`, `actual`: a bug says how to reproduce it, what should happen, and what happens instead |
+
+They are starting points: `toil standards list` prints their text, and saving an edited copy
+under the same name makes it yours (`toil standards save gherkin --input-file …`).
 
 ### Where standards live
 
@@ -99,63 +68,51 @@ Looked up by name in this order, the first found winning: your own folder
 then the built-ins. Your own folder may replace a built-in; a repository's file with a built-in's
 name (`.toil/standards/gherkin.json`) is set aside for the built-in, with a
 `STANDARD_SHADOWS_BUILTIN` warning, so name a team's version something else (`team-gherkin`).
-A file can be named instead: on a call, a path ending `.json` inside the
-workspace or a standards folder; in a toil project, a path relative to the toil project's file
-(`./rules/team.json`). toil only reads standards; write your own file by hand and check it in.
+A toil project may also name a file by a path relative to its own file (`./rules/team.json`).
+A team's shared file is written by hand and checked in; toil writes only your own folder.
 
 ## Commands
 
 | Command | Flags | What it does |
 |---------|-------|--------------|
-| `toil standards list` | `--cwd` | Every standard visible by name, each from its highest place, with its rules |
-| `toil standards check` | `--input-file`, `--text`, `--toil-project`, `--cwd`, `--standard` | Check work items against the toil project's standards, or the ones `--standard` names |
-| `toil projects standards set <toil-project>` | `--use`, `--replace`, `--clear` | Name the standards a toil project's work is held to; `--clear` is CLI only |
+| `toil standards list` | `--cwd`, `--toil-project` | Every standard visible by name, each from its highest place, with its rules' text; or, with `--toil-project`, the ones that toil project names, in its order |
+| `toil standards save <name>` | `--input-file`, `--text` | Save one of your own standards to `~/.toil/standards/<name>.json`; CLI only |
+| `toil standards remove <name>` | | Remove one of your own standards; CLI only |
+| `toil projects standards set <toil-project>` | `--use`, `--replace`, `--clear` | Name the standards a toil project's work is held to, or none with `--clear`; CLI only |
 
-### `standards check`
+### `standards list`
 
 ```bash
-toil jira issue search --jql "project = PAY AND sprint in openSprints()" \
-  | toil util owi map \
-  | toil standards check --toil-project payments
+toil standards list --toil-project payments
 ```
-
-The standards are `--standard` (repeatable, a name or a file), else the toil project's
-`standards.use`; with neither, nothing is checked and `STANDARDS_NONE` says so. The toil
-project's field aliases apply to `field:<alias>` and to `criteria`.
 
 ```json
 {
   "toilProject": "payments",
-  "standards": [{ "name": "gherkin", "revision": 1, "source": "built-in", "rules": [{ "id": "scenarios", "name": "…", "text": "…", "when": { "type": ["STORY"] }, "fail": "thin", "kind": "pattern" }] }],
-  "items": [{
-    "id": "corp-jira:PAY-302", "key": "PAY-302", "area": "jira", "title": "Show refunds on the statement", "url": "…",
-    "verdict": "thin",
-    "results": [{ "standard": "gherkin", "rule": "scenarios", "name": "…", "state": "thin", "reason": "No Given, When or Then line in the description.", "source": "description" }]
-  }],
-  "summary": { "items": 5, "checked": 3, "byRule": [{ "standard": "gherkin", "rule": "scenarios", "name": "…", "types": ["STORY"], "applies": 2, "pass": 1, "thin": 1, "fail": 0, "skipped": 0 }] }
+  "standards": [{ "name": "gherkin", "revision": 2, "source": "built-in", "description": "…", "rules": [{ "id": "scenarios", "name": "Acceptance criteria as Given/When/Then", "text": "…" }] }]
 }
 ```
 
-- **`state`** is `pass`, `thin` or `fail` (the rule's `fail`), or `skipped`. A rule is
-  skipped when none of its places is in the record read ("not read"): a field the read never
-  asked for says nothing about the ticket, so it is never taken for an empty one. A record
-  with no `body` key never had its description read; `"body": null` is a description read and
-  found empty. Azure DevOps leaves an empty field out of a work item, so on Azure DevOps an
-  empty field reads as not read. A rule with some places read and some not is checked on what
-  was read: its reason speaks only of what was read, and `source` names what wasn't. `judge`
-  rules are always skipped.
-- **`reason`** says why, in plain words, naming places as a person would: "the acceptance
-  criteria", "the description", "the title", or a field by the toil project's alias for it,
-  else its id.
-- **`source`** says where the text was read from, in the same plain words, with where a
-  place really lives in brackets so a fix knows what to rewrite: `acceptance criteria (field
-  customfield_10500)`, `acceptance criteria (in the description)`, `description`, `risk (field
-  customfield_10777)`, or `field <id>` for a field with no alias. Places are comma-separated,
-  then `; not read: ` and what wasn't; or `not read: …` alone when nothing was.
-- **`verdict`** is the worst state of the item's rules that could be checked, or `null` when
-  no rule applies or every one that does was skipped.
-- **`summary.byRule`** counts, per rule, the items it applied to (`applies`) by state, and
-  `types` lists those items' types.
+Without `--toil-project`, `toilProject` is `null` and every standard toil can see is listed.
+With it, a toil project that names none lists none, with a `STANDARDS_NONE` warning; one that
+names a standard twice lists it once, from the first, with a `STANDARDS_DUPLICATE` warning; a
+standard it names that can't be read stops the listing (`NOT_FOUND` or `CONFIG_INVALID`), so
+work is never held to fewer rules than the toil project says.
+
+### `standards save` and `standards remove`
+
+```bash
+toil standards save team-stories --input-file rules/team-stories.json
+toil standards remove team-stories
+```
+
+`save` reads a standard (`{ "description", "rules" }`; a `name`, if given, must be the one
+saved) and writes it to your own folder. The revision counts saves: 1 for a new standard, one
+more than the copy it replaces otherwise, whatever the file says; the same content again writes
+nothing (`STANDARD_UNCHANGED`). `remove` deletes only a valid standard in your own folder, and
+says what the name means afterwards (a repository's or the built-in standard of that name,
+`STANDARD_NOW_FROM`). Both are a person's commands: the rules are what an AI agent's verdicts
+are held to, so they are never served over MCP. Toil UI's Settings runs them for you.
 
 ### `projects standards set`
 
@@ -167,5 +124,8 @@ toil projects standards set payments --use ./rules/team.json --use gherkin --rep
 It writes the toil project's `standards` key, `{ "use": [...] }`: at most 20 standards, each
 once, each a name or a path relative to the toil project ending `.json`. A different list
 already there is refused unless `--replace`, which replaces it whole. A standard that can't be
-read yet is set anyway, with a `STANDARD_UNRESOLVED` warning. `--clear` removes the key and is
-CLI only. The key holds no connection, host or `writes`.
+read yet is set anyway, with a `STANDARD_UNRESOLVED` warning. `--clear` removes the key, so no
+standards apply. The key holds no connection, host or `writes`. Choosing which rules an AI
+agent's work is judged by is a person's call, so this is a person's command too: never served
+over MCP, and run for you by Toil UI's Settings, Ticket rules, where you may also choose no rule
+sets at all.

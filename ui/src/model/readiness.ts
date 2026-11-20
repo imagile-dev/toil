@@ -24,34 +24,41 @@
  * - **Scope**: it comes from one of the toil project's sources, and the toil project
  *   names a repository to work in.
  *
- * Then one row for each ticket rule (#657) that applies to the item, from the
- * toil project's `standards.use`, as toil's own `standards check` worked it
- * out (src/core/standards/check.ts). Until that check has been read, or when
- * it failed or returned nothing for the item, the rules are one row, "Ticket
- * rules", saying so; a rule whose text wasn't in the record read is `skipped`.
+ * Then one row for each ticket rule (#657) the toil project names in
+ * `standards.use`, with the person's AI agent's verdict on it, asked for on a
+ * press (src/rules.ts): met is a pass, missed is thin, unsure is unknown, and a
+ * rule the agent said doesn't apply to the item is `na` and counts for nothing,
+ * but only with evidence: a quote Toil UI found in the item, or the item's type
+ * or a label. A "doesn't apply" with none is unknown, like unsure, and keeps
+ * the agent's word on screen as its reading (the maintainer's call, #657). A
+ * rule not judged yet is `skipped`, a dash. Until the rules have been
+ * read, or when reading them failed, they are one row, "Ticket rules", saying so.
  *
  * A row is `pass`, `thin` (missing something a person can decide to live
- * with), `fail` (it can't be worked on as it is) or `skipped` (a ticket rule
- * nobody could check). The verdict is `blocked` when any row fails, `thin`
- * when any is thin, `unread` ("Rules not read yet") when nothing fails or is
- * thin but a ticket rule wasn't checked, and `ready` only when every row
- * passes. A rule nobody read is unknown, not a pass (principle 12), so an item
- * is never slated for an agent on rules toil hasn't read.
+ * with), `fail` (it can't be worked on as it is), `skipped` (a ticket rule not
+ * judged yet), `unsure` (the agent couldn't tell) or `na`. The verdict is
+ * `blocked` when any row fails, `thin` when any is thin, `unread` ("Rules
+ * unknown") when nothing fails or is thin but a ticket rule isn't judged yet or
+ * the agent was unsure, and `ready` only when every other row passes. A rule
+ * nobody judged is unknown, not a pass (principle 12), so an item is never
+ * slated for an agent on rules nobody has read against it. A ticket rule never
+ * makes an item Blocked: it is an AI agent's reading, and a person decides.
  * Five boxes, ticked by a function, which is the only kind of committee that
  * has ever finished on time.
  */
 
-import { ADO_ACCEPTANCE_FIELD } from '../../../src/core/standards/check.ts';
-import { acceptanceInBody, lines, normalise, realText, textOf, wordCount } from '../../../src/core/standards/text.ts';
-import type { RuleResult } from '../../../src/core/standards/types.ts';
+import { ADO_ACCEPTANCE_FIELD, acceptanceInBody, lines, normalise, realText, textOf, wordCount } from '../../../src/core/standards/text.ts';
+import type { StandardSummary } from '../../../src/core/standards/types.ts';
+import type { Judgement, RuleVerdict } from '../rules.ts';
 import type { StatusCategory, WorkItem } from '../toil.ts';
 
 // The body reader is toil's (src/core/standards/text.ts), so a ticket rule and these rows read a description one way.
 export { ADO_ACCEPTANCE_FIELD, acceptanceInBody, realText, textOf, wordCount };
 
-/** `unread`: nothing fails or is thin, but a ticket rule the toil project names wasn't checked on the item, so it isn't known to be ready. */
+/** `unread`: nothing fails or is thin, but a ticket rule the toil project names isn't judged on the item yet, or the agent was unsure, so it isn't known to be ready. */
 export type Verdict = 'ready' | 'thin' | 'blocked' | 'unread';
-export type RowState = 'pass' | 'thin' | 'fail' | 'skipped';
+/** `skipped`: a ticket rule not judged yet (or not read). `unsure`: the agent couldn't tell. `na`: the agent said the rule doesn't apply to the item. */
+export type RowState = 'pass' | 'thin' | 'fail' | 'skipped' | 'unsure' | 'na';
 /** The five fixed checks. */
 export type FixedCheckId = 'acceptance' | 'description' | 'done' | 'blockers' | 'scope';
 /** A fixed check, a ticket rule (`rule:<standard>/<rule>`), or `rules`: the one row for ticket rules not read yet, or that failed to read. */
@@ -65,9 +72,9 @@ export const CHECK_LABEL: Record<FixedCheckId, string> = {
   blockers: 'Blockers',
   scope: 'Scope',
 };
-export const VERDICT_LABEL: Record<Verdict, string> = { ready: 'Ready', thin: 'Thin', blocked: 'Blocked', unread: 'Rules not read yet' };
+export const VERDICT_LABEL: Record<Verdict, string> = { ready: 'Ready', thin: 'Thin', blocked: 'Blocked', unread: 'Rules unknown' };
 /** The same four, in plain words (src/plain-words.ts). */
-export const VERDICT_PLAIN: Record<Verdict, string> = { ready: 'Ready', thin: 'Needs more detail', blocked: 'Blocked', unread: 'Rules not read yet' };
+export const VERDICT_PLAIN: Record<Verdict, string> = { ready: 'Ready', thin: 'Needs more detail', blocked: 'Blocked', unread: 'Rules not known yet' };
 export const VERDICTS: readonly Verdict[] = ['ready', 'thin', 'blocked', 'unread'];
 
 /** One check's row: its state, and why, with any item it names written as `[[id]]`. */
@@ -78,15 +85,17 @@ export interface Row {
   reason: string;
   /** Where the row's answer came from: a field, the body, the last sync (the cache, in plain words), or the live command. */
   source: string;
-  /** A ticket rule's row: which rule it is, for "Fix with AI agent". */
+  /** A ticket rule's row: which rule it is, for "Fix with AI agent" and "Check with AI agent". */
   rule?: { standard: string; rule: string };
+  /** A judged ticket rule's row: the AI agent's verdict as it gave it, with who and when (principle 4). */
+  judged?: Pick<RuleVerdict, 'verdict' | 'by' | 'at' | 'quote' | 'note'>;
 }
 
 export interface Readiness {
   id: string;
   verdict: Verdict;
   rows: Row[];
-  /** The rows that aren't `pass`, worst first (a skipped rule last): why it isn't ready, in one place. */
+  /** The rows that aren't `pass` or `na`, worst first (an unknown rule last): why it isn't ready, in one place. */
   why: Row[];
 }
 
@@ -114,7 +123,7 @@ export interface ReadinessSettings {
   notes: string[];
   /** The ticket rules the toil project names (`standards.use`), in order; empty when it names none, and then no rule row shows. */
   standards: string[];
-  /** The ticket rules as toil checked them, once read; absent, a toil project that names some shows them as not read yet. */
+  /** The ticket rules and the agent's verdicts, once read; absent, a toil project that names some shows them as not read yet. */
   rules?: RulesReading;
 }
 
@@ -146,25 +155,28 @@ export function fieldName(field: string, settings: Pick<ReadinessSettings, 'area
 }
 
 /**
- * What toil's `standards check` said, as the page holds it: not read yet (the
- * call hasn't come back, or the toil project never synced), read, or failed,
- * with toil's message. Unread is never an empty result (principle 12).
+ * The ticket rules the toil project names and the AI agent's verdicts, as the
+ * page holds them: not read yet (the call hasn't come back), read, or failed,
+ * with the message. Unread is never an empty result (principle 12), and a rule
+ * with no verdict in a read is not judged yet, never a pass.
  */
 export interface RulesReading {
   state: 'unread' | 'read' | 'failed';
-  /** Each item's rule results, by OWI id; only when read. */
-  byItem: ReadonlyMap<string, readonly RuleResult[]>;
-  /** Why the read failed, in toil's words; null otherwise. */
+  /** The rules the toil project names, as toil read them; only when read. */
+  standards: readonly StandardSummary[];
+  /** Each item's verdicts that still hold, by OWI id; only when read. */
+  byItem: ReadonlyMap<string, readonly RuleVerdict[]>;
+  /** Why the read failed; null otherwise. */
   message: string | null;
   /**
    * What toil said about reading the rules that isn't a failure, each in toil's own words (its `meta.warnings`): a
-   * standard set aside or skipped (STANDARDS_SKIPPED, STANDARD_SHADOWS_BUILTIN), a file that couldn't be used
-   * (STANDARD_PATH_INVALID), a key it ignored (STANDARD_UNKNOWN_KEY, STANDARD_DUPLICATE_KEY). Empty when unread or failed.
+   * standard set aside (STANDARD_SHADOWS_BUILTIN), a file that couldn't be used (STANDARD_PATH_INVALID), a key it
+   * ignored (STANDARD_UNKNOWN_KEY, STANDARD_DUPLICATE_KEY). Empty when unread or failed.
    */
   warnings: readonly string[];
 }
 
-export const RULES_UNREAD: RulesReading = { state: 'unread', byItem: new Map(), message: null, warnings: [] };
+export const RULES_UNREAD: RulesReading = { state: 'unread', standards: [], byItem: new Map(), message: null, warnings: [] };
 
 /** The gate's settings with the ticket rules as last read. */
 export const withRules = (settings: ReadinessSettings, rules: RulesReading | undefined): ReadinessSettings => (rules ? { ...settings, rules } : settings);
@@ -219,7 +231,7 @@ export function readReadiness(toilProject: unknown): ReadinessSettings {
  * custom field under its registered name rather than its id, so a field
  * whose name says "acceptance criteria" counts too.
  */
-function fieldValue(item: WorkItem, field: string): { value: unknown; key: string } | null {
+export function fieldValue(item: WorkItem, field: string): { value: unknown; key: string } | null {
   const wanted = field.toLowerCase();
   for (const rec of Object.values(item.native ?? {})) {
     if (!isRec(rec)) continue;
@@ -368,38 +380,46 @@ function scope(item: WorkItem, settings: ReadinessSettings): Row {
 /** The label of the one row that stands for ticket rules nobody has read. */
 export const RULES_LABEL = 'Ticket rules';
 
+const RULE_STATE: Record<Judgement, RowState> = { met: 'pass', missed: 'thin', unsure: 'unsure', na: 'na' };
+/** How a verdict counts: a "doesn't apply" with no evidence counts as unsure, never as neutral, so it never helps an item reach Ready. */
+export const countsAs = (v: Pick<RuleVerdict, 'verdict' | 'quote'>): Judgement => (v.verdict === 'na' && !v.quote ? 'unsure' : v.verdict);
+
 /**
- * The item's ticket-rule rows: one per rule that applies, once read; until
- * then one row saying they weren't read yet, or why the read failed. A read
- * that holds no result for the item (it synced after the check, say) is one
- * such row too, never "no rule applies". None when the toil project names no
- * rules and nothing was read.
+ * The item's ticket-rule rows: one per rule the toil project names, once read,
+ * with the agent's verdict, or a dash for one not judged yet; until then one
+ * row saying they weren't read yet, or why reading them failed. None when the
+ * toil project names no rules and none were read.
  */
 function ruleRows(item: WorkItem, settings: ReadinessSettings): Row[] {
   const rules = settings.rules ?? (settings.standards.length > 0 ? RULES_UNREAD : undefined);
   if (!rules) return [];
   const source = `ticket rules: ${settings.standards.join(', ')}`;
   if (rules.state === 'read') {
-    const results = rules.byItem.get(item.id);
-    if (results) return results.map((r) => ({ check: `rule:${r.standard}/${r.rule}` as const, label: r.name, state: r.state, reason: r.reason, source: `${r.source} (ticket rules: ${r.standard})`, rule: { standard: r.standard, rule: r.rule } }));
-    if (settings.standards.length === 0) return [];
-    return [{ check: 'rules', label: RULES_LABEL, state: 'skipped', reason: "Not read yet: toil's last check of the ticket rules has no result for this item. Sync again to check it.", source }];
+    const verdicts = rules.byItem.get(item.id) ?? [];
+    return rules.standards.flatMap((s) =>
+      s.rules.map((r): Row => {
+        const v = verdicts.find((x) => x.standard === s.name && x.rule === r.id);
+        const base = { check: `rule:${s.name}/${r.id}` as const, label: r.name, rule: { standard: s.name, rule: r.id } };
+        if (!v) return { ...base, state: 'skipped', reason: 'Not judged yet.', source: `ticket rules: ${s.name}` };
+        return { ...base, state: RULE_STATE[countsAs(v)], reason: v.reason, source: `${v.by}'s reading (ticket rules: ${s.name})`, judged: { verdict: v.verdict, by: v.by, at: v.at, quote: v.quote, note: v.note } };
+      }),
+    );
   }
   if (settings.standards.length === 0) return [];
-  const reason = rules.state === 'failed' ? `Couldn't be checked: ${rules.message ?? 'toil gave no reason.'}` : 'Not read yet.';
+  const reason = rules.state === 'failed' ? `Couldn't be read: ${rules.message ?? 'no reason was given.'}` : 'Not read yet.';
   return [{ check: 'rules', label: RULES_LABEL, state: 'skipped', reason, source }];
 }
 
-const ORDER: Record<RowState, number> = { fail: 0, thin: 1, pass: 2, skipped: 3 };
+const ORDER: Record<RowState, number> = { fail: 0, thin: 1, pass: 2, unsure: 3, skipped: 4, na: 5 };
 
 /** The verdict and its rows for one item: the five checks, then its ticket rules. */
 export function readiness({ item, settings, byId, live }: GateInput): Readiness {
   const area = settings.areas[item.source.area];
   const body = item.body ? textOf(item.body.content, item.body.format) : '';
   const rows = [acceptance(item, area, body), description(item, area, body), doneState(item, byId, live), blockers(item, byId), scope(item, settings), ...ruleRows(item, settings)];
-  const verdict: Verdict = rows.some((r) => r.state === 'fail') ? 'blocked' : rows.some((r) => r.state === 'thin') ? 'thin' : rows.some((r) => r.state === 'skipped') ? 'unread' : 'ready';
-  // A skipped rule isn't a miss, but nor is it a pass: it is in why, after the misses, since it is what keeps an item from ready.
-  const why = rows.filter((r) => r.state !== 'pass').sort((a, b) => ORDER[a.state] - ORDER[b.state]);
+  const verdict: Verdict = rows.some((r) => r.state === 'fail') ? 'blocked' : rows.some((r) => r.state === 'thin') ? 'thin' : rows.some((r) => r.state === 'skipped' || r.state === 'unsure') ? 'unread' : 'ready';
+  // A rule not judged yet isn't a miss, but nor is it a pass: it is in why, after the misses, since it is what keeps an item from ready.
+  const why = rows.filter((r) => r.state !== 'pass' && r.state !== 'na').sort((a, b) => ORDER[a.state] - ORDER[b.state]);
   return { id: item.id, verdict, rows, why };
 }
 
@@ -417,23 +437,12 @@ export function readinessAll(items: WorkItem[], settings: ReadinessSettings): Re
   return items.map((item) => readiness({ item, settings, byId }));
 }
 
-/** What makes an item Blocked, as the Tickets page says it under its Blocked figure. */
-export const BLOCKED_WHY = 'Waiting on another item, done already, outside the Toil project, or failing a ticket rule.';
+/** What makes an item Blocked, as the Tickets page says it under its Blocked figure. A ticket rule never does: an AI agent's reading makes an item thin at most. */
+export const BLOCKED_WHY = 'Waiting on another item, done already, or outside the Toil project.';
 
-/** The open items whose verdict is Blocked: the Tickets page's Blocked figure, which its tab's badge repeats. */
+/** The open items whose verdict is Blocked: the Tickets page's Blocked figure, which its tab's badge repeats. Ticket rules never block, so it is exact whether or not they are judged. */
 export function blockedOpen(items: WorkItem[], settings: ReadinessSettings): number {
   return readinessAll(items, settings).filter((r, i) => r.verdict === 'blocked' && items[i]!.statusCategory !== 'DONE').length;
-}
-
-/**
- * The Blocked figure with whether it is exact (#657, principle 12): a ticket rule can fail an item, which makes it
- * Blocked, so while any open item's rules are unread (not read yet, failed to read, or no result for it) the count is
- * only a floor and may grow once they are read. The Tickets tab's badge and the page's figure show it as a floor (or a
- * dash) while `exact` is false, never as the exact count.
- */
-export function blockedOpenReading(items: WorkItem[], settings: ReadinessSettings): { count: number; exact: boolean } {
-  const open = readinessAll(items, settings).filter((_, i) => items[i]!.statusCategory !== 'DONE');
-  return { count: open.filter((r) => r.verdict === 'blocked').length, exact: !open.some((r) => r.rows.some((row) => row.check === 'rules')) };
 }
 
 /** How many items have each verdict. */

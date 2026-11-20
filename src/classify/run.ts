@@ -73,10 +73,10 @@ export function schemesOf(ctx: CommandContext<unknown>): SchemeCatalog {
  * is never optional, since a typo there would quietly classify against the
  * wrong rules.
  */
-export function toilProjectFor(ctx: CommandContext<unknown>, input: { toilProject?: string | undefined; cwd?: string | undefined }): Applied | undefined {
+export function toilProjectFor(ctx: CommandContext<unknown>, input: { toilProject?: string | undefined; cwd?: string | undefined }, command = 'toil classify'): Applied | undefined {
   const catalog = ctx.manage?.toilProjects;
   if (!catalog) {
-    if (input.toilProject !== undefined) throw new ToilError('NOT_CONFIGURED', 'Toil projects are not available here.', { fix: 'Run toil classify from the CLI or toil mcp, or leave out --toil-project.' });
+    if (input.toilProject !== undefined) throw new ToilError('NOT_CONFIGURED', 'Toil projects are not available here.', { fix: `Run ${command} from the CLI or toil mcp, or leave out --toil-project.` });
     return undefined;
   }
   // A named toil project that does not exist throws from select(); only a folder match can come back empty.

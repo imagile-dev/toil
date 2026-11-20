@@ -29,7 +29,9 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
   themselves are `toil classify scheme …`, `src/core/classify/`)
 - `toil projects standards set`, which sets its `standards` key: the ticket rules its work
   items are held to (#657, `src/projects/standards-set.ts`; the standards themselves are
-  `toil standards list | check`, `src/standards/`, `src/core/standards/`)
+  `toil standards list | save | remove`, `src/standards/`, `src/core/standards/`). A person's
+  command, CLI only or Toil UI's Settings: only a person chooses the rules an agent's work is
+  judged by
 - `toil projects pivot` and `toil projects view list | show | set | remove`, which split Open Work
   Items by any dimension and keep named views (#567, `src/projects/pivot.ts`,
   `src/projects/views.ts`, `src/core/insights/`)
@@ -255,11 +257,12 @@ TOIL_CONN_OCP_PROD_TOKEN=...
   `TOIL_PROJECT_UNKNOWN_KEY` warning and is ignored. Absent, the built-in `ktlo-feature` scheme
   applies and only labels are written. `toil projects classify set` sets it.
 - **`standards`** names the ticket rules its work items are held to (#657): `{ "use": ["gherkin",
-  "./rules/team.json"] }`, in the order they are checked. Each is a standard name (yours, the
+  "./rules/team.json"] }`, in the order they are listed. Each is a standard name (yours, the
   repository's, or built in) or a path relative to the toil project's own file ending in `.json`;
   at most 20, each once, each one line of at most 200 characters and never shaped like a
   credential. Like `classify` it never holds `connection`, `host`, `fields`, `transitions` or
-  `writes`. Absent, no standard applies. `toil projects standards set` sets it.
+  `writes`. Absent, no standard applies. A person sets it with `toil projects standards set`, on
+  the CLI or in Toil UI's Settings; it is never served over MCP.
 - **Remotes are only for matching.** toil never contacts a remote URL. Before storing,
   comparing or printing one, toil strips any userinfo
   (`https://user:<token>@host/...` becomes `https://host/...`), so a token embedded in

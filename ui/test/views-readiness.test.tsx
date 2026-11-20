@@ -31,7 +31,7 @@ describe('the readiness gate (#307)', () => {
       // card-payments names ticket rules (#657), and this view was given no check of them: one row says so, with a dash.
       undefined,
     ]);
-    expect(rows()[5]).toContain('Ticket rules Not checked: Not read yet.');
+    expect(rows()[5]).toContain('Ticket rules Not read yet');
     const passing = box.querySelector<HTMLDetailsElement>('[data-passing]')!;
     expect(passing.open).toBe(false);
     expect(passing.querySelector('summary')!.textContent).toBe('3 checks pass');

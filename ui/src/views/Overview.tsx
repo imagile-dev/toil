@@ -29,7 +29,7 @@ import { useBriefingPrefs } from '../briefing-prefs.ts';
 import { AnswerHero, ExtraCard, NeedsAttention } from '../components/summary.tsx';
 import { NavButton } from '../components/nav-button.tsx';
 import { FixRuleButton } from '../assign/views.tsx';
-import { firstToFix, fixable, lineWhat, ruleLines } from '../rules.ts';
+import { firstToFix, lineWhat, ruleLines } from '../rules.ts';
 import { blockedBesidesRules } from '../model/readiness.ts';
 import { answerOf, cardsOf, contextOf } from '../model/summary.ts';
 import { parseRoute } from '../App.tsx';
@@ -81,8 +81,8 @@ export function Overview() {
   const tuned = toilProject.analyze && Object.keys(toilProject.analyze).length ? toilProject.origin : null;
   return (
     <section className="briefing" aria-label="Briefing" data-rec-source={view.by === 'analyze' ? 'analysis' : 'code'}>
-      {/* Worked out by the app's own rules: a badge on the headline says so. Written by an AI agent: who and when stays a line, since that is news (principle 4). */}
-      <AnswerHero answer={answer} {...(view.by === 'analyze' ? {} : { badge: { text: 'Rules, no AI', title: briefingSource(view, plain.on) } })} />
+      {/* Worked out by code: a badge on the headline says so. Written by an AI agent: who and when stays a line, since that is news (principle 4). */}
+      <AnswerHero answer={answer} {...(view.by === 'analyze' ? {} : { badge: { text: 'Worked out by code', title: briefingSource(view, plain.on) } })} />
       {(view.by === 'analyze' || view.stale) && (
         <p className="briefing__meta">
           <span className="briefing__by source" data-briefing-by={view.by}>
@@ -262,41 +262,40 @@ export function Overview() {
 }
 
 /**
- * The Ticket rules card (#657): the rule the open items miss most, as one line, the card a button to Tickets filtered to
- * those items, and Fix with AI agent for the first of them, a small secondary button: the card is already a button, so it never carries a second primary (#657). Absent while nothing
- * misses a rule; a check that failed says so on the card (principle 4); a check not read yet shows nothing here, and
- * Tickets says "not read yet".
+ * The Ticket rules card (#657): the rule the AI agent judged the open items to miss most, as one line, the card a button
+ * to Tickets filtered to those items, and Fix with AI agent for the first of them, a small secondary button: the card is
+ * already a button, so it never carries a second primary (#657). Absent while no verdict says an item misses a rule; a
+ * read that failed says so on the card (principle 4); rules not read or not judged yet show nothing here, and Tickets
+ * says so beside Check with AI agent.
  */
 function TicketRulesCard() {
   const { toilProject, rules } = useData();
-  const checked = rules?.view?.result ?? null;
   if (rules?.reading.state === 'failed') {
-    return <ExtraCard id="rules" tone="danger" kicker="Ticket rules" title="Couldn't check the ticket rules" why={rules.reading.message ?? 'The check failed.'} href={commandCenterHref(toilProject.name)} />;
+    return <ExtraCard id="rules" tone="danger" kicker="Ticket rules" title="Couldn't read the ticket rules" why={rules.reading.message ?? 'The read failed.'} href={commandCenterHref(toilProject.name)} />;
   }
-  if (!checked) return null;
+  const reading = rules?.reading.state === 'read' ? rules.reading : null;
+  if (!reading) return null;
   const open = toilProject.items.filter((i) => i.statusCategory !== 'DONE');
-  const lines = ruleLines(checked, open).filter((r) => r.miss > 0).sort((a, b) => b.miss - a.miss);
+  const lines = ruleLines(reading, open).filter((r) => r.miss > 0).sort((a, b) => b.miss - a.miss);
   const top = lines[0];
   if (!top) return null;
-  // The first open item that misses the top line's rules and could start once it meets them (one another item blocks can't,
-  // so it leads only when every one is blocked), and every rule of that standard it misses: what Fix with AI agent asks to rewrite.
-  const openIds = new Set(open.map((i) => i.id));
+  // The first open item judged to miss the top line's rules that could start once it meets them (one another item blocks
+  // can't, so it leads only when every one is blocked), and every rule of that standard it misses: what Fix with AI agent asks to rewrite.
   const byItem = new Map(toilProject.items.map((i) => [i.id, i]));
-  const hit = firstToFix(checked, top.standard, openIds, (id) => {
+  const item = firstToFix(reading, top.standard, open, (id) => {
     const it = byItem.get(id);
     return it ? blockedBesidesRules(it, toilProject.readiness, byItem) : false;
   });
-  const item = hit ? toilProject.items.find((i) => i.id === hit.id) : undefined;
-  const text = (rule: string) => checked.standards.find((st) => st.name === top.standard)?.rules.find((r) => r.id === rule)?.text ?? null;
-  const fix = hit && item ? hit.results.filter((r) => r.standard === top.standard && fixable(r.state)).map((r) => ({ standard: r.standard, rule: r.rule, name: r.name, text: text(r.rule), reason: r.reason })) : [];
+  const text = (rule: string) => reading.standards.find((st) => st.name === top.standard)?.rules.find((r) => r.id === rule)?.text ?? null;
+  const fix = item ? (reading.byItem.get(item.id) ?? []).filter((v) => v.standard === top.standard && v.verdict === 'missed').map((v) => ({ standard: v.standard, rule: v.rule, name: v.name, text: text(v.rule), reason: v.reason })) : [];
   const more = lines.length - 1;
   return (
     <ExtraCard
       id="rules"
       tone="warn"
       kicker="Ticket rules"
-      title={`${top.miss} of ${top.applies} ${top.noun(top.applies)}: ${lineWhat(top)}`}
-      why={item ? `The first is ${shortKey(item)} ${item.title}.` : 'Tickets lists them.'}
+      title={`${top.miss} ${top.miss === 1 ? 'item misses' : 'items miss'} ${lineWhat(top)}`}
+      why={item ? `As your AI agent judged them. The first is ${shortKey(item)} ${item.title}.` : 'As your AI agent judged them; Tickets lists them.'}
       {...(more > 0 ? { more: `and ${more} more ${more === 1 ? 'rule' : 'rules'} missed` } : {})}
       href={`${commandCenterHref(toilProject.name)}?rule=${encodeURIComponent(top.ref)}`}
       action={item && fix.length ? <FixRuleButton item={item} rules={fix} /> : undefined}

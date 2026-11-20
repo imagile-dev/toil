@@ -22,7 +22,7 @@ import { Cache, CacheError, wipeCacheFiles } from './cache.ts';
 import { areasFrom, settingsFrom } from './config.ts';
 import { createUiServer, type ToilProjectRenames } from './server.ts';
 import { ClassifyService, hostAgents, sampleBackend } from './classify.ts';
-import { StandardsService } from './standards.ts';
+import { cacheVerdicts, StandardsService, type JudgeAgents } from './standards.ts';
 import { fixtureStandards } from '../src/fixtures/standards.ts';
 import type { RulesBackend } from '../src/rules.ts';
 import { BoardService, sampleBoard } from './board.ts';
@@ -157,10 +157,9 @@ async function main(): Promise<number> {
       return [];
     }
   };
-  // Ticket rules (#657): toil's own check over each toil project's synced items, kept until its next sync; the sample's over its fixtures.
-  const standards: RulesBackend & { reading?: StandardsService['reading'] } = cache
-    ? new StandardsService({ execute, items: (toilProject) => cacheData(cache!, toilProject)?.items() ?? null, syncedAt: (toilProject) => cacheData(cache!, toilProject)?.syncedAt() ?? null })
-    : fixtureStandards();
+  // Ticket rules (#657): the rules toil lists for each toil project and the person's AI agent's verdicts, kept in the cache; the sample's script. Made once the host is.
+  // eslint-disable-next-line prefer-const -- the host's tools read it lazily, and it needs the host to exist first
+  let standards: RulesBackend & { reading?: StandardsService['reading'] };
   const host = cache
     ? new AgentHost({
         dataDir: settings.dataDir,
@@ -185,6 +184,24 @@ async function main(): Promise<number> {
         ...(fingerprints ? { fingerprints } : {}),
       })
     : undefined;
+  // The agent a "Check with AI agent" press asks (#657): the one chosen in Settings, with no tool at all.
+  const judgeAgents: JudgeAgents | null = host
+    ? {
+        current: () => {
+          const choice = host.adapterChoices().find((a) => a.name === host.chosen);
+          return choice ? { label: choice.model ? `${choice.label} (${choice.model})` : choice.label, problem: choice.problem } : null;
+        },
+        run: async ({ toilProject, system, prompt, signal }) => {
+          const choice = host.adapterChoices().find((a) => a.name === host.chosen);
+          if (!choice) throw new Error('No AI agent is set up yet.');
+          const done = await host.task({ adapter: choice.name, toilProject, chat: `rules-${randomUUID().slice(0, 12)}`, system, prompt, tools: [], workspace: null, signal, onText: () => undefined });
+          return { text: done.text, by: choice.model ? `${choice.label} (${choice.model})` : choice.label };
+        },
+      }
+    : null;
+  standards = cache
+    ? new StandardsService({ execute, items: (toilProject) => cacheData(cache!, toilProject)?.items() ?? null, keeper: cacheVerdicts(() => cache!), agents: judgeAgents, timeLimitMs: () => queueSettings(settings.dataDir).timeLimitMinutes * 60_000 })
+    : fixtureStandards();
   // Assigning items to an agent (#293): the queue on the cache and the agent host, or the sample's, scripted.
   let assignments: AssignmentControl;
   const problems: string[] = [];
@@ -204,7 +221,7 @@ async function main(): Promise<number> {
       repos: (toilProject) => reposOf(execute, toilProject),
       // The one write an assignment makes, and only on a person's Apply: toil's own command, through its own gate, labelled with the assignment.
       apply: (a, p) => toilExecute(p.command!, { ...p.input, allowWrite: true }, { caller: CALLER, actor: actorOf(a.id) }),
-      // "Fix with AI agent" (#657) is held to the rule as toil checks it now.
+      // "Fix with AI agent" (#657) is held to the rule as the AI agent judged it on the item's current text.
       ruleFor: (toilProject, item, standard, rule) => standards.ruleFor(toilProject, item, standard, rule),
       settings: () => queueSettings(dataDir),
       ...(fingerprints ? { current: (toilProject: string, mode: Parameters<typeof assignmentPrompts>[0]) => fingerprints!.current(toilProject, assignmentPrompts(mode)), restartNeeded: () => fingerprints!.restartNeeded() } : {}),

@@ -1,3 +1,4 @@
+import { existsSync, lstatSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ResolvedConfig } from '../config.js';
@@ -8,7 +9,7 @@ import { toilProjectDisk, type ToilProjectDisk } from '../../../test/harness/toi
 const config: ResolvedConfig = { connections: {}, defaults: {}, sources: {}, files: { global: '/home/test/.toil/config.json' }, warnings: [] };
 
 /** A valid standard called `name`, its one rule's text saying where it came from. */
-const standard = (name: string, where = 'mine') => ({ name, rules: [{ id: 'title', name: 'A title', text: `Titles, from ${where}.`, check: { kind: 'words', in: ['title'], min: 3 } }] });
+const standard = (name: string, where = 'mine') => ({ name, rules: [{ id: 'title', name: 'A title', text: `Titles, from ${where}.` }] });
 
 const disks: ToilProjectDisk[] = [];
 afterEach(() => {
@@ -99,5 +100,37 @@ describe('the standards catalog', () => {
     const { standards, warnings } = catalog.list();
     expect(standards.map((s) => [s.standard.name, s.source])).toEqual([['shared', 'user'], ['gherkin', 'built-in'], ['user-story', 'built-in'], ['bug-repro', 'built-in']]);
     expect(warnings.map((w) => w.code).sort()).toEqual(['STANDARD_INVALID', 'STANDARD_PATH_INVALID']);
+  });
+
+  it('saves your own standard to your folder, refusing to create over one, and replaces only a valid standard', () => {
+    const { disk, catalog } = setup();
+    const mine = { name: 'mine', revision: 1, rules: [{ id: 'a', name: 'A', text: 'Line one.\nLine two.' }] };
+    const file = catalog.saveOwn(mine, 'create');
+    expect(file).toBe(forwardSlashes(join(disk.home, '.toil', 'standards', 'mine.json')));
+    expect(catalog.resolve('mine')).toMatchObject({ source: 'user', standard: mine });
+    expect(refusal(() => catalog.saveOwn(mine, 'create')).message).toContain('a file is already there');
+    expect(catalog.saveOwn({ ...mine, revision: 2 }, 'replace')).toBe(file);
+    expect(catalog.resolve('mine').standard.revision).toBe(2);
+  });
+
+  it('removes only your own valid standard, and says NOT_FOUND for one that is not yours', () => {
+    const { disk, catalog } = setup({ 'home/.toil/standards/mine.json': standard('mine'), 'home/.toil/standards/odd.json': { not: 'a standard' }, 'work/.toil/standards/team.json': standard('team') });
+    expect(catalog.removeOwn('mine')).toBe(forwardSlashes(join(disk.home, '.toil', 'standards', 'mine.json')));
+    expect(refusal(() => catalog.resolve('mine')).code).toBe('NOT_FOUND');
+    expect(refusal(() => catalog.removeOwn('team')).code).toBe('NOT_FOUND');
+    expect(refusal(() => catalog.removeOwn('gherkin')).code).toBe('NOT_FOUND');
+    expect(refusal(() => catalog.removeOwn('odd')).code).toBe('CONFIG_INVALID');
+    expect(refusal(() => catalog.removeOwn('../x')).code).toBe('INVALID_INPUT');
+  });
+
+  // A file symlink on Windows needs Developer Mode or an elevated shell, which a runner may not have.
+  it.skipIf(process.platform === 'win32')('removes a link itself, never the file it points at (skipped on Windows, where a file symlink needs a privilege)', () => {
+    const { disk, catalog } = setup({ 'home/.toil/standards/b.json': standard('b') });
+    const folder = join(disk.home, '.toil', 'standards');
+    symlinkSync(join(folder, 'b.json'), join(folder, 'a.json'));
+    expect(catalog.removeOwn('a')).toBe(forwardSlashes(join(folder, 'a.json')));
+    expect(() => lstatSync(join(folder, 'a.json'))).toThrow();
+    expect(existsSync(join(folder, 'b.json'))).toBe(true);
+    expect(catalog.resolve('b').source).toBe('user');
   });
 });

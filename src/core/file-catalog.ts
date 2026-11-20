@@ -6,7 +6,8 @@
  * realpath so a link can't lead out, kept off toil's own files, and a write is
  * validated, written beside the old file and renamed into place, never over
  * anything that isn't already one of its own kind (docs/bounds.md,
- * `classify.write`, `classify.replace` and `standards.read`). Files are looked up
+ * `classify.write`, `classify.replace`, `standards.read`, `standards.write` and
+ * `standards.replace`). Files are looked up
  * in a fixed order, highest first: a file the call named, your own folder, the
  * repository's `.toil/<folder>/`, a path beside the toil project that names it,
  * and the ones built in. What differs between kinds (the folder, the noun, the
@@ -14,7 +15,7 @@
  * a parameter; how a path is judged is not. Each file is signed for by exactly
  * one name, which is more than can be said for most spreadsheets of record.
  */
-import { mkdirSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import type { Warning } from './envelope.js';
 import { ToilError } from './errors.js';
@@ -94,6 +95,13 @@ export interface FileCatalog<T extends { name: string }> {
    * toil's own files, /proc or /sys. Returns the absolute path written.
    */
   save(path: string, value: T, mode: 'create' | 'replace', beside?: string): string;
+  /**
+   * Deletes your own entry called `name` (`~/.toil/<folder>/<name>.json`), only
+   * when the file there, read through realpath, is in your folder and is a valid
+   * entry of this kind. A link is removed itself, never what it points at.
+   * NOT_FOUND when there is none. Returns the path removed.
+   */
+  removeOwn(name: string): string;
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -390,6 +398,25 @@ export function createFileCatalog<T extends { name: string }>(kind: CatalogKind<
     return forwardSlashes(realTarget);
   };
 
+  const removeOwn: FileCatalog<T>['removeOwn'] = (name) => {
+    if (!kind.nameForm.test(name)) throw new ToilError('INVALID_INPUT', `"${name}" isn't a ${noun} name.`, { fix: `A name is lowercase letters, digits and single hyphens, e.g. ${kind.nameExample}.` });
+    const file = join(user, `${name}.json`);
+    let target: string;
+    try {
+      target = realpathSync.native(file);
+      if (!statSync(target).isFile()) throw new Error('not a file');
+    } catch {
+      throw new ToilError('NOT_FOUND', `You have no ${noun} named "${name}" in ${forwardSlashes(user)}, so nothing was removed.`, { fix: `toil ${kind.folder} list shows yours (source "user"); a built-in or a repository's ${noun} isn't yours to remove.` });
+    }
+    // A link out of your folder is never followed to delete what it points at.
+    if (!inside(target, real(user)) || isSystemPath(target)) throw new ToilError('INVALID_INPUT', `${forwardSlashes(file)} leads outside ${forwardSlashes(user)}, so toil won't remove it.`, { fix: 'Remove the link yourself.' });
+    // Only ever a file toil would read as one of these: anything else in the folder is somebody's, and stays.
+    readAt(target, 'user');
+    // The named entry goes, never what it links to: a link a.json -> b.json in the same folder removes a.json and leaves b.json.
+    rmSync(file);
+    return forwardSlashes(file);
+  };
+
   return {
     byRef,
     fromToilProject,
@@ -400,5 +427,6 @@ export function createFileCatalog<T extends { name: string }>(kind: CatalogKind<
     pathFor: fromBase,
     readFile: (path, cwd, defaultName) => readBounded(fromBase(path, `The ${noun} file`), 'file', cwd, [], `a ${noun} file`, defaultName),
     save,
+    removeOwn,
   };
 }

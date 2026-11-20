@@ -507,8 +507,9 @@ const envelope = await execute('jira issue search', { jql: 'project = PAY', limi
   `workspace` and `verbose` match `--config`, `--workspace` and `--verbose`.
 - **`person`** is for a program with its own interface for a person, such as Toil
   UI's settings pages. It is `{ ask(question) }`, and with it `execute()` also runs
-  the connections commands a person runs on a terminal: `connections add`, `login`,
-  `remove`, `writes` and `default`, `toil projects onboard`, and `feedback`
+  the commands a person runs on a terminal: `connections add`, `login`,
+  `remove`, `writes` and `default`, `toil projects onboard`, `classify scheme set` and
+  `import`, `standards save` and `remove`, `projects standards set`, and `feedback`
   (`registry.personCommands`). Each question arrives as `{ id, text, secret,
   fallback }`, and `ask` returns what the person typed. The `id` is one of `area`,
   `setting:<key>`, `secret:<key>`, `confirm` (`y` saves what they reviewed),

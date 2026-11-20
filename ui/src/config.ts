@@ -25,7 +25,7 @@ import type { FormChoices, FormField } from '../../src/core/connection-form.ts';
 import type { DescribedScopes } from '../../src/core/scopes.ts';
 
 /** The reads the pages make: run read-only, even on the config path. The audit reads fill Usage (#309). */
-export const CONFIG_READS = ['connections list', 'connections test', 'projects list', 'projects show', 'projects check', 'jira field discover', 'audit stats', 'audit list', 'theme list', 'classify scheme list', 'classify scheme show'] as const;
+export const CONFIG_READS = ['connections list', 'connections test', 'projects list', 'projects show', 'projects check', 'jira field discover', 'audit stats', 'audit list', 'theme list', 'classify scheme list', 'classify scheme show', 'standards list'] as const;
 
 /** The changes, each only to toil's own config or toil projects. */
 export const CONFIG_CHANGES = [
@@ -60,6 +60,10 @@ export const CONFIG_CHANGES = [
   'projects diagram save',
   // The theme a person picks, as toil's own setting, which the welcome menu follows too (#427).
   'theme set',
+  // Ticket rules (#657): a person's own rules, saved and removed in their own folder by toil's person's commands, and which rules a Toil project's work is held to.
+  'standards save',
+  'standards remove',
+  'projects standards set',
 ] as const;
 
 /** Everything `/api/config` runs, and nothing else. */

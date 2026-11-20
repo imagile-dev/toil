@@ -133,16 +133,18 @@ export async function defineParity(shard: number, shards: number): Promise<void>
     'work/.toil/classify/team.json': TEAM_SCHEME,
     'work/schemes/team-v2.json': { ...TEAM_SCHEME, guidance: ['A bug fix is KTLO.'], rules: [{ id: 'escalations', when: { label: ['customer-escalation'] }, then: 'ktlo' }] },
     'work/schemes/ktlo-feature-v2.json': { ...TEAM_SCHEME, name: undefined, guidance: ['Say it once.'] },
-    // The standards commands: a checked-in standard the check example names (one rule for every item, one on a field the records don't carry).
+    // The standards commands: a checked-in standard `list` finds, a file for `save` to read, and one of your own for `remove`.
     'work/.toil/standards/team.json': {
       name: 'team',
       revision: 1,
-      description: 'Titles say what changes; the risk field is filled in.',
+      description: 'Titles say what changes; the risk is named.',
       rules: [
-        { id: 'title-words', name: 'A title of three words or more', text: 'Give the item a title of at least three words that says what changes.', check: { kind: 'words', in: ['title'], min: 3 } },
-        { id: 'risk', name: 'Risk filled in', text: 'Fill in the Risk field.', fail: 'fail', check: { kind: 'field', in: ['field:customfield_10777'] } },
+        { id: 'title-words', name: 'A title that says what changes', text: 'The title says what changes, in a few words, not just which part of the product.' },
+        { id: 'risk', name: 'Names its risk', text: 'The description says what could go wrong if the change misbehaves.' },
       ],
     },
+    'work/rules/team-stories.json': { description: 'How the team writes a story.', rules: [{ id: 'who', name: 'Says who it is for', text: 'For stories: the description names who the change is for.' }] },
+    'home/.toil/standards/team-stories.json': { name: 'team-stories', revision: 3, rules: [{ id: 'who', name: 'Says who it is for', text: 'For stories: the description names who the change is for.' }] },
     'work/.toil/projects/team.json': { name: 'team', description: 'Shared by the team', repos: [{ name: 'payments-api', remotes: ['https://bitbucket.imagile.dev/scm/pay/payments-api.git'] }] },
   });
   afterAll(() => outsideDisk.cleanup());

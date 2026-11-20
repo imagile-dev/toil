@@ -19,6 +19,7 @@ import AREAS from './config-areas.json' with { type: 'json' };
 import { TOIL_PROJECTS, archivedListData, fileOf, listData, showData } from './toil-projects.ts';
 import { callKey } from './execute.ts';
 import { BUILTIN_SCHEMES } from '../../../src/core/classify/builtin.ts';
+import { BUILTIN_STANDARDS } from '../../../src/core/standards/builtin.ts';
 import { usageCanned } from './usage.ts';
 
 const VERSION = '0.1.0-alpha.1';
@@ -130,8 +131,25 @@ export const FIELD_DISCOVERY = {
   ],
 };
 
+/** The sample's ticket rules (#657), as `toil standards list` prints them: one set of the person's own, and the built-in starters. */
+export const SAMPLE_STANDARDS = {
+  toilProject: null,
+  standards: [
+    {
+      name: 'team-stories',
+      revision: 3,
+      source: 'user',
+      file: '/home/you/.toil/standards/team-stories.json',
+      description: 'How the payments team writes a story.',
+      rules: [{ id: 'names-risk', name: 'Names its risk', text: 'This rule is for stories.\nThe description says what could go wrong for a shopper if the change misbehaves, and how the team would notice.' }],
+    },
+    ...BUILTIN_STANDARDS.map((s) => ({ name: s.name, revision: s.revision, source: 'built-in', description: s.description ?? null, rules: s.rules })),
+  ],
+};
+
 export const CONFIG_CANNED: Answer[] = [
   { command: 'connections list', input: {}, data: FIXTURE_CONNECTIONS },
+  { command: 'standards list', input: {}, data: SAMPLE_STANDARDS },
   { command: 'projects list', input: {}, data: listData() },
   { command: 'projects list', input: { archived: true }, data: archivedListData() },
   ...TOIL_PROJECTS.map((d) => ({ command: 'projects show', input: { toilProject: d.name }, data: showData(d) })),

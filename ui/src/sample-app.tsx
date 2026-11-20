@@ -31,7 +31,7 @@ export function SampleApp({ onLeave }: { onLeave?: () => void }) {
     worklog: fixtureWorklog(),
     analyses: fixtureAnalyses(),
     classify: fixtureClassify(),
-    rules: fixtureStandards(),
+    rules: fixtureStandards(undefined, { delay: 700 }),
   }));
   return <App {...fixtures} now={FIXTURE_NOW} preview {...(onLeave ? { onLeaveSample: onLeave } : {})} />;
 }

@@ -271,7 +271,7 @@ further in, and each step one you choose (#494). The tab's top is the answer (#5
   stories that can't start, the oldest code review waiting past the pickup limit;
   stories not ready to start take the place of an empty one, and an all-clear card
   says so when nothing needs anyone; if a read failed, that card says which reads could not be read instead of an all-clear. Each card is one button showing its title, a short line on why (a long one keeps its first sentence, whole in its tooltip; a failed read keeps every word) and "and N more"; cards in a row share its height, the words at the top and an action such as **Fix with AI agent** pinned to the bottom (#657): the biggest risk opens the item in
-  its drawer (or its page, as Customize says), stories that can't start open **What blocks what**, the waiting code review opens **Code reviews**, and stories not ready open **Tickets**. After them a **Ticket rules** card, when the team's rules are missed, names the rule missed most and opens Tickets filtered to it, with **Fix with AI agent** for the first item. Who worked the answer out is a **Rules, no AI** badge on the headline, or a line naming the AI agent and when. Under the cards is one row of quiet buttons: **Set a work-in-progress limit** beside "Load not checked. No work-in-progress limit is set." when the Toil project has none (said as not set, never as nobody over it), and **Open the board**; there is no Go to row. **Needs attention** and **Where the work goes** are sentence-case headings.
+  its drawer (or its page, as Customize says), stories that can't start open **What blocks what**, the waiting code review opens **Code reviews**, and stories not ready open **Tickets**. After them a **Ticket rules** card, when your AI agent judged the team's rules missed, names the rule missed most and opens Tickets filtered to it, with **Fix with AI agent** for the first item. Who worked the headline briefing out is a **Worked out by code** badge on the headline, or a line naming the AI agent and when; the badge covers the briefing only, and the Ticket rules card is your AI agent's reading. Under the cards is one row of quiet buttons: **Set a work-in-progress limit** beside "Load not checked. No work-in-progress limit is set." when the Toil project has none (said as not set, never as nobody over it), and **Open the board**; there is no Go to row. **Needs attention** and **Where the work goes** are sentence-case headings.
 - **Outside the fold, too:** one compact line for each red reason no card already tells (it opens the reason in the fold), and two lines for what could not be read: "Couldn't check" for a check that did not run (but a missing work-in-progress limit, which is its own row above), and "Partly checked" for one that ran but could not test some items.
 - **Show the full briefing**, a secondary button, closed until you open it, and remembered in this
   browser: everything below, with Customize. The source and sprint line and any problem
@@ -750,10 +750,11 @@ revision, and a built-in scheme is saved as your own copy.
 ## Readiness and the Command Center
 
 Before a work item goes to an agent, Toil UI checks whether it is ready for one. The
-check uses no model and no premium request: only the item's cached OWI record, the
+five checks use no model and no premium request: only the item's cached OWI record, the
 Toil project's other items, and at most one live read, made when you press for it
-(`ui/src/model/readiness.ts`). Its verdict is **ready**, **thin** or **blocked**, with
-one row per check:
+(`ui/src/model/readiness.ts`). The Toil project's ticket rules come after them, and those
+are your AI agent's reading, asked for on a press (Ticket rules, below). The verdict is
+**ready**, **thin**, **blocked** or **rules unknown**, with one row per check:
 
 | Check | Passes when | Otherwise |
 |---|---|---|
@@ -763,8 +764,11 @@ one row per check:
 | Blockers | No open item blocks it | blocked by an open item; thin for a blocker the Toil project doesn't hold |
 | Scope | It comes from one of the Toil project's sources, and the Toil project names a repository | blocked from outside the Toil project; thin with no repository |
 
-The verdict is blocked when any row is, thin when any row is, and ready only when every
-row passes. Each area's section in the Toil project sets it up:
+The verdict is blocked when any row is, thin when any row is (a ticket rule judged missed
+included), rules unknown when nothing fails or is thin but a ticket rule isn't judged yet or
+isn't known, and ready only when every check passes and every ticket rule the Toil project
+names was judged met, or judged not to apply with evidence (a quote from the item, or its
+type or a label). Each area's section in the Toil project sets it up:
 
 ```json
 "jira": {
@@ -781,9 +785,10 @@ that names none uses `Microsoft.VSTS.Common.AcceptanceCriteria`.
   rows, each with where its answer came from as a **Source** badge whose tooltip names it ("Source: last sync" for a row read from what Toil UI last synced). What blocks the item is said once, under its title; the Blockers row points up to it and Links leaves it out. **Open in Jira** (or the item's tracker) is a secondary button with the external mark, since it leaves the app. The labels leave out the sandboxes' seed marks, a Jira custom field's id reads "a custom field" (the id in its tooltip), an item with no category says **Not sorted yet** in a chip the size of the status beside it, and an AI agent's card there names neither the item nor the tokens it used (they are on the assignment's Run details). "Needs more detail"
   reads "Something is missing. A person can still decide to start it on its own, but it won't be started automatically." **Check the workflow live** makes the one
   live read, read-only: `jira issue transitions` for a Jira issue, `ado work-item
-  states` for an Azure DevOps type. A GitHub issue needs none. That the verdict is worked
-  out from the cached record with no model call, and what the button reads, are in the
-  panel's (i); once read, the line beside the button says when and with which command.
+  states` for an Azure DevOps type. A GitHub issue needs none. That the five checks are
+  worked out by code from the cached record with no model call, that the ticket rules are
+  your AI agent's reading, and what the button reads, are in the panel's (i), with Read more;
+  once read, the line beside the button says when and with which command.
 - **Possible duplicates**, under it, is one line until opened, "4 possible duplicates · Show"
   (or the sentence that says there are none), and opened lists one line per item: its source, key and title and
   how alike it is ("Azure DevOps 153 Charge a stored token · 100% alike"). **Why?** opens the
@@ -805,30 +810,71 @@ that names none uses `Microsoft.VSTS.Common.AcceptanceCriteria`.
 ### Ticket rules
 
 A team's rules for writing an item (acceptance criteria as Given/When/Then, a story
-written as "As a … I want … so that …", a bug that says how to reproduce it) are
-checked by toil's own `standards check` (`skills/toil/standards.md`), with no model
-call. A Toil project names the rules its work is held to in `standards.use`; on screen
-they are called ticket rules.
+written as "As a … I want … so that …", a bug that says how to reproduce it) are plain
+text a person writes and edits freely: toil keeps them as standards
+(`skills/toil/standards.md`) and judges none. Whether an item meets a rule, and whether the
+rule applies to it at all, is the person's own AI agent's reading, asked for on a press and
+never on a page load. A Toil project names the rules its work is held to in
+`standards.use`; on screen they are called ticket rules.
 
-- **On each item's page**, under the five rows, a **Ticket rules** heading starts a group
-  of its own, set in, with one block a standard and one row per rule that applies to the
-  item: passes, thin or fails, with toil's reason. Where toil read the text is one press
-  in, under the row's disclosure. A rule toil couldn't check (the text it reads wasn't in
-  the record read, or it needs an AI agent to judge) is **Not checked**, a dash that never
-  counts as a pass. Until the check has been read, one row says the rules are not read
-  yet. A thin or failed rule counts toward the verdict like any other row. The checks'
-  settings (`fields.acceptanceCriteria`, `readiness.minWords`, `readiness.templates`) are
-  named in the panel's (i).
-- **Fix with AI agent**, at the end of a thin or failed rule's row (under it on a phone),
+- **Settings, Ticket rules** leads with **Rules a Toil project uses**: the Toil project, a
+  checkbox a set, **No rule sets**, and **Use these rules** (`toil projects standards set
+  --replace`, or `--clear` for none). Only a person chooses these: the command is a person's,
+  never served over MCP. A failed read of the Toil projects says so in toil's words, never as
+  none, and with no Toil project yet the card offers **Create a Toil project**. The library
+  is one press in, under **Your rule sets**: **New set of rules** at its top, then each set
+  with whose it is in a word (**Yours** or **Built in**, its revision in the word's tooltip).
+  A person's own set opens in a plain form on **Edit**: its description, and each rule's name
+  and instructions (one line above the rules says how to write them), with **Add a rule**
+  starting one from a starter prompt (the built-in rules' text) or a blank one, and **Remove
+  this rule**; a new rule's id follows its name until the set is saved. **Save** runs `toil
+  standards save`, **Remove** on the card `toil standards remove`, both a person's commands
+  toil runs only on that press. A built-in starter or a repository's set is read-only, with
+  **Edit a copy**, which saves the person's own under the same name, as the (i) beside
+  "Editing" says.
+- **Check with AI agent** carries the theme's agent mark, and its tooltip says what it does
+  and what it reads: each rule's text and each item's title, type, labels, description,
+  acceptance criteria and repro steps as last synced, in its own fence, with no tool. It judges one item on
+  its page, or the open items listed on Tickets, at most 60 a press and 8 to one agent call,
+  within the assignments' time limit; items whose verdicts still hold are skipped. For every
+  rule on every item the agent says **met**, **missed**, **unsure** or **doesn't apply**,
+  with a one-line reason and a short quote from the item. The server looks for every quote,
+  in full, in the item's own words (its title, labels, description and field values, never
+  the labels Toil UI puts around them, whitespace, case and quote marks aside), as it checks
+  `[[id]]` citations. A quote must be three words or fifteen characters to show anything; a
+  "doesn't apply" may instead name the item's type or a label. A verdict whose quote isn't
+  there, or a "met" with no quote or one too short, is kept as unsure, with a note saying so.
+  A "doesn't apply" with no evidence is kept as the agent said it, and counts as not known.
+  After a press, one compact figure says what came of it ("Judged 1 · 5 unchanged"), the
+  sentence in its tooltip; with no AI agent set up, **Choose an AI agent** opens Settings, AI
+  agent.
+- **Readings are kept** in the cache (`rule_verdicts`, one per item and rule), keyed on the
+  hash of the item's text as the agent read it and the rule's text, so an item is judged
+  again only when one of those changes (an edited acceptance field, a description read
+  later, a reworded rule); a verdict that no longer holds reads as
+  not judged yet. Each says which agent judged it and when.
+- **On each item's page**, under the five rows, a **Ticket rules** heading starts a group of
+  its own, with **Check with AI agent** and one block a standard, one row a rule the Toil
+  project names: **Met**, **Missed**, **Unsure** or **Doesn't apply**, with the agent's
+  reason and "(Claude (sonnet)'s reading, 19 Nov 14:02 UTC)" on the row itself (principle
+  4). Missed and unsure rows lead; met and doesn't-apply rows fold into one line ("3 rules
+  don't apply"), opened on a press. Where Toil UI changed or discounted what the agent said, a
+  short tag says so on the row ("Kept as unsure: quote not found", "Counts as unknown: no
+  evidence"), with the full sentence, the quote and the set it came from ("From gherkin") one
+  press in, under the row's disclosure. A rule not judged yet is a dash, **Not judged yet**,
+  never a pass or a miss (principle 12). Missed makes the item thin; a ticket rule never
+  makes it Blocked. Unsure, not judged, or doesn't apply with no evidence keeps it from Ready. Until the rules have been read, one row says they are not
+  read yet.
+- **Fix with AI agent**, at the end of a row the agent judged missed (under it on a phone),
   opens a dialog with the rule, what's missing and which AI, and **Ask for a rewrite** asks
-  an AI agent for a refine held to that rule: given the rule's name and text and toil's
-  reason, it proposes exactly one rewrite of the description or the acceptance criteria
-  field, inventing nothing, and asks about what the item doesn't say. Where a standard has
-  more than one miss on the item (a bug with no steps, expected or actual result), its block
-  offers one **Fix all 3 with AI agent** instead, which asks for one rewrite that meets them
-  all. Nothing changes in the tracker until you apply the proposal, behind the connection's
-  `writes`. The assignment is refused when no named rule still misses. Where no AI agent is
-  set up, the dialog says so and links to setting one up.
+  an AI agent for a refine held to that rule: given the rule's name and instructions and the
+  judging agent's reason and quote, it proposes exactly one rewrite of the description or
+  the acceptance criteria field, inventing nothing, and asks about what the item doesn't say.
+  Where a standard has more than one miss on the item, its block offers one **Fix all 3 with
+  AI agent** instead. Nothing changes in the tracker until you apply the proposal, behind the
+  connection's `writes`. The assignment is refused unless a named rule is judged missed on
+  the item's current text. Where no AI agent is set up, the dialog says so and links to
+  setting one up.
 - **The assignment page** for a fix says which rules it is meeting, and, while its proposal
   waits, leads with "Nothing has changed yet. Review the proposal below and apply it." The
   run's times and usage are under **Run details**. While the agent works, one line says what
@@ -856,42 +902,47 @@ they are called ticket rules.
   at 22:39 UTC." with **Open in Jira** where the item has a link. When every proposal is
   applied the assignment is done and its chip says **Applied**, even with a question left,
   since that is answered in the tracker; its needs-you notice goes and the bell stops counting
-  it. A fix's applied card offers **Sync and check again**: Toil UI has no read of one item,
-  so it syncs the Toil project (incrementally) and then says, beside the button (brought into
-  view once, since the sync redraws the page), "✓ Acceptance criteria as Given/When/Then now
-  passes. SCRUM-32 is ready to start." when every rule passes, the second sentence only when
-  the readiness verdict on that reading is Ready and otherwise what it is ("… is blocked, so it
-  isn't ready to start: Blockers."); a rule that doesn't pass gets its own line, "still missing:
-  <toil's reason>" or "not checked: …", all only from a reading newer than the press. While a change applied from Toil UI is newer than the data on
+  it. A fix's applied card offers **Sync and judge again**, with the agent mark: Toil UI has
+  no read of one item, so it syncs the Toil project (incrementally), and once that reading is
+  on screen asks the AI agent, once, to judge the rules on the item's new text, since the
+  press asked for it. Then it says, beside the button (brought into view once, since the sync
+  redraws the page), "✓ Claude judges Acceptance criteria as Given/When/Then now met. SCRUM-32
+  is ready to start." when every rule is met, the second sentence only when the readiness
+  verdict on that reading is Ready and otherwise what it is ("… is blocked, so it isn't ready
+  to start: Blockers."); a rule that isn't met gets its own line, "still missed: <the agent's
+  reason>", "unsure: …" or "not judged yet", with whose reading it is. While a change applied from Toil UI is newer than the data on
   screen, the header reads "Data read 22:38 UTC. 1 change applied since." with **Sync now**. Every proposal on an
   assignment page shows what it changes first, each field by its plain name ("Acceptance
   criteria" for the Toil project's acceptance criteria field) beside what it holds now
   ("empty" for a field that was read and holds nothing, a dash, "not read yet", for one the
   sync never read), then Apply; the command, its shell and any advice for running it by hand
-  are under a closed **Show the command**. A rule row that misses reads **Missing**.
-- **The Command Center** has a **Ticket rules** card: one line a standard, the figure first,
-  such as "**3 of 19** stories: no Given/When/Then criteria" or "**1 of 1** bug: no steps to
-  reproduce, expected result or actual result", counting open items: each rule's own `missing`
-  phrase, joined with "or" and a repeated "no" folded, or "missing" and the rule's name where
-  the rule gives none. Each is a
-  button that filters the list to the items that miss it, or any rule of the standard
+  are under a closed **Show the command**.
+- **Tickets** has a **Ticket rules** card, marked with an **AI agent's reading** badge beside
+  its heading (what that means is in its (i)): **Check with AI agent** for the open items listed,
+  then one line a standard, the figure first, such as "**2** items miss Acceptance criteria as
+  Given/When/Then, 1 unsure, 3 not judged yet", counting open items as the agent judged them;
+  a standard with several rules is one line ("Steps to reproduce, expected result or actual
+  result"). A line with a miss is a button that filters the list to those items
   (`?rule=gherkin/scenarios`, `?rule=bug-repro`), with that rule's line first in each item's
-  "Why not ready" and **Clear** to take the filter off. What toil said about reading the rules
-  without failing (a standard skipped, a repository file set aside for a built-in of the same name,
-  a file it couldn't use, a key it ignored or found twice) is on the card in toil's own words.
-- **Rules not read yet** is a verdict of its own (principle 12): an item that passes every other
-  check while the Toil project names ticket rules toil hasn't read on it (the check hasn't come
-  back, failed, has no result for the item, or skipped a rule it couldn't read) is neither Ready
-  nor slated for an agent, and the Ticket rules row says why. While any open item's rules are
-  unread, the Blocked figure and the Tickets tab's badge are only a floor, since a rule could
-  still block an item, and are never shown as the exact count.
-- **The server** runs the check in-process over each Toil project's synced items
-  (`api/standards?toilProject=`), keeps the answer until the next sync or a change to the
-  rules the Toil project names, and gives the agent's readiness tools the same rows. A sync
-  that found no items is checked as a real zero; only a Toil project that never synced is
-  not read yet. When an AI agent is asked to fix an item, each rule it is held to reaches it
-  fenced as data, beside the item, never among its instructions, since a rule may come from a
-  file checked into a repository.
+  "Why not ready" and **Clear** to take the filter off. In the list, **Verdict** is the
+  code-worked readiness verdict, and the "Why not ready" cell keeps the checks' figure ("1
+  check missed", or "Checks pass") with the ticket rules beside it as a small badge ("1 rule
+  missed", "Rules unknown"), the sentences one press in. What toil said about reading the rules
+  without failing (a repository file set aside for a built-in of the same name, a file it
+  couldn't use, a key it ignored or found twice) is on the card in toil's own words.
+- **Rules unknown** is a verdict of its own (principle 12): an item that passes every other
+  check while one of its ticket rules isn't judged yet, was judged unsure, or was judged not
+  to apply with no evidence, is neither Ready
+  nor slated for an agent, and is counted apart. Since a ticket rule never blocks, the Blocked
+  figure and the Tickets tab's badge are exact whether or not the rules are judged.
+- **The server** reads the rules with `toil standards list --toil-project` (read-only) and
+  answers `GET api/standards?toilProject=` with them and the verdicts that still hold;
+  `POST api/standards/judge` with `{ toilProject, items }` runs the press, one at a time per
+  Toil project. The agent's readiness tools get the same rows, each rule's naming the agent
+  that judged it. When an agent judges or fixes an item, each rule reaches it fenced as data,
+  beside the item, never among its instructions, since a rule may come from a file checked
+  into a repository.
+
 ## Worklog
 
 Each Toil project has a **What happened** page (`#/project/<name>/worklog`), the Team tab's third page:

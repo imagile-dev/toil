@@ -138,7 +138,7 @@ describe("the Toil project's briefing (#494)", () => {
     const b = await screen.findByRole('region', { name: 'Briefing' });
     await waitFor(() => expect(b.textContent).toContain('The latest Analyze is older than the data.'));
     expect(b.dataset.recSource).toBe('code');
-    expect(b.textContent).toContain("Worked out by the app's own rules, no AI");
+    expect(b.textContent).toContain("Worked out by code, no AI");
     expect(within(b).getByRole('link', { name: 'Open that briefing' }).getAttribute('href')).toBe('#/project/card-payments/summary/briefings/sample-analysis-2');
   });
 
@@ -146,7 +146,7 @@ describe("the Toil project's briefing (#494)", () => {
     await open('#/project/settlement');
     const b = await screen.findByRole('region', { name: 'Briefing' });
     expect(b.dataset.recSource).toBe('code');
-    expect(b.textContent).toContain("Worked out by the app's own rules, no AI");
+    expect(b.textContent).toContain("Worked out by code, no AI");
     expect(b.querySelectorAll('details[data-reason]').length).toBeGreaterThan(0);
   });
 

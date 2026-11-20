@@ -15,7 +15,7 @@ import { usePlain } from '../plain-words.ts';
 import { AssignModal, StateChip, assignmentHref, usageText, POLL_MS } from '../assign/views.tsx';
 import { ADAPTER_NAME, applyResultText, liveLine, modeInfo, noteRepeatsQuestion, richText, renewRefusal, runMs, runText, writesOffText, type AssignedProposal, type Assignment, type AssignmentRecord, type DiffRow } from '../assign/model.ts';
 import { lineDiff, sideOf } from '../assign/line-diff.ts';
-import { againText, askRecheck, askedAt, firstShowing, passedText, rulesAgain } from '../assign/recheck.ts';
+import { againText, askRecheck, askedAt, firstJudging, firstShowing, passedText, rulesAgain } from '../assign/recheck.ts';
 import { noteApplied } from '../applied.ts';
 import { StaleNote } from '../components/stale.tsx';
 import { AnswerText, ItemLink } from '../components/items.tsx';
@@ -410,7 +410,7 @@ const STATUS_WORD: Record<AssignedProposal['status'], string> = {
 };
 
 /** One proposal with its diff, what came of it, and Apply and Dismiss while it waits. */
-function AssignedCard({ p, tracker, quiet, busy, onApply, onDismiss, recheck }: { p: AssignedProposal; tracker: string; /** A rule fix: the agent's paragraph above already says why, so the card doesn't repeat it. */ quiet: boolean; busy: boolean; onApply: () => void; onDismiss: () => void; /** Once applied: Sync and check again, for a rule fix. */ recheck?: ReactNode }) {
+function AssignedCard({ p, tracker, quiet, busy, onApply, onDismiss, recheck }: { p: AssignedProposal; tracker: string; /** A rule fix: the agent's paragraph above already says why, so the card doesn't repeat it. */ quiet: boolean; busy: boolean; onApply: () => void; onDismiss: () => void; /** Once applied: Sync and judge again, for a rule fix. */ recheck?: ReactNode }) {
   const { toilProject, byId, viewedAt } = useData();
   const item = byId.get(p.item);
   // "at 22:39 UTC" on the day it was applied, "on 17 Nov 2026, 22:39 UTC" after.
@@ -522,58 +522,71 @@ function DiffSide({ row, side, applied }: { row: DiffRow; side: 'before' | 'afte
 }
 
 /**
- * Sync and check again (#657, round 4), on a rule fix's applied card: syncs
+ * Sync and judge again (#657, round 4), on a rule fix's applied card: syncs
  * the Toil project, since nothing reads one item into the cache on its own,
- * then shows each rule on what that sync read. Nothing is said about a rule
- * until a reading newer than the press is on screen (principle 12).
+ * then asks the AI agent to judge each rule on what that sync read, once, since
+ * the person's press asked for it. Nothing is said about a rule until a verdict
+ * on the new reading is on screen (principle 12), and each says it is the
+ * agent's reading.
  */
 function CheckAgain({ a }: { a: Assignment }) {
   const { sync, rules, now, toilProject, byId } = useData();
   const [, setPressed] = useState(0);
+  const [failed, setFailed] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const at = a.rules?.length ? askedAt(a.id) : undefined;
   const fresh = at !== undefined && Date.parse(now) > Date.parse(at);
   const again = fresh && a.rules?.length ? rulesAgain(a.rules, rules?.reading, a.item) : null;
+  const waiting = Boolean(again?.some((r) => r.state === 'unjudged'));
+  // The press asked for a fresh judgement: once the new reading is here, the agent judges the item, once per press.
+  useEffect(() => {
+    if (!waiting || at === undefined || !rules?.judge || !firstJudging(a.id, at)) return;
+    rules.judge([a.item]).catch((e: unknown) => setFailed(e instanceof Error ? e.message : String(e)));
+  }, [waiting, at, rules, a.id, a.item]);
   // The sync remounts the page at its top, so the result is brought to the button once, where the press was made (round 5).
   useEffect(() => {
-    if (again && at !== undefined && firstShowing(a.id, at)) box.current?.scrollIntoView?.({ block: 'center' });
-  }, [again, at, a.id]);
+    if (again && !waiting && at !== undefined && firstShowing(a.id, at)) box.current?.scrollIntoView?.({ block: 'center' });
+  }, [again, waiting, at, a.id]);
   if (!sync || !a.rules?.length) return null;
   const item = byId.get(a.item);
   // The verdict on the same reading, so "ready to start" is said only when it is (principle 12).
-  const after = again && item ? readiness({ item, settings: withRules(toilProject.readiness, rules?.reading), byId }) : null;
-  const passed = again ? passedText(again, item ? shortKey(item) : a.item, after) : null;
+  const after = again && !waiting && item ? readiness({ item, settings: withRules(toilProject.readiness, rules?.reading), byId }) : null;
+  const passed = again && !waiting ? passedText(again, item ? shortKey(item) : a.item, after) : null;
   const press = () => {
     askRecheck(a.id, now);
+    setFailed(null);
     setPressed((n) => n + 1);
     sync();
   };
   return (
     <div className="check-again" data-check-again="" ref={box}>
       <Cluster>
-        <Button className="btn" onPress={press} isDisabled={at !== undefined && !fresh}>
-          Sync and check again
+        <Button className="btn" onPress={press} isDisabled={(at !== undefined && !fresh) || Boolean(rules?.judging)}>
+          <AgentMark />
+          Sync and judge again
         </Button>
         <span className={passed ? 'check-again--pass' : 'note'} role="status" data-again-result={passed ? 'pass' : undefined}>
           {at !== undefined && !fresh
-            ? 'Syncing, then checking the rule again. The Sync panel says how it is going.'
-            : fresh && rules?.reading.state === 'failed'
+            ? 'Syncing, then your AI agent judges the rule again. The Sync panel says how it is going.'
+            : fresh && (rules?.reading.state === 'failed' || failed)
               ? null
-              : fresh && !again
-                ? 'Checking the rule on the new reading…'
+              : fresh && (!again || waiting)
+                ? 'Your AI agent is judging the rule on the new reading…'
                 : passed
                   ? passed
                   : again
                     ? `Read ${dateTime(now)}.`
-                    : 'Reads the Toil project again, then checks the rule on what it read.'}
+                    : 'Reads the Toil project again, then asks your AI agent to judge the rule on what it read.'}
         </span>
       </Cluster>
-      {fresh && rules?.reading.state === 'failed' && <p className="failure">toil couldn't check the ticket rules: {rules.reading.message}</p>}
-      {again && !passed && (
+      {fresh && rules?.reading.state === 'failed' && <p className="failure">Toil UI couldn't read the ticket rules: {rules.reading.message}</p>}
+      {fresh && failed && <p className="failure">Your AI agent couldn't judge the rule again: {failed}</p>}
+      {again && !waiting && !passed && (
         <ul className="rows check-again__rules">
           {again.map((r) => (
             <li key={r.name} className={r.state === 'pass' ? 'check-again--pass' : r.state === 'missing' ? 'check-again--missing' : undefined} data-again={r.state}>
               {againText(r)}
+              {r.by && <span className="note"> ({r.by}'s reading)</span>}
             </li>
           ))}
         </ul>

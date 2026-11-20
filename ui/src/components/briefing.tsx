@@ -48,7 +48,7 @@ export function useBriefing(): BriefingView {
 /** Who wrote the briefing, in words: "Analyze, Codex (gpt-5.5), 13 Oct 2026, 07:30 UTC" or "By code". */
 export function briefingSource(view: BriefingView, plain = false): string {
   if (view.by === 'analyze' && view.analysis) return plain ? `Written by an AI agent, ${whoText(view.analysis)}, ${dateTime(view.analysis.at)}` : `Analyze, ${whoText(view.analysis)}, ${dateTime(view.analysis.at)}`;
-  return plain ? "Worked out by the app's own rules, no AI" : 'By code, no agent';
+  return plain ? "Worked out by code, no AI" : 'By code, no agent';
 }
 
 /** Links inside it open the drawer over the page you're on, not the item's page. */

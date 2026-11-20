@@ -109,7 +109,7 @@ export const SAFETY_CORE_FOLDERS = [
   'src/os/', 'src/shims/', 'src/mcp/', 'src/core/query/', 'src/connections/', 'src/skills/', 'src/setup/', 'src/feedback/', 'src/projects/',
   // Work classification: the scheme catalog's writes, and the plan reader that holds a categorize call to the plan's own labels.
   'src/core/classify/', 'src/classify/',
-  // Ticket rules (standards): the catalog's reads, and the reader's caps on the patterns a checked-in file runs.
+  // Ticket rules (standards): the catalog's reads and its writes to your own folder, and the reader's caps on a checked-in file.
   'src/core/standards/', 'src/standards/',
   // The CLI-to-MCP parity suite and its shards: what keeps the two front doors 1:1.
   'test/parity/',

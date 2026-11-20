@@ -161,6 +161,8 @@ export const ROUTES = [
   '#/project/checkout-web/standup/yesterday',
   item('card-payments', 'corp-jira:PAY-100'),
   item('settlement', 'corp-ado:2304'),
+  // Ticket rules (#657): an item the scripted agent judged missed, with the other rules not applying.
+  item('card-payments', 'corp-jira:PAY-103'),
   // Agent assignments (#293): one that needs you (a report, a question, proposals with diffs), one that failed at its time limit, one working.
   '#/project/card-payments/assignment/sample-needsyou-0002',
   '#/project/card-payments/assignment/sample-failed-0000004',
@@ -168,6 +170,7 @@ export const ROUTES = [
   '#/setup',
   '#/settings/connections',
   '#/settings/projects',
+  '#/settings/rules',
   '#/settings/general',
   '#/settings/appearance',
   '#/settings/usage',

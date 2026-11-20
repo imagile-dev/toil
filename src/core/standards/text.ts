@@ -1,18 +1,19 @@
 /**
- * A work item's body as plain lines of text, for the rules that read it. Jira
- * sends Atlassian Document Format or wiki markup, Azure DevOps HTML, GitHub
- * Markdown; every rule reads the same thing out of each: one block per line, a
- * heading as `#`, a list item as `- `, a task as `[ ]`. This is a port of
- * Toil UI's readiness reader (ui/src/model/readiness.ts), so a rule and the
- * readiness rows read a body one way, with two changes for text from anywhere:
- * the ADF walk is a loop, not recursion, so a deeply nested document can't
- * overflow the stack, and what comes out is capped (BODY_SCAN_LIMIT) before any
- * rule's pattern runs on it. Pure, no network; text on a ticket is somebody
- * else's, and nobody reads past the twentieth thousand character anyway.
+ * A work item's body as plain lines of text, for whatever reads it: Toil UI's
+ * readiness rows, and the item text it hands an AI agent to judge the ticket
+ * rules against. Jira sends Atlassian Document Format or wiki markup, Azure
+ * DevOps HTML, GitHub Markdown; every reader gets the same thing out of each:
+ * one block per line, a heading as `#`, a list item as `- `, a task as `[ ]`.
+ * The ADF walk is a loop, not recursion, so a deeply nested document can't
+ * overflow the stack, and what comes out is capped (BODY_SCAN_LIMIT). Pure, no
+ * network; text on a ticket is somebody else's, and nobody reads past the
+ * twentieth thousand character anyway.
  */
 
-/** The most characters of one text a rule reads; the rest is not scanned. */
+/** The most characters of one text read; the rest is not. */
 export const BODY_SCAN_LIMIT = 20_000;
+/** Azure DevOps' own acceptance criteria field, read when a toil project names none. */
+export const ADO_ACCEPTANCE_FIELD = 'Microsoft.VSTS.Common.AcceptanceCriteria';
 /** The most characters of one raw value converted: the conversions are linear, and markup inflates text. */
 const RAW_LIMIT = BODY_SCAN_LIMIT * 5;
 /** The most ADF nodes walked in one document. */
@@ -159,43 +160,3 @@ export function acceptanceInBody(text: string, templateLines: readonly string[] 
   }
   return ls.some((l) => CHECKBOX.test(l) && words(l) > 0) ? 'checklist' : null;
 }
-
-const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-/** The longest line read as a heading. */
-const HEADING_LINE = 300;
-
-/** A line that starts a section: a Markdown heading, a line that is only bold text, or a short "Label:" with nothing after it. */
-const SECTION_BREAK = /^\s*(?:#{1,6}\s+\S.*|\*{1,2}[^*\n]{1,80}\*{1,2}:?\s*|[^:\n]{1,40}:\s*)$/;
-
-/**
- * The text under the first heading line that names one of `headings` (compared
- * without regard to case), and the heading as the text spelled it: what follows
- * a colon on the heading line, then the lines up to the next heading-shaped
- * line. A heading is the words alone on a line (`## Expected`, `**Expected**`,
- * `Expected:`), or followed by a colon and text (`Expected: the total is 5`); a
- * sentence that starts with them is not one. Undefined when no such heading is
- * there.
- */
-export function sectionUnder(text: string, headings: readonly string[]): { heading: string; text: string } | undefined {
-  if (headings.length === 0) return undefined;
-  const names = headings.map(escapeRegExp).join('|');
-  // Matched on the trimmed line, and only a short one: a heading is a few words, and runs of spaces are where a pattern slows down.
-  const heading = new RegExp(`^(?:#{1,6} *)?(?:\\*{1,2})?(${names}) *(?:\\*{1,2})?(?: *: *(?:\\*{1,2})? *(.*))?$`, 'i');
-  const ls = lines(text);
-  for (let i = 0; i < ls.length; i++) {
-    const line = ls[i]!.trim();
-    const m = line.length <= HEADING_LINE ? heading.exec(line) : null;
-    if (!m) continue;
-    const under: string[] = m[2] ? [m[2]] : [];
-    for (let j = i + 1; j < ls.length; j++) {
-      if (SECTION_BREAK.test(ls[j]!)) break;
-      under.push(ls[j]!);
-    }
-    return { heading: m[1]!, text: under.join('\n') };
-  }
-  return undefined;
-}
-
-/** The headings an "Acceptance criteria" section goes by. */
-export const CRITERIA_HEADINGS = ['Acceptance criteria', 'Acceptance criterion', 'Definition of done', 'Done when'] as const;

@@ -39,7 +39,7 @@
 .diff-line--del { text-decoration: line-through; color: var(--muted); }
 .diff-line--was { color: var(--muted); }
 .diff-line--add { font-weight: 600; background: var(--tint-ok); padding-left: 0.4rem; }
-/* Sync and check again, under an applied fix: the press, then each rule on the new reading. */
+/* Sync and judge again, under an applied fix: the press, then each rule on the new reading. */
 .check-again { display: grid; gap: 0.4rem; border-top: 1px solid var(--line); padding-top: 0.5rem; }
 .check-again__rules { margin: 0; }
 .check-again--pass { color: var(--ok); font-weight: 600; }

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Each tab is opened in turn, as a tab would be in a review meeting: briefly, and to confirm it exists.
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { CANNED, fixtureExecute } from '../src/fixtures/execute.ts';
@@ -27,16 +27,11 @@ describe('the views on a dashboard (#252, #253)', () => {
   });
 
   it("badges Tickets with the Tickets page's own Blocked figure, said in words, never a count the page doesn't show", async () => {
-    // While the ticket rules aren't read the blocked figure isn't known, so the tab carries no count (principle 12).
-    await open('#/project/card-payments/command-center');
-    const unreadTab = within(tabs('card-payments')).getByRole('link', { name: /^Tickets/ });
-    expect(unreadTab.querySelector('.tab-count')).toBeNull();
-    expect(unreadTab.getAttribute('title')).toMatch(/^Ticket rules not read yet/);
-    cleanup();
+    // A ticket rule never blocks an item (it is an AI agent's reading), so the figure is the same before the rules are read.
     await open('#/project/card-payments/command-center', { rules: fixtureStandards() });
     const tab = await waitFor(() => within(tabs('card-payments')).getByRole('link', { name: /^Tickets, \d+ blocked$/ }));
     const n = /(\d+) blocked/.exec(tab.textContent ?? '')![1];
-    expect(tab.querySelector('.tab-count')!.getAttribute('title')).toBe(`${n} blocked: waiting on another item, done already, outside the Toil project, or failing a ticket rule.`);
+    expect(tab.querySelector('.tab-count')!.getAttribute('title')).toBe(`${n} blocked: waiting on another item, done already, or outside the Toil project.`);
     const tally = screen.getByRole('list', { name: 'Open items by verdict' });
     const blocked = within(tally).getAllByRole('listitem').find((li) => li.textContent?.includes('Blocked'))!;
     expect(blocked.querySelector('.team-figure')!.textContent).toBe(n);

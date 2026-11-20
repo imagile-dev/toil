@@ -23,7 +23,7 @@ import type { AnalysesApi } from './analyses.ts';
 import type { AnalysisSummary, AnalysisView } from './model/analysis.ts';
 import { SAMPLE_CANNOT_WRITE, type AgentChoice, type ClassifyApi, type LedgerView } from './classify-api.ts';
 import type { MoveOutcome } from './board-api.ts';
-import type { RulesApi, RulesView } from './rules.ts';
+import type { JudgeResult, RulesApi, RulesView } from './rules.ts';
 import type { WorkItem } from './toil.ts';
 import { WORKLOG_SAMPLE_DISABLED, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth, type WorklogRebuilt, type WorklogStandup } from './worklog.ts';
 
@@ -492,13 +492,18 @@ export function httpClassify(base = './', { sample = false }: { sample?: boolean
   };
 }
 
-/** Ticket rules over the server (#657): toil's check of a Toil project's synced items, read-only. */
+/** Ticket rules over the server (#657): the rules a Toil project names and the AI agent's verdicts, and a press that asks it to judge. */
 export function httpRules(base = './'): RulesApi {
   return {
-    check: async (toilProject) => {
+    read: async (toilProject) => {
       const res = await call(base, `api/standards?${new URLSearchParams({ toilProject }).toString()}`);
-      if (!res.ok) throw await failure(res, 'Checking the ticket rules');
+      if (!res.ok) throw await failure(res, 'Reading the ticket rules');
       return (await res.json()) as RulesView;
+    },
+    judge: async (toilProject, request) => {
+      const res = await call(base, 'api/standards/judge', { body: { toilProject, items: request.items } });
+      if (!res.ok) throw await failure(res, 'Checking with your AI agent');
+      return (await res.json()) as JudgeResult;
     },
   };
 }
