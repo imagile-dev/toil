@@ -102,6 +102,13 @@ describe("reading an AI agent's verdicts (#657)", () => {
   const judgeRules = [{ standard: 'gherkin', rule: 'scenarios', name: 'Given/When/Then' }, { standard: 'bug-repro', rule: 'steps', name: 'Steps' }];
   const one = (entry: Record<string, unknown>, b: ReadonlyArray<{ id: string; evidence: typeof evidence }> = batch) => readJudgement([{ item: 'i1', standard: 'gherkin', rule: 'scenarios', reason: 'Because.', ...entry }], b, judgeRules, 'Codex', 'now').verdicts[0]!;
 
+  it('keeps a bulleted quote copied exactly, a list mark on every line', () => {
+    const bullets = { parts: ['Pay by card', '- Given a signed-out user\n- When they log in\n- Then the basket is kept'], tags: ['Story'] };
+    const b = [{ id: 'i1', evidence: bullets }];
+    expect(one({ verdict: 'met', quote: '- Given a signed-out user\n- When they log in' }, b)).toMatchObject({ verdict: 'met', note: null });
+    expect(one({ verdict: 'met', quote: 'Given a signed-out user\nWhen they log in' }, b)).toMatchObject({ verdict: 'met', note: null });
+  });
+
   it('keeps a quote found in the item, whitespace, case and quote marks aside, and holds one that is not there to unsure, saying so', () => {
     expect(quoteIn('  given  A CARD ', evidence)).toBe(true);
     expect(quoteIn('Given a card\nWhen it is charged', evidence)).toBe(true);

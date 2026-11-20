@@ -302,13 +302,14 @@ export function readJudgement(answer: unknown, batch: ReadonlyArray<{ id: string
     }
     if (out.has(`${item}\n${key}`)) continue;
     const reason = typeof raw.reason === 'string' && raw.reason.trim() ? oneLine(raw.reason, MAX_REASON) : 'The AI agent gave no reason.';
-    // The whole quote is checked; only what is kept for the screen is cut short.
-    const given = typeof raw.quote === 'string' && raw.quote.trim() ? raw.quote.replace(/\s+/g, ' ').trim() : null;
+    // The whole quote is checked as sent, line breaks kept, so normaliseQuote drops a list mark at the start of every line
+    // of a bulleted quote, not just the first; only what is kept for the screen is collapsed and cut short.
+    const given = typeof raw.quote === 'string' && raw.quote.trim() ? raw.quote.trim() : null;
     let final: Judgement = said;
     let note: string | null = null;
     let quote: string | null = null;
     if (given && said === 'na' && quoteNamesTag(given, text)) {
-      quote = given;
+      quote = oneLine(given, MAX_QUOTE);
     } else if (given && !quoteLongEnough(given)) {
       note = `The AI agent quoted only "${oneLine(given, 80)}", too little to show anything, so Toil UI left the quote out.`;
       if (said === 'met') {
