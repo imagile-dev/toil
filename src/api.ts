@@ -234,8 +234,9 @@ export interface ExecuteOptions {
   /**
    * The person the call is for, answering the questions toil would ask on a
    * terminal. With one, `execute()` also runs `registry.personCommands`
-   * (`connections add`, `login`, `remove`, `writes` and `default`, and
-   * `feedback`), asking each question through it: a secret goes from their
+   * (`connections add`, `login`, `remove`, `writes` and `default`,
+   * `projects onboard`, `classify scheme set` and `import`, `standards save`
+   * and `remove`, `projects standards set`, and `feedback`), asking each question through it: a secret goes from their
    * answer straight to the OS credential store and is never in the input, the
    * envelope or the audit log, turning writes on still needs them to type the
    * connection's name, and a feedback report is sent only on their `yes` to
@@ -250,12 +251,15 @@ const served: AnyCommand[] = commands.filter(servedOverMcp);
 const byName = new Map(served.map((def) => [commandName(def), def]));
 /**
  * The person's commands a host may run with `person`: setting up and changing
- * connections, and `feedback`, which sends a report to Imagile LLC only on the
- * person's yes to its `consent` question (AGENT_DECISIONS.md, #265). The other
- * CLI-only commands (a shell alias, a toil project's or a marketplace's removal)
- * and every delete stay on the CLI.
+ * connections, a toil project's onboarding and categories, the ticket rules an
+ * agent's work is judged by and which of them a toil project uses (#657), and
+ * `feedback`, which sends a report to Imagile LLC only on the person's yes to
+ * its `consent` question (AGENT_DECISIONS.md, #265). The other CLI-only
+ * commands (a shell alias, a toil project's or a marketplace's removal) and
+ * every delete stay on the CLI, but for the person's own `standards remove`,
+ * which removes only a file of theirs under ~/.toil/standards.
  */
-const PERSON_COMMANDS = new Set(['connections add', 'connections login', 'connections remove', 'connections writes', 'connections default', 'projects onboard', 'classify scheme set', 'classify scheme import', 'feedback']);
+const PERSON_COMMANDS = new Set(['connections add', 'connections login', 'connections remove', 'connections writes', 'connections default', 'projects onboard', 'classify scheme set', 'classify scheme import', 'standards save', 'standards remove', 'projects standards set', 'feedback']);
 const forPerson: AnyCommand[] = commands.filter((def) => PERSON_COMMANDS.has(commandName(def)));
 const personByName = new Map(forPerson.map((def) => [commandName(def), def]));
 const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, ...(a.fallbackWhen ? { fallbackWhen: a.fallbackWhen } : {}), contextInputs: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}) }));

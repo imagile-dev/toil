@@ -22,6 +22,9 @@
  *   the toil project looked like when it was made (src/model/analysis.ts), kept
  *   per toil project like the worklog: a sync never rewrites it, and the newest
  *   100 of a toil project stay until the retention period ends or a wipe.
+ * - **rule_verdicts**: the AI agent's verdict on each ticket rule for each item
+ *   (#657), the newest only, keyed on what it was judged on, kept per toil
+ *   project like the worklog: a sync never rewrites it.
  * - **usage**: the agent's model usage (#295), one row per report an SDK
  *   made, apart from everything a sync writes. Forgetting a toil project or a
  *   sync's cleanup never touches it, so a total never drops; only the retention period and `wipe` remove it.
@@ -258,6 +261,21 @@ export const MIGRATIONS: readonly Migration[] = [
       UPDATE sources SET full_read_at = NULL;
     `,
   },
+  {
+    version: 7,
+    description: "the AI agent's verdict on each ticket rule for each item, the newest only (#657)",
+    sql: `
+      CREATE TABLE rule_verdicts (
+        toil_project TEXT NOT NULL,
+        item TEXT NOT NULL,
+        rule TEXT NOT NULL,
+        at TEXT NOT NULL,
+        record TEXT NOT NULL,
+        PRIMARY KEY (toil_project, item, rule)
+      );
+      CREATE INDEX rule_verdicts_at ON rule_verdicts (at);
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
@@ -395,7 +413,7 @@ export function digestOf(env: Envelope): string {
 const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 /** The tables kept per toil project that a sync never rewrites: the worklog's, and the analyses (#395). */
-const KEPT_TABLES = [...WORKLOG_TABLES, 'analyses'];
+const KEPT_TABLES = [...WORKLOG_TABLES, 'analyses', 'rule_verdicts'];
 
 /** The lock a running Toil UI holds on its data folder: which process, and a token only the holder knows. */
 export interface CacheLock {
@@ -685,7 +703,7 @@ export class Cache {
         if (envelope.meta?.context?.toilProject?.name === from) envelope.meta.context.toilProject.name = to;
         moved += Number(move.run(to, inputKey(input, r.command), JSON.stringify(envelope), from, r.command, r.input_key).changes);
       }
-      for (const table of ['items', 'transitions', 'change_refs', 'sources', 'worklog_events', 'sync_runs', 'notes']) moved += Number(this.db.prepare(`UPDATE ${table} SET toil_project = ? WHERE toil_project = ?`).run(to, from).changes);
+      for (const table of ['items', 'transitions', 'change_refs', 'sources', 'worklog_events', 'sync_runs', 'notes', 'rule_verdicts']) moved += Number(this.db.prepare(`UPDATE ${table} SET toil_project = ? WHERE toil_project = ?`).run(to, from).changes);
       for (const r of this.db.prepare('SELECT id, run FROM agent_runs WHERE toil_project = ?').all(from) as unknown as Array<{ id: string; run: string }>) {
         const run = JSON.parse(r.run) as AgentRun;
         moved += Number(this.db.prepare('UPDATE agent_runs SET toil_project = ?, run = ? WHERE toil_project = ? AND id = ?').run(to, JSON.stringify({ ...run, toilProject: to }), from, r.id).changes);
@@ -887,6 +905,22 @@ export class Cache {
     return (this.db.prepare('SELECT record FROM analyses WHERE toil_project = ? ORDER BY at, id').all(toilProject) as unknown as Array<{ record: string }>).map((r) => JSON.parse(r.record) as AnalysisRecord);
   }
 
+  // The ticket rules' verdicts (#657) ---------------------------------------------------
+
+  /** Keeps verdicts, one per item and rule, replacing the one before. */
+  saveRuleVerdicts(toilProject: string, verdicts: ReadonlyArray<{ item: string; standard: string; rule: string; at: string }>) {
+    if (!verdicts.length) return;
+    this.transaction(() => {
+      const put = this.db.prepare('INSERT OR REPLACE INTO rule_verdicts (toil_project, item, rule, at, record) VALUES (?, ?, ?, ?, ?)');
+      for (const v of verdicts) put.run(toilProject, v.item, `${v.standard}/${v.rule}`, v.at, JSON.stringify(v));
+    });
+  }
+
+  /** A toil project's verdicts, as saved. */
+  ruleVerdicts<T>(toilProject: string): T[] {
+    return (this.db.prepare('SELECT record FROM rule_verdicts WHERE toil_project = ? ORDER BY item, rule').all(toilProject) as unknown as Array<{ record: string }>).map((r) => JSON.parse(r.record) as T);
+  }
+
   /**
    * Deletes what is older than the retention period. Returns how many went.
    * Everything a sync writes goes per toil project, together, by one date: `toil_projects.last_saved_at`, the last time a sync
@@ -921,6 +955,8 @@ export class Cache {
       removed += Number(this.db.prepare('DELETE FROM notes WHERE at < ?').run(cutoff).changes);
       // An analysis by when it was made (schema 4): it quotes ticket titles, so it never outstays the rest.
       if (this.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'analyses'").get()) removed += Number(this.db.prepare('DELETE FROM analyses WHERE at < ?').run(cutoff).changes);
+      // A verdict by when it was judged (schema 7): it quotes ticket text, so it never outstays the rest.
+      if (this.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'rule_verdicts'").get()) removed += Number(this.db.prepare('DELETE FROM rule_verdicts WHERE at < ?').run(cutoff).changes);
     });
     return removed;
   }

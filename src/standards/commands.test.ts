@@ -10,13 +10,13 @@ import { runCli } from '../../test/harness/cli.js';
 import { testContext } from '../../test/harness/context.js';
 import { connectMcp, type McpSession } from '../../test/harness/mcp.js';
 import { toilProjectDisk, type ToilProjectDisk } from '../../test/harness/toil-projects.js';
-import { EXAMPLE_STANDARDS_RECORDS, standardsCommands } from './commands.js';
+import { EXAMPLE_STANDARD, standardsCommands } from './commands.js';
 
 const commands = [...standardsCommands(), ...standardsProjectCommands()];
 const toilProjectAreas = areas.map((a) => ({ name: a.name, context: Object.keys(a.context) }));
 const config: ResolvedConfig = { connections: {}, defaults: {}, sources: {}, files: { global: '/home/test/.toil/config.json' }, warnings: [] };
 
-const RISK_RULES = { name: 'risk', rules: [{ id: 'risk', name: 'Risk filled in', text: 'Fill in the Risk field.', fail: 'fail', check: { kind: 'field', in: ['field:risk'] } }] };
+const RISK_RULES = { name: 'risk', rules: [{ id: 'risk', name: 'Risk filled in', text: 'The Risk field says how risky the change is.' }] };
 
 const disks: ToilProjectDisk[] = [];
 const sessions: McpSession[] = [];
@@ -32,7 +32,7 @@ function disk(extra: Record<string, unknown> = {}): ToilProjectDisk {
     'home/.toil/projects/rules/risk.json': RISK_RULES,
     'home/.toil/projects/bare.json': { name: 'bare' },
     'work/.git/HEAD': 'ref: refs/heads/main\n',
-    'work/.toil/standards/team.json': { name: 'team', description: 'Checked in.', rules: [{ id: 'title', name: 'Title', text: 'Three words.', check: { kind: 'words', in: ['title'], min: 3 } }] },
+    'work/.toil/standards/team.json': { name: 'team', description: 'Checked in.', rules: [{ id: 'title', name: 'Title', text: 'The title says what changes.' }] },
     ...extra,
   });
   disks.push(d);
@@ -43,10 +43,10 @@ function contextFor(d: ToilProjectDisk, files: Record<string, string>, mcp = fal
   const { context } = testContext({ files });
   return { ...context, config, standards: d.standards(config, mcp ? { mcp: true } : {}), toilProjects: d.catalog(config, { areas: toilProjectAreas, ...(mcp ? { mcp: true } : {}) }) };
 }
-async function cli(d: ToilProjectDisk, argv: string[], files: Record<string, string> = { 'items.json': EXAMPLE_STANDARDS_RECORDS }): Promise<Envelope> {
+async function cli(d: ToilProjectDisk, argv: string[], files: Record<string, string> = { 'team-stories.json': EXAMPLE_STANDARD }): Promise<Envelope> {
   return (await runCli(argv, { commands, context: contextFor(d, files) })).envelope!;
 }
-async function mcp(d: ToilProjectDisk, files: Record<string, string> = { 'items.json': EXAMPLE_STANDARDS_RECORDS }): Promise<McpSession> {
+async function mcp(d: ToilProjectDisk, files: Record<string, string> = { 'team-stories.json': EXAMPLE_STANDARD }): Promise<McpSession> {
   const session = await connectMcp({ commands, context: contextFor(d, files, true), areas: ['standards', 'projects'] });
   sessions.push(session);
   return session;
@@ -58,52 +58,77 @@ const data = (e: Envelope) => {
 const codes = (e: Envelope) => (e.meta.warnings ?? []).map((w) => w.code);
 
 describe('standards list', () => {
-  it("lists the repository's standards and the built-ins, each with its rules", async () => {
+  it("lists the repository's standards and the built-ins, each with its rules' plain text", async () => {
     const d = disk();
     const out = data(await cli(d, ['standards', 'list']));
+    expect(out.toilProject).toBeNull();
     expect(out.standards.map((s: any) => [s.name, s.source])).toEqual([['team', 'repo'], ['gherkin', 'built-in'], ['user-story', 'built-in'], ['bug-repro', 'built-in']]);
-    expect(out.standards[0]).toMatchObject({ description: 'Checked in.', file: expect.stringMatching(/work\/\.toil\/standards\/team\.json$/), rules: [{ id: 'title', when: null, fail: 'thin', kind: 'words' }] });
-    expect(out.standards[1]).toMatchObject({ name: 'gherkin', rules: [{ id: 'scenarios', when: { type: ['STORY'] }, kind: 'pattern' }] });
+    expect(out.standards[0]).toMatchObject({ description: 'Checked in.', file: expect.stringMatching(/work\/\.toil\/standards\/team\.json$/), rules: [{ id: 'title', name: 'Title', text: 'The title says what changes.' }] });
+    expect(out.standards[1].rules[0]).toEqual({ id: 'scenarios', name: 'Acceptance criteria as Given/When/Then', text: expect.stringContaining('This rule is for stories.') });
   });
-});
 
-describe('standards check', () => {
-  it("checks against the toil project's standards, a path beside it and its field alias included", async () => {
-    const items = JSON.stringify({ items: [{ ...JSON.parse(EXAMPLE_STANDARDS_RECORDS).items[0], native: { 'jira issue search': { fields: { customfield_10777: 'Low' } } } }] });
-    const out = data(await cli(disk(), ['standards', 'check', '--toil-project', 'payments', '--input-file', 'items.json'], { 'items.json': items }));
+  it("lists the standards a toil project names, in its order, a path beside it included", async () => {
+    const out = data(await cli(disk(), ['standards', 'list', '--toil-project', 'payments']));
     expect(out.toilProject).toBe('payments');
     expect(out.standards.map((s: any) => [s.name, s.source])).toEqual([['gherkin', 'built-in'], ['risk', 'toil-project']]);
-    expect(out.items[0]).toMatchObject({ key: 'PAY-201', verdict: 'pass', results: [{ standard: 'gherkin', state: 'pass' }, { standard: 'risk', state: 'pass', source: 'risk (field customfield_10777)' }] });
-  });
-
-  it('takes --standard instead of the toil project\'s list, by name or file', async () => {
-    const out = data(await cli(disk(), ['standards', 'check', '--toil-project', 'payments', '--standard', 'team', '--standard', 'bug-repro', '--input-file', 'items.json']));
-    expect(out.standards.map((s: any) => s.name)).toEqual(['team', 'bug-repro']);
-    expect(out.summary.byRule.map((r: any) => [r.rule, r.applies])).toEqual([['title', 3], ['steps', 1], ['expected', 1], ['actual', 1]]);
-  });
-
-  it('checks nothing, with a warning, when no toil project and no --standard name any', async () => {
-    const none = await cli(disk(), ['standards', 'check', '--input-file', 'items.json']);
-    expect(data(none)).toMatchObject({ toilProject: null, standards: [], summary: { items: 3, checked: 0, byRule: [] } });
-    expect(codes(none)).toEqual(['STANDARDS_NONE']);
-    const bare = await cli(disk(), ['standards', 'check', '--toil-project', 'bare', '--input-file', 'items.json']);
+    const bare = await cli(disk(), ['standards', 'list', '--toil-project', 'bare']);
+    expect(data(bare)).toEqual({ toilProject: 'bare', standards: [] });
     expect(codes(bare)).toEqual(['STANDARDS_NONE']);
     expect(bare.meta.warnings![0]!.message).toContain('toil projects standards set bare');
-  });
-
-  it('refuses an unknown standard, and input with no work items', async () => {
-    const unknown = await cli(disk(), ['standards', 'check', '--standard', 'nope', '--input-file', 'items.json']);
-    expect(unknown.error).toMatchObject({ code: 'NOT_FOUND' });
-    const empty = await cli(disk(), ['standards', 'check', '--standard', 'gherkin', '--text', '{"items":[]}']);
-    expect(empty.error).toMatchObject({ code: 'INVALID_INPUT' });
+    expect(bare.meta.warnings![0]!.message).toContain("Toil UI's Settings");
   });
 
   it('is served over MCP with the same result', async () => {
+    const d = disk();
+    const session = await mcp(d);
+    const over = (await session.call('standards_list', { toilProject: 'payments' })).envelope;
+    expect(over.data).toEqual((await cli(d, ['standards', 'list', '--toil-project', 'payments'])).data);
+  });
+});
+
+describe('standards save and remove', () => {
+  const mineFile = (d: ToilProjectDisk, name: string) => JSON.parse(readFileSync(join(d.home, '.toil', 'standards', `${name}.json`), 'utf8')) as Record<string, any>;
+
+  it('saves a new standard to your folder at revision 1, then raises the revision on each change', async () => {
+    const d = disk();
+    const first = data(await cli(d, ['standards', 'save', 'team-stories', '--input-file', 'team-stories.json']));
+    expect(first).toMatchObject({ name: 'team-stories', revision: 1, previousRevision: null, file: expect.stringMatching(/home\/\.toil\/standards\/team-stories\.json$/) });
+    expect(mineFile(d, 'team-stories')).toMatchObject({ name: 'team-stories', revision: 1, rules: [{ id: 'risk' }] });
+    const changed = JSON.stringify({ ...JSON.parse(EXAMPLE_STANDARD), rules: [{ id: 'risk', name: 'Names its risk', text: 'Edited freely.\nOn two lines.' }] });
+    const second = data(await cli(d, ['standards', 'save', 'team-stories', '--text', changed]));
+    expect(second).toMatchObject({ revision: 2, previousRevision: 1 });
+    expect(mineFile(d, 'team-stories').rules[0].text).toBe('Edited freely.\nOn two lines.');
+    // The same content again writes nothing.
+    const same = await cli(d, ['standards', 'save', 'team-stories', '--text', changed]);
+    expect(data(same).revision).toBe(2);
+    expect(codes(same)).toEqual(['STANDARD_UNCHANGED']);
+  });
+
+  it("saves a copy of a built-in under its name as yours, and refuses a name that disagrees or a file in the old shape", async () => {
+    const d = disk();
+    expect(data(await cli(d, ['standards', 'save', 'gherkin', '--text', EXAMPLE_STANDARD])).revision).toBe(1);
+    expect(data(await cli(d, ['standards', 'list'])).standards.find((s: any) => s.name === 'gherkin').source).toBe('user');
+    expect((await cli(d, ['standards', 'save', 'mine', '--text', JSON.stringify({ name: 'other', rules: [] })])).error).toMatchObject({ code: 'INVALID_INPUT' });
+    const old = await cli(d, ['standards', 'save', 'mine', '--text', JSON.stringify({ rules: [{ id: 'a', name: 'A', text: 'B', check: { kind: 'words', in: ['title'], min: 3 } }] })]);
+    expect(old.error).toMatchObject({ code: 'CONFIG_INVALID' });
+    expect(old.error!.fix).toContain('remove check, when, fail and missing');
+  });
+
+  it('removes your own standard and says what the name means now', async () => {
+    const d = disk();
+    await cli(d, ['standards', 'save', 'gherkin', '--text', EXAMPLE_STANDARD]);
+    const out = await cli(d, ['standards', 'remove', 'gherkin']);
+    expect(data(out)).toMatchObject({ name: 'gherkin', now: 'built-in' });
+    expect(codes(out)).toEqual(['STANDARD_NOW_FROM']);
+    expect((await cli(d, ['standards', 'remove', 'team'])).error).toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('is never served over MCP: the rules an agent is judged by are a person\'s', async () => {
     const session = await mcp(disk());
-    const over = (await session.call('standards_check', { standard: ['gherkin', 'user-story', 'bug-repro'], inputFile: 'items.json' })).envelope;
-    const local = await cli(disk(), ['standards', 'check', '--standard', 'gherkin', '--standard', 'user-story', '--standard', 'bug-repro', '--input-file', 'items.json']);
-    expect(over.data).toEqual(local.data);
-    expect((over.data as any).items.map((i: any) => i.verdict)).toEqual(['pass', 'pass', 'thin']);
+    const tools = (await session.client.listTools()).tools.map((t) => t.name);
+    expect(tools).toContain('standards_list');
+    expect(tools).not.toContain('standards_save');
+    expect(tools).not.toContain('standards_remove');
   });
 });
 
@@ -132,13 +157,11 @@ describe('projects standards set', () => {
     expect((await cli(d, ['projects', 'standards', 'set', 'bare'])).error).toMatchObject({ code: 'INVALID_INPUT' });
   });
 
-  it('clears the key on the CLI, and refuses --clear over MCP', async () => {
+  it('clears the key on the CLI, and is never served over MCP, so an agent neither chooses nor clears the rules (#657)', async () => {
     const d = disk();
     expect(data(await cli(d, ['projects', 'standards', 'set', 'payments', '--clear'])).standards).toBeNull();
     expect(fileOf(d, 'payments')).not.toHaveProperty('standards');
     const session = await mcp(disk());
-    const refused = (await session.call('projects_standards_set', { toilProject: 'payments', clear: true })).envelope;
-    expect(refused.error).toMatchObject({ code: 'INVALID_INPUT' });
-    expect(refused.error!.message).toContain('CLI');
+    expect((await session.client.listTools()).tools.map((t) => t.name)).not.toContain('projects_standards_set');
   });
 });

@@ -1,7 +1,7 @@
 /**
  * Settings (#253, item 4), each page its own address under `#/settings/`:
  * General first (notifications, applying board moves, links to learning content, then a closed
- * Advanced section), Connections, Toil projects, Appearance (the theme, light
+ * Advanced section), Connections, Toil projects, Ticket rules (#657), Appearance (the theme, light
  * or dark, the font and one Motion setting), Usage (how Toil is used, and what
  * the AI agent's models used, with the Codex rates) and AI agent. The title is just
  * "Settings" on every page. Every change to toil's config runs one of toil's
@@ -22,6 +22,7 @@ import type { HelpTopicId } from '../help.ts';
 import './settings.css';
 import { Connections } from './settings/Connections.tsx';
 import { ToilProjectSetup } from './settings/ToilProjectSetup.tsx';
+import { TicketRules } from './settings/TicketRules.tsx';
 import type { ClassifyApi } from '../classify-api.ts';
 import type { WorkItem } from '../toil.ts';
 import { Advanced, type CacheControl } from './settings/General.tsx';
@@ -46,6 +47,7 @@ export const SETTINGS_PAGES: Array<{ page: SettingsPage; label: string; plain?: 
   { page: 'general', label: 'General', about: 'Notifications, applying board moves, and links to learning content, in this browser. Advanced holds what few people need.', topic: 'settings' },
   { page: 'connections', label: 'Connections', plain: { label: 'Connections', about: 'Your links to tools such as Jira and GitHub: add one, check that it works, choose the main one, allow writes or make it read only, update a login, or remove it.' }, about: 'Your links to tools such as Jira and GitHub.', topic: 'connections' },
   { page: 'projects', label: 'Toil projects', plain: { label: 'Toil projects', about: 'Set up a Toil project: the repositories it covers, its tools, its field names, its people and a limit on work in progress. Create Toil projects here too.' }, about: 'Set up a repository that has a Toil project, create Toil projects, and give them repositories, areas, field names, people and a work-in-progress limit.', topic: 'toil-project-setup' },
+  { page: 'rules', label: 'Ticket rules', about: "Your team's rules for how a ticket is written, in plain words: add one from a starter or a blank, edit it, remove it, and choose which rules each Toil project's items are held to. Your AI agent judges items against them on your press.", topic: 'ticket-rules' },
   { page: 'appearance', label: 'Appearance', about: 'The theme, light or dark, the font and motion in this browser.', topic: 'themed-wording' },
   { page: 'usage', label: 'Usage', about: 'How Toil is used on this computer, and what your AI agent has used.', topic: 'audit' },
   { page: 'agent', label: 'AI agent', about: 'Which AI agent answers questions in the chat, and your own instructions for it.', topic: 'agent' },
@@ -112,6 +114,8 @@ export function Settings({ page, at = [], config, agent, modelUsage = null, cach
         <p className="failure">This app can't change settings here, so there is nothing to show.</p>
       ) : page === 'connections' ? (
         <Connections config={config} {...(form ? { toForm: true } : at[0] ? { at: at[0] } : {})} />
+      ) : page === 'rules' ? (
+        <TicketRules config={config} />
       ) : page === 'projects' ? (
         <ToilProjectSetup config={config} classify={classify} loadItems={loadItems} {...(form ? { toForm: true } : at[0] ? { at: { toilProject: at[0], section: at[1] ?? null } } : {})} />
       ) : null}

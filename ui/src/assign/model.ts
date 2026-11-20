@@ -165,19 +165,23 @@ export interface Branch {
 }
 
 /**
- * A ticket rule a refine was asked to meet (#657), as toil checked it when
- * the assignment was made: the rule's name and text, and toil's reason it
- * missed, which is what the agent is told.
+ * A ticket rule a refine was asked to meet (#657), as it stood when the
+ * assignment was made: the rule's name and text, and the AI agent's verdict
+ * that the item missed it (its reason and quote), which is what the fixing
+ * agent is told.
  */
 export interface AssignedRule {
   standard: string;
   rule: string;
   name: string;
+  /** The rule's instructions, as written when the fix was asked for. */
   text: string;
-  /** toil's reason the item missed the rule. */
+  /** The AI agent's reason for judging the item to miss the rule. */
   reason: string;
-  /** Where toil read the text from (`field customfield_10500 (acceptanceCriteria)`, `description`): where the fix goes. */
-  source: string;
+  /** The item's words its verdict pointed to, which Toil UI found in the item; null when it gave none. Absent on an older record. */
+  quote?: string | null;
+  /** Which AI agent judged it missed. Absent on an older record. */
+  by?: string | null;
 }
 
 export interface Assignment {

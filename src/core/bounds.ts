@@ -60,6 +60,8 @@ export const BOUND_EXCEPTIONS: readonly BoundException[] = [
   { id: 'classify.write', bound: 'files.workspace', enforcedIn: ['src/core/classify/catalog.ts', 'src/core/file-catalog.ts'] },
   { id: 'classify.replace', bound: 'files.no-overwrite', enforcedIn: ['src/core/classify/catalog.ts', 'src/core/file-catalog.ts'] },
   { id: 'standards.read', bound: 'files.workspace', enforcedIn: ['src/core/standards/catalog.ts', 'src/core/file-catalog.ts', 'src/core/standards/read.ts'] },
+  { id: 'standards.write', bound: 'files.workspace', enforcedIn: ['src/core/standards/catalog.ts', 'src/core/file-catalog.ts'] },
+  { id: 'standards.replace', bound: 'files.no-overwrite', enforcedIn: ['src/core/standards/catalog.ts', 'src/core/file-catalog.ts'] },
   { id: 'classify.ledger', bound: 'files.own', enforcedIn: ['src/core/classify/ledger.ts'] },
   { id: 'diagrams.write', bound: 'files.workspace', enforcedIn: ['src/core/diagrams.ts'] },
   { id: 'diagrams.replace', bound: 'files.no-overwrite', enforcedIn: ['src/core/diagrams.ts'] },

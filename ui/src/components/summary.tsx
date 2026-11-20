@@ -64,7 +64,7 @@ export function Shape({ tone }: { tone: Status | Card['tone'] }) {
 
 /**
  * The status sentence, its estimate label, the one line on why, and the sums one step in. `badge` says who worked it out
- * ("Rules, no AI") right on the headline, with the whole sentence in its tooltip, so the source never leaves the screen
+ * ("Worked out by code") right on the headline, with the whole sentence in its tooltip, so the source never leaves the screen
  * (principle 4) and costs one word, not a line.
  */
 export function AnswerHero({ answer, badge }: { answer: Answer; badge?: { text: string; title: string } }) {

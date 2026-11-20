@@ -130,11 +130,14 @@ logging, refund reasons) that the agent can read first:
 
 ## Is the backlog ready? (ticket rules)
 
-The toil project `payments-team` checks every story and bug against three built-in
+The toil project `payments-team` holds every story and bug to three built-in starter
 rule sets ("Ticket rules" in Toil UI): `gherkin` (a story's acceptance criteria as
 Given/When/Then), `user-story` ("As a …, I want …, so that …") and `bug-repro`
-(steps to reproduce, expected and actual). `demo-week.mjs` writes the seeded text so
-almost everything passes and a few named items don't:
+(steps to reproduce, expected and actual). Each rule is plain text, and the AI agent
+chosen in Toil UI judges the items against them when Sam presses **Check with AI
+agent**. `demo-week.mjs` writes the seeded text so almost everything meets the rules and
+a few named items don't (the seeds' own reading, `ruleMisses`; the agent's verdicts are
+its own, so check them on a dry run before recording):
 
 | Item | Misses | Why it reads true |
 |---|---|---|
@@ -145,13 +148,17 @@ almost everything passes and a few named items don't:
 | Jira **SCRUM-23**, fees and interchange on the statement | the user-story form | "Finance asked for …", a request rather than a story |
 | ADO **#193**, receipt shows the wrong currency symbol | steps, expected and actual | One line from a customer's receipt; nobody has reproduced it |
 
-The agent-ready items (GitHub #38, SCRUM-55, ADO #194) pass every rule, so they stay
-Ready. Jira's bugs are Tasks labelled `bug` and GitHub's issues have no issue type,
-so the bug rules land on ADO's Bugs alone. *Demo (video 4):* "is the backlog
-ready?" The Command Center's Ticket rules card shows three stories missing
-Given/When/Then; drilling in lists SCRUM-15, 17 and 32, and "Fix with AI agent" on
-SCRUM-32 drafts the scenarios from what the story already says, for Sam to apply.
-The seeds put the gaps back on the next run.
+The agent-ready items (GitHub #38, SCRUM-55, ADO #194) meet every rule, so once judged
+they are Ready. Jira's bugs are Tasks labelled `bug` and GitHub's issues have no issue type,
+so the agent should judge the bug rules as not applying to them and land them on ADO's
+Bugs alone. *Demo (video 4):* "is the backlog ready?" On Tickets, Sam presses **Check
+with AI agent**; the Ticket rules card then shows three stories missing Given/When/Then,
+each verdict labelled as the agent's reading with a quote from the item. Drilling in lists
+SCRUM-15, 17 and 32, and "Fix with AI agent" on SCRUM-32 drafts the scenarios from what
+the story already says, for Sam to apply. **Sync and judge again** on the applied card
+syncs and asks the agent to judge SCRUM-32 afresh: "✓ … judges Acceptance criteria as
+Given/When/Then now met. SCRUM-32 is ready to start." The seeds put the gaps back on the
+next run, and the changed text means the next press judges them again.
 
 ## Friday: Black Friday readiness
 
@@ -170,5 +177,5 @@ The seeds put the gaps back on the next run.
 | 1 · Toil UI: Monday stand-up | The whole week in one report, the critical chain | Toil UI Summary, Stand-up, Blocked, Code reviews |
 | 2 · Toil UI: Ask | Lumen Games' payout; reconciliation at 2 a.m. | Ask over Jira, GitHub, ADO and `payments-db` |
 | 3 · The CLI | One shape across tools: the chain, the PRs, the replica | `toil jira`, `github`, `ado`, `db`, `--select` |
-| 4 · Agents | "Is the backlog ready?": the ticket rules find SCRUM-15, 17 and 32 without Given/When/Then and ADO #193 without repro steps, and an agent fixes SCRUM-32; then kick off agents on #38, SCRUM-55 and #194 and watch the PRs land in Code reviews | Toil UI Command Center (Ticket rules) and item page, `toil standards check`, `toil mcp`, Claude Code / Codex / Copilot |
+| 4 · Agents | "Is the backlog ready?": Check with AI agent judges the ticket rules and finds SCRUM-15, 17 and 32 without Given/When/Then and ADO #193 without repro steps, an agent fixes SCRUM-32, and Sync and judge again shows the rule now met; then kick off agents on #38, SCRUM-55 and #194 and watch the PRs land in Code reviews | Toil UI Tickets (Ticket rules, Check with AI agent) and item page, Settings, Ticket rules, `toil standards list`, `toil mcp`, Claude Code / Codex / Copilot |
 | 5 · Friday readiness | Vulnerabilities, the release page, the write gate | `toil osv`, `toil confluence`, writes |

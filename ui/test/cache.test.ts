@@ -64,7 +64,7 @@ describe('the schema', () => {
   it('creates a new file at the latest version, with every table', async () => {
     const cache = await open(folder());
     expect(cache.version()).toBe(SCHEMA_VERSION);
-    expect(Object.keys(cache.counts())).toEqual(['responses', 'items', 'transitions', 'change_refs', 'sources', 'toil_projects', 'usage', 'worklog_events', 'sync_runs', 'agent_runs', 'notes', 'analyses']);
+    expect(Object.keys(cache.counts())).toEqual(['responses', 'items', 'transitions', 'change_refs', 'sources', 'toil_projects', 'usage', 'worklog_events', 'sync_runs', 'agent_runs', 'notes', 'analyses', 'rule_verdicts']);
   });
 
   /** A file left at an older schema, with one toil project's row in it, as an older Toil UI wrote it. */

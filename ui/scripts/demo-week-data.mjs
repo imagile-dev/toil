@@ -328,10 +328,13 @@ export function adoRepro(key) {
   return `<h3>Steps to reproduce</h3><ol>${b.steps.map((l) => `<li>${escapeHtml(l)}</li>`).join('')}</ol><h3>Expected</h3><p>${escapeHtml(b.expected)}</p><h3>Actual</h3><p>${escapeHtml(b.actual)}</p>`;
 }
 
-// A small copy of the three built-in rule sets (src/core/standards/builtin.ts),
-// so the seeds can look before they write; ui/test/demo-week.test.ts holds the
-// copy to the original. Two check kinds are all the presets use: every pattern
-// must hit, or one of the headings must have words under it.
+// The seeds' own plain reading of the three built-in starter rule sets
+// (src/core/standards/builtin.ts), so they can look before they write and leave
+// exactly the gaps the demo story needs. In Toil UI an AI agent judges the
+// starters' plain-text rules; this is only the seeds' description of where each
+// item is meant to fall short, and ui/test/demo-week.test.ts holds the seeded
+// data to it. Every pattern must hit, or one of the headings must have words
+// under it.
 
 /** The presets' rules: which work item type each applies to, where it looks, and its check. */
 export const PRESET_RULES = [
@@ -373,8 +376,8 @@ export const flatText = (value) => textOf(value).replace(/\s+/g, ' ').trim();
 
 const WORDS = /[\p{L}\p{N}]/u;
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-// As src/core/standards/text.ts reads a section: a heading line (`## Expected`, `**Expected**`,
-// `Expected:`, `Expected: text`), then the lines up to the next heading-shaped line.
+// A section is a heading line (`## Expected`, `**Expected**`, `Expected:`, `Expected: text`), then the
+// lines up to the next heading-shaped line: how the demo's own seed checks read a description it wrote.
 const SECTION_BREAK = /^\s*(?:#{1,6}\s+\S.*|\*{1,2}[^*\n]{1,80}\*{1,2}:?\s*|[^:\n]{1,40}:\s*)$/;
 /** The text under the first line that is one of `headings`, or undefined. */
 function sectionUnder(text, headings) {

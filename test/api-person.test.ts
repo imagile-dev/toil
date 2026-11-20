@@ -64,7 +64,7 @@ it("clears every area's CI fallback, as the registry declares them, so a runner'
 
 describe('the registry', () => {
   it("lists the person's commands apart from what execute() serves without one", () => {
-    expect(registry.personCommands.map((c) => c.name).sort()).toEqual(['classify scheme import', 'classify scheme set', 'connections add', 'connections default', 'connections login', 'connections remove', 'connections writes', 'feedback', 'projects onboard']);
+    expect(registry.personCommands.map((c) => c.name).sort()).toEqual(['classify scheme import', 'classify scheme set', 'connections add', 'connections default', 'connections login', 'connections remove', 'connections writes', 'feedback', 'projects onboard', 'projects standards set', 'standards remove', 'standards save']);
     expect(registry.commands.map((c) => c.name)).not.toContain('connections add');
     expect(registry.personCommands.find((c) => c.name === 'connections writes')).toMatchObject({ kind: 'cli-only', writes: false, writesLocal: true });
   });
@@ -180,6 +180,19 @@ describe('execute() with a person', () => {
     const plan = await execute('projects onboard', { toilProject: 'team', plan: true }, { person: someone });
     expect(someone.asked).toEqual([]);
     expect(plan).toMatchObject({ ok: true, data: { plan: true, ok: false, areas: [{ area: 'github', status: 'missing', selects: { host: 'github.com' }, suggest: { name: 'github', baseUrl: 'https://api.github.com' } }] } });
+  });
+
+  it("chooses a toil project's ticket rules only for a person, who may also clear them (#657)", async () => {
+    mkdirSync(join(home, '.toil', 'projects'), { recursive: true });
+    const file = join(home, '.toil', 'projects', 'team.json');
+    writeFileSync(file, JSON.stringify({ name: 'team' }));
+    const refused = await execute('projects standards set', { toilProject: 'team', use: ['gherkin'] });
+    expect(refused).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: "projects standards set is a person's command: execute() runs it only with a person to answer its questions." } });
+    const set = await execute('projects standards set', { toilProject: 'team', use: ['gherkin', 'bug-repro'] }, { person: person({}) });
+    expect(set, JSON.stringify(set.error)).toMatchObject({ ok: true, data: { standards: { use: ['gherkin', 'bug-repro'] } } });
+    const cleared = await execute('projects standards set', { toilProject: 'team', clear: true }, { person: person({}) });
+    expect(cleared, JSON.stringify(cleared.error)).toMatchObject({ ok: true, data: { standards: null } });
+    expect(JSON.parse(readFileSync(file, 'utf8'))).not.toHaveProperty('standards');
   });
 });
 

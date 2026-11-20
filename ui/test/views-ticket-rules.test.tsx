@@ -32,22 +32,47 @@ const go = async (hash: string) => {
 const ruleRows = () => within(document.querySelector<HTMLElement>('[data-rule-rows]')!).getAllByRole('listitem').map((li) => li.textContent ?? '');
 
 describe('the rule rows on an item (#657)', () => {
-  it('lists each rule that applies under its own heading, and offers Fix with AI agent only where the item misses one', async () => {
+  it("lists each rule the Toil project names under its own heading, as the AI agent's reading, and offers Fix with AI agent only where it judged a miss", async () => {
     await open(item('card-payments', 'corp-jira:PAY-103'), { rules: fixtureStandards(), assignments: fixtureAssignments({ delay: 0 }) });
     await waitFor(() => expect(document.querySelector('[data-rule-rows]')).not.toBeNull());
     const box = panel('Ready for an agent?');
     expect(within(box).getByRole('heading', { name: /Ticket rules/ })).toBeTruthy();
-    // The reason is toil's own words (src/core/standards), so it is matched loosely here.
-    expect(ruleRows()).toEqual([expect.stringMatching(/^Acceptance criteria as Given\/When\/Then Missing: \S/)]);
-    // The row's source is one press in: in the page, folded under the row's own disclosure.
-    expect(document.querySelector('[data-rule-rows] details:not([open]) .field')!.textContent).toMatch(/^Source: /);
+    // The reason is the agent's own words, so it is matched loosely here; who judged it and when is always on the row (principle 4).
+    expect(ruleRows()[0]).toMatch(/^Acceptance criteria as Given\/When\/Then Missed: \S.* \(The sample's scripted agent's reading, /);
+    expect(ruleRows().slice(1).every((r) => r.includes("Doesn't apply"))).toBe(true);
+    // The rule set it came from is one press in, in plain words, folded under the row's own disclosure.
+    expect(document.querySelector('[data-rule-rows] details:not([open]) .field')!.textContent).toBe('From gherkin');
+    // What needs a person leads; the rules that don't apply fold to one line, opened on a press.
+    expect(document.querySelector('[data-rules-folded] > summary')!.textContent).toBe("3 rules don't apply");
+    expect(document.querySelector('[data-rule-rows] > .readiness-standard [data-rule-state="na"]')).toBeNull();
     expect(within(box).getByRole('button', { name: 'Fix with AI agent: Acceptance criteria as Given/When/Then' })).toBeTruthy();
+  });
+
+  it('shows a rule not judged yet as a dash beside Check with AI agent, and judges it only on the press', async () => {
+    await open(item('card-payments', 'corp-jira:PAY-107'), { rules: fixtureStandards(), assignments: fixtureAssignments({ delay: 0 }) });
+    await waitFor(() => expect(document.querySelector('[data-rule-rows]')).not.toBeNull());
+    expect(ruleRows()[0]).toMatch(/^–Acceptance criteria as Given\/When\/Then Not judged yetFrom gherkin/);
+    expect(document.querySelector('[data-rule-state="unjudged"]')).not.toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Check with AI agent' }));
+    await waitFor(() => expect(ruleRows()[0]).toMatch(/Missed: .*scripted agent's reading/));
+    expect(screen.getByRole('button', { name: 'Fix with AI agent: Acceptance criteria as Given/When/Then' })).toBeTruthy();
+  });
+
+  it('tags a verdict Toil UI kept as unsure in a few words, with the full sentence one press in', async () => {
+    await open(item('card-payments', 'corp-jira:PAY-102'), { rules: fixtureStandards(), assignments: fixtureAssignments({ delay: 0 }) });
+    await waitFor(() => expect(document.querySelector('[data-rule-tag]')).not.toBeNull());
+    expect(document.querySelector('[data-rule-tag]')!.textContent).toBe('Kept as unsure: quote not found');
+    const note = document.querySelector('[data-rule-note]')!;
+    expect(note.closest('details:not([open])')).not.toBeNull();
+    expect(note.textContent).toContain("isn't in the item's text");
   });
 
   it('shows no Fix on a rule the item meets', async () => {
     await open(item('card-payments', 'corp-jira:PAY-101'), { rules: fixtureStandards(), assignments: fixtureAssignments({ delay: 0 }) });
     await waitFor(() => expect(document.querySelector('[data-rule-rows]')).not.toBeNull());
-    expect(ruleRows()[0]).toMatch(/^Acceptance criteria as Given\/When\/Then Passes/);
+    expect(ruleRows()[0]).toMatch(/^Acceptance criteria as Given\/When\/Then Met/);
+    // The quote the verdict rested on is one press in, under the row.
+    expect(document.querySelector('[data-rule-quote]')!.textContent).toMatch(/^“Given/);
     expect(screen.queryByRole('button', { name: /Fix with AI agent/ })).toBeNull();
   });
 
@@ -69,9 +94,7 @@ describe('the rule rows on an item (#657)', () => {
   });
 
   it('offers one Fix all on a standard with several misses, which asks for one rewrite that meets them all', async () => {
-    const rules = fixtureStandards();
-    const bug = (await rules.check('card-payments')).result!.items.find((i) => i.results.filter((r) => r.standard === 'bug-repro' && r.state !== 'pass').length === 3)!;
-    await open(item('card-payments', bug.id), { rules, assignments: fixtureAssignments({ delay: 0 }) });
+    await open(item('card-payments', 'corp-jira:PAY-104'), { rules: fixtureStandards(), assignments: fixtureAssignments({ delay: 0 }) });
     await waitFor(() => expect(document.querySelector('[data-rule-group="bug-repro"]')).not.toBeNull());
     const group = document.querySelector<HTMLElement>('[data-rule-group="bug-repro"]')!;
     expect(within(group).getAllByRole('button', { name: /Fix/ }).map((b) => b.textContent)).toEqual([expect.stringMatching(/^Fix all 3 with AI agent/)]);
@@ -212,10 +235,10 @@ describe("the Command Center's Ticket rules card (#657)", () => {
       if (!el) throw new Error('not yet');
       return el.closest<HTMLElement>('[data-ticket-rules]')!;
     });
-    const line = within(card).getByRole('link', { name: '2 of 4 stories: no Given/When/Then criteria' });
-    expect(line.querySelector('strong')!.textContent).toBe('2 of 4');
+    const line = within(card).getByRole('link', { name: '1 item misses Acceptance criteria as Given/When/Then, 1 unsure, 1 not judged yet' });
+    expect(line.querySelector('strong')!.textContent).toBe('1');
     // A standard with several rules is one line, and drills to items that miss any of them.
-    const repro = within(card).getByRole('link', { name: '1 of 1 bug: no steps to reproduce, expected result or actual result' });
+    const repro = within(card).getByRole('link', { name: '1 item misses Steps to reproduce, expected result or actual result, 1 not judged yet' });
     expect(repro.getAttribute('href')).toContain('rule=bug-repro');
     expect(repro.getAttribute('href')).not.toContain('rule=bug-repro%2F');
     await go(line.getAttribute('href')!);
@@ -223,13 +246,48 @@ describe("the Command Center's Ticket rules card (#657)", () => {
     expect(document.querySelector('[data-rule-filter]')!.textContent).toContain('Missing: Acceptance criteria as Given/When/Then');
     const table = screen.getByRole('table', { name: /items and their readiness/ });
     const keys = within(table).getAllByRole('rowheader').map((h) => /PAY-\d+/.exec(h.textContent ?? '')![0]);
-    expect(keys.sort()).toEqual(['PAY-103', 'PAY-107']);
+    expect(keys.sort()).toEqual(['PAY-103']);
     // The filtered rule's line leads each item's Why not ready, and Clear takes the filter off.
     for (const row of within(table).getAllByRole('row').slice(1)) expect(row.querySelector('.why-not li')!.textContent).toMatch(/^Acceptance criteria as Given\/When\/Then:/);
     expect(within(document.querySelector<HTMLElement>('[data-rule-filter]')!).getByRole('link', { name: /^Clear/ }).getAttribute('href')).not.toContain('rule=');
   });
 
-  it('is a dash, not read yet, until the check comes back', async () => {
+  it('judges the open items listed on a press, never on load, and the line then counts them', async () => {
+    await open('#/project/card-payments/command-center', { rules: fixtureStandards() });
+    const button = await screen.findByRole('button', { name: 'Check with AI agent' });
+    expect(button.querySelector('[data-agent-mark]')).not.toBeNull();
+    expect(document.querySelector('[data-check-rules-status]')!.textContent).toBe('1 item not judged yet.');
+    await userEvent.click(button);
+    // A compact figure, with the sentence in its title.
+    await waitFor(() => expect(document.querySelector('[data-check-rules-status]')!.textContent).toMatch(/^Judged 1 · \d+ unchanged$/));
+    expect(document.querySelector('[data-check-rules-status]')!.getAttribute('title')).toMatch(/judged 1 item\. \d+ items already judged/);
+    expect(within(document.querySelector<HTMLElement>('[data-ticket-rules]')!).getByRole('link', { name: '2 items miss Acceptance criteria as Given/When/Then, 1 unsure' })).toBeTruthy();
+  });
+
+  it('offers to choose an AI agent when none is set up, rather than a sentence alone', async () => {
+    const base = fixtureStandards();
+    const rules = { ...base, read: async (tp: string) => ({ ...(await base.read(tp)), agent: null }) };
+    await open('#/project/card-payments/command-center', { rules });
+    const go = await screen.findByRole('link', { name: 'Choose an AI agent' });
+    expect(go.getAttribute('href')).toBe('#/settings/agent');
+    expect(document.querySelector('[data-check-rules-status]')!.textContent).toBe('No AI agent is set up yet.');
+  });
+
+  it("marks the Tickets card as the AI agent's reading with a badge, and its rule status apart from the checks' figure", async () => {
+    await open('#/project/card-payments/command-center', { rules: fixtureStandards() });
+    const card = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>('[data-ticket-rules]');
+      expect(el?.querySelector('ul')).toBeTruthy();
+      return el!;
+    });
+    expect(card.querySelector('[data-rules-by]')!.textContent).toBe("AI agent's reading");
+    expect(card.textContent).not.toContain('Verdicts are your AI agent');
+    const badges = [...document.querySelectorAll('[data-why-rules]')].map((b) => b.textContent);
+    expect(badges.length).toBeGreaterThan(0);
+    expect(badges.every((b) => /^(\d+ rules? missed|Rules unknown)$/.test(b ?? ''))).toBe(true);
+  });
+
+  it('is a dash, not read yet, until the rules come back', async () => {
     await open('#/project/card-payments/command-center');
     const card = await waitFor(() => document.querySelector<HTMLElement>('[data-ticket-rules]')!);
     expect(card.textContent).toContain('– not read yet');

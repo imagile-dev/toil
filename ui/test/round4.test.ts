@@ -31,16 +31,26 @@ describe('a line-level diff of Now and Proposed', () => {
   });
 });
 
-describe('Sync and check again, in words', () => {
+describe('Sync and judge again, in words', () => {
   const rules = [{ standard: 'gherkin', rule: 'scenarios', name: 'Acceptance criteria as Given/When/Then' }];
-  const reading = (state: 'pass' | 'thin' | 'fail' | 'skipped', reason = 'No Given line.') => ({ state: 'read' as const, message: null, warnings: [], byItem: new Map([['jira:SCRUM-17', [{ standard: 'gherkin', rule: 'scenarios', name: 'Acceptance criteria as Given/When/Then', state, reason, source: 'description' }]]]) });
-  it('says passes only from a reading that says so, and nothing before a reading', () => {
+  const standards = [{ name: 'gherkin', revision: 2, source: 'built-in' as const, description: null, rules: [{ id: 'scenarios', name: 'Acceptance criteria as Given/When/Then', text: 'T.' }] }];
+  const reading = (verdict: 'met' | 'missed' | 'unsure' | 'na' | null, reason = 'No Given line.') => ({
+    state: 'read' as const,
+    standards,
+    message: null,
+    warnings: [],
+    byItem: new Map(verdict ? [['jira:SCRUM-17', [{ standard: 'gherkin', rule: 'scenarios', name: 'Acceptance criteria as Given/When/Then', verdict, reason, quote: null, note: null, by: 'Codex', at: 'now' }]]] : []),
+  });
+  it("says met only from a verdict on the new reading, and nothing before a reading", () => {
     expect(rulesAgain(rules, undefined, 'jira:SCRUM-17')).toBeNull();
-    expect(rulesAgain(rules, { state: 'unread', byItem: new Map(), message: null, warnings: [] }, 'jira:SCRUM-17')).toBeNull();
-    expect(againText(rulesAgain(rules, reading('pass'), 'jira:SCRUM-17')![0]!)).toBe('Acceptance criteria as Given/When/Then: now passes');
-    expect(againText(rulesAgain(rules, reading('thin'), 'jira:SCRUM-17')![0]!)).toBe('Acceptance criteria as Given/When/Then: still missing: No Given line');
-    expect(againText(rulesAgain(rules, reading('skipped', 'Needs an AI agent.'), 'jira:SCRUM-17')![0]!)).toBe('Acceptance criteria as Given/When/Then: not checked: Needs an AI agent');
-    expect(againText(rulesAgain(rules, reading('pass'), 'jira:SCRUM-99')![0]!)).toBe('Acceptance criteria as Given/When/Then: no longer applies to this item');
+    expect(rulesAgain(rules, { state: 'unread', standards: [], byItem: new Map(), message: null, warnings: [] }, 'jira:SCRUM-17')).toBeNull();
+    expect(againText(rulesAgain(rules, reading('met'), 'jira:SCRUM-17')![0]!)).toBe('Acceptance criteria as Given/When/Then: now met');
+    expect(rulesAgain(rules, reading('met'), 'jira:SCRUM-17')![0]!.by).toBe('Codex');
+    expect(againText(rulesAgain(rules, reading('missed'), 'jira:SCRUM-17')![0]!)).toBe('Acceptance criteria as Given/When/Then: still missed: No Given line');
+    expect(againText(rulesAgain(rules, reading('unsure', 'Cannot tell.'), 'jira:SCRUM-17')![0]!)).toBe('Acceptance criteria as Given/When/Then: unsure: Cannot tell');
+    expect(againText(rulesAgain(rules, reading('na', 'Not a story.'), 'jira:SCRUM-17')![0]!)).toBe("Acceptance criteria as Given/When/Then: doesn't apply to this item: Not a story");
+    expect(againText(rulesAgain(rules, reading(null), 'jira:SCRUM-17')![0]!)).toBe('Acceptance criteria as Given/When/Then: not judged yet');
+    expect(againText(rulesAgain(rules, { ...reading('met'), standards: [] }, 'jira:SCRUM-17')![0]!)).toBe("Acceptance criteria as Given/When/Then: no longer one of this Toil project's rules");
   });
 });
 

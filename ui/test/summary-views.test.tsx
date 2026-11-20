@@ -113,8 +113,8 @@ describe('the answer first', () => {
     const region = await open('card-payments', false);
     // A badge on the headline (#657): two words to the eye, the whole sentence in its tooltip and to a screen reader.
     const by = region.querySelector('[data-briefing-by]')!;
-    expect(by.getAttribute('title')).toBe("Worked out by the app's own rules, no AI");
-    expect(by.textContent).toBe("Rules, no AIWorked out by the app's own rules, no AI");
+    expect(by.getAttribute('title')).toBe("Worked out by code, no AI");
+    expect(by.textContent).toBe("Worked out by codeWorked out by code, no AI");
     expect(full(region).contains(by)).toBe(false);
   });
 });

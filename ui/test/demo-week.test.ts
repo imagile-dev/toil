@@ -14,7 +14,6 @@ import { dirname, join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import type { WorkItem } from '../../src/core/owi/types.ts';
 import { BUILTIN_STANDARDS } from '../../src/core/standards/builtin.ts';
-import { checkStandards } from '../../src/core/standards/check.ts';
 import { blockerGantt } from '../src/model/gantt.ts';
 import { prepare } from '../src/model/insights.ts';
 import { readReadiness } from '../src/model/readiness.ts';
@@ -73,45 +72,32 @@ describe('the agent-ready items', () => {
   });
 });
 
-// The data is held to toil's own ticket-rule checks (checkStandards with the built-in
-// presets), and the scripts' small copy of them (ruleMisses, which the seeds use to look
-// before they write) is held to agree with those checks on every item.
-const PRESETS = BUILTIN_STANDARDS.filter((s) => ['gherkin', 'user-story', 'bug-repro'].includes(s.name)).map((standard) => ({ standard, source: 'built-in' as const }));
-type Seeded = { area: 'github' | 'jira' | 'ado'; key: string; type: 'STORY' | 'BUG'; body: string; format: string; fields?: Record<string, string> };
-const asItem = (s: Seeded) =>
-  ({
-    id: `${s.area}:${s.key}`,
-    source: { area: s.area, connection: s.area, key: s.key, command: 'demo-week' },
-    url: null, type: s.type, typeName: null, title: s.key, body: { format: s.format, content: s.body },
-    status: null, statusCategory: 'TODO', labels: [], parent: null, children: [], links: [], unmapped: [],
-    native: { 'demo-week': { fields: s.fields ?? {} } },
-  }) as unknown as WorkItem;
-/** What toil's checks find missing in each item, as `standard/rule`, in rule order. */
+// The seeded data is held to the seeds' own reading of the starter rules (ruleMisses), so each item falls short of
+// exactly what the demo story says; in Toil UI an AI agent judges the real thing, on a press.
+type Seeded = { area: 'github' | 'jira' | 'ado'; key: string; type: 'STORY' | 'BUG'; body: string; fields?: Record<string, string> };
+/** What the seeds' reading finds missing in each item, as `standard/rule`, in rule order. */
 function missed(items: Seeded[]): Record<string, string[]> {
-  const { result } = checkStandards({ standards: PRESETS, items: items.map(asItem) });
-  return Object.fromEntries(result.items.map((i) => [i.key, i.results.filter((r) => r.state !== 'pass').map((r) => `${r.standard}/${r.rule}`)]));
+  return Object.fromEntries(items.map((s) => [s.key, ruleMisses({ type: s.type, description: s.body, criteria: s.fields?.['Microsoft.VSTS.Common.AcceptanceCriteria'], reproSteps: s.fields?.['Microsoft.VSTS.TCM.ReproSteps'] })]));
 }
-const ado = (key: string, type: 'STORY' | 'BUG', description: string, fields: Record<string, string>): Seeded => ({ area: 'ado', key, type, body: description, format: 'html', fields });
+const ado = (key: string, type: 'STORY' | 'BUG', description: string, fields: Record<string, string>): Seeded => ({ area: 'ado', key, type, body: description, fields });
 
 describe('the ticket-rule demo', () => {
-  const jiraStories = Object.keys(STORIES).map((key): Seeded => ({ area: 'jira', key, type: 'STORY', body: jiraStory(key), format: 'text' }));
+  const jiraStories = Object.keys(STORIES).map((key): Seeded => ({ area: 'jira', key, type: 'STORY', body: jiraStory(key) }));
   const adoStories = Object.keys(STORIES).map((key) => ado(key, 'STORY', adoStory(key).description, { 'Microsoft.VSTS.Common.AcceptanceCriteria': adoStory(key).criteria }));
   const adoBugs = Object.keys(BUGS).map((key) => ado(key, 'BUG', '<p>Seen in the test environment.</p>', { 'Microsoft.VSTS.TCM.ReproSteps': adoRepro(key) }));
 
-  it('keeps the agent-ready items Ready under every rule, whatever type they are read as', () => {
+  it('keeps the agent-ready items meeting every starter rule, whatever type they are read as', () => {
     const agents: Seeded[] = [
-      { area: 'github', key: '#38 as a bug', type: 'BUG', body: AGENT_ITEMS.github.body, format: 'markdown' },
-      { area: 'github', key: '#38 as a story', type: 'STORY', body: AGENT_ITEMS.github.body, format: 'markdown' },
-      { area: 'jira', key: 'SCRUM-55', type: 'STORY', body: AGENT_ITEMS.jira.description, format: 'text' },
+      { area: 'github', key: '#38 as a bug', type: 'BUG', body: AGENT_ITEMS.github.body },
+      { area: 'github', key: '#38 as a story', type: 'STORY', body: AGENT_ITEMS.github.body },
+      { area: 'jira', key: 'SCRUM-55', type: 'STORY', body: AGENT_ITEMS.jira.description },
       ado('#194', 'STORY', AGENT_ITEMS.ado.description, { 'Microsoft.VSTS.Common.AcceptanceCriteria': AGENT_ITEMS.ado.criteria }),
     ];
     const found = missed(agents);
     for (const a of agents) expect(found[a.key], a.key).toEqual([]);
-    const { result } = checkStandards({ standards: PRESETS, items: agents.map(asItem) });
-    for (const i of result.items) expect(i.verdict, i.key).toBe('pass');
   });
 
-  it('leaves exactly the named stories thin in Jira, and passes every ADO story', () => {
+  it('leaves exactly the named stories short in Jira, and every ADO story meeting the rules', () => {
     const jira = missed(jiraStories);
     for (const key of Object.keys(STORIES)) expect(jira[key], `Jira ${key}`).toEqual(RULE_GAPS.jira[key] ?? []);
     const adoFound = missed(adoStories);
@@ -126,26 +112,13 @@ describe('the ticket-rule demo', () => {
     expect(Object.keys(RULE_GAPS.ado)).toEqual(['cw-bug-4']);
   });
 
-  it("has the seeds' small copy of the checks agree with toil's on every item", () => {
-    const all = [...jiraStories, ...adoStories, ...adoBugs];
-    const found = { jira: missed(jiraStories), ado: missed([...adoStories, ...adoBugs]) };
-    for (const s of all) {
-      const copy = ruleMisses({ type: s.type, description: s.body, criteria: s.fields?.['Microsoft.VSTS.Common.AcceptanceCriteria'], reproSteps: s.fields?.['Microsoft.VSTS.TCM.ReproSteps'] });
-      expect(copy, `${s.area} ${s.key}`).toEqual(found[s.area as 'jira' | 'ado'][s.key]);
-    }
-    // And on the shapes the trackers hand back that the seeds never write.
+  it('reads the shapes the trackers hand back that the seeds never write', () => {
     expect(ruleMisses({ type: 'BUG', description: '<p>Broken.</p>', reproSteps: '<h3>Steps to reproduce</h3><ol><li>Pay</li></ol>' })).toEqual([RULES.expected, RULES.actual]);
     expect(ruleMisses({ type: 'TASK', description: '' })).toEqual([]);
   });
 
-  it("copies the presets' patterns and headings exactly", () => {
-    const presets = PRESETS.flatMap(({ standard: s }) =>
-      s.rules.map((r) => {
-        const c = r.check as { kind: string; in: string[]; match?: string[]; flags?: string; heading?: string[] };
-        return { rule: `${s.name}/${r.id}`, type: r.when?.type?.[0], in: c.in, ...(c.kind === 'pattern' ? { match: c.match, flags: c.flags } : { heading: c.heading }) };
-      }),
-    );
-    expect(PRESET_RULES).toEqual(presets);
+  it('names one rule a starter rule of the built-ins', () => {
+    expect(PRESET_RULES.map((r) => r.rule)).toEqual(BUILTIN_STANDARDS.flatMap((s) => s.rules.map((r) => `${s.name}/${r.id}`)));
   });
 });
 

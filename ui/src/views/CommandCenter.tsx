@@ -13,8 +13,10 @@
  * missions until the paperwork for #293 clears.
  *
  * Where the toil project names ticket rules (#657), a "Ticket rules" card says,
- * one line a standard, how many of the open items its rules apply to miss
- * them; each line is a full-width button that filters the list to those items
+ * one line a standard, how many of the open items the person's AI agent judged
+ * to miss its rules, how many it was unsure of and how many aren't judged yet,
+ * with "Check with AI agent" to judge the open items listed (never on load);
+ * each line is a full-width button that filters the list to those items
  * (`?rule=<standard>/<rule>` for a one-rule standard, `?rule=<standard>` for
  * any rule of one with several), and the filtered rule's line leads each
  * item's "Why not ready", so the figure and the items behind it are one press
@@ -42,6 +44,7 @@ import { useFocusArrival } from '../motion.ts';
 import { usePlain } from '../plain-words.ts';
 import { BLOCKED_WHY, readinessAll, tally, VERDICT_PLAIN, VERDICTS, withRules, type Readiness, type Row, type Verdict } from '../model/readiness.ts';
 import { lineWhat, matchesRef, missing, ruleLines, ruleName } from '../rules.ts';
+import { CheckRulesButton } from '../components/check-rules.tsx';
 import { Unread } from '../components/unread.tsx';
 import { Empty, EmptyLink } from '../components/empty.tsx';
 import type { Person, WorkItem } from '../toil.ts';
@@ -75,17 +78,31 @@ export function StatusText({ item }: { item: WorkItem }) {
 }
 
 /**
- * "Why not ready" as one figure a cell (ui/README.md, Tables and rows): how many checks it misses, and how many weren't
- * read, with the sentences one press in. Nothing is dropped, only folded; the filtered ticket rule's line still leads.
+ * "Why not ready" as one figure a cell (ui/README.md, Tables and rows): how many of the five checks it misses, and
+ * beside it a small badge for its ticket rules (missed, or not known yet), since those are an AI agent's readings and
+ * not a check worked out by code. The sentences are one press in. Nothing is dropped, only folded; the filtered ticket
+ * rule's line still leads.
  */
 function WhyCell({ readiness, ruleRef }: { readiness: Readiness; ruleRef: string | null }) {
   if (!readiness.why.length) return <span className="note">None</span>;
-  const missed = readiness.why.filter((r) => r.state !== 'skipped').length;
-  const unread = readiness.why.length - missed;
-  const figure = [missed ? count(missed, 'check') + ' missed' : '', unread ? `${count(unread, 'rule')} not read yet` : ''].filter(Boolean).join(', ');
+  const isRule = (r: Row) => r.check === 'rules' || r.check.startsWith('rule:');
+  const checks = readiness.why.filter((r) => !isRule(r)).length;
+  const ruleRows = readiness.why.filter(isRule);
+  const ruleMissed = ruleRows.filter((r) => r.state === 'thin').length;
+  const ruleBadge = ruleMissed ? `${count(ruleMissed, 'rule')} missed` : ruleRows.length ? 'Rules unknown' : null;
   return (
     <details className="cell-more cell-more--block" data-why-cell="">
-      <summary>{figure}</summary>
+      <summary>
+        {checks ? `${count(checks, 'check')} missed` : 'Checks pass'}
+        {ruleBadge && (
+          <>
+            {' '}
+            <span className={`rule-badge readiness-rule-badge${ruleMissed ? ' readiness-rule-badge--missed' : ''}`} data-why-rules="">
+              {ruleBadge}
+            </span>
+          </>
+        )}
+      </summary>
       <WhyNot readiness={readiness} {...(ruleRef ? { first: (r: Row) => Boolean(r.rule && matchesRef(ruleRef, r.rule)) } : {})} />
     </details>
   );
@@ -105,7 +122,7 @@ const TILE_NOTE: Record<Verdict, string> = {
   ready: 'Every check passes.',
   thin: 'Missing "done when" criteria, a description or another check a person can waive.',
   blocked: BLOCKED_WHY,
-  unread: "Nothing fails, but the ticket rules weren't read for these yet.",
+  unread: 'Nothing fails, but a ticket rule is not judged yet, or the AI agent was unsure.',
 };
 
 export function CommandCenter() {
@@ -119,8 +136,8 @@ export function CommandCenter() {
   const { filters, query, hrefWith } = useAddress();
   // A ticket rule's line drills here: the list keeps only the items that miss it.
   const ruleRef = query.get('rule');
-  const checked = rules?.view?.result ?? null;
-  const missingRule = ruleRef && checked ? missing(checked, ruleRef) : null;
+  const reading = rules?.reading.state === 'read' ? rules.reading : null;
+  const missingRule = ruleRef && reading ? missing(reading, ruleRef) : null;
   const lines = useMemo<Line[]>(() => {
     const all = readinessAll(toilProject.items, settings);
     const where = toWhere(filters);
@@ -136,7 +153,6 @@ export function CommandCenter() {
 
   const open = lines.filter((l) => l.item.statusCategory !== 'DONE');
   const totals = tally(open.map((l) => l.readiness));
-  const exact = !open.some((l) => l.readiness.rows.some((row) => row.check === 'rules'));
   const slated = open.filter((l) => l.readiness.verdict === 'ready');
   const plan = { id: planId(slated.map((l) => l.item)), items: slated.map((l) => l.item.id) };
   const shown = lines.filter(
@@ -154,10 +170,10 @@ export function CommandCenter() {
   // Opened from a rule's line or the Summary's Ticket rules card, the filter it set is brought into view and ringed (src/motion.ts).
   useFocusArrival(ruleRef ? `rule:${ruleRef}` : null);
   const withRule = (ref: string | null) => hrefWith((q) => (ref ? q.set('rule', ref) : q.delete('rule')));
-  const showRules = settings.standards.length > 0 || (checked?.standards.length ?? 0) > 0;
-  const linesOfRules = checked ? ruleLines(checked, open.map((l) => l.item)) : [];
-  const missed = linesOfRules.filter((r) => r.miss > 0 || r.skipped > 0);
-  const met = linesOfRules.filter((r) => r.miss === 0 && r.skipped === 0).reduce((n, r) => n + r.rules.length, 0);
+  const showRules = settings.standards.length > 0 || (reading?.standards.length ?? 0) > 0;
+  const linesOfRules = reading ? ruleLines(reading, open.map((l) => l.item)) : [];
+  const missed = linesOfRules.filter((r) => r.miss > 0 || r.unsure > 0 || r.unjudged > 0);
+  const met = linesOfRules.filter((r) => r.miss === 0 && r.unsure === 0 && r.unjudged === 0).reduce((n, r) => n + r.rules.length, 0);
   const calls = [...toilProject.calls.toilProject, ...toilProject.calls.work];
 
   return (
@@ -196,10 +212,7 @@ export function CommandCenter() {
                 <h2 className="readiness-tally__head">
                   <VerdictChip verdict={v} />
                 </h2>
-                {/* While some rules aren't read, Blocked is a floor: a rule may yet fail an item (principle 12). */}
-                <p className="team-figure" {...(v === 'blocked' && !exact ? { title: "Ticket rules not read yet for some items, so more may be blocked." } : {})}>
-                  {v === 'blocked' && !exact ? `${totals[v]}+` : totals[v]}
-                </p>
+                <p className="team-figure">{totals[v]}</p>
                 <p className="note">{TILE_NOTE[v]}</p>
               </Stack>
             </a>
@@ -210,7 +223,10 @@ export function CommandCenter() {
       {showRules && (
         <Card as="section" className="panel readiness-rules" aria-labelledby="ticket-rules" data-ticket-rules="">
           <h2 id="ticket-rules">
-            Ticket rules <Help topic="ticket-rules" />
+            Ticket rules <Help topic="ticket-rules" note="What this card counts is your AI agent's reading, not a check worked out by code: each item's page says which agent judged each rule, and when." />{' '}
+            <span className="rule-badge readiness-rules__by" data-rules-by="">
+              AI agent's reading
+            </span>
           </h2>
           {/* What toil skipped or ignored reading the rules is said in its own words and always shown (principle 4). */}
           {(rules?.reading.warnings.length ?? 0) > 0 && (
@@ -224,32 +240,39 @@ export function CommandCenter() {
           )}
           {rules?.reading.state === 'failed' ? (
             <p role="alert" className="failure">
-              Couldn't check the ticket rules: {rules.reading.message}
+              Couldn't read the ticket rules: {rules.reading.message}
             </p>
-          ) : !checked ? (
+          ) : !reading ? (
             <p>
               <Unread /> <span aria-hidden="true">not read yet</span>
             </p>
           ) : linesOfRules.length === 0 ? (
-            <p>No open item here is one the rules apply to.</p>
+            <p>This Toil project names no ticket rules.</p>
           ) : (
             <>
+              <p className="readiness-rules__check">
+                <CheckRulesButton items={open.map((l) => l.item.id)} scope="list" />
+              </p>
               {missed.length > 0 && (
                 <ul className="plain readiness-rules__lines">
                   {missed.map((r) => (
                     <li key={r.ref}>
-                      <NavButton href={withRule(r.ref)} kind="quiet" row aria-current={ruleRef === r.ref ? 'true' : undefined} data-rule-line={r.ref}>
-                        <strong>
-                          {r.miss} of {r.applies}
-                        </strong>{' '}
-                        {r.noun(r.applies)}: {lineWhat(r)}
-                        {r.skipped > 0 && <span className="note">, {r.skipped} not checked</span>}
-                      </NavButton>
+                      {r.miss > 0 ? (
+                        <NavButton href={withRule(r.ref)} kind="quiet" row aria-current={ruleRef === r.ref ? 'true' : undefined} data-rule-line={r.ref}>
+                          <strong>{r.miss}</strong> {r.miss === 1 ? 'item misses' : 'items miss'} {lineWhat(r)}
+                          <RuleRest r={r} />
+                        </NavButton>
+                      ) : (
+                        <p className="readiness-rules__quiet" data-rule-line={r.ref}>
+                          {lineWhat(r)}
+                          <RuleRest r={r} first />
+                        </p>
+                      )}
                     </li>
                   ))}
                 </ul>
               )}
-              {met > 0 && <p className="note">{missed.length === 0 ? `Every open item meets all ${count(met, 'rule')}.` : `Every open item meets the other ${count(met, 'rule')}.`}</p>}
+              {met > 0 && <p className="note">{missed.length === 0 ? `Your AI agent judged every open item to meet all ${count(met, 'rule')}, or that they don't apply.` : `Every open item meets the other ${count(met, 'rule')}, or they don't apply.`}</p>}
             </>
           )}
         </Card>
@@ -336,8 +359,8 @@ export function CommandCenter() {
         {ruleRef && (
           <p className="readiness-rule-filter" data-rule-filter={ruleRef} data-focus-id={`rule:${ruleRef}`}>
             <span>
-              Missing: <strong>{(checked && ruleName(checked, ruleRef)) ?? ruleRef}</strong>
-              {checked && !missingRule && <span className="note"> (not one of this Toil project's rules)</span>}
+              Missing: <strong>{(reading && ruleName(reading, ruleRef)) ?? ruleRef}</strong>
+              {reading && !missingRule && <span className="note"> (not one of this Toil project's rules)</span>}
             </span>
             <NavButton href={withRule(null)} size="sm">
               Clear<span className="sr-only"> the ticket rule filter</span>
@@ -355,4 +378,11 @@ export function CommandCenter() {
       </Panel>
     </>
   );
+}
+
+/** What follows a line's miss count: how many it was unsure of, and how many aren't judged yet, each a real count of items (principle 12). */
+function RuleRest({ r, first = false }: { r: { unsure: number; unjudged: number }; first?: boolean }) {
+  const parts = [r.unsure ? `${r.unsure} unsure` : '', r.unjudged ? `${r.unjudged} not judged yet` : ''].filter(Boolean);
+  if (!parts.length) return null;
+  return <span className="note">{first ? ': ' : ', '}{parts.join(', ')}</span>;
 }

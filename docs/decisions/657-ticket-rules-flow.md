@@ -21,105 +21,20 @@
   flow has no KTLO category, so only its four rules decide and everything else is
   unsure, for a person or an AI agent.
 
-## Ticket rules (standards)
+## Ticket rules: plain text, judged by an AI agent
 
-- **A place a record doesn't carry is `skipped`, "not read", and a rule is skipped only
-  when none of its places was read.** A rule reads the places in its `in` that the record
-  carries and joins them; when it misses with some places unread, its reason names them
-  and its `source` says `not read: …`. Why: `bug-repro` reads Azure DevOps' repro steps
-  field and the description, and a Jira bug never carries that field, so skipping on any
-  unread place would skip every Jira bug. Principle 12 still holds: a miss is only ever
-  claimed on text that was read (`src/core/standards/check.ts`).
-- **A record with no `body` key never had its description read; `"body": null` is a
-  description read and found empty.** OWI writes `body: null` when the tracker sent no
-  description, and a hand-made record may leave the key out. Why: that is the one
-  difference OWI records already carry. `standards check` keeps the record's `body` as it
-  came rather than defaulting it, as `classify`'s `complete()` does
-  (`src/standards/commands.ts`).
-- **A field is read when its key is in a native record, whatever its value.**
-  `fields[<id>]` (Jira, Azure DevOps) or a top-level key (GitHub's `body`), compared
-  without regard to case; a key with `null` is read and empty, a key that isn't there is
-  not read. The cost, documented in `skills/toil/standards.md`: Azure DevOps leaves an
-  empty field out of a work item, so there an empty field reads as not read.
-- **`criteria` takes the first source that holds any words.** The toil project's
-  `<area>.fields.acceptanceCriteria`, then (Azure DevOps only)
-  `Microsoft.VSTS.Common.AcceptanceCriteria`, then the description's section under
-  "Acceptance criteria", "Acceptance criterion", "Definition of done" or "Done when", then
-  the whole description. When none holds words it is the empty text of the ones read, and
-  not read only when none was. Why: a field named but left empty shouldn't hide criteria
-  written in the description.
-- **An item's `verdict` is the worst of the rules that could be checked, and `null` when
-  none could.** A `skipped` result never counts as a pass or a miss; an item whose every
-  applicable rule was skipped has a `null` verdict, the same as one no rule applies to, and
-  `summary.checked` counts only items with a verdict.
-- **`judge` reads `description` unless `in` says otherwise, and is always `skipped`.** The
-  plan reserved it without a shape; `in` is its only key so a later AI step can say where
-  to look without a format change.
-- **A `field` check counts placeholder text as empty.** "TBD", "N/A" and the other lines
-  readiness's `realText` drops leave a field empty, with the reason "holds only
-  placeholder text". Why: the same reading as Toil UI's description check.
-- **`summary.byRule[].types` is the OWI types of the items the rule applied to, sorted.**
-  Not the rule's `when.type`: a rule with no `when` still gets a noun for "9 of 23
-  stories", and the list is what was there, not what was asked for.
-- **`results[].source` is where the text came from (`description, under "Acceptance
-  criteria"`, `field customfield_10300 (acceptanceCriteria)`); the standard's name is
-  its own field.** Toil UI composes "standard gherkin" from `standard`.
-- **Regex safety is a refusal list, not an engine.** A pattern may not hold a
-  backreference or repeat (`*`, `+`, `{n,}`, `{n,m}` with m above 1) a group that holds a
-  quantifier or an alternation; flags are only `i`, `m`, `s`; at most ten patterns of 200
-  characters a rule; a text is cut to 20,000 characters before any pattern runs
-  (`BODY_SCAN_LIMIT`). The check errs on refusing: `(ab)+` with no inner quantifier is
-  allowed, `(a|b)+` is not (`patternProblem` in `src/core/standards/read.ts`).
-- **The other caps.** At most 50 rules a standard; a rule's `name` 120 characters and
-  `text` 500, one line each, no credential shape; `description` 300; 1 to 5 places a rule;
-  1 to 10 headings of 100 characters; `minWords` 1 to 1,000; `words.min` 1 to 10,000; a
-  file 256 KiB. A field place is `field:` then 1 to 100 letters, digits, spaces, `.`,
-  `_`, `:`, `/` or `-`.
-- **A section ends at the next heading-shaped line.** A Markdown heading, a line that is
-  only bold text, or a short "Label:" line with nothing after it. A heading matches with
-  `#`, `**` or a trailing colon, and only on a trimmed line of at most 300 characters, so a
-  run of spaces can't slow the match. "Expected results are elsewhere" is not a heading.
-- **The ADF walk is a loop, and the text port otherwise verbatim.**
-  `src/core/standards/text.ts` is Toil UI's `textOf`, `realText`, `wordCount`,
-  `normalise` and `acceptanceInBody`, with the ADF reader rewritten over a stack (at most
-  50,000 nodes), heading levels clamped to 1 to 6 (the UI's copy throws on a negative
-  level), and a raw value cut to 100,000 characters before conversion. Package C can import
-  these and delete its copies.
-- **A broken or unknown standard stops the check.** `--standard nope` is `NOT_FOUND`, and
-  so is a toil project's `standards.use` naming one that can't be read; nothing is checked
-  against a partial list. Why: as `classify` does with a scheme, a typo must not quietly
-  check against fewer rules.
-- **`STANDARDS_NONE` and no fallback.** No toil project and no `--standard`, or a toil
-  project with no `standards` key, checks nothing, with a warning naming the command that
-  fixes it. The built-ins apply only when named.
-- **A standard given twice is checked once**, from the first, with `STANDARDS_DUPLICATE`;
-  a repeated item id, likewise, with `STANDARDS_DUPLICATE_ITEM`.
-- **`projects standards set --use` replaces the list; it doesn't append.** A different list
-  already set is refused without `--replace`; the same list again changes nothing.
-  `--clear` (a boolean, unlike classify's per-part `--clear`, since the key has one part)
-  removes the key and is refused over MCP by `offMcpWhen`; `--clear --use x` sets just
-  `x`. A standard that can't be read yet is still set, with `STANDARD_UNRESOLVED`. It lives
-  in its own file, `src/projects/standards-set.ts`, and gets the retired
-  `dossiers standards set` path as every `projects` command does.
-- **The toil project key reuses classify's text cap and refused keys.** Each ref is at most
-  200 characters (`MAX_CLASSIFY_TEXT`), and `standards` refuses `connection`, `host`,
-  `fields`, `transitions` and `writes`, with the same message shape as `classify`.
-- **One generic catalog.** `src/core/file-catalog.ts` holds what the scheme catalog did,
-  parameterised by folder, noun, reader, built-ins, name form, size cap, warning prefix
-  and the words of a fix; `createSchemeCatalog` and `createStandardCatalog` wrap it, and
-  every scheme message is word for word what it was. The standards catalog exposes no
-  `save`: toil never writes a standard. `classify.write` and `classify.replace` now list
-  `src/core/file-catalog.ts` too, and a new exception, `standards.read`, records reading
-  `~/.toil/standards/` and `.toil/standards/` outside the workspace (`docs/bounds.md`).
-- **`standards` is a top-level command group beside `classify`.** `standards.md` joins
-  the general skill pages (`GENERAL` in `test/skills.test.ts`), and the pure half is
-  exported from `src/core/standards/index.ts` for Toil UI: the types
-  (`StandardsCheckResult`, `ItemStandards`, `RuleResult`), `checkStandards`, the presets
-  and the text helpers.
-- **The `when` matcher moved to `src/core/classify/when.ts`.** `matchWhen` is the
-  engine's old `ruleMatch` over a `when` rather than a rule; `readWhen` is the scheme
-  reader's `when` block with the file's own text check passed in, so each error still says
-  "a scheme never holds one" or "a standard never holds one".
+The maintainer's call on #657, after #669 merged: "I don't want the pattern rules at all. I want the rules to be plain text instructions that the user can modify freely, just with starter prompts of suggestions", judged by inference from the person's AI agent "so the users can set any kind of criteria to analyze their work items". The ticket rules commands have never been in a release, so replacing their shape in this follow-up, before the next release, is not a declared breaking change: no `feat!:` and no deprecation path. What the first slice decided about checks (places, `skipped`, `criteria`, sections, the regex guard, `labels`, `missing`, `when`, `fail`, `standards check`) no longer holds and is gone from the code; the decisions below replace it.
+
+- **A rule is `{ id, name, text }`.** `name` is one line of at most 120 characters, `text` at most 2,000 characters with line breaks and tabs allowed (it is instructions, often a few lines), no other control character, and nothing shaped like a credential, so a pasted token never lands in a prompt. A standard keeps `name`, `revision`, `description` (300) and 1 to 50 rules. Why 2,000: four short paragraphs, enough for a rule with examples, small enough that 50 rules across a few standards still fit beside eight items in one prompt. Where: `src/core/standards/read.ts`.
+- **A file in the old shape is refused, never half-read.** A rule holding `check`, `when`, `fail` or `missing` is `CONFIG_INVALID`, naming the key path, with a fix saying to keep `id`, `name` and `text` and write what the check said into the text. Why: ignoring those keys would quietly turn a strict check into an empty rule. Other unknown keys stay warnings, as before.
+- **Whether a rule applies is the agent's call, from the rule's own words.** `when` is gone, so the starters open with "This rule is for stories. For any other kind of item, it does not apply.", and the agent answers `na` for a rule that doesn't apply. A test holds every starter to that opening.
+- **The built-ins are starter prompts, revision 2.** gherkin (`scenarios`), user-story (`story-form`) and bug-repro (`steps`, `expected`, `actual`) keep their names and rule ids, so `?rule=gherkin/scenarios`, a toil project's `standards.use` and the demo keep working; their text is plain instructions. Revision 2 says they changed.
+- **`toil standards check` is removed.** toil runs no agent, so it can't judge plain text. `toil standards list` gains `--toil-project`, which lists the standards that toil project names, in order, resolved as it names them (a path beside its file included): Toil UI's server needs exactly that and could not compose it from the unfiltered list, since a path beside the toil project isn't in it (principle 3). Without the flag the output is as before, plus `toilProject: null`, and rules are `{ id, name, text }`. A standard the toil project names that can't be read stops the listing, as the check did; none named is an empty list with `STANDARDS_NONE`.
+- **`toil standards save <name>` and `toil standards remove <name>` are the write path**, config commands with `writesLocal`, writing only `~/.toil/standards/<name>.json`. `save` reads `--input-file` or `--text` (a `name` in it must match), creates or replaces your own copy, and sets the revision itself: 1 for a new one, one more than the copy it replaces otherwise, and nothing written when the content is the same (`STANDARD_UNCHANGED`). Why create-or-replace with no `--replace`: it is your own folder, the revision records every save, and Toil UI's Settings saves edits repeatedly. Saving under a built-in's name makes your copy, which is what "Edit a copy" in Settings does; `remove` then brings the built-in back (`STANDARD_NOW_FROM` says what the name means afterwards). `remove` deletes only a file that reads as a valid standard, reached through realpath inside the folder.
+- **Both are `cli-only` person's commands**, added to `registry.personCommands`, so Toil UI's Settings runs them for a person through `/api/config` (`CONFIG_COMMANDS`) and MCP never serves them. Why: the rules are what an agent's verdicts are held to and their text reaches an agent's prompt, so agents never rewrite the rules that judge their work (principle 2), as `classify scheme set` is a person's. `remove` is also a delete, which MCP never serves.
+- **The bounds.** `standards.read` keeps the path rules and caps for reading a rule file and drops the regex parts. Two new exceptions, `standards.write` (`files.workspace`) and `standards.replace` (`files.no-overwrite`), record writing and removing in your own folder only. Where: `docs/bounds.md`, `src/core/bounds.ts`, `src/core/file-catalog.ts` (`removeOwn`).
+- **`text.ts` stays**, without `sectionUnder` and `CRITERIA_HEADINGS`, which only the checks used, and with `ADO_ACCEPTANCE_FIELD` moved in from the deleted `check.ts`. Toil UI reads an item's text through it for the agent and the readiness rows.
+- **Kept from the first slice:** `STANDARD_SHADOWS_BUILTIN` (a repository's file with a built-in's name is set aside), the generic catalog, the toil project's `standards` key and `projects standards set`, the 256 KiB file cap, and `standards.md` sharing the `classify.md` row in `SKILL.md`.
 
 - **Flow also calls an item labelled `bug` or `defect` a Defect.** Why: Jira team-managed projects and GitHub repositories without issue types file bugs as a task or issue with a label, so a type rule alone left the demo's bugs unsure. Where: `src/core/classify/builtin.ts`, rule `defect-label`, after `risk` so a security bug is still Risk.
 - **`standards.md` shares the `classify.md` row in `SKILL.md`.** The index had one byte
@@ -133,65 +48,26 @@
   `docs-path.mjs` as "Ticket rules". Package D owns the page's content beyond that.
 - **`src/core/standards/`, `src/standards/` and `src/core/file-catalog.ts` are on triage's
   safety-layer list** (`scripts/triage/changes.mjs`), as `src/core/classify/` is: they hold
-  a bound's reads and the caps on patterns a checked-in file runs, and
+  a bound's reads and its writes to your own folder, and the reader's caps on a checked-in
+  file, and
   `test/triage.test.ts` requires every path `docs/bounds.md` names to be flagged.
 
 ## Toil UI
 
-- **The page reads ticket rules through one server route, `GET api/standards?toilProject=`.**
-  The server runs toil's own `standards check` in-process (read-only, `caller: toil-ui`) over
-  the items the cache synced, with the items as `text`, so there is no request body limit
-  and no staged file. The answer is kept per Toil project until its `syncedAt` changes; a
-  failure is not kept. A Toil project that never synced answers `{ result: null }`, which the
-  page shows as "not read yet", never as an empty check. Where: `ui/server/standards.ts`.
-- **The sample checks in the page or the sample server with the built-in rules only.**
-  `ui/src/fixtures/standards.ts` runs `checkStandards` over the sample's items with the
-  presets a sample Toil project names; any other name is a warning, never a guess. Only
-  card-payments names rules (`gherkin`, `bug-repro`): sample-team's 84 stories have no
-  bodies, so every one would miss and the card would say nothing useful. PAY-101 and PAY-102's
-  acceptance criteria (`customfield_10500`) are now written as Given/When/Then, and the other
-  Jira items carry the field as `null`, as Jira sends an empty field it was asked for, so
-  "read and empty" is what the check sees.
-- **A rule row counts toward the verdict like any other row.** A thin rule makes the item
-  thin, a failed one blocked, so the Command Center no longer slates an item that misses a
-  rule. `skipped` (not read, or needs an AI agent) is a new row state, a dash worded "Not
-  checked", which never counts either way and stays out of "why not ready". Until the check
-  has been read, a Toil project that names rules shows one "Ticket rules: Not read yet" row.
-  A Toil project that names none shows no rule rows at all, so older Toil projects look as
-  they did.
-- **Rule rows sit under their own "Ticket rules" heading with one (i)**, below the five
-  checks, rather than interleaved, so the five fixed checks read as before and the rules are
-  one step further in. The row's source reads "<toil's source> (ticket rules: <standard>)":
-  the word "standard" stays in toil's names, not in the copy.
-- **"Fix with AI agent" is a small button on a thin or failed rule's row only,** on the
-  item page, not in the Command Center list, so it is where the fix is decided and never on
-  every row. It opens its own short dialog (rule, what toil found, which AI when more than one
-  is ready) rather than the general Assign dialog, since the mode is fixed. With no AI agent
-  ready, the dialog shows the same "Set up an AI agent" notice and link Ask shows, with the
-  adapters' problems folded under "Details for whoever sets it up", and no Fix button.
-- **The queue re-checks the rule before it queues.** `AssignRequest.standard` is
-  `{ standard, rule }` only; the queue resolves it with `ruleFor` (the server's last check, or
-  the sample's) and refuses with 409 when the rule passes, doesn't apply, or was skipped, and
-  with 404 where there is no `ruleFor`. A fix must be `refine`. The assignment keeps the rule's
-  name, text, toil's reason and toil's source (`Assignment.standard`), so a renewal carries it.
-- **The refine-to-rule prompt names where toil read the text.** Besides the rule's name, text
-  and toil's reason, it passes toil's source ("criteria (field customfield_10500
-  (acceptanceCriteria), description)"), so the one proposal rewrites that field, else the
-  description. It asks for exactly one proposal, no estimate or split, invents nothing and
-  turns gaps into QUESTION: lines. `modePromptText('refine')` now appends the rule task with
-  placeholders (`<rule name>`, `<rule text>`), so refine's prompt fingerprint (#305) moved
-  once: refine assignments made before this change will read as stale and can be renewed.
-- **The agent's readiness tools carry the same rule rows.** `AgentData.rules()` reads the
-  server's check, and `readiness_list`'s settings add `ticketRules` and `ticketRulesRead`
-  (`unread`, `read`, `failed`, or null when the Toil project names none).
-- **readiness.ts uses toil's body reader.** `textOf`, `realText`, `wordCount`,
-  `acceptanceInBody`, `lines`, `normalise` and `ADO_ACCEPTANCE_FIELD` come from
-  `src/core/standards/`, and readiness.ts re-exports the ones its tests and callers used. The
-  one behaviour change is toil's 20,000-character cap on what is read of a body.
-  `NOT_SECTIONS` now matches toil's `TOP_LEVEL` (archived, analyze, classify, standards,
-  dimensions, views), so none of those is ever taken for a source.
-- **`standards check` joined `INPUT_FILE_COMMANDS`** (`ui/src/proposal.ts`), since
-  `ui/test/registry.test.ts` holds that list to every command whose input takes `inputFile`.
+- **Verdicts come from the person's AI agent, on a press, never on load.** "Check with AI agent" (the theme's agent mark, a tooltip saying what it does and reads) judges one item on its page or the open items listed on Tickets. It runs the agent chosen under Settings, AI agent, with no tool (as Classify's ask does), at most 60 items a press and 8 to one call, all within the assignments' time limit (`timeLimitMinutes`), one press per Toil project at a time. Items whose verdicts still hold are skipped, so a second press is free. Why 8: every rule on every item gets a careful look and one bad answer costs little; a time-out or failure keeps the batches that finished and says how many are left. Where: `ui/server/standards.ts`, `ui/src/components/check-rules.tsx`.
+- **Each rule and each item is in its own fence.** The judge prompt puts every rule in the `<<<TICKET_RULES … TICKET_RULES>>>` fence a fix already used, and every item in its own `<<<TRACKER_ITEM … TRACKER_ITEM>>>`, with every marker taken out of rule and item text; the system prompt calls both data and says an instruction inside them makes the verdict unsure. The item's text is its title, type, labels, description, and the acceptance criteria field (the toil project's, else Azure DevOps') and Azure DevOps' repro steps, cut at 8,000 characters (`itemText`, `ui/src/rules.ts`). A record with no `body` reads "(not read)", never empty.
+- **Four verdicts, each with a reason and a quote.** met, missed, unsure, na. A quote is looked for in the item's text with whitespace, case, quote marks and list markers aside; one that isn't there turns the verdict into unsure with a note quoting what the agent claimed, as an unseen `[[id]]` citation is flagged. A "met" with no quote is unsure too: nothing on the item was shown to meet the rule. A missed may have no quote, since an absence can't be quoted. Entries for items or rules the agent wasn't asked about are dropped, the first entry for a pair wins, and pairs it left out stay not judged, each counted in a note. Where: `readJudgement`, `ui/src/rules.ts`.
+- **Verdicts are kept in the cache, newest only**, a `rule_verdicts` table (schema 7) keyed on Toil project, item and rule, each record holding the hash of the item's text as the agent read it (superseded below: once the item's `updated`) and the rule's text's hash. A verdict holds only while both match, so an item is judged again only when it or the rule's wording changes; a renamed rule keeps its verdicts. It is kept per Toil project like the worklog (a sync never rewrites it), follows a rename, goes with the Toil project, and is pruned by when it was judged. The sample keeps its own in memory.
+- **Every verdict says it is the agent's reading** (principle 4): the row reads "Missed: <reason> (Claude (sonnet)'s reading, 19 Nov 14:02 UTC)", its source "<agent>'s reading (ticket rules: gherkin)", the quote one press in, and a note Toil UI added stays in view. A rule not judged yet is a dash, "Not judged yet", never a pass, a miss or a zero (principle 12).
+- **Missed makes an item thin; a ticket rule never blocks.** Unsure or not judged makes it "Rules unknown" (the `unread` verdict, plain "Rules not known yet"), counted apart, never Ready. Doesn't apply is a row state of its own (`na`) that counts for nothing. Why never blocked: an AI agent's reading shouldn't take an item off the table; a person decides. So the Blocked figure and the Tickets badge are exact again, and `blockedOpenReading` and its floor are gone.
+- **Tickets' lines count items as the agent judged them**: "**2** items miss <rule names>, 1 unsure, 3 not judged yet", a standard with several rules one line, only a line with a miss a filter button. The `missing` phrases and the "3 of 27 stories" nouns went with the checks: what a rule applies to is no longer known before it is judged.
+- **Fix with AI agent needs a verdict of missed** on the item's current text. `ruleFor` returns the rule's text and its verdict now; the queue refuses met, na, unsure and not judged, each saying so and, for not judged, pointing at Check with AI agent. `AssignedRule` carries the agent's reason, quote and name instead of toil's source; the fixing agent rewrites the place the rule speaks of (the acceptance criteria field when the item has one and the rule is about acceptance criteria, else the description). `quote` and `by` are optional so an older saved assignment still reads. The fix prompt changed, so refine's fingerprint (#305) moved once more.
+- **Sync and judge again**: the press syncs, and once that reading is on screen asks the agent, once per press, to judge the item's rules on its new text (`firstJudging`, `ui/src/assign/recheck.ts`), since the person pressed for exactly that; "now passes" became "✓ <agent> judges <rule> now met." with the readiness verdict after it.
+- **Settings, Ticket rules is a page of its own** (`#/settings/rules`): which sets a Toil project uses (superseded below by "Choosing a Toil project's rule sets is a person's"), each set as a card (yours: Edit and Remove; a built-in or a repository's: Edit a copy), and the editor (description, each rule's name and instructions, Add a rule from a starter or blank, Remove this rule, Save). Rule ids are made from the name, unique within the set, and an existing rule keeps its id. The form's rows share a 9rem label column above 30rem, label above control below it. The sample's Settings read a canned `standards list` with one set of the person's own and refuse every change, as every sample Settings page does.
+- **The sample opens with every state**: card-payments' open items judged by "The sample's scripted agent" an hour before the sample's day, except the last (PAY-107, not judged), with PAY-102's "met" held to unsure because the script quotes a line the item doesn't have; Check with AI agent judges the rest with the same script, through the same `readJudgement`. The script reads each starter's shape off the item; a rule it doesn't know is unsure.
+- **The demo seeds keep their own reading** of the starters (`ruleMisses`, `ui/scripts/demo-week-data.mjs`) to look before they write; the test now holds the seeded data to that reading alone, since there is no deterministic check of toil's to compare it with. The agent's verdicts on the demo are its own, so the demo notes say to check them on a dry run.
+
+- *A note on the review rounds below:* they were made on the deterministic check. Where one speaks of toil's check, a `skipped` rule, "Missing" on a row, toil's reason or source, or "Sync and check again" and "now passes", read the agent's verdict, "Missed", the agent's reason and quote, and Sync and judge again, as above; the rest of each decision stands.
 - **The flow lens is on the Work mix itself: a "Sort by" menu.** The mix is the pure classify
   engine run on the items in the page (`insights-input.ts`), so another built-in scheme's mix
   is one more run with that scheme, writing nothing. `?lens=<scheme>` in the address picks it;
@@ -201,23 +77,7 @@
   "(saved)". Under a lens, a person's ledger answers are left out (they name the saved
   scheme's categories), and a note says it is for this view only and the saved categories are
   unchanged. Settings, Classification stays where the saved choice is made.
-- **The Command Center's card counts open items, as the tally does,** and lists only rules
-  some open item misses or couldn't be checked against; the rest fold into "Every open item
-  meets the other N rules." Each line links to `?rule=<standard>/<rule>`, which narrows the
-  list (on top of its own filters) and shows "Missing: <rule>" with Show every item.
-- **A rule's reason is plain words, and a pattern may carry `labels`.** A `pattern` check takes
-  an optional `labels` list, one plain name per `match` ("a Given line"), held to the same
-  one-line, length and credential checks as other short text; the presets use them. Reasons
-  read "No Given, When or Then line in the acceptance criteria or description.", "Missing a
-  Then line in the acceptance criteria.", "Has Given, When and Then lines.", and for a section
-  "No "Steps to reproduce" section in the description."; a team's unlabelled pattern still
-  quotes its regular expression. Places are named as a person would (the acceptance criteria,
-  the description, the title, a field by its alias, else its id). A place not read is left out
-  of the sentence when another was read, and stays in `source`. `source` leads with the same
-  plain name but keeps the field id in brackets (`acceptance criteria (field
-  customfield_10500)`), because the Fix with AI agent flow and its prompt read the field to
-  rewrite from it. Why: the regexes and field ids were on screen four times in the demo flow,
-  and a product owner reads neither (UX review).
+- *Superseded by the plain-text rework above:* the Command Center's line counting with `missing` phrases and nouns, and a rule's reason built from pattern `labels`.
 - **The UX review's round (Toil UI).** What changed, and why each:
   - *An assignment's proposal leads with the change.* `ProposalCard` gained an apply form
     (`lead`): the field table, then Apply, then the reason, with the command, the shell toggle
@@ -442,7 +302,7 @@
     prompt's style rule tells the agent to say a gap in the tickets' words ("the tickets don't say
     why"), never in terms of the cache.
 
-- **A rule may name what's missing** (`missing`, a short phrase such as "no Given/When/Then criteria"), so a count reads "3 of 27 stories: no Given/When/Then criteria" instead of building grammar from the rule's name. Where: `src/core/standards/types.ts`, `read.ts`, `builtin.ts`.
+- *Superseded:* a rule's `missing` phrase is gone with the checks; a line names the rules instead.
 - **Flow calls any other story a Feature** (rule `story`, last). Why: on the demo week, without it, 63% of finished work read as unsure, since most stories carry no label; the Flow Framework counts new user-facing work as a feature. Last in order, so a story labelled security, bug or tech-debt keeps that category. Where: `src/core/classify/builtin.ts`.
 
 ## Crate's polish and the motion helpers
@@ -472,13 +332,36 @@
 
 ## Review round: rules as data, unread rules, the regex guard
 
-- **The regex guard refuses repeats that can trade characters**, not only nested ones (the maintainer's choice). Two quantified atoms that vary in length and whose characters may overlap are refused when nothing between them only one could match: a repeat that may match nothing (`\s*`, `x?`) doesn't separate them, so `\w+\s*\w+` is refused (decided: written `\w+\s+\w+` it reads), and nor does a required character an *unbounded* repeat before it can also match, so `.*a.*b` is refused too. That last case goes a step past "adjacent": it measured 11 s on 4,000 a's, the same synchronous freeze, and refusing it costs one line. Bounded repeats (`[^,]{1,80}`) drop out at a required atom, so the built-in user-story pattern still reads (5 ms on adversarial text). Characters are compared coarsely and towards refusing: letters in both cases (the guard never sees the flags), beyond ASCII as two lumps (spaces, so `\s*\S+` reads, and the rest), a negated class complemented before folding, a group as every character in it. Also fixed: `[]` and `[^]` now close at once as JavaScript reads them; the old walker read `[]|)(a+)+b` as one class and let the exponential group through. Where: `src/core/standards/read.ts`, `docs/bounds.md` (`standards.read`), `skills/toil/standards.md`.
+- *Superseded:* the regex guard is gone with the patterns; nothing in a standard runs.
 - **Every rule is fenced as data in a fix's prompt, not only a repository's.** The assignment (`AssignedRule`, `ui/src/assign/model.ts`) doesn't carry where its standard lived, and threading it through would touch the queue; a rule that describes a ticket loses nothing by being read as a description. The rules sit between `<<<TICKET_RULES` and `TICKET_RULES>>>`, after the task, which names the fence and calls it data; every fence's markers are taken out of rule and item text alike, and a rule that asks for anything but text is an `INJECTION:` line. Where: `ui/server/assign/prompts.ts`.
 - **A repository standard that takes a built-in's name is set aside, with a warning**, rather than kept beside it: two standards answering to "gherkin" would need a second name everywhere a rule is addressed (`?rule=gherkin/scenarios`, an assignment's rule), and refusing is one check. The built-in is used and `STANDARD_SHADOWS_BUILTIN` names the file and suggests `team-<name>`. Your own folder may still replace a built-in, as your config replaces a default; a file named by path keeps its own name, since it was named on purpose. Where: `src/core/standards/catalog.ts`.
-- **"Rules not read yet" is a fourth verdict, `unread`**, after blocked and thin: an item whose other checks pass while a ticket rule the toil project names wasn't checked on it is neither ready nor slated. It covers rules not read, a failed read, a read with no result for the item (an empty result still means no rule applies), and a rule toil skipped (a field not in the record, a `judge` rule); the last means an item with a `judge` rule is never Ready until an agent reads it, which follows from principle 12. A skipped row now sits in `why`, after the misses. Where: `ui/src/model/readiness.ts`, `ui/server/agents/tools.ts`.
-- **The Blocked figure says whether it is exact** (`blockedOpenReading`): a floor while any open item has a Ticket rules row, since a rule could still fail an item. Where: `ui/src/model/readiness.ts`.
+- *Superseded by the plain-text rework above:* `unread` now means a rule not judged yet or judged unsure ("Rules unknown").
+- *Superseded by the plain-text rework above:* a rule never blocks now, so the Blocked figure is always exact.
 - **toil's rule warnings ride on the reading** (`RulesReading.warnings`), in toil's words, as well as on `RulesView`; the readiness tools return them as `ticketRuleWarnings`. Where: `ui/src/rules.ts`, `ui/src/model/readiness.ts`.
-- **The server keys its kept check on the sync and the toil project's `standards`**, read with `projects show`, rather than dropping it on a Settings write: the CLI can change `standards` too. A sync of no items answers a check of nothing itself (toil's command refuses an empty input, a guard for a pipe that lost its items), with no standards listed since none ran. Where: `ui/server/standards.ts`.
+- *Superseded by the plain-text rework above:* there is no check to keep; verdicts are kept per item and rule in the cache.
 - **A view transition's update waits one task, not two frames**: Chrome holds `requestAnimationFrame` back inside the update callback, so a drill-in froze for the transition's 4 s timeout (measured 4,040 ms in headless Chrome; 50 ms after, the whole transition about 395 ms). The fallback without View Transitions keeps its two frames. Where: `ui/src/motion.ts`.
 - **A due date ends with its day**: overdue and the plan use the end of the due date (UTC, like every date here), and what waits on an item starts when that item's due day ends. Where: `ui/src/model/gantt.ts` (`dueEnd`).
 - **Motion gets a fourth level, "Full, no effects", for a theme with particles**, where Crate starts (its particles default off), so the select never says Full while the effects are off and picking Full turns them on. Where: `ui/src/motion.ts` (`motionLevel`, `motionLevels`, `setMotionLevel`), `ui/src/views/settings/Motion.tsx`.
+
+## The review round on plain-text rules (2026-11-20)
+
+The maintainer's decisions, applied:
+
+- **"Doesn't apply" with no evidence counts as unknown for readiness**, like unsure or not judged, never as neutral, so it never helps an item reach Ready. The verdict itself is kept and shown as the agent's word, with a tag "Counts as unknown: no evidence" and the sentence one press in. Evidence is a quote Toil UI verified in the item's own words, or a quote that is exactly the item's type or one of its labels (`quoteNamesTag`); the default taken where unsure is the simplest reading, no verified quote means unknown, so a quote too short or not found leaves a "doesn't apply" without evidence. The judge prompt asks for that evidence, and the sample's script names the item's type. Tickets' lines count such a verdict as unsure, as readiness does. Where: `countsAs` in `ui/src/model/readiness.ts`, `readJudgement` and `ruleLines` in `ui/src/rules.ts`, `ui/server/assign/prompts.ts`.
+- **An agent judging its own fix is accepted as is.** Sync and judge again asks the person's agent to judge the rules on the item it may just have rewritten; nothing changes for that, since a person presses for it, reads the verdict as the agent's reading, and decides.
+- **Choosing a Toil project's rule sets is a person's.** `toil projects standards set` is `cli-only` and in `PERSON_COMMANDS` (`src/api.ts`), so MCP never serves it and the API runs it only for a `person`, which is how Toil UI's Settings (`CONFIG_COMMANDS`) runs it, as `standards save` and `remove` are. Its `offMcpWhen` refusal of `--clear` is gone, since nothing that refused is left to serve: a person may clear the list from Settings, where **No rule sets** and **Use no rule sets** send `--clear`. The `STANDARDS_NONE` warning an agent reads now says a person names the rules, in Settings or their own terminal. CLAUDE.md principle 2 records it.
+- **The other conventions stay**: a missed rule stays thin and never blocks, and `standards save` keeps create-or-replace with no `--replace`.
+
+Defaults chosen for the code, screen and docs findings:
+
+- **One press per Toil project claims its slot before the first await**, with `judge()` holding it in a `try/finally` around the rest; while the press reads its rules the slot's `by` reads "Your AI agent", replaced by the agent's label once known.
+- **A quote supports a verdict only at three words or fifteen characters** after normalising (`MIN_QUOTE_WORDS`, `MIN_QUOTE_CHARS`), the review's example taken as is. A too-short quote is dropped with a note: a "met" becomes unsure, a "missed" keeps its verdict (an absence needs no quote), and a "doesn't apply" is left without evidence. The type-or-label exception applies to "doesn't apply" only.
+- **Quotes are checked against the item's own words only** (`itemEvidence`): its title, labels, description and field values, each part apart so a quote can't run from one into the next, never the labels `itemText` writes around them. The agent still reads `itemText`. A quote is verified in full and cut to 300 characters only for display.
+- **A verdict is keyed on the hash of the item's text alone**, never `updated`, which stays put when a description or an acceptance field is read later. Cached verdicts keyed on `updated` no longer match and read as not judged yet, once.
+- **A press stops between batches** when cancelled or at the time limit, and a press whose signal was aborted before it began judges nothing; both say how many items are left.
+- **`removeOwn` removes the named entry**, after validating what it points at: a link `a.json` → `b.json` removes `a.json` and leaves `b.json`. The test is skipped on Windows, where a file symlink needs a privilege, and says so in its name.
+- **`toilProjectFor` takes the command to name in its fix**, `toil classify` by default, `toil standards list` from standards.
+- **Settings, Ticket rules leads with the rule set picker**, titled "Rules a Toil project uses"; the library is a closed "Your rule sets" disclosure in one panel, with New set of rules at its top and each set a section in it, so each set shows once at the first level. A failed read of the Toil projects or of one Toil project keeps a failed state with toil's message and fix, and a thrown call is caught, never "Reading …" for ever. No Toil project offers **Create a Toil project** (`#/settings/projects/+new`). "No rule sets" is a checkbox beside the sets, checked when none is chosen, and Save reads **Use no rule sets** then. A set's card shows **Yours** or **Built in** (a repository's or a file's keep their words) with the revision in the badge's tooltip. Edit, Remove, Remove this rule and Cancel are framed secondary buttons; Add a rule and Remove this rule start at the control column. The Instructions hint is one line above the rules, the "Edit a copy" explainer an (i) beside "Editing X". A new rule's id follows its name until the set is saved; a saved rule keeps its id.
+- **The item page's rule rows** lead with missed, unsure and not-judged rows, and fold met and doesn't-apply (with evidence) rows into one line ("2 rules met · 3 rules don't apply"), as the passing checks fold. A row keeps "(X's reading, date)" inline and its source becomes "From <set>" in plain type one press in. A tag on the row ("Kept as unsure: quote not found", "quote too short", "no quote", "Counts as unknown: no evidence") stands for the note, whose sentence is one press in. The panel's (i) is plain words with Read more.
+- **On Tickets, the agent's results are "readings"** everywhere on screen and "Verdict" stays the code-worked column; the card's footer sentence became an "AI agent's reading" badge beside the heading, the sentence in the heading's (i); "Why not ready" keeps the checks' figure ("1 check missed", "Checks pass") with a badge for the rules ("1 rule missed", "Rules unknown"). After a press the status is a compact figure ("Judged 1 · 5 unchanged · 2 left") with the sentence in its title; with no agent, or one that can't run, **Choose an AI agent** opens Settings, AI agent.
+- **The Summary's badge reads "Worked out by code"**, its tooltip "Worked out by code, no AI", so it can't be read as covering the ticket rules.

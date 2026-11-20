@@ -119,7 +119,7 @@ describe('Settings, Usage, the AI agent half', () => {
   it('sits on the Usage page, under the audit summary, and totals the sample month by day, AI agent, model and Toil project with the meter\'s figures', async () => {
     const { container } = await open('#/settings/usage');
     const nav = screen.getByRole('navigation', { name: 'Settings pages' });
-    expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(['General', 'Connections', 'Toil projects', 'Appearance', 'Usage', 'AI agent']);
+    expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(['General', 'Connections', 'Toil projects', 'Ticket rules', 'Appearance', 'Usage', 'AI agent']);
     await screen.findByRole('heading', { name: 'What your AI agent used' });
     // The AI agent's tables and the Codex rates are behind the page's one More detail.
     expect(container.querySelector('[data-usage-more]')!.querySelectorAll('summary')[0]!.textContent).toBe('More detail');

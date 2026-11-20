@@ -31,7 +31,7 @@ describe("an item's possible duplicates (#657, round 4)", () => {
 describe("the Ready to start? page's Blocked card (#657, round 4)", () => {
   it('says what it counts, waiting on another item first', async () => {
     await open('#/project/card-payments/command-center');
-    await waitFor(() => expect(document.body.textContent).toContain('Waiting on another item, done already, outside the Toil project, or failing a ticket rule.'));
+    await waitFor(() => expect(document.body.textContent).toContain('Waiting on another item, done already, or outside the Toil project.'));
   });
 });
 

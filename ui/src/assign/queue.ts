@@ -56,7 +56,7 @@ import {
 } from './model.ts';
 import { staleness, type Fingerprint, type Staleness } from '../fingerprint.ts';
 import { sourceLabel } from '../format.ts';
-import { fixable, RULE_REF, type RuleFound } from '../rules.ts';
+import { RULE_REF, type RuleFound } from '../rules.ts';
 
 /** The most rules of one standard one fix may name: more than any built-in standard has, few enough to read in one prompt. */
 const MAX_FIX_RULES = 12;
@@ -158,9 +158,9 @@ export interface QueueOptions {
   /** Runs one proposal's toil command through the write gate, for this assignment. */
   apply(assignment: Assignment, proposal: Proposal): Promise<Envelope>;
   /**
-   * One ticket rule on one item, as toil checks it now (#657): what "Fix with
-   * AI agent" is held to before it queues. Null when the rule doesn't apply.
-   * Absent, a fix is refused.
+   * One ticket rule on one item, with the AI agent's verdict on it now (#657):
+   * what "Fix with AI agent" is held to before it queues. Null when the toil
+   * project doesn't name the rule. Absent, a fix is refused.
    */
   ruleFor?(toilProject: string, item: string, standard: string, rule: string): Promise<RuleFound | null>;
   settings(): AssignSettings;
@@ -484,21 +484,24 @@ export class AssignmentQueue {
   }
 
   /**
-   * The ticket rules a fix is asked to meet (#657), as toil checks them now. One rule is refused when it doesn't apply
-   * to the item, already passes, or couldn't be read, since there is then nothing for an agent to fix; of several, the
-   * ones the item still misses are kept, and the request is refused only when none is left.
+   * The ticket rules a fix is asked to meet (#657), as the AI agent judged them on the item's current text. One rule is
+   * refused unless it was judged missed, since otherwise there is nothing known to fix: met, doesn't apply, unsure, or
+   * not judged yet. Of several, the ones judged missed are kept, and the request is refused only when none is left.
    */
   private async rulesToFix(toilProject: string, item: WorkItem, ref: NonNullable<AssignRequest['standard']>): Promise<AssignedRule[]> {
     const ids = ruleIds(ref)!;
-    if (!this.o.ruleFor) throw new AssignError("This Toil UI can't check ticket rules, so it can't ask for a fix to one.", 'Start toil-ui with its cache, or with --sample for the sample.', 404);
+    if (!this.o.ruleFor) throw new AssignError("This Toil UI can't read ticket rules, so it can't ask for a fix to one.", 'Start toil-ui with its cache, or with --sample for the sample.', 404);
     const found = await Promise.all(ids.map((id) => this.o.ruleFor!(toilProject, item.id, ref.standard, id)));
-    const missed = found.filter((f): f is RuleFound => f !== null && fixable(f.state));
-    if (missed.length > 0) return missed.map((f) => ({ standard: f.standard, rule: f.rule, name: f.name, text: f.text, reason: f.reason, source: f.source }));
-    if (ids.length > 1) throw new AssignError(`${item.source.key} no longer misses any of those ${ids.length} ticket rules of ${ref.standard}, so there is nothing to fix.`, 'Sync again if the item changed; its rows say what each rule found.', 409);
+    const missed = found.filter((f): f is RuleFound & { verdict: NonNullable<RuleFound['verdict']> } => f !== null && f.verdict?.verdict === 'missed');
+    if (missed.length > 0) return missed.map((f) => ({ standard: f.standard, rule: f.rule, name: f.name, text: f.text, reason: f.verdict.reason, quote: f.verdict.quote, by: f.verdict.by }));
+    const judgeFirst = 'Press Check with AI agent on the item first; only a rule judged missed on its current text can be fixed.';
+    if (ids.length > 1) throw new AssignError(`None of those ${ids.length} ticket rules of ${ref.standard} is judged missed on ${item.source.key}'s current text, so there is nothing known to fix.`, judgeFirst, 409);
     const one = found[0];
-    if (!one) throw new AssignError(`The ticket rule ${ref.standard}/${ids[0]} doesn't apply to ${item.source.key}, so there is nothing to fix.`, 'Open the item again: its rows list the rules that apply to it.', 409);
-    if (one.state === 'pass') throw new AssignError(`${item.source.key} already meets "${one.name}", so there is nothing to fix.`, 'Sync again if the item changed; its rows say what each rule found.', 409);
-    throw new AssignError(`toil couldn't check "${one.name}" on ${item.source.key}: ${one.reason}`, 'Only a rule the item misses can be fixed.', 409);
+    if (!one) throw new AssignError(`${ref.standard}/${ids[0]} isn't one of this Toil project's ticket rules, so there is nothing to fix.`, 'Open the item again: its rows list the rules the Toil project names.', 409);
+    if (!one.verdict) throw new AssignError(`"${one.name}" isn't judged on ${item.source.key}'s current text yet, so nothing is known to be missing.`, judgeFirst, 409);
+    if (one.verdict.verdict === 'met') throw new AssignError(`${one.verdict.by} judged that ${item.source.key} already meets "${one.name}", so there is nothing to fix.`, 'Sync again if the item changed, then check it with your AI agent again.', 409);
+    if (one.verdict.verdict === 'na') throw new AssignError(`${one.verdict.by} judged that "${one.name}" doesn't apply to ${item.source.key}, so there is nothing to fix.`, 'Edit the rule under Settings, Ticket rules if it should apply.', 409);
+    throw new AssignError(`${one.verdict.by} was unsure whether ${item.source.key} meets "${one.name}": ${one.verdict.reason}`, 'Only a rule judged missed can be fixed: read the item and the rule, and edit either if it is unclear.', 409);
   }
 
   /** Refuses an adapter that can't run here, or can't take this mode. */

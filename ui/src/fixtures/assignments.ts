@@ -108,12 +108,10 @@ const WORKED: Record<string, { text: string[]; question: string; said: string }>
   },
 };
 
-/** Where toil read a rule's text, leaving out what it couldn't read ("description; not read: field …" read the description). */
-const readFrom = (source: string) => source.split(/;?\s*not read:/)[0]!;
 
 /**
  * The sample's canned "Fix with AI agent" (#657): one rewrite of the place
- * toil read, meeting every rule it was given (one, or a standard's "Fix all"),
+ * the rule speaks of, meeting every rule it was given (one, or a standard's "Fix all"),
  * and at most one question for what the item doesn't say. A real run writes
  * from the item; this one shows the shape, and a worked answer for PAY-103.
  * `criteriaField` is the Toil project's acceptance criteria field, where a
@@ -121,9 +119,8 @@ const readFrom = (source: string) => source.split(/;?\s*not read:/)[0]!;
  */
 export function ruleFix(toilProject: string, item: WorkItem, rules: readonly AssignedRule[], criteriaField: string | null = null): { proposal: Proposal; questions: string[]; said: string } {
   const r = rules[0]!;
-  const read = readFrom(r.source);
-  // toil names a field it read ("field customfield_10500 (acceptanceCriteria)"), or says it read the acceptance criteria: the fix goes there.
-  const field = /\bfield ([^\s(),;]+)/.exec(read)?.[1] ?? (/criteria/i.test(read) ? criteriaField : null);
+  // A rule about acceptance criteria (gherkin's) is fixed in the Toil project's acceptance criteria field where it names one; the rest in the description.
+  const field = r.standard === 'gherkin' ? criteriaField : null;
   const key = item.source.key;
   const worked = r.standard === 'gherkin' ? WORKED[key] : undefined;
   const bug = r.standard === 'bug-repro';

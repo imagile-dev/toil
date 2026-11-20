@@ -75,7 +75,7 @@ export interface Data {
   sync?: () => void;
   /** The classification ledger (#566), where the app can read one; absent in a view rendered on its own. */
   classification?: ClassificationState;
-  /** The ticket rules (#657) for the toil project on screen, as toil checked them; absent in a view rendered on its own, where a toil project that names rules shows them as not read yet. */
+  /** The ticket rules (#657) for the toil project on screen and the AI agent's verdicts, with the press that asks for more; absent in a view rendered on its own, where a toil project that names rules shows them as not read yet. */
   rules?: RulesState;
   /** The worklog (#308), which the Summary's stand-up card reads through; absent where nothing keeps one. */
   worklog?: WorklogApi;

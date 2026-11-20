@@ -1095,11 +1095,14 @@ describe('the readiness tools (#307)', () => {
     expect(((await tool(tools('checkout-web', new Ledger()), 'readiness_get').run({ id: 'nope' })) as { error: string }).error).toBe('The cache holds no item "nope" in checkout-web. Use readiness_list or owi_query to find ids.');
   });
 
-  it('carries the ticket rules as toil checked them (#657): a story that misses one is thin, and its row says why', async () => {
+  it("carries the ticket rules as the AI agent judged them (#657): a story judged to miss one is thin, and its row says why and whose reading it is", async () => {
     const rules = fixtureStandards(fixture.execute);
-    const data = { ...of('card-payments'), rules: async () => readingOf(await rules.check('card-payments')) };
-    const r = (await tool(readinessTools('card-payments', data, new Ledger(), toilProjectReader(fixture.execute, 'card-payments')), 'readiness_get').run({ id: 'corp-jira:PAY-107' })) as VerdictBrief & { rows: Array<{ check: string; state: string; reason: string }> };
+    const data = { ...of('card-payments'), rules: async () => readingOf(await rules.read('card-payments')) };
+    const r = (await tool(readinessTools('card-payments', data, new Ledger(), toilProjectReader(fixture.execute, 'card-payments')), 'readiness_get').run({ id: 'corp-jira:PAY-103' })) as VerdictBrief & { rows: Array<{ check: string; state: string; reason: string; judgedBy?: string }> };
     expect(r.rows.map((x) => [x.check, x.state])).toContainEqual(['Acceptance criteria as Given/When/Then', 'thin']);
+    expect(r.rows.find((x) => x.check === 'Acceptance criteria as Given/When/Then')!.judgedBy).toBe("The sample's scripted agent");
+    const unjudged = (await tool(readinessTools('card-payments', data, new Ledger(), toilProjectReader(fixture.execute, 'card-payments')), 'readiness_get').run({ id: 'corp-jira:PAY-107' })) as VerdictBrief & { rows: Array<{ check: string; state: string; reason: string }> };
+    expect(unjudged.rows).toContainEqual(expect.objectContaining({ check: 'Acceptance criteria as Given/When/Then', state: 'skipped', reason: 'Not judged yet.' }));
     expect(r.notReadyBecause.map((w) => w.check)).toContain('Acceptance criteria as Given/When/Then');
     const ok = (await tool(readinessTools('card-payments', data, new Ledger(), toilProjectReader(fixture.execute, 'card-payments')), 'readiness_get').run({ id: 'corp-jira:PAY-101' })) as VerdictBrief & { rows: Array<{ check: string; state: string }> };
     expect(ok.rows.map((x) => [x.check, x.state])).toContainEqual(['Acceptance criteria as Given/When/Then', 'pass']);

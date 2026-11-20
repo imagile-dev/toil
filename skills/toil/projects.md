@@ -200,8 +200,10 @@ The request it sent was
   only, and a value already set needs `--replace`.
 - **`standards`**: the ticket rules its work items are held to, in order: `{ "use": ["gherkin",
   "./rules/team.json"] }`. It names standards (`standards.md`) and holds no connection, host or
-  `writes`. Set it with `toil projects standards set <toil-project> --use <name|./file.json>`;
-  a different list needs `--replace`, and `--clear` removes it, on the CLI only.
+  `writes`. A person sets it with `toil projects standards set <toil-project> --use <name|./file.json>`
+  in their own terminal, or in Toil UI's Settings, Ticket rules; a different list needs `--replace`,
+  and `--clear` removes it. It is a person's command, never served over MCP, since the rules
+  are what an AI agent's work is judged by.
 
 ## Where toil projects live
 

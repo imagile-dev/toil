@@ -127,8 +127,8 @@ export interface UiServerOptions {
   assignments?: AssignmentControl;
   /** Sorting work into categories (#566): `api/classify/*`, every step through toil's own commands (ui/server/classify.ts). */
   classify?: ClassifyBackend;
-  /** Ticket rules (#657): `api/standards`, toil's own `standards check` over the cache (ui/server/standards.ts), or the sample's. */
-  standards?: RulesApi;
+  /** Ticket rules (#657): `api/standards`, the rules toil lists for a Toil project and the AI agent's verdicts (ui/server/standards.ts), or the sample's. */
+  standards?: Pick<RulesApi, 'read'> & { judge(toilProject: string, request: { items: string[] }, signal?: AbortSignal): ReturnType<RulesApi['judge']> };
   /** The Board's drop (`api/board/move`): the move a person made, applied through toil's own command behind the connection's `writes`, or the sample's refusal of it. */
   board?: BoardBackend;
   /**
@@ -708,14 +708,26 @@ export function createUiServer(options: UiServerOptions): UiServer {
     }
   };
 
-  /** `GET api/standards?toilProject=<name>` (#657): the ticket rules checked over the Toil project's synced items, read-only. */
-  const standardsCall = async (res: ServerResponse, url: URL) => {
+  /**
+   * `GET api/standards?toilProject=<name>` (#657): the ticket rules the Toil project names and the verdicts that still
+   * hold, read-only. `POST api/standards/judge` with `{ toilProject, items }`: the person's AI agent judges those items,
+   * on their press, and the answer is the view after it. The page names items by id and never sends a rule or a prompt.
+   */
+  const standardsCall = async (key: string, req: IncomingMessage, res: ServerResponse, url: URL, ctx: RequestContext) => {
     const service = options.standards;
-    if (!service) throw new HttpError(404, 'This Toil UI checks no ticket rules.', 'Start toil-ui with its cache, or with --sample for the sample.');
-    const toilProject = url.searchParams.get('toilProject');
-    if (!toilProject || !TOIL_PROJECT_NAME.test(toilProject)) throw new HttpError(400, 'Name the Toil project by its name.', 'Ask api/standards?toilProject=<name>.');
+    if (!service) throw new HttpError(404, 'This Toil UI reads no ticket rules.', 'Start toil-ui with its cache, or with --sample for the sample.');
     try {
-      json(res, 200, await service.check(toilProject));
+      if (key === 'GET standards') {
+        const toilProject = url.searchParams.get('toilProject');
+        if (!toilProject || !TOIL_PROJECT_NAME.test(toilProject)) throw new HttpError(400, 'Name the Toil project by its name.', 'Ask api/standards?toilProject=<name>.');
+        json(res, 200, await service.read(toilProject));
+        return;
+      }
+      const shape = 'Send { "toilProject": "<name>", "items": ["<owi id>", …] }.';
+      const body = await readJson(req);
+      if (typeof body.toilProject !== 'string' || !TOIL_PROJECT_NAME.test(body.toilProject)) throw new HttpError(400, 'Name the Toil project by its name.', shape);
+      if (!Array.isArray(body.items)) throw new HttpError(400, 'items is a list of OWI ids.', shape);
+      json(res, 200, await service.judge(body.toilProject, { items: body.items as string[] }, ctx.signal));
     } catch (e) {
       if (e instanceof StandardsRefusal) throw new HttpError(e.status, e.message, e.fix);
       throw e;
@@ -724,7 +736,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
 
   const api = async (req: IncomingMessage, res: ServerResponse, route: string, url: URL, ctx: RequestContext) => {
     const key = `${req.method === 'HEAD' ? 'GET' : req.method} ${route}`;
-    if (key === 'GET standards') return standardsCall(res, url);
+    if (key === 'GET standards' || key === 'POST standards/judge') return standardsCall(key, req, res, url, ctx);
     if (key === 'POST agent/mcp') return mcpCall(req, res, ctx);
     if (await assignmentRoute(key, req, res, url, options.assignments, { readJson, json, headers: SECURITY_HEADERS })) return;
     if (/^(GET|POST) classify\//.test(key)) return classifyCall(key, req, res, url, ctx);

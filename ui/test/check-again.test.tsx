@@ -11,14 +11,14 @@ import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureAssignments } from '../src/fixtures/assignments.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import { fixtureStandards } from '../src/fixtures/standards.ts';
-import type { RulesApi } from '../src/rules.ts';
+import { fixtureStandards, SAMPLE_JUDGE } from '../src/fixtures/standards.ts';
+import type { RuleVerdict, RulesApi, RulesView } from '../src/rules.ts';
 import { resetBrowserState } from './views-kit.tsx';
 
 /**
- * Sync and check again (#657, round 4): an applied fix's card syncs the Toil
- * project and checks the rule on what that sync read, and says nothing about
- * the rule until a reading newer than the press is on screen.
+ * Sync and judge again (#657, round 4): an applied fix's card syncs the Toil
+ * project, then asks the AI agent to judge the rule on what that sync read,
+ * once, and says nothing about the rule until that verdict is on screen.
  */
 
 beforeEach(() => {
@@ -44,41 +44,57 @@ async function appliedFix(): Promise<{ api: AssignmentsApi; id: string }> {
   return { api: { ...real, get: async (id) => (id === a.id ? structuredClone(done) : real.get(id)) }, id: a.id };
 }
 
-/** The sample's rule check, with PAY-103's Given/When/Then rule passing once `passes` is set. */
-function rulesThatPass(): { api: RulesApi; pass: () => void } {
+/**
+ * The sample's rules, where the sync after an Apply changes PAY-103 (so its verdicts no longer hold) and the agent then
+ * judges it met, or still missed: what a real Sync and judge again sees.
+ */
+function rulesAfterSync(outcome: 'met' | 'missed'): { api: RulesApi; synced: () => void; judged: () => number } {
   const base = fixtureStandards();
-  let passes = false;
+  let changed = false;
+  let again: RuleVerdict[] | null = null;
+  let presses = 0;
+  const read = async (p: string): Promise<RulesView> => {
+    const v = structuredClone(await base.read(p));
+    if (changed) v.verdicts[ITEM] = again ?? [];
+    if (changed && !again) delete v.verdicts[ITEM];
+    return v;
+  };
   return {
-    pass: () => void (passes = true),
+    synced: () => void (changed = true),
+    judged: () => presses,
     api: {
-      check: async (p) => {
-        const v = structuredClone(await base.check(p));
-        if (passes && v.result) for (const i of v.result.items) if (i.id === ITEM) for (const r of i.results) if (r.standard === 'gherkin') Object.assign(r, { state: 'pass', reason: 'Every scenario has Given, When and Then.' });
-        return v;
+      read,
+      judge: async (p, request) => {
+        presses++;
+        if (changed && request.items.includes(ITEM)) {
+          const was = (await base.read(p)).verdicts[ITEM]!;
+          again = was.map((v) => (v.standard === 'gherkin' ? { ...v, verdict: outcome, reason: outcome === 'met' ? 'Every scenario has Given, When and Then.' : 'Still no Then line.', quote: outcome === 'met' ? 'Given a customer with a saved card token' : null, at: '2026-10-13T10:00:00.000Z' } : v));
+        }
+        return { view: await read(p), judged: 1, current: 0, left: 0, by: SAMPLE_JUDGE, notes: [] };
       },
     },
   };
 }
 
-describe('Sync and check again (#657, round 4)', () => {
-  it('syncs, then says the rule now passes from the new reading, and nothing before it', async () => {
+describe('Sync and judge again (#657, round 4)', () => {
+  it("syncs, then asks the agent to judge the item's new text once, and says the rule is now met, as its reading", async () => {
     const { api, id } = await appliedFix();
-    const rules = rulesThatPass();
+    const rules = rulesAfterSync('met');
     let syncs = 0;
     window.location.hash = `#/project/card-payments/assignment/${id}`;
     const props = { execute: fixtureExecute().execute, agent: scriptedAgent(), config: fixtureConfig(), preview: true, assignments: api, rules: rules.api, onSync: () => void syncs++ };
     const view = render(<App {...props} now={FIXTURE_NOW} />);
-    const button = await screen.findByRole('button', { name: 'Sync and check again' }, { timeout: 4000 });
+    const button = await screen.findByRole('button', { name: 'Sync and judge again' }, { timeout: 4000 });
     const box = button.closest<HTMLElement>('[data-check-again]')!;
     expect(box.querySelector('[data-again]')).toBeNull();
     await userEvent.click(button);
     expect(syncs).toBe(1);
     // Until a newer reading is on screen, it says only that it is syncing.
-    expect(box.textContent).toContain('Syncing, then checking the rule again.');
+    expect(box.textContent).toContain('Syncing, then your AI agent judges the rule again.');
     expect(box.querySelector('[data-again]')).toBeNull();
 
-    // The sync finishes: the app is given a later reading, on which the rule passes.
-    rules.pass();
+    // The sync finishes: the app is given a later reading, on which the item changed and its verdict no longer holds.
+    rules.synced();
     const later = new Date(Date.parse(FIXTURE_NOW) + 3_600_000).toISOString();
     await act(async () => view.rerender(<App {...props} now={later} />));
     // The result is beside the button, in the status line, with the readiness verdict on the same reading (round 5).
@@ -90,7 +106,9 @@ describe('Sync and check again (#657, round 4)', () => {
     expect(line.getAttribute('role')).toBe('status');
     expect(line.closest('.cluster, [class*="cluster"]')?.contains(document.querySelector('[data-check-again] button'))).toBe(true);
     // The sample's PAY-103 still waits on a blocker, so the verdict says that rather than "ready to start".
-    expect(line.textContent).toBe("\u2713 Acceptance criteria as Given/When/Then now passes. PAY-103 is blocked, so it isn't ready to start: Blockers, Acceptance criteria, Description.");
+    expect(line.textContent).toBe("\u2713 The sample's scripted agent judges Acceptance criteria as Given/When/Then now met. PAY-103 is blocked, so it isn't ready to start: Blockers, Acceptance criteria, Description.");
+    // One press, one judgement.
+    expect(rules.judged()).toBe(1);
     expect(document.querySelector('[data-check-again] [data-again]')).toBeNull();
     expect(document.querySelector('[data-check-again]')!.textContent).toMatch(/Read /);
   });
@@ -98,9 +116,11 @@ describe('Sync and check again (#657, round 4)', () => {
   it('says what is still missing when the new reading still misses the rule', async () => {
     const { api, id } = await appliedFix();
     window.location.hash = `#/project/card-payments/assignment/${id}`;
-    const props = { execute: fixtureExecute().execute, agent: scriptedAgent(), config: fixtureConfig(), preview: true, assignments: api, rules: fixtureStandards(), onSync: () => undefined };
+    const rules = rulesAfterSync('missed');
+    const props = { execute: fixtureExecute().execute, agent: scriptedAgent(), config: fixtureConfig(), preview: true, assignments: api, rules: rules.api, onSync: () => undefined };
     const view = render(<App {...props} now={FIXTURE_NOW} />);
-    await userEvent.click(await screen.findByRole('button', { name: 'Sync and check again' }, { timeout: 4000 }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Sync and judge again' }, { timeout: 4000 }));
+    rules.synced();
     const later = new Date(Date.parse(FIXTURE_NOW) + 3_600_000).toISOString();
     await act(async () => view.rerender(<App {...props} now={later} />));
     const line = await waitFor(() => {
@@ -109,7 +129,7 @@ describe('Sync and check again (#657, round 4)', () => {
       return el;
     });
     expect(line.getAttribute('data-again')).toBe('missing');
-    expect(line.textContent).toMatch(/^Acceptance criteria as Given\/When\/Then: still missing: /);
+    expect(line.textContent).toBe("Acceptance criteria as Given/When/Then: still missed: Still no Then line (The sample's scripted agent's reading)");
   });
 
   it("isn't offered where nothing can sync", async () => {
@@ -117,7 +137,7 @@ describe('Sync and check again (#657, round 4)', () => {
     window.location.hash = `#/project/card-payments/assignment/${id}`;
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} preview now={FIXTURE_NOW} assignments={api} rules={fixtureStandards()} />);
     await screen.findByRole('article', { name: /Proposal:/ }, { timeout: 4000 });
-    expect(screen.queryByRole('button', { name: 'Sync and check again' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sync and judge again' })).toBeNull();
   });
 
   it('turns the questions into a quiet line once every change is applied, with nothing to ask for (round 5)', async () => {

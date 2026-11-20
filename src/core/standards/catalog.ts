@@ -4,10 +4,11 @@
  * first, as a file the call named, in your own folder (`~/.toil/standards/`),
  * in the repository's `.toil/standards/`, beside the toil project that names it
  * (`./rules.json`), or built in, with the same path rules schemes have
- * (docs/bounds.md, `standards.read`). toil only reads standards: a team writes
- * its own file by hand and checks it in, so there is no write here to bound.
- * Every file is read under the reader's caps before any rule runs, which is the
- * closest thing to a change advisory board a regular expression will ever meet.
+ * (docs/bounds.md, `standards.read`). toil writes only your own folder: `toil
+ * standards save` and `remove`, a person's commands (`standards.write` and
+ * `standards.replace`); a team's shared file is written by hand and checked in.
+ * Every file is read under the reader's caps before anything uses it, which is
+ * as close to a change advisory board as a sentence of plain English gets.
  */
 import type { Warning } from '../envelope.js';
 import { createFileCatalog, type FileCatalogOptions, type Found } from '../file-catalog.js';
@@ -37,7 +38,7 @@ function builtinKept(found: ResolvedStandard): ResolvedStandard {
   };
 }
 
-/** The largest standard file toil reads: a standard is a few rules, and every check reads each one it uses. */
+/** The largest standard file toil reads: a standard is a few rules, and every judgement sends each one it uses. */
 export const MAX_STANDARD_BYTES = 256 * 1024;
 
 /** A standard as resolved, with what was worth saying about reading it. */
@@ -59,6 +60,14 @@ export interface StandardCatalog {
   list(cwd?: string): { standards: ResolvedStandard[]; warnings: Warning[] };
   /** Your own folder, `~/.toil/standards`, and the repository's `.toil/standards` when `cwd` is in one. */
   places(cwd?: string): { user: string; repo?: string };
+  /** Where your own standard named `name` lives. */
+  userFile(name: string): string;
+  /** Reads one standard file a call named, inside the bounds; a file with no `name` takes `defaultName`. */
+  readFile(path: string, cwd?: string, defaultName?: string): ResolvedStandard;
+  /** Writes your own standard, validated, to `~/.toil/standards/<name>.json`: `create` refuses a file that is there, `replace` replaces only a valid standard. */
+  saveOwn(standard: Standard, mode: 'create' | 'replace'): string;
+  /** Deletes your own standard called `name`, only when the file is a valid standard in your folder; NOT_FOUND when there is none. */
+  removeOwn(name: string): string;
 }
 
 export function createStandardCatalog(o: FileCatalogOptions): StandardCatalog {
@@ -78,6 +87,7 @@ export function createStandardCatalog(o: FileCatalogOptions): StandardCatalog {
       builtinNames: BUILTIN_STANDARD_NAMES,
       builtin: builtinStandard,
       holds: 'A standard holds a name, a description and its rules; move anything else out of it.',
+      createHint: (name) => `toil standards save ${name} --input-file <file> creates one.`,
       outsideFix: 'Move it into the workspace, into ~/.toil/standards, or into the repository\'s .toil/standards, or pass the standard by name.',
       flag: '--standard <file>',
     },
@@ -98,5 +108,12 @@ export function createStandardCatalog(o: FileCatalogOptions): StandardCatalog {
       return { standards, warnings };
     },
     places: files.places,
+    userFile: files.userFile,
+    readFile: (path, cwd, defaultName) => {
+      const f = files.readFile(path, cwd, defaultName);
+      return { standard: f.value, source: f.source, ...(f.file !== undefined ? { file: f.file } : {}), warnings: f.warnings };
+    },
+    saveOwn: (standard, mode) => files.save(files.userFile(standard.name), standard, mode),
+    removeOwn: files.removeOwn,
   };
 }
